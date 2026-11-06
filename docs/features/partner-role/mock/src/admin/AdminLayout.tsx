@@ -39,7 +39,6 @@ import { AppCredits } from '@/components/app';
 import { AgentPage, AgentRedirect } from './AgentPage';
 import { useMockEdition } from '../mock/edition';
 import { AuditPage } from './AuditPage';
-import { PartnerPage } from './PartnerPage';
 import { MembersPage } from './MembersPage';
 import { QuickRepliesPage } from './QuickRepliesPage';
 import { SettingsPage } from './SettingsPage';
@@ -256,8 +255,6 @@ export function AdminLayout() {
             <Route path="members" element={<MembersPage />} />
             <Route path="members/ai" element={<AgentRedirect />} />
             <Route path="members/ai/:agentId" element={<AgentPage />} />
-            {/* Proposed (partner-role): one outside partner and the chats shared with them. */}
-            <Route path="members/partner/:userId" element={<PartnerPage />} />
             <Route path="quick-replies" element={<QuickRepliesPage />} />
             <Route path="whatsapp" element={<WhatsAppPage />} />
             <Route path="inboxes" element={<InboxesPage />} />

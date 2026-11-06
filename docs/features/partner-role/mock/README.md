@@ -1,29 +1,27 @@
-# Partner role: interactive app proposal
+# Limited chat access: interactive app proposal
 
 A clone of the owner-confirmed **google-drive** reference (the whole app, revision `442b6317`, with the confirmed
-**sql-accounting** mock `e33aabbd` merged in) plus the **partner-role** proposal: an admin adds an outside **Partner**
-(for example an outsourced agent) who sees **only the direct chats and groups the admin shares**. Scope, enforcement and
-open questions: [../design.md](../design.md).
+**sql-accounting** mock `e33aabbd` merged in) plus the **limited chat access** proposal (folder name `partner-role`):
+an admin sets an agent's **Chats this member can see** to **Only chosen chats** and picks the direct chats and groups;
+inside them the agent works like any agent. Scope, enforcement and open questions: [../design.md](../design.md).
 
 ```bash
 npx tsx --conditions=ezychat-source docs/features/partner-role/mock/run.ts --fake-wa
-node docs/features/partner-role/mock/partner-shots.mjs   # PW_CHROMIUM=<chromium> if needed; fresh mock
+node docs/features/partner-role/mock/member-chats-shots.mjs   # PW_CHROMIUM=<chromium> if needed
 ```
 
 Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`):
 
-1. **Admin → Members**: Ravi Kumar and Sofia Tan with the **Partner** role; Add member → Role: Partner + company.
-2. Click **Ravi Kumar**: the chats he can see (whole history, no end date), Share a chat, Stop sharing, what
-   partners can and cannot do, What changed; the dashed **Mock only** box shows a long list.
-3. Open any chat → **Share** in the header: who has it, add a partner, stop sharing.
-4. Sign out, sign in as `ravi`: only the 3 shared chats, a partner banner, no Notes (internal notes are never shown to
-   partners) or Share, assign to self only, Group info with names only; open another chat's link, or stop sharing it
-   as admin while it is open → **No longer shared**.
-   `sofia` has nothing shared yet.
+1. **Admin → Members**: Ravi Kumar ("Only 3 chosen chats") and Sofia Tan ("No chats chosen").
+2. **Edit** Ravi: Chats this member can see → Only chosen chats, remove with ×, add from the search, Save. Edit Daniel
+   to see the default (All chats).
+3. Sign out, sign in as `ravi`: only Priya Nair, Jason Lim and Kopi Lovers Club; notes, customer details and group
+   numbers as for any agent; Group info has no Open chat / Message; another chat's link shows **You can't open this
+   chat**. `sofia` sees **No chats yet**.
 
-Partners are real `agent` users marked by the stand-in routes `/api/mock/partner-role*` (`partner-role.ts`), because the
-server under the mock does not know the new role yet. Everything below is the inherited google-drive README; every
-inherited flow still works.
+The choice is kept by the stand-in routes `/api/mock/member-chats*` (`member-chats.ts`), because the server under the
+mock does not know `chat_scope` yet. Everything below is the inherited google-drive README; every inherited flow still
+works.
 
 ---
 

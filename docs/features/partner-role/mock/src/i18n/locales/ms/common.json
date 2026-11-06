@@ -37,8 +37,7 @@
   },
   "roles": {
     "admin": "Pentadbir",
-    "agent": "Ejen",
-    "partner": "Rakan kongsi"
+    "agent": "Ejen"
   },
   "theme": {
     "label": "Penampilan",

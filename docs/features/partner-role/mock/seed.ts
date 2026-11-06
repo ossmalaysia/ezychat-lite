@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../../../../packages/server/src/context.js';
 import { createInboxSendPort } from '../../../../packages/server/src/mcp/send.js';
 import { seedGroups } from './groups.js';
-import { seedPartners } from './partner-role.js';
+import { seedMemberChats } from './member-chats.js';
 
 /** Fictional data through the existing services and API, never a real linked WhatsApp account. */
 export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -159,15 +159,12 @@ export async function seedDemo(app: FastifyInstance, ctx: AppContext): Promise<v
   await seedBooking(ctx, call);
   // Proposed (ai-groups): three groups where the agent answers when tagged or quoted (or stays off).
   await seedGroups(ctx, call);
-  // Proposed (partner-role): two outside partners; Ravi has three shared chats, Sofia none yet.
-  const partners = [
-    { username: 'ravi', displayName: 'Ravi Kumar', company: 'BrightDesk Outsourcing' },
-    { username: 'sofia', displayName: 'Sofia Tan', company: 'CallPro Services' },
-  ].map(({ company, ...user }) => ({
-    id: auth.createUser({ ...user, role: 'agent', password, mustChangePassword: false }).id,
-    company,
-  }));
-  seedPartners(users[0]!.id, partners);
+  // Proposed (limited chat access): two agents limited to chosen chats (Ravi 3, Sofia none yet).
+  const [ravi, sofia] = [
+    { username: 'ravi', displayName: 'Ravi Kumar' },
+    { username: 'sofia', displayName: 'Sofia Tan' },
+  ].map((user) => auth.createUser({ ...user, role: 'agent', password, mustChangePassword: false }));
+  seedMemberChats(ravi!.id, sofia!.id);
 }
 
 /**

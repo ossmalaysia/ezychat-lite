@@ -37,8 +37,7 @@
   },
   "roles": {
     "admin": "管理员",
-    "agent": "客服",
-    "partner": "合作伙伴"
+    "agent": "客服"
   },
   "theme": {
     "label": "外观",

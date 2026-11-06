@@ -2369,107 +2369,34 @@
       }
     }
   },
-  "partner": {
-    "members": {
-      "chats_one": "{{count}} sembang dikongsi",
-      "chats_other": "{{count}} sembang dikongsi"
+  "limitedChats": {
+    "label": "Sembang yang ahli ini boleh lihat",
+    "all": {
+      "title": "Semua sembang",
+      "hint": "Setiap sembang dalam peti masuk yang boleh mereka buka, seperti sekarang."
     },
-    "invite": {
-      "roleHint": "Seseorang di luar pasukan anda, contohnya ejen luar. Mereka hanya melihat sembang yang anda kongsi.",
-      "agentHint": "Ahli pasukan anda sendiri. Melihat setiap sembang dalam peti masuk yang anda berikan.",
-      "adminHint": "Melihat dan mengubah semuanya, termasuk tetapan.",
-      "company": "Syarikat rakan kongsi (pilihan)",
-      "companyHint": "Ditunjukkan di sebelah nama mereka, supaya pasukan tahu mereka bekerja untuk siapa.",
-      "roleFixed": "Rakan kongsi kekal rakan kongsi. Untuk memberi seseorang seluruh peti masuk, tambah mereka semula sebagai ejen."
+    "chosen": {
+      "title": "Hanya sembang yang dipilih",
+      "hint": "Hanya sembang terus dan kumpulan yang anda pilih di bawah. Gunakan untuk ejen luar atau ejen sokongan."
     },
-    "page": {
-      "noCompany": "Rakan kongsi (tiada syarikat)",
-      "chatsTitle": "Sembang yang {{name}} boleh lihat",
-      "chatsBody": "EzyChat hanya menunjukkan sembang ini kepada rakan kongsi ini, dengan seluruh sejarahnya. Henti berkongsi satu dan ia hilang dari skrin mereka serta-merta.",
-      "add": "Kongsi sembang",
-      "emptyTitle": "Belum ada sembang dikongsi",
-      "emptyBody": "{{name}} boleh log masuk tetapi tidak melihat sebarang sembang sehingga anda berkongsi. Kongsi dari sini atau dari sembang itu sendiri.",
-      "searchLabel": "Cari sembang dikongsi",
-      "searchPlaceholder": "Cari mengikut nama",
-      "count_one": "{{shown}} daripada {{count}} sembang",
-      "count_other": "{{shown}} daripada {{count}} sembang",
-      "sharedOn": "Dikongsi {{date}}",
-      "open": "Buka {{name}}",
-      "remove": "Henti berkongsi {{name}}",
-      "showMore": "Tunjuk {{count}} lagi",
-      "removeTitle": "Henti berkongsi {{chat}}?",
-      "removeBody": "{{name}} tidak lagi boleh membuka sembang ini. Apa yang telah mereka hantar kekal dalam sembang.",
-      "removeConfirm": "Henti berkongsi",
-      "addTitle": "Kongsi sembang dengan {{name}}",
-      "addBody": "Pilih sembang terus atau kumpulan. Rakan kongsi membaca seluruh sejarahnya dan boleh membalas.",
-      "pickLabel": "Sembang",
-      "pickPlaceholder": "Cari sembang",
-      "pickNone": "Tiada sembang lain untuk dikongsi."
-    },
-    "share": {
-      "header": "Kongsi",
-      "headerLabel_one": "Kongsi dengan rakan kongsi ({{count}} rakan kongsi)",
-      "headerLabel_other": "Kongsi dengan rakan kongsi ({{count}} rakan kongsi)",
-      "title": "Kongsi dengan rakan kongsi",
-      "description": "Rakan kongsi hanya melihat sembang yang anda kongsi, dengan seluruh sejarahnya. Mereka boleh membaca dan membalas di sini sehingga anda berhenti berkongsi.",
-      "sharedWith": "Dikongsi dengan",
-      "removeFor": "Henti berkongsi dengan {{name}}",
-      "removed": "Berhenti berkongsi dengan {{name}}",
-      "partnerLabel": "Rakan kongsi",
-      "submit": "Kongsi",
-      "done": "Dikongsi dengan {{name}}",
-      "noPartnersTitle": "Belum ada rakan kongsi",
-      "noPartnersBody": "Tambah rakan kongsi dalam Ahli dahulu (pilih peranan Rakan kongsi).",
-      "invite": "Pergi ke Ahli",
-      "allShared": "Setiap rakan kongsi sudah mempunyai sembang ini.",
-      "whatDirect": "Rakan kongsi melihat nama pelanggan dan seluruh sembang, tetapi bukan nombor telefon mereka, nota dalaman anda atau sembang lain.",
-      "whatGroup": "Rakan kongsi melihat seluruh sembang kumpulan dan nama ahli, tetapi bukan nombor telefon ahli atau nota dalaman anda."
-    },
-    "can": {
-      "title": "Apa yang rakan kongsi boleh buat",
-      "body": "Sama untuk setiap rakan kongsi. Hanya dalam sembang yang anda kongsi.",
-      "yes": {
-        "read": "Membaca sembang serta foto, fail dan nota suaranya",
-        "reply": "Membalas, menghantar fail dan nota suara, memberi reaksi",
-        "suggest": "Menggunakan cadangan balasan dan Betulkan Bahasa Inggeris",
-        "takeOver": "Mengambil alih sembang daripada ejen AI",
-        "assignSelf": "Menugaskan sembang dikongsi kepada diri sendiri"
-      },
-      "no": {
-        "newChats": "Memulakan sembang baharu atau menghantar mesej terus kepada ahli kumpulan",
-        "otherChats": "Melihat atau mencari sembang yang tidak anda kongsi",
-        "notes": "Melihat nota dalaman pasukan anda",
-        "numbers": "Melihat nombor telefon ahli kumpulan",
-        "admin": "Membuka Pentadbir: ahli, tetapan, laporan, penyambung, ejen AI",
-        "askEzy": "Menggunakan Ask Ezy, akses pembantu AI (MCP) atau Hantar maklum balas",
-        "export": "Memuat turun log atau mengeksport data"
-      }
-    },
-    "activity": {
-      "title": "Apa yang berubah",
-      "body": "Siapa berkongsi atau berhenti berkongsi, dan bila. Tidak sekali-kali mesej.",
-      "empty": "Belum ada apa-apa.",
-      "partner_invited": "{{by}} menambah {{partner}} sebagai rakan kongsi",
-      "chat_share_added": "{{by}} berkongsi {{chat}}",
-      "chat_share_removed": "{{by}} berhenti berkongsi {{chat}}"
-    },
+    "count_one": "{{count}} sembang dipilih",
+    "count_other": "{{count}} sembang dipilih",
+    "none": "Belum ada sembang dipilih: ahli ini tidak melihat sebarang sembang sehingga anda menambahnya.",
+    "chosenLabel": "Sembang dipilih",
+    "remove": "Buang {{name}}",
+    "add": "Tambah {{name}}",
+    "addLabel": "Tambah sembang",
+    "addPlaceholder": "Cari sembang dan kumpulan",
+    "noMatch": "Tiada sembang lain yang sepadan.",
+    "note_zero": "Tiada sembang dipilih",
+    "note_one": "Hanya {{count}} sembang dipilih",
+    "note_other": "Hanya {{count}} sembang dipilih",
     "view": {
-      "bannerTitle": "Akses rakan kongsi · {{company}}",
-      "bannerBody_one": "Anda melihat {{count}} sembang yang dikongsi oleh pasukan.",
-      "bannerBody_other": "Anda melihat {{count}} sembang yang dikongsi oleh pasukan.",
-      "emptyTitle": "Belum ada sembang dikongsi dengan anda",
-      "emptyBody": "Pasukan akan berkongsi sembang dengan anda. Ia muncul di sini sebaik sahaja dikongsi.",
-      "notSharedTitle": "Tidak lagi dikongsi",
-      "notSharedBody": "Sembang ini tidak lagi dikongsi dengan anda. Tanya pasukan jika anda masih memerlukannya."
-    },
-    "group": {
-      "namesOnly": "Nombor tidak ditunjukkan",
-      "noChatForPartner": "Rakan kongsi hanya melihat nama ahli. Untuk bercakap dengan orang ini, tanya pasukan."
-    },
-    "mock": {
-      "longList": "Tunjuk senarai panjang (40 sembang)",
-      "shortList": "Kembali ke senarai sebenar",
-      "signIn": "Log keluar dan log masuk sebagai ravi (rakan kongsi dengan 3 sembang) atau sofia (belum ada sembang), kata laluan demo-pass-123, untuk melihat skrin rakan kongsi. Henti berkongsi sembang semasa ravi membukanya untuk melihat \"Tidak lagi dikongsi\"."
+      "emptyTitle": "Belum ada sembang",
+      "emptyBody": "Pentadbir belum memberi anda sebarang sembang. Ia muncul di sini sebaik sahaja ditambah.",
+      "notChosenTitle": "Anda tidak boleh membuka sembang ini",
+      "notChosenBody": "Sembang ini bukan salah satu sembang anda. Tanya pentadbir jika anda memerlukannya.",
+      "noMemberChat": "Anda hanya boleh membuka sembang yang dipilih oleh pentadbir untuk anda."
     }
   }
 }

@@ -83,12 +83,9 @@ import { InboxChip } from '../inbox/InboxChip';
 import { useAiMember } from '../api/ai';
 import { connectionReady } from './ai-status';
 import { agentPill, type AgentPill } from './AgentPage';
-// Proposed (partner-role): outside partners who see only the chats shared with them.
-import { useMarkPartner, usePartnerRows, type PartnerRow } from '../mock/partnerRole';
-
-/** Member id → partner row (mock: partners are `agent` users marked by the stand-in route). */
-const PartnerRows = createContext<ReadonlyMap<number, PartnerRow>>(new Map());
-type RoleChoice = Role | 'partner';
+// Proposed (limited chat access): "Chats this member can see" (All chats / Only chosen chats).
+import { MemberChatsField } from './MemberChatsField';
+import { useMemberChats, useSaveMemberChats, type ChosenChat } from '../mock/memberChats';
 
 /** Synthetic member id → mock agent, for the AI rows of the table. */
 const AgentRows = createContext<ReadonlyMap<number, MockAgent>>(new Map());
@@ -98,7 +95,7 @@ const agentPath = (agent: MockAgent | undefined) =>
 export function MembersPage() {
   const users = useUsers();
   const { user: me } = useAuth();
-  const { t, i18n } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation('admin');
   const [dialog, setDialog] = useState<Dialog>(null);
   const [search, setSearch] = useState('');
   const close = () => setDialog(null);
@@ -119,11 +116,10 @@ export function MembersPage() {
   const canAddAgent = shownAgents.length < maxAgents(lite, inboxes.length);
   const presetOf = (u: User) => t(`mockAgents.preset.${agentRows.get(u.id)?.preset ?? 'sales'}`);
 
-  const partnerRows = new Map(usePartnerRows().map((p) => [p.userId, p]));
   const all = [...(users.data ?? []).filter((u) => u.kind !== 'ai'), ...agentUsers];
   const query = search.trim().toLocaleLowerCase();
   const list = all.filter((u) =>
-    `${u.displayName} ${u.username} ${partnerRows.has(u.id) ? `${t('common:roles.partner')} ${partnerRows.get(u.id)!.company}` : u.role} ${u.kind === 'ai' ? `${t('mockAgents.members.aiBadge')} ${presetOf(u)} ${inboxes.find((i) => i.id === agentRows.get(u.id)?.inboxId)?.name ?? ''}` : ''}`
+    `${u.displayName} ${u.username} ${u.role} ${u.kind === 'ai' ? `${t('mockAgents.members.aiBadge')} ${presetOf(u)} ${inboxes.find((i) => i.id === agentRows.get(u.id)?.inboxId)?.name ?? ''}` : ''}`
       .toLocaleLowerCase()
       .includes(query),
   );
@@ -142,8 +138,8 @@ export function MembersPage() {
           <AiBadge />
         ) : (
           <span className="flex flex-col items-start gap-1">
-            <RoleBadge role={partnerRows.has(u.id) ? 'partner' : u.role} />
-            {lite && partnerRows.has(u.id) && <MemberInboxCell user={u} />}
+            <RoleBadge role={u.role} />
+            <ChosenChatsNote user={u} />
           </span>
         ),
     },
@@ -181,144 +177,139 @@ export function MembersPage() {
 
   return (
     <AgentRows.Provider value={agentRows}>
-      <PartnerRows.Provider value={partnerRows}>
-        <div>
-          <div className="mb-4">
-            <EditionSwitch />
-          </div>
-          <PageHeader
-            title={t('members.title')}
-            description={t('ai.membersDescription')}
-            actions={
-              <>
-                {!users.isPending && !users.isError && canAddAgent && (
-                  <Button asChild variant="outline" size="touch" className="md:min-h-9">
-                    <Link to="/admin/members/ai/new">
-                      <Bot aria-hidden />
-                      {t('mockAgents.members.add')}
-                    </Link>
-                  </Button>
-                )}
-                <Button
-                  size="touch"
-                  className="md:min-h-9"
-                  onClick={() => setDialog({ kind: 'create' })}
-                >
-                  <UserPlus aria-hidden />
-                  {t('members.add')}
+      <div>
+        <div className="mb-4">
+          <EditionSwitch />
+        </div>
+        <PageHeader
+          title={t('members.title')}
+          description={t('ai.membersDescription')}
+          actions={
+            <>
+              {!users.isPending && !users.isError && canAddAgent && (
+                <Button asChild variant="outline" size="touch" className="md:min-h-9">
+                  <Link to="/admin/members/ai/new">
+                    <Bot aria-hidden />
+                    {t('mockAgents.members.add')}
+                  </Link>
                 </Button>
-              </>
-            }
+              )}
+              <Button
+                size="touch"
+                className="md:min-h-9"
+                onClick={() => setDialog({ kind: 'create' })}
+              >
+                <UserPlus aria-hidden />
+                {t('members.add')}
+              </Button>
+            </>
+          }
+        />
+        {/* Proposed (custom-agents): why Add AI agent is missing (every inbox has its agent). */}
+        {!users.isPending && !users.isError && !canAddAgent && !lite && (
+          <p className="mb-4 text-sm text-muted-foreground" data-testid="agent-limit-hint">
+            {t('mockAgents.members.limitHint')}
+          </p>
+        )}
+        {/* Proposed (upgrade-enterprise): Lite has one AI agent; the note hides itself in Enterprise. */}
+        {!users.isPending && !users.isError && lite && (
+          <UpgradeNote className="mb-4" reason="agents" />
+        )}
+
+        <div className="mb-4 space-y-2">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            label={t('members.searchLabel')}
+            placeholder={t('members.searchPlaceholder')}
           />
-          {/* Proposed (custom-agents): why Add AI agent is missing (every inbox has its agent). */}
-          {!users.isPending && !users.isError && !canAddAgent && !lite && (
-            <p className="mb-4 text-sm text-muted-foreground" data-testid="agent-limit-hint">
-              {t('mockAgents.members.limitHint')}
+          {!users.isPending && !users.isError && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t('members.count', { shown: list.length, count: all.length })}
             </p>
           )}
-          {/* Proposed (upgrade-enterprise): Lite has one AI agent; the note hides itself in Enterprise. */}
-          {!users.isPending && !users.isError && lite && (
-            <UpgradeNote className="mb-4" reason="agents" />
-          )}
-
-          <div className="mb-4 space-y-2">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              label={t('members.searchLabel')}
-              placeholder={t('members.searchPlaceholder')}
-            />
-            {!users.isPending && !users.isError && (
-              <p role="status" className="text-sm text-muted-foreground">
-                {t('members.count', { shown: list.length, count: all.length })}
-              </p>
-            )}
-          </div>
-          {users.isPending ? (
-            <ListSkeleton />
-          ) : users.isError ? (
-            <ErrorState error={users.error} onRetry={() => void users.refetch()} />
-          ) : (
-            <ResponsiveTable
-              rows={list}
-              columns={columns}
-              rowKey={(u) => u.id}
-              renderMobileRow={(u) => (
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <MemberIdentity user={u} isMe={u.id === me?.id} />
-                    <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 pl-11">
-                    {u.kind === 'ai' ? (
-                      <AiBadge />
-                    ) : (
-                      <RoleBadge role={partnerRows.has(u.id) ? 'partner' : u.role} />
-                    )}
-                    <StatusBadges user={u} />
-                  </div>
-                  {(!lite || partnerRows.has(u.id)) && (
-                    <div className="pl-11">
-                      <MemberInboxCell user={u} />
-                    </div>
-                  )}
-                  <p className="pl-11 text-xs text-muted-foreground">
-                    <Trans
-                      t={t}
-                      i18nKey="members.added"
-                      values={{ date: formatDate(u.createdAt, i18n.language) }}
-                      components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
-                    />
-                  </p>
-                </div>
-              )}
-              empty={
-                query ? (
-                  <EmptyState
-                    title={t('members.empty.noMatchTitle')}
-                    description={t('members.empty.noMatchBody')}
-                    action={
-                      <Button variant="outline" size="touch" onClick={() => setSearch('')}>
-                        {t('members.empty.clearSearch')}
-                      </Button>
-                    }
-                  />
-                ) : (
-                  <EmptyState
-                    title={t('members.empty.noneTitle')}
-                    description={t('members.empty.noneBody')}
-                  />
-                )
-              }
-            />
-          )}
-
-          {dialog?.kind === 'create' && (
-            <CreateMemberDialog
-              onClose={close}
-              onCreated={(name) => {
-                close();
-                toast.success(t('members.create.done', { name }));
-              }}
-            />
-          )}
-          {dialog?.kind === 'edit' && (
-            <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
-          )}
-          {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
-          {dialog?.kind === 'revoke' && (
-            <RevokeSessionsDialog
-              user={dialog.user}
-              onClose={close}
-              onDone={() => {
-                close();
-                toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
-              }}
-            />
-          )}
-          {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
         </div>
-      </PartnerRows.Provider>
+        {users.isPending ? (
+          <ListSkeleton />
+        ) : users.isError ? (
+          <ErrorState error={users.error} onRetry={() => void users.refetch()} />
+        ) : (
+          <ResponsiveTable
+            rows={list}
+            columns={columns}
+            rowKey={(u) => u.id}
+            renderMobileRow={(u) => (
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <MemberIdentity user={u} isMe={u.id === me?.id} />
+                  <RowActions user={u} isMe={u.id === me?.id} onAction={setDialog} compact />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pl-11">
+                  {u.kind === 'ai' ? <AiBadge /> : <RoleBadge role={u.role} />}
+                  <StatusBadges user={u} />
+                  {u.kind !== 'ai' && <ChosenChatsNote user={u} />}
+                </div>
+                {!lite && (
+                  <div className="pl-11">
+                    <MemberInboxCell user={u} />
+                  </div>
+                )}
+                <p className="pl-11 text-xs text-muted-foreground">
+                  <Trans
+                    t={t}
+                    i18nKey="members.added"
+                    values={{ date: formatDate(u.createdAt, i18n.language) }}
+                    components={{ time: <time dateTime={new Date(u.createdAt).toISOString()} /> }}
+                  />
+                </p>
+              </div>
+            )}
+            empty={
+              query ? (
+                <EmptyState
+                  title={t('members.empty.noMatchTitle')}
+                  description={t('members.empty.noMatchBody')}
+                  action={
+                    <Button variant="outline" size="touch" onClick={() => setSearch('')}>
+                      {t('members.empty.clearSearch')}
+                    </Button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  title={t('members.empty.noneTitle')}
+                  description={t('members.empty.noneBody')}
+                />
+              )
+            }
+          />
+        )}
+
+        {dialog?.kind === 'create' && (
+          <CreateMemberDialog
+            onClose={close}
+            onCreated={(name) => {
+              close();
+              toast.success(t('members.create.done', { name }));
+            }}
+          />
+        )}
+        {dialog?.kind === 'edit' && (
+          <EditMemberDialog user={dialog.user} isMe={dialog.user.id === me?.id} onClose={close} />
+        )}
+        {dialog?.kind === 'reset' && <ResetPasswordDialog user={dialog.user} onClose={close} />}
+        {dialog?.kind === 'revoke' && (
+          <RevokeSessionsDialog
+            user={dialog.user}
+            onClose={close}
+            onDone={() => {
+              close();
+              toast.success(t('members.revoke.done', { name: dialog.user.displayName }));
+            }}
+          />
+        )}
+        {dialog?.kind === 'disable' && <DisableMemberDialog user={dialog.user} onClose={close} />}
+      </div>
     </AgentRows.Provider>
   );
 }
@@ -327,19 +318,8 @@ export function MembersPage() {
 function MemberInboxCell({ user }: Readonly<{ user: User }>) {
   const { t } = useTranslation('admin');
   const agent = useContext(AgentRows).get(user.id);
-  const partner = useContext(PartnerRows).get(user.id);
   const { inboxes } = useMockInboxes();
-  // Proposed (partner-role): a partner has no inbox access, only shared chats.
-  if (partner)
-    return (
-      <Link
-        to={`/admin/members/partner/${user.id}`}
-        className="inline-flex items-center text-sm text-primary underline-offset-4 hover:underline pointer-coarse:min-h-11"
-      >
-        {t('partner.members.chats', { count: partner.shares.length })}
-      </Link>
-    );
-  if (user.kind !== 'ai') return <InboxAccessCell user={user} />;
+  if (user.kind !== 'ai') return <HumanInboxCell user={user} />;
   if (inboxes.length < 2) return <span className="text-sm text-muted-foreground">—</span>;
   const inbox = inboxes.find((i) => i.id === agent?.inboxId);
   return inbox ? (
@@ -421,7 +401,6 @@ function AgentStatusBadge({ agent }: Readonly<{ agent: MockAgent }>) {
 function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
   const { t } = useTranslation('admin');
   const agent = useContext(AgentRows).get(user.id);
-  const partner = useContext(PartnerRows).get(user.id);
   return (
     <div className="flex min-w-0 items-center gap-3">
       <Avatar className="size-8 shrink-0">
@@ -438,13 +417,6 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
             >
               {user.displayName}
             </Link>
-          ) : partner ? (
-            <Link
-              to={`/admin/members/partner/${user.id}`}
-              className="inline-flex items-center underline-offset-4 hover:underline pointer-coarse:min-h-11"
-            >
-              {user.displayName}
-            </Link>
           ) : (
             user.displayName
           )}
@@ -455,23 +427,35 @@ function MemberIdentity({ user, isMe }: { user: User; isMe: boolean }) {
           )}
         </p>
         <p className="truncate text-sm text-muted-foreground">
-          {user.kind === 'ai' ? (
-            <AgentSubtitle agent={agent} />
-          ) : partner ? (
-            [`@${user.username}`, partner.company].filter(Boolean).join(' · ')
-          ) : (
-            `@${user.username}`
-          )}
+          {user.kind === 'ai' ? <AgentSubtitle agent={agent} /> : `@${user.username}`}
         </p>
       </div>
     </div>
   );
 }
 
-function RoleBadge({ role }: { role: RoleChoice }) {
+/** Proposed (limited chat access): "Only 3 chosen chats" under an agent limited to chosen chats. */
+function ChosenChatsNote({ user }: { user: User }) {
+  const { t } = useTranslation('admin');
+  const m = useMemberChats(user.id);
+  if (user.role !== 'agent' || m.scope !== 'chosen') return null;
+  return (
+    <span className="text-xs text-warning" data-testid="chosen-chats-note">
+      {t('limitedChats.note', { count: m.chats.length })}
+    </span>
+  );
+}
+
+/** Inbox access does not apply while an agent sees only chosen chats (the chosen chats decide). */
+function HumanInboxCell({ user }: { user: User }) {
+  const m = useMemberChats(user.id);
+  if (user.role === 'agent' && m.scope === 'chosen')
+    return <span className="text-sm text-muted-foreground">—</span>;
+  return <InboxAccessCell user={user} />;
+}
+
+function RoleBadge({ role }: { role: Role }) {
   const { t } = useTranslation();
-  if (role === 'partner')
-    return <Badge className="bg-warning/15 text-warning">{t('roles.partner')}</Badge>;
   return role === 'admin' ? (
     <Badge className="bg-info/15 text-info">{t('roles.admin')}</Badge>
   ) : (
@@ -600,25 +584,22 @@ function RowActions({
   );
 }
 
-function RoleSelect<R extends RoleChoice>({
+function RoleSelect({
   value,
   onChange,
   disabled,
   hint,
-  withPartner = false,
 }: {
-  value: R;
-  onChange: (r: R) => void;
+  value: Role;
+  onChange: (r: Role) => void;
   disabled?: boolean;
   hint?: React.ReactNode;
-  /** Proposed (partner-role): the invite form offers Partner (a role chosen only when inviting). */
-  withPartner?: boolean;
 }) {
   const { t } = useTranslation(['admin', 'common']);
   return (
     <Field label={t('members.form.role')} hint={hint}>
       {(p) => (
-        <Select value={value} onValueChange={(v) => onChange(v as R)} disabled={disabled}>
+        <Select value={value} onValueChange={(v) => onChange(v as Role)} disabled={disabled}>
           <SelectTrigger {...p} className="min-h-11 w-full md:min-h-9">
             <SelectValue />
           </SelectTrigger>
@@ -629,11 +610,6 @@ function RoleSelect<R extends RoleChoice>({
             <SelectItem value="admin" className="min-h-11 md:min-h-8">
               {t('common:roles.admin')}
             </SelectItem>
-            {withPartner && (
-              <SelectItem value="partner" className="min-h-11 md:min-h-8">
-                {t('common:roles.partner')}
-              </SelectItem>
-            )}
           </SelectContent>
         </Select>
       )}
@@ -683,9 +659,7 @@ function CreateMemberDialog({
   const { t } = useTranslation(['admin', 'common']);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [role, setRole] = useState<RoleChoice>('agent');
-  const [company, setCompany] = useState('');
-  const markPartner = useMarkPartner();
+  const [role, setRole] = useState<Role>('agent');
   const secureGeneration = canGeneratePassword();
   const [password, setPassword] = useState(() => generatePassword());
   const [localError, setLocalError] = useState<string | null>(null);
@@ -701,21 +675,9 @@ function CreateMemberDialog({
       setLocalError(t('members.form.passTooShort'));
       return;
     }
-    // Mock: a partner is created as an agent, then marked (production: role 'partner' in one call).
     create.mutate(
-      {
-        username: username.trim(),
-        displayName: displayName.trim(),
-        role: role === 'partner' ? 'agent' : role,
-        password,
-      },
-      {
-        onSuccess: (created) => {
-          if (role === 'partner' && created && typeof created === 'object' && 'id' in created)
-            markPartner.mutate({ userId: (created as User).id, company: company.trim() });
-          onCreated(displayName.trim() || username.trim());
-        },
-      },
+      { username: username.trim(), displayName: displayName.trim(), role, password },
+      { onSuccess: () => onCreated(displayName.trim() || username.trim()) },
     );
   };
 
@@ -764,31 +726,7 @@ function CreateMemberDialog({
             />
           )}
         </Field>
-        <RoleSelect
-          value={role}
-          onChange={setRole}
-          withPartner
-          hint={
-            role === 'partner'
-              ? t('partner.invite.roleHint')
-              : role === 'agent'
-                ? t('partner.invite.agentHint')
-                : t('partner.invite.adminHint')
-          }
-        />
-        {role === 'partner' && (
-          <Field label={t('partner.invite.company')} hint={t('partner.invite.companyHint')}>
-            {(p) => (
-              <Input
-                {...p}
-                className="h-11 md:h-9"
-                value={company}
-                maxLength={80}
-                onChange={(e) => setCompany(e.target.value)}
-              />
-            )}
-          </Field>
-        )}
+        <RoleSelect value={role} onChange={setRole} />
         <Field
           label={t('members.form.tempPass')}
           hint={
@@ -842,7 +780,11 @@ function EditMemberDialog({
   const { t } = useTranslation(['admin', 'common']);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [role, setRole] = useState<Role>(user.role);
-  const isPartner = useContext(PartnerRows).has(user.id);
+  const saved = useMemberChats(user.id);
+  const saveChats = useSaveMemberChats();
+  const [chatScope, setChatScope] = useState<{ scope: 'all' | 'chosen'; chats: ChosenChat[] }>(
+    () => ({ scope: saved.scope, chats: saved.chats }),
+  );
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -850,7 +792,22 @@ function EditMemberDialog({
     if (displayName.trim() && displayName.trim() !== user.displayName)
       body.displayName = displayName.trim();
     if (role !== user.role) body.role = role;
-    if (Object.keys(body).length === 0) return onClose();
+    // Mock: saved by the stand-in route (production: PUT /api/users/:id/chats in the same Save).
+    // An admin sees every chat, so the choice is reset to "All chats" when the role becomes admin.
+    const nextScope = role === 'agent' ? chatScope : { scope: 'all' as const, chats: [] };
+    const chatsChanged =
+      nextScope.scope !== saved.scope ||
+      nextScope.chats.map((c) => c.jid).join() !== saved.chats.map((c) => c.jid).join();
+    if (chatsChanged)
+      saveChats.mutate({
+        userId: user.id,
+        scope: nextScope.scope,
+        chats: nextScope.chats.map((c) => c.jid),
+      });
+    if (Object.keys(body).length === 0) {
+      if (chatsChanged) toast.success(t('members.edit.done'));
+      return onClose();
+    }
     patch.mutate(
       { id: user.id, patch: body },
       {
@@ -887,22 +844,17 @@ function EditMemberDialog({
             />
           )}
         </Field>
-        {/* Proposed (partner-role): a partner keeps the role; team and partner never swap, so
-            shared chats can never become a whole-inbox account by one edit. */}
-        {isPartner ? (
-          <RoleSelect
-            value={'partner' as RoleChoice}
-            onChange={() => undefined}
-            withPartner
-            disabled
-            hint={t('partner.invite.roleFixed')}
-          />
-        ) : (
-          <RoleSelect
-            value={role}
-            onChange={setRole}
-            disabled={isMe}
-            hint={isMe ? t('members.form.ownRoleHint') : undefined}
+        <RoleSelect
+          value={role}
+          onChange={setRole}
+          disabled={isMe}
+          hint={isMe ? t('members.form.ownRoleHint') : undefined}
+        />
+        {role === 'agent' && (
+          <MemberChatsField
+            scope={chatScope.scope}
+            chats={chatScope.chats}
+            onChange={(scope, chats) => setChatScope({ scope, chats })}
           />
         )}
         {patch.error && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}

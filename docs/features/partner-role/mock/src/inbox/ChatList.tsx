@@ -11,7 +11,7 @@ import { ChatListItem } from './ChatListItem';
 import type { Directory } from './useDirectory';
 import { useAuth } from '../auth/AuthProvider';
 import { accessOf, canOpen, inboxOfChat, useMockInboxes } from '../mock/inboxes';
-import { usePartnerMe } from '../mock/partnerRole';
+import { useMyChats } from '../mock/memberChats';
 
 // Realtime cache updates retain unchanged Chat references. Keep those rows from
 // recalculating labels, dates and avatars when another conversation changes.
@@ -55,9 +55,9 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
   // the app filters on the server, so an agent never receives a chat of another inbox.
   const inboxes = useMockInboxes();
   const { user } = useAuth();
-  // Proposed (partner-role): a partner's list holds only the chats shared with them (the app
-  // filters on the server: `GET /api/chats` reads `chat_shares` for a partner).
-  const partner = usePartnerMe();
+  // Proposed (limited chat access): an agent limited to chosen chats lists only those (the app
+  // filters on the server: `GET /api/chats` reads `member_chats`).
+  const mine = useMyChats();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = q;
 
@@ -71,15 +71,15 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
         out.push(c);
       }
     const access = accessOf(inboxes, user);
-    const shared = new Set(partner.shares.map((s) => s.chatJid));
     return out.filter((c) => {
-      if (partner.isPartner && !shared.has(c.jid)) return false;
       const inbox = inboxOfChat(inboxes, c.jid);
-      // A partner's access is per chat, never per inbox (the Lite one-inbox shortcut does not apply).
-      if (!partner.isPartner && !canOpen(access, inbox?.id)) return false;
+      // Chosen chats replace inbox access (and the Lite one-inbox shortcut) for a limited agent.
+      if (mine.limited) {
+        if (!mine.jids.has(c.jid)) return false;
+      } else if (!canOpen(access, inbox?.id)) return false;
       return inboxes.inboxFilter === 'all' || inbox?.id === inboxes.inboxFilter;
     });
-  }, [q.data, inboxes, user, partner.isPartner, partner.shares]);
+  }, [q.data, inboxes, user, mine.limited, mine.jids]);
 
   // Infinite scroll: load the next page when the bottom sentinel becomes visible.
   useEffect(() => {
@@ -128,13 +128,13 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
     );
   }
 
-  if (chats.length === 0 && partner.isPartner && !filters.q && !filters.tag) {
+  if (chats.length === 0 && mine.limited && mine.jids.size === 0) {
     return (
       <EmptyState
         className="flex-1"
         illustration="/illustrations/empty-inbox.png"
-        title={t('admin:partner.view.emptyTitle')}
-        description={t('admin:partner.view.emptyBody')}
+        title={t('admin:limitedChats.view.emptyTitle')}
+        description={t('admin:limitedChats.view.emptyBody')}
       />
     );
   }

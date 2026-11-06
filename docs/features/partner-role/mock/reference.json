@@ -5,7 +5,7 @@
   "appVersionAtProposal": "0.1.76",
   "hashNormalization": "text LF; binary unchanged",
   "status": "proposal",
-  "feature": "partner-role",
+  "feature": "partner-role (limited chat access)",
   "createdAt": "2026-11-06",
   "branchBase": "171f3aa (main)",
   "baselineFeature": "google-drive",
@@ -1607,13 +1607,18 @@
     "note": "Confirmed sql-accounting (e33aabbd) merged in as the index asked: diff group-management@26116d59 -> sql-accounting applied; catalog JSON merged key by key; ConnectorsGalleryPage.tsx and run.ts by hand.",
     "source": "docs/features/sql-accounting/mock @ e33aabbd3db038dabb0eb8375c96363f3a157d3b"
   },
-  "partnerRoleChanges": {
+  "previousProposal": {
+    "feature": "google-drive",
+    "createdAt": "2026-11-05",
+    "baselineFeature": "group-management",
+    "baselineGitRevision": "26116d59b3b9ca31b202163dc599cb96b1bf6f5e"
+  },
+  "limitedChatsChanges": {
     "added": [
-      "partner-role.ts",
-      "partner-shots.mjs",
-      "src/mock/partnerRole.ts",
-      "src/admin/PartnerPage.tsx",
-      "src/inbox/PartnerShare.tsx"
+      "member-chats.ts",
+      "member-chats-shots.mjs",
+      "src/mock/memberChats.ts",
+      "src/admin/MemberChatsField.tsx"
     ],
     "changed": [
       "proposal.ts",
@@ -1621,24 +1626,13 @@
       "run.ts",
       "README.md",
       "reference.json",
-      "src/admin/AdminLayout.tsx",
       "src/admin/MembersPage.tsx",
-      "src/auth/UserMenu.tsx",
       "src/inbox/ChatList.tsx",
       "src/inbox/Conversation.tsx",
-      "src/inbox/ConversationHeader.tsx",
       "src/inbox/GroupPanel.tsx",
-      "src/inbox/InboxPage.tsx",
-      "src/i18n/locales/{en,ms,zh-CN}/admin.json",
-      "src/i18n/locales/{en,ms,zh-CN}/common.json"
+      "src/i18n/locales/{en,ms,zh-CN}/admin.json (limitedChats.*)"
     ],
-    "seed": "Users ravi (partner, 3 shares: Priya Nair, Jason Lim, Kopi Lovers Club) and sofia (partner, none).",
-    "ownerScope": "2026-11-06: full history, internal notes always hidden, no end date (relayed by the main session)."
-  },
-  "previousProposal": {
-    "feature": "google-drive",
-    "createdAt": "2026-11-05",
-    "baselineFeature": "group-management",
-    "baselineGitRevision": "26116d59b3b9ca31b202163dc599cb96b1bf6f5e"
+    "seed": "Agents ravi (Only chosen chats: Priya Nair, Jason Lim, Kopi Lovers Club) and sofia (Only chosen chats, none).",
+    "ownerScope": "2026-11-06 (relayed): no new role; one agent setting All chats / Only chosen chats; inside chosen chats a normal agent; only differences from the scope check."
   }
 }

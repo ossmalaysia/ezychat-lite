@@ -51,8 +51,7 @@ import { ReactionSimulator } from '../mock/ReactionSimulator';
 import { GroupChatMockControls } from '../mock/GroupsMockControls';
 import { quotedAuthor, quotedPreview } from './MessageBubble';
 import { NotesPanel } from './NotesPanel';
-import { usePartnerMe } from '../mock/partnerRole';
-import { NotSharedState, ShareWithPartnerDialog } from './PartnerShare';
+import { useMyChats } from '../mock/memberChats';
 import { GroupPanel } from './GroupPanel';
 import { useNavigationGuardRef } from './navigation-guard';
 import { buildTimeline } from './timeline';
@@ -74,7 +73,7 @@ function toastError(e: unknown) {
 const confirmedChats = new Set<string>();
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
-  const { t } = useTranslation(['inbox', 'common']);
+  const { t } = useTranslation(['inbox', 'common', 'admin']);
   // Phones get the short placeholder (one line); the "/" quick-reply hint fits from sm.
   const wideComposer = useMediaQuery('(min-width: 640px)');
   const qc = useQueryClient();
@@ -101,10 +100,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   // `?customer=1` (from a group sender's "Open chat") opens the Customer panel.
   const [customerOpen, setCustomerOpen] = useState(() => searchParams.get('customer') === '1');
   const [groupOpen, setGroupOpen] = useState(false);
-  // Proposed (partner-role): an admin shares this chat; a partner reads only what was shared.
-  const [shareOpen, setShareOpen] = useState(false);
-  const partner = usePartnerMe();
-  const share = partner.shares.find((s) => s.chatJid === jid);
+  // Proposed (limited chat access): outside the chosen chats the app answers 404.
+  const mine = useMyChats();
   // Set by CustomerPanel while editing: switching panels or chats asks before losing changes.
   // It is the inbox page's navigation guard, so chat list links ask too.
   const customerGuard = useNavigationGuardRef();
@@ -130,9 +127,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     [messagesQ.data],
   );
   const messagesById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
-  // Proposed (partner-role): internal notes always stay with the team (production: the notes route
-  // answers [] / 403 to a partner and notes never reach their sockets).
-  const notes = partner.isPartner ? [] : notesQ.data;
+  const notes = notesQ.data;
   const items = useMemo(
     () => buildTimeline(messages, events ?? [], notes ?? []),
     [messages, events, notes],
@@ -225,7 +220,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (chatQ.isPending || !partner.loaded) {
+  if (chatQ.isPending || !mine.loaded) {
     return (
       <div className="flex flex-1 flex-col" role="status" aria-label={t('conversation.loading')}>
         <div className="flex items-center gap-3 border-b bg-surface px-3 py-2">
@@ -267,11 +262,24 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     );
   }
 
-  // Proposed (partner-role): a chat not (or no longer) shared answers 404 in the app; the mock says why.
-  if (partner.isPartner && !share) return <NotSharedState onBack={onBack} />;
-
   const chatInbox = inboxOfChat(mockInboxes, chat.jid);
-  if (!partner.isPartner && !canOpen(accessOf(mockInboxes, signedIn), chatInbox?.id)) {
+  if (mine.limited && !mine.jids.has(chat.jid)) {
+    // The app answers 404 (as for a chat that does not exist); the mock says why.
+    return (
+      <EmptyState
+        className="flex-1"
+        illustration="/illustrations/no-results.png"
+        title={t('admin:limitedChats.view.notChosenTitle')}
+        description={t('admin:limitedChats.view.notChosenBody')}
+        action={
+          <Button variant="outline" size="touch" onClick={onBack}>
+            {t('conversation.back')}
+          </Button>
+        }
+      />
+    );
+  }
+  if (!mine.limited && !canOpen(accessOf(mockInboxes, signedIn), chatInbox?.id)) {
     // The app answers 404 for such a chat, so nobody can tell it exists; the mock shows why.
     return (
       <EmptyState
@@ -321,9 +329,6 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           }
           notesOpen={notesOpen}
           notesCount={notes?.length ?? 0}
-          showNotes={!partner.isPartner}
-          onShare={signedIn?.role === 'admin' ? () => setShareOpen(true) : undefined}
-          partnerView={partner.isPartner}
           onToggleNotes={() =>
             leaveCustomer(() => {
               setNotesOpen((o) => !o);
@@ -355,12 +360,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           </Banner>
         )}
         {/* Proposed (emoji-reactions): mock-only panel that simulates reactions from WhatsApp. */}
-        {!partner.isPartner && (
-          <ReactionSimulator messages={messages} isGroup={chat.type === 'group'} />
-        )}
+        <ReactionSimulator messages={messages} isGroup={chat.type === 'group'} />
         {/* Proposed (ai-groups): mock-only panel that simulates the AI in this group. */}
-        {chat.type === 'group' && !partner.isPartner && <GroupChatMockControls jid={chat.jid} />}
-        {shareOpen && <ShareWithPartnerDialog chat={chat} onClose={() => setShareOpen(false)} />}
+        {chat.type === 'group' && <GroupChatMockControls jid={chat.jid} />}
         <MessageList
           items={items}
           messagesById={messagesById}

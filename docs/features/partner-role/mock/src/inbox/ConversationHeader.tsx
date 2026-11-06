@@ -1,12 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Handshake,
-  NotebookPen,
-  RotateCcw,
-  UserRound,
-} from 'lucide-react';
+import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
 import type { Chat } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +18,6 @@ import type { Directory } from './useDirectory';
 import { InboxChip } from './InboxChip';
 import { GroupAiBadge } from './GroupAiRow';
 import { inboxOfChat, useMockInboxes } from '../mock/inboxes';
-import { usePartnerRows } from '../mock/partnerRole';
 
 export interface ConversationHeaderProps {
   chat: Chat;
@@ -48,12 +40,6 @@ export interface ConversationHeaderProps {
   /** Group chats: WhatsApp's member count, shown under the name once known. */
   memberCount?: number | null;
   busy?: boolean;
-  /** Proposed (partner-role): false hides Notes (partners, while the team keeps notes private). */
-  showNotes?: boolean;
-  /** Proposed (partner-role): admins only, opens "Share with a partner". */
-  onShare?(): void;
-  /** Proposed (partner-role): a partner may assign the chat only to themselves. */
-  partnerView?: boolean;
 }
 
 const UNASSIGNED = 'none';
@@ -73,11 +59,8 @@ export function ConversationHeader({
   onOpenInfo,
   memberCount = null,
   busy,
-  showNotes = true,
-  onShare,
-  partnerView = false,
 }: ConversationHeaderProps) {
-  const { t } = useTranslation(['inbox', 'admin']);
+  const { t } = useTranslation('inbox');
   const inboxes = useMockInboxes();
   const inbox = inboxes.inboxes.length > 1 ? inboxOfChat(inboxes, chat.jid) : undefined;
   const name = chatTitle(chat, t);
@@ -89,12 +72,8 @@ export function ConversationHeader({
       : (formatPhone(chat) ?? t('header.phoneHidden'));
   const resolved = chat.status === 'resolved';
 
-  const sharedWith = usePartnerRows().filter((p) => p.shares.some((s) => s.chatJid === chat.jid));
-  // Options: active team members (from the team directory) + current assignee. A partner: only
-  // themselves (production: PATCH /chats/:jid answers 400 `assignee_not_self` for anyone else).
-  const options = partnerView
-    ? directory.assignable.filter((u) => u.id === directory.me?.id)
-    : [...directory.assignable];
+  // Options: active team members (from the team directory) + current assignee.
+  const options = [...directory.assignable];
   if (chat.assignedTo != null && !options.some((u) => u.id === chat.assignedTo)) {
     const known = directory.byId.get(chat.assignedTo);
     options.push(
@@ -207,48 +186,27 @@ export function ConversationHeader({
             <span className="@max-3xl:sr-only">{t('header.customer')}</span>
           </Button>
         )}
-        {onShare && (
-          <Button
-            variant="ghost"
-            size="touch"
-            onClick={onShare}
-            aria-label={t('admin:partner.share.headerLabel', { count: sharedWith.length })}
-            title={t('admin:partner.share.title')}
-            className="relative text-muted-foreground"
-            data-testid="share-with-partner"
-          >
-            <Handshake className="size-5" aria-hidden="true" />
-            <span className="@max-3xl:sr-only">{t('admin:partner.share.header')}</span>
-            {sharedWith.length > 0 && (
-              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary/15 px-1 text-xs font-semibold text-primary">
-                {sharedWith.length}
-              </span>
-            )}
-          </Button>
-        )}
-        {showNotes && (
-          <Button
-            variant="ghost"
-            size="touch"
-            onClick={onToggleNotes}
-            aria-pressed={notesOpen}
-            aria-label={t('header.notesLabel', { count: notesCount })}
-            title={t('header.notesTitle')}
-            className={cn(
-              'relative',
-              notesOpen ? 'bg-note text-note-foreground hover:bg-note' : 'text-muted-foreground',
-            )}
-          >
-            <NotebookPen className="size-5" aria-hidden="true" />
-            {/* Icon-only below a 768px header (aria-label keeps the name). */}
-            <span className="@max-3xl:sr-only">{t('header.notes')}</span>
-            {notesCount > 0 && (
-              <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-note-border bg-note px-1 text-xs font-semibold text-note-foreground">
-                {notesCount}
-              </span>
-            )}
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="touch"
+          onClick={onToggleNotes}
+          aria-pressed={notesOpen}
+          aria-label={t('header.notesLabel', { count: notesCount })}
+          title={t('header.notesTitle')}
+          className={cn(
+            'relative',
+            notesOpen ? 'bg-note text-note-foreground hover:bg-note' : 'text-muted-foreground',
+          )}
+        >
+          <NotebookPen className="size-5" aria-hidden="true" />
+          {/* Icon-only below a 768px header (aria-label keeps the name). */}
+          <span className="@max-3xl:sr-only">{t('header.notes')}</span>
+          {notesCount > 0 && (
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-note-border bg-note px-1 text-xs font-semibold text-note-foreground">
+              {notesCount}
+            </span>
+          )}
+        </Button>
         <Button
           variant={resolved ? 'outline' : 'default'}
           size="touch"

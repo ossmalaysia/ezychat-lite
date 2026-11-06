@@ -12,7 +12,6 @@ import { decodeJid } from '../lib/jid';
 import { ChatFilters } from './ChatFilters';
 import { GettingStartedCard } from './GettingStartedCard';
 import { ChatList } from './ChatList';
-import { PartnerBanner } from './PartnerShare';
 import { Conversation } from './Conversation';
 import { useDirectory } from './useDirectory';
 import { ReconnectBanner } from './ReconnectBanner';
@@ -93,8 +92,6 @@ export function InboxPage() {
               )}
               <UserMenu />
             </header>
-            {/* Proposed (partner-role): a partner sees whose chats these are. */}
-            <PartnerBanner />
             <ChatFilters value={filters} onChange={setFilters} />
             <ChatList
               filters={filters}

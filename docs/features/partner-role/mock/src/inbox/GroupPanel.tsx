@@ -30,19 +30,7 @@ import { ChatAvatar } from './ChatAvatar';
 import { GroupAiRow } from './GroupAiRow';
 import { GroupAdminBar, GroupAdminMockBox, MemberAdminActions } from './GroupAdmin';
 import { PanelHeader } from './PanelHeader';
-import { i18n } from '@/i18n';
-import { useIsPartner } from '../mock/partnerRole';
-
-/** Proposed (partner-role): a member as the server sends it to a partner (no number, no IDs). */
-type PartnerMember = GroupMember & { partnerView?: true };
-const forPartner = (m: GroupMember): PartnerMember => ({
-  ...m,
-  phone: null,
-  lid: null,
-  username: null,
-  chatJid: null,
-  partnerView: true,
-});
+import { useMyChats } from '../mock/memberChats';
 
 /** Rows rendered at a time; large groups show more on request instead of rendering all at once. */
 export const MEMBER_PAGE = 100;
@@ -62,9 +50,6 @@ export function memberLabel(m: GroupMember, t: T): string {
 }
 
 function memberSubline(m: GroupMember, t: T): { text: string; hidden?: boolean } {
-  // Proposed (partner-role): a partner gets member names only; the number is never sent.
-  if ((m as PartnerMember).partnerView)
-    return { text: i18n.t('admin:partner.group.namesOnly'), hidden: true };
   if (m.username) return { text: `@${m.username}` };
   if (m.phone) return { text: m.name || m.isMe ? `+${m.phone}` : t('groupInfo.noName') };
   return { text: t('groupInfo.hiddenNumber'), hidden: true };
@@ -287,23 +272,18 @@ function MemberDetail({
   onOpenChat(chatJid: string): void;
 }) {
   const { t } = useTranslation(['inbox', 'admin']);
-  const about = useMemberAbout(
-    groupJid,
-    member.isMe || (member as PartnerMember).partnerView ? null : (member.lid ?? member.jid),
-  );
+  const limited = useMyChats().limited;
+  const about = useMemberAbout(groupJid, member.isMe ? null : (member.lid ?? member.jid));
   const start = useStartMemberChat(groupJid);
   const [confirming, setConfirming] = useState(false);
   const label = memberLabel(member, t);
   const bareId = !member.name && !member.phone && !member.isMe;
-  const partnerView = !!(member as PartnerMember).partnerView;
-  const rows: Array<[string, React.ReactNode]> = partnerView
-    ? []
-    : [
-        [
-          t('groupInfo.phone'),
-          member.phone ? `+${member.phone}` : <i key="h">{t('groupInfo.hiddenNumber')}</i>,
-        ],
-      ];
+  const rows: Array<[string, React.ReactNode]> = [
+    [
+      t('groupInfo.phone'),
+      member.phone ? `+${member.phone}` : <i key="h">{t('groupInfo.hiddenNumber')}</i>,
+    ],
+  ];
   if (member.lid)
     rows.push([t('groupInfo.lid'), <span className="font-mono text-xs">{member.lid}</span>]);
   if (member.username) rows.push([t('groupInfo.username'), `@${member.username}`]);
@@ -312,7 +292,7 @@ function MemberDetail({
     member.role === 'member' ? t('groupInfo.member') : t('groupInfo.admin'),
   ]);
   // Empty (private or unset) hides the row; a failed read says so and offers a retry.
-  if (!partnerView && !member.isMe && (about.isPending || about.isError || about.data?.about))
+  if (!member.isMe && (about.isPending || about.isError || about.data?.about))
     rows.push([
       t('groupInfo.about'),
       about.isPending ? (
@@ -388,9 +368,11 @@ function MemberDetail({
           ))}
         </dl>
       </section>
-      {partnerView ? (
-        <p className="text-xs text-muted-foreground" data-testid="partner-names-only">
-          {t('admin:partner.group.noChatForPartner')}
+      {/* Proposed (limited chat access): no direct chat from a group member (it would open or start
+          a chat outside the chosen ones; the app answers 403 / 404). */}
+      {limited && !member.isMe ? (
+        <p className="text-xs text-muted-foreground" data-testid="limited-no-member-chat">
+          {t('admin:limitedChats.view.noMemberChat')}
         </p>
       ) : member.isMe ? null : member.chatJid ? (
         <>
@@ -464,16 +446,7 @@ function GroupBody({
 }: GroupPanelProps & { title: React.ReactNode; description: React.ReactNode }) {
   const { t } = useTranslation('inbox');
   const navigate = useNavigate();
-  const raw = useGroupMembers(jid, open);
-  // Proposed (partner-role): partners get names only (production: the members route strips them).
-  const isPartner = useIsPartner();
-  const q = useMemo(
-    () =>
-      isPartner && raw.data
-        ? { ...raw, data: { ...raw.data, members: raw.data.members.map(forPartner) } }
-        : raw,
-    [isPartner, raw],
-  );
+  const q = useGroupMembers(jid, open);
   const [selected, setSelected] = useState<string | null>(null);
   const member = selected ? q.data?.members.find((m) => m.jid === selected) : undefined;
 

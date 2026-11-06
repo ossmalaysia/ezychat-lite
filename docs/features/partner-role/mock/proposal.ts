@@ -17,7 +17,7 @@ import { registerGrammarFix } from './grammar.js';
 import { registerFeedback } from './feedback.js';
 import { registerGroupAdmin } from './group-admin.js';
 import { registerSqlAccount } from './sql-account.js';
-import { registerPartnerRole } from './partner-role.js';
+import { registerMemberChats } from './member-chats.js';
 
 const DEMO_JID = '60129900001@s.whatsapp.net';
 const INTRODUCTION =
@@ -43,8 +43,8 @@ export function registerProposal(app: FastifyInstance, ctx: AppContext, wa: Fake
   registerGroupAdmin(app, ctx, wa);
   // Proposed (sql-accounting): the SQL Account connector (fake API, Mock only scenarios).
   registerSqlAccount(app, ctx);
-  // Proposed (partner-role): outside partners who see only the chats an admin shares.
-  registerPartnerRole(app, ctx);
+  // Proposed (limited chat access): an agent may see only the chats an admin chooses.
+  registerMemberChats(app, ctx);
   let enabled = false;
   const setting = () => ({
     enabled,

@@ -38,7 +38,6 @@ import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { useChangeLocale } from '@/i18n/use-change-locale';
 import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from './AuthProvider';
-import { usePartnerMe } from '../mock/partnerRole';
 // Proposed (upgrade-enterprise)
 import { useUpgradeUrl } from '@/components/app/UpgradeEnterprise';
 
@@ -125,9 +124,6 @@ export function UserMenu({
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const upgradeUrl = useUpgradeUrl();
-  // Proposed (partner-role): a partner sees their role and company; no share-the-app or feedback
-  // (the feedback form can attach this business's log).
-  const partner = usePartnerMe();
   if (!user) return null;
 
   return (
@@ -153,10 +149,7 @@ export function UserMenu({
           <DropdownMenuLabel className="font-normal">
             <p className="truncate text-sm font-semibold">{user.displayName}</p>
             <p className="truncate text-xs text-muted-foreground">
-              @{user.username} ·{' '}
-              {partner.isPartner
-                ? [t('roles.partner'), partner.company].filter(Boolean).join(' · ')
-                : t(`roles.${user.role}`)}
+              @{user.username} · {t(`roles.${user.role}`)}
             </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -223,24 +216,20 @@ export function UserMenu({
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {!partner.isPartner && (
-            <DropdownMenuItem className="min-h-11" onSelect={() => setShareOpen(true)}>
-              <Share2 aria-hidden="true" />
-              {t('account.share')}
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem className="min-h-11" onSelect={() => setShareOpen(true)}>
+            <Share2 aria-hidden="true" />
+            {t('account.share')}
+          </DropdownMenuItem>
           {/* Proposed (in-app-feedback): one Send feedback item replaces Request a feature (website) and
               Report an issue (GitHub); the GitHub link moves into the dialog (Lite only). */}
-          {!partner.isPartner && (
-            <DropdownMenuItem
-              className="min-h-11"
-              onSelect={() => openFeedback()}
-              data-testid="menu-feedback"
-            >
-              <MessageSquarePlus aria-hidden="true" />
-              {t('account.sendFeedback')}
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem
+            className="min-h-11"
+            onSelect={() => openFeedback()}
+            data-testid="menu-feedback"
+          >
+            <MessageSquarePlus aria-hidden="true" />
+            {t('account.sendFeedback')}
+          </DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" onSelect={() => setAboutOpen(true)}>
             <Info aria-hidden="true" />
             {t('account.about', { appName: t('appName') })}

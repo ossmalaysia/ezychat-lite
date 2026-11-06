@@ -2368,103 +2368,32 @@
       }
     }
   },
-  "partner": {
-    "members": {
-      "chats_other": "{{count}} 个共享聊天"
+  "limitedChats": {
+    "label": "此成员可以看到的聊天",
+    "all": {
+      "title": "所有聊天",
+      "hint": "可以看到其可访问收件箱中的所有聊天，与现在相同。"
     },
-    "invite": {
-      "roleHint": "团队以外的人，例如外包客服。他们只能看到您共享给他们的聊天。",
-      "agentHint": "您自己的团队成员。可以看到您分配给他们的收件箱中的所有聊天。",
-      "adminHint": "可以查看和更改所有内容，包括设置。",
-      "company": "合作伙伴公司（可选）",
-      "companyHint": "显示在他们的名字旁边，让团队知道他们为谁工作。",
-      "roleFixed": "合作伙伴的角色保持不变。要让某人使用整个收件箱，请重新以客服身份添加。"
+    "chosen": {
+      "title": "仅选定的聊天",
+      "hint": "只能看到您在下方选择的私聊和群组。适用于外部或支持客服。"
     },
-    "page": {
-      "noCompany": "合作伙伴（无公司）",
-      "chatsTitle": "{{name}} 可以看到的聊天",
-      "chatsBody": "EzyChat 只向此合作伙伴显示这些聊天及其完整记录。停止共享后，聊天会立即从他们的屏幕上消失。",
-      "add": "共享聊天",
-      "emptyTitle": "尚未共享任何聊天",
-      "emptyBody": "{{name}} 可以登录，但在您共享聊天之前看不到任何聊天。可在此处或在聊天中共享。",
-      "searchLabel": "搜索已共享的聊天",
-      "searchPlaceholder": "按名称搜索",
-      "count_other": "{{shown}} / {{count}} 个聊天",
-      "sharedOn": "共享于 {{date}}",
-      "open": "打开 {{name}}",
-      "remove": "停止共享 {{name}}",
-      "showMore": "再显示 {{count}} 个",
-      "removeTitle": "停止共享 {{chat}}？",
-      "removeBody": "{{name}} 将无法再打开此聊天。他们已发送的内容会保留在聊天中。",
-      "removeConfirm": "停止共享",
-      "addTitle": "与 {{name}} 共享聊天",
-      "addBody": "选择一个私聊或群组。合作伙伴可以阅读完整记录并回复。",
-      "pickLabel": "聊天",
-      "pickPlaceholder": "搜索聊天",
-      "pickNone": "没有其他可共享的聊天。"
-    },
-    "share": {
-      "header": "共享",
-      "headerLabel_other": "与合作伙伴共享（{{count}} 位合作伙伴）",
-      "title": "与合作伙伴共享",
-      "description": "合作伙伴只能看到您共享的聊天及其完整记录，在您停止共享前可在此阅读和回复。",
-      "sharedWith": "已共享给",
-      "removeFor": "停止与 {{name}} 共享",
-      "removed": "已停止与 {{name}} 共享",
-      "partnerLabel": "合作伙伴",
-      "submit": "共享",
-      "done": "已与 {{name}} 共享",
-      "noPartnersTitle": "还没有合作伙伴",
-      "noPartnersBody": "请先在“成员”中添加合作伙伴（选择“合作伙伴”角色）。",
-      "invite": "前往成员",
-      "allShared": "所有合作伙伴都已拥有此聊天。",
-      "whatDirect": "合作伙伴可以看到客户的名字和完整聊天记录，但看不到其电话号码、内部备注或其他聊天。",
-      "whatGroup": "合作伙伴可以看到群组的完整聊天记录和成员名字，但看不到成员电话号码或内部备注。"
-    },
-    "can": {
-      "title": "合作伙伴可以做什么",
-      "body": "所有合作伙伴相同，仅限您共享的聊天。",
-      "yes": {
-        "read": "阅读聊天及其中的照片、文件和语音消息",
-        "reply": "回复、发送文件和语音消息、添加表情回应",
-        "suggest": "使用回复建议和英语纠正",
-        "takeOver": "从 AI 客服手中接管聊天",
-        "assignSelf": "把共享的聊天分配给自己"
-      },
-      "no": {
-        "newChats": "发起新聊天或直接给群成员发消息",
-        "otherChats": "查看或搜索您未共享的聊天",
-        "notes": "查看团队的内部备注",
-        "numbers": "查看群成员的电话号码",
-        "admin": "打开管理：成员、设置、报告、连接器、AI 客服",
-        "askEzy": "使用 Ask Ezy、AI 助手访问（MCP）或发送反馈",
-        "export": "下载日志或导出数据"
-      }
-    },
-    "activity": {
-      "title": "变更记录",
-      "body": "谁共享或停止共享，以及时间。不记录消息内容。",
-      "empty": "暂无记录。",
-      "partner_invited": "{{by}} 将 {{partner}} 添加为合作伙伴",
-      "chat_share_added": "{{by}} 共享了 {{chat}}",
-      "chat_share_removed": "{{by}} 停止共享 {{chat}}"
-    },
+    "count_other": "已选择 {{count}} 个聊天",
+    "none": "尚未选择聊天：在您添加之前，此成员看不到任何聊天。",
+    "chosenLabel": "已选择的聊天",
+    "remove": "移除 {{name}}",
+    "add": "添加 {{name}}",
+    "addLabel": "添加聊天",
+    "addPlaceholder": "搜索聊天和群组",
+    "noMatch": "没有其他匹配的聊天。",
+    "note_zero": "未选择聊天",
+    "note_other": "仅 {{count}} 个选定聊天",
     "view": {
-      "bannerTitle": "合作伙伴访问 · {{company}}",
-      "bannerBody_other": "您可以看到团队共享给您的 {{count}} 个聊天。",
-      "emptyTitle": "还没有共享给您的聊天",
-      "emptyBody": "团队共享聊天后，它们会立即显示在这里。",
-      "notSharedTitle": "已不再共享",
-      "notSharedBody": "此聊天已不再共享给您。如仍需要，请联系团队。"
-    },
-    "group": {
-      "namesOnly": "不显示号码",
-      "noChatForPartner": "合作伙伴只能看到成员名字。如需联系此人，请询问团队。"
-    },
-    "mock": {
-      "longList": "显示长列表（40 个聊天）",
-      "shortList": "返回真实列表",
-      "signIn": "退出后以 ravi（有 3 个聊天的合作伙伴）或 sofia（尚无聊天）登录，密码 demo-pass-123，即可查看合作伙伴的界面。在 ravi 打开聊天时停止共享，可看到“已不再共享”。"
+      "emptyTitle": "还没有聊天",
+      "emptyBody": "管理员尚未为您分配聊天。添加后会立即显示在这里。",
+      "notChosenTitle": "您无法打开此聊天",
+      "notChosenBody": "此聊天不在您的聊天范围内。如有需要，请联系管理员。",
+      "noMemberChat": "您只能打开管理员为您选择的聊天。"
     }
   }
 }
