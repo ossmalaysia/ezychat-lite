@@ -75,21 +75,6 @@
       "note": "Built in parallel with google-drive from the same group-management baseline; the next clone should start from the latestConfirmed (google-drive) and copy in this folder's SQL Account files (src/admin/SqlAccountPage.tsx, src/mock/sqlAccount.ts, sql-account.ts, sql-account-shots.mjs and the changed shared files listed in design.md)."
     },
     {
-      "feature": "google-drive",
-      "creationOrder": 33,
-      "createdAt": "2026-11-05",
-      "design": "docs/features/google-drive/design.md",
-      "mock": "docs/features/google-drive/mock/index.html",
-      "status": "confirmed",
-      "baselineFeature": "group-management",
-      "baselineGitRevision": "26116d59b3b9ca31b202163dc599cb96b1bf6f5e",
-      "coverage": "Full app clone of the confirmed group-management reference; Admin → Connectors gallery card (Google Drive beside Google Calendar), connector page Overview (about with Save / Find / Read, Google account card: not connected, stand-in consent with the drive.file wording, connected, sign-in expired, unreachable, Disconnect confirm; Your data), Settings per AI agent (not connected, no folder, stand-in folder picker and blocked window, folder chosen with Open in Google Drive, Save files switch off by default with the safety rules, Read files with Add files picker, file list with a no-text warning and remove, one line linking to the agent instructions, Save bar, paused banner), Mock only chat simulator (photo saved, PDF, question answered from a picked file, Safety-locked file, too large, paused hand-over), Activity (saved, read, skipped, failed), agent page Connectors row; state in the browser (localStorage); desktop 1280 / mobile 360 touch, light/dark (drive-shots.mjs)",
-      "note": "Inherits the coverage gaps of group-management (message-edit-delete, whatsapp-safety, group-agents and claims-template screens). Google Sheets has no mock page in the baseline (shipped without one): its gallery card stays the baseline coming-soon card. Revised 2026-11-05 on owner feedback: connector is use-case agnostic (no file types, folder schemes or example instructions; docs/connector-design.md).",
-      "confirmedAt": "2026-11-05",
-      "gitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
-      "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then \"yes confirm drive, continue it, untill all working and create pr and merge and archive the session\" (relayed verbatim by the main session) = confirmed with Save (write) and Read (read), decisions 1-7 as proposed."
-    },
-    {
       "feature": "group-agents",
       "creationOrder": 29,
       "createdAt": "2026-11-03",
@@ -563,6 +548,22 @@
       }
     },
     {
+      "feature": "app-baseline",
+      "creationOrder": 2,
+      "createdAt": "2026-10-14",
+      "design": "docs/features/app-baseline/design.md",
+      "mock": "docs/features/app-baseline/mock/index.html",
+      "status": "unconfirmed",
+      "baselineFeature": null,
+      "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
+      "coverage": "Full existing frontend: 169 original runtime files, all routes; provider side effects simulated",
+      "archived": {
+        "folderRemovedAt": "2026-10-22",
+        "lastRevision": "610ca5e0ac2c624d3399eb187cecac5f65f010e4",
+        "reason": "retention: sixth feature folder (custom-agents)"
+      }
+    },
+    {
       "feature": "customer-enrichment",
       "creationOrder": 1,
       "createdAt": "2026-10-14",
@@ -577,22 +578,6 @@
         "folderRemovedAt": "2026-10-21",
         "lastRevision": "6a3ccfc312525007dd22aa771f75ca3c6fb67071",
         "reason": "retention: sixth feature folder (multi-inbox)"
-      }
-    },
-    {
-      "feature": "app-baseline",
-      "creationOrder": 2,
-      "createdAt": "2026-10-14",
-      "design": "docs/features/app-baseline/design.md",
-      "mock": "docs/features/app-baseline/mock/index.html",
-      "status": "unconfirmed",
-      "baselineFeature": null,
-      "baselineAppRevision": "643a724b756a127361ea8ac61037f8dd87c628ff",
-      "coverage": "Full existing frontend: 169 original runtime files, all routes; provider side effects simulated",
-      "archived": {
-        "folderRemovedAt": "2026-10-22",
-        "lastRevision": "610ca5e0ac2c624d3399eb187cecac5f65f010e4",
-        "reason": "retention: sixth feature folder (custom-agents)"
       }
     }
   ],
@@ -633,21 +618,23 @@
       "archivedBy": "five-folder retention (scheduled-tasks / new-chat)"
     },
     {
-      "feature": "template-store",
-      "creationOrder": 32,
-      "createdAt": "2026-11-04",
-      "design": "docs/features/template-store/design.md",
-      "mock": "docs/features/template-store/mock/index.html",
+      "feature": "google-drive",
+      "creationOrder": 33,
+      "createdAt": "2026-11-05",
+      "design": "docs/features/google-drive/design.md",
+      "mock": "docs/features/google-drive/mock/index.html",
       "status": "confirmed",
-      "confirmedAt": "2026-11-04",
-      "baselineFeature": "claims-template",
-      "baselineGitRevision": "658dbf347820d2e0d167e5e2c7dceff4fc312930",
-      "coverage": "Standalone preview cloned from the claims-template preview (build-preview.mjs from the real catalogs): template gallery with the list loaded (source line, a list template with Works with, a list-only category chip), built-in only, offline; New agent after applying a list template; en/ms/zh-CN, desktop 1280 / mobile 360, light/dark. Real-app screenshots in docs/features/template-store/screenshots.",
-      "note": "Owner asked for a remote template repository like the connector store (2026-11-04); publishing repo decided (connector repo). Confirmed 2026-11-04: owner (Jazz) wrote \"279 go ahead\" (list published, no retiring of built-in templates, no New badge). Standalone gallery preview, not a cumulative full-app clone: latestConfirmed stays on group-management.",
+      "baselineFeature": "group-management",
+      "baselineGitRevision": "26116d59b3b9ca31b202163dc599cb96b1bf6f5e",
+      "coverage": "Full app clone of the confirmed group-management reference; Admin → Connectors gallery card (Google Drive beside Google Calendar), connector page Overview (about with Save / Find / Read, Google account card: not connected, stand-in consent with the drive.file wording, connected, sign-in expired, unreachable, Disconnect confirm; Your data), Settings per AI agent (not connected, no folder, stand-in folder picker and blocked window, folder chosen with Open in Google Drive, Save files switch off by default with the safety rules, Read files with Add files picker, file list with a no-text warning and remove, one line linking to the agent instructions, Save bar, paused banner), Mock only chat simulator (photo saved, PDF, question answered from a picked file, Safety-locked file, too large, paused hand-over), Activity (saved, read, skipped, failed), agent page Connectors row; state in the browser (localStorage); desktop 1280 / mobile 360 touch, light/dark (drive-shots.mjs)",
+      "note": "Inherits the coverage gaps of group-management (message-edit-delete, whatsapp-safety, group-agents and claims-template screens). Google Sheets has no mock page in the baseline (shipped without one): its gallery card stays the baseline coming-soon card. Revised 2026-11-05 on owner feedback: connector is use-case agnostic (no file types, folder schemes or example instructions; docs/connector-design.md).",
+      "confirmedAt": "2026-11-05",
+      "gitRevision": "442b6317254a1a86b7df66bb86335f2d0047caec",
+      "confirmation": "Owner (Jazz) 2026-11-05: connector must be use-case agnostic (mock revised, docs/connector-design.md), then \"yes confirm drive, continue it, untill all working and create pr and merge and archive the session\" (relayed verbatim by the main session) = confirmed with Save (write) and Read (read), decisions 1-7 as proposed.",
       "archived": true,
       "archivedAt": "2026-11-06",
       "archivedRevision": "3a287f5",
-      "archivedBy": "five-folder retention (scheduled-tasks / new-chat)"
+      "archivedBy": "new-chat (five-folder retention; template-store kept as tooling)"
     }
   ]
 }

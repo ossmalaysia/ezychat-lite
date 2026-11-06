@@ -107,10 +107,12 @@ limit and template failure.
 ### Five-folder retention
 
 scheduled-tasks (35) and partner-role (36) merged first; partner-role was built in parallel from google-drive. This
-mock takes creationOrder **37**. To keep five folders, this PR prunes **group-management** (31; confirmed revision
-`26116d59b3b9ca31b202163dc599cb96b1bf6f5e` stays in the index) and **template-store** (32; recoverable with
-`git checkout 3a287f5 -- docs/features/template-store`), and archives **claims-template** (30, folder already
-removed on `main`) in the index. Folders left: google-drive, sql-accounting, scheduled-tasks, partner-role, new-chat.
+mock takes creationOrder **37**. To keep five mock folders, this PR prunes **group-management** (31; confirmed
+revision `26116d59b3b9ca31b202163dc599cb96b1bf6f5e` in the index) and **google-drive** (33; confirmed revision
+`442b6317254a1a86b7df66bb86335f2d0047caec` in the index, its screens live on in scheduled-tasks and new-chat), and
+archives **claims-template** (30, folder already removed on `main`) in the index. **template-store** (32) is older but
+stays: its `publisher/` folder is live tooling that `scripts/export-templates.mjs` and `scripts/template-store.test.mjs`
+import. Folders left: template-store (tooling), sql-accounting, scheduled-tasks, partner-role, new-chat.
 `latestConfirmed` becomes new-chat; the next clone copies in partner-role's files (its design.md lists them).
 
 ## Scope
