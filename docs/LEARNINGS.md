@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- Do not edit, rename or check out files while a full `npm test` / `test:coverage` run is in progress: tests that
+  migrate a data dir mid-run see two schema versions ("duplicate column") and the result proves nothing. Run it again
+  on the final tree before reporting it.
 - Before you call a PR a break of an owner rule, read that rule in `origin/main`'s `AGENTS.md`: memory notes and older
   checkouts lag rule changes ("No tracking in Lite" became "Anonymous usage stats only" with #285).
 - A new connector modelled on an existing one fails SonarCloud's 3 % new-code duplication gate (tests count too) when
@@ -267,7 +270,7 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
-- Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
+- Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables; conflicts in `chats/merge.ts` (each feature's `chat_jid` table) and `CHANGELOG.md` keep both sides. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
 
 - A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
   `pull_request` runs need the merge commit. Merge main, then re-run e2e and the Dev Build check on the new head,
@@ -336,7 +339,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
   has finished; a second failure is real.
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
-  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
+  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` in any code (server and web too, even of string ids) a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
   names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
@@ -1013,6 +1016,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
+  return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
+  denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function
+  (`usersWhoCanOpenChat`) for every notification path. Grep every `scopeFor`/`canOpen`/`usersWhoCanOpen` caller and
+  decide each one explicitly (status banners and templates needed `visibleInboxIds`).
 - Data a device keeps for one user (saved queries, service worker photo/file caches) is cleared on every way a session
   ends, not only the sign-out button: the `session:revoked` socket event and a 401 from `/api/me` too
   (`startQueryPersistence` `clearCaches`). Test each path.
@@ -1219,6 +1227,19 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
+  `currentSituation` field) before a Dev Build check can show it. A timer feature's Dev Build check waits for one real
+  due time (the next slot a couple of minutes away, in the business zone): fake-clock unit tests never prove the timer
+  starts and ticks in the running server.
+- "Can the AI run a turn?" is `AiService.answerReady()`; `connectionReady()` also needs the provider's customer
+  extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
+  task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
+  as "chat ownership changed".
+- A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
+  reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
+  chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and
+  Origin checks), and a second path parameter is named `:id` (the table's normaliser). Test service code by parsing bodies through the zod schema (`Schema.parse`), never passing raw objects: the
+  defaults (`enabled: true`) only exist after the parse.
 - A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
   customer's text as data, never as something the other system runs: Google Sheets `append` with
   `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`. When an
@@ -1484,6 +1505,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A list or panel component whose tests render it without an auth provider reads the signed-in user from the props it
+  already gets (`directory.me`), not from `useAuth()`: a new hook there breaks every existing test with "No
+  QueryClient set".
 - The persisted query cache (`api/query-persist.ts`) saves with a delay, so a reload can restore state from before the last mutation: never persist state a route guard acts on in a transitional form (e.g. `mustChangePassword`), and when an e2e step reloads right after a mutation and lands on an old page, suspect the restored copy first.
 
 - Every round trip counts over a slow tunnel (~0.7 s each): the live connection reloads every query when it joins,

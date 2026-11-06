@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Give an agent only the chats you choose.** In Members → Edit, an agent's new setting **Chats this member can see**
+  is All chats (as before) or **Only chosen chats**, with a list you add direct chats and groups to. Use it for an
+  outside or support agent: they work as usual in those chats, and every other chat stays invisible to them, with no
+  notifications about it. They cannot start new chats or use Ask Ezy.
+- **Scheduled tasks for AI agents.** On an AI agent's page, add a task that sends one message at a set time (every day,
+  weekdays or chosen days) to a chat or group you pick, for example today's bookings to the staff group every weekday
+  at 8:30. The agent uses its business context and connectors, and sends nothing when there is nothing to tell.
+  Preview it before saving, run it now, and see each run in History. Only existing chats and groups, at most 10 tasks
+  per agent, and missed times are not sent later. The message shows "Scheduled" in the chat.
 - **AI assistants can open photos, PDFs and Word files from chats.** A connected AI assistant (MCP) can now look at a
   customer's photo or read the text of a PDF or Word file in a chat, with the new `get_message_file` tool. It only
   reaches chats you can open, never gets a download link, and never gets a file WhatsApp Safety locked.

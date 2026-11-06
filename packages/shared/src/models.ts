@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MessageScheduledTask } from './scheduled-tasks.js';
 import { MessageSafety } from './safety.js';
 import {
   ChatEventType,
@@ -37,6 +38,13 @@ export const UserSchema = z.object({
   locale: LocaleSchema.nullable(),
   /** Inboxes an agent may open (admin responses only; admins open every inbox). */
   inboxIds: z.array(z.number().int().positive()).optional(),
+  /**
+   * Which chats an agent sees: 'all' (every chat of their inboxes) or 'chosen' (only the chats an
+   * admin chose, `GET /api/users/:id/chats`). Absent = 'all'; admins and AI members are always 'all'.
+   */
+  chatScope: z.enum(['all', 'chosen']).optional(),
+  /** The chosen chats of an agent limited to chosen chats (admin responses only). */
+  chatJids: z.array(z.string()).optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -129,6 +137,8 @@ export const MessageSchema = z.object({
   template: z.object({ name: z.string(), language: z.string() }).nullable().optional(),
   /** Sent by the token owner's AI assistant through MCP (shown as "via AI assistant"). */
   viaAssistant: z.boolean().optional(),
+  /** Sent by a scheduled task of an AI agent: shown as "Scheduled · <task>". */
+  scheduledTask: MessageScheduledTask.nullable().optional(),
   /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */
   transcript: z.string().nullable().optional(),
   /** Language the transcriber detected (e.g. `en`, `ms`, `zh`), when known. */

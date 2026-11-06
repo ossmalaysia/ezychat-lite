@@ -14,6 +14,7 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   users: { merged: true },
   inboxes: { merged: true },
   inbox_members: { merged: true },
+  member_chats: { merged: true },
   ai_agents: { merged: true },
   ai_documents: { merged: true },
   ai_setup_versions: { merged: true },
@@ -51,6 +52,8 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   connector_calls: { merged: true },
   connector_values: { merged: true },
   safety_items: { merged: true },
+  ai_scheduled_tasks: { merged: true },
+  ai_scheduled_runs: { skip: 'run history: the imported tasks start switched off, with no runs' },
   safety_downloads: { merged: true },
   safety_numbers: { merged: true },
   sql_account_agent_settings: { merged: true },
@@ -469,6 +472,25 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       counts.chats++;
     }
   });
+  // Scheduled tasks: copied switched off (an admin checks and turns each on in the new inbox, so
+  // the same message is never sent from two installs).
+  phase(() => {
+    const addTask = inserter(target, 'ai_scheduled_tasks', { omit: ['id'] });
+    for (const task of rows(lite, 'SELECT * FROM ai_scheduled_tasks ORDER BY id')) {
+      const agentId = maps.agent(task.agent_id);
+      const chat = maps.chat(task.chat_jid as string);
+      if (agentId === null || !chat) continue;
+      const added = addTask({
+        ...task,
+        agent_id: agentId,
+        chat_jid: chat,
+        enabled: 0,
+        created_by: maps.user(task.created_by),
+        updated_at: now,
+      });
+      maps.scheduledTasks.set(Number(task.id), Number(added.lastInsertRowid));
+    }
+  });
   phase(() => {
     const addMessage = inserter(target, 'messages');
     for (const m of rows(lite, 'SELECT * FROM messages')) {
@@ -484,6 +506,10 @@ export function mergeTables(input: MergeInput): MergeOutcome {
         deleted_by_user_id: maps.user(m.deleted_by_user_id),
         hidden_by_user_id: maps.user(m.hidden_by_user_id),
         sent_via_token_id: null,
+        scheduled_task_id:
+          m.scheduled_task_id == null
+            ? null
+            : (maps.scheduledTasks.get(Number(m.scheduled_task_id)) ?? null),
         media_path: mediaPath(m.media_path),
       });
       counts.messages++;
@@ -607,6 +633,23 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     byChatAndAgent('connector_calls', false);
     byChatAndAgent('connector_values', false);
     byChatAndAgent('sql_account_activity', false);
+  });
+
+  // ── Limited chat access (after the chats exist) ──────────────────────────────────────────
+  phase(() => {
+    // Limited chat access: an added agent limited to chosen chats keeps them (a matched user keeps the
+    // target's own choice, so rows are copied only for a user the target also limits).
+    const addMemberChat = inserter(target, 'member_chats', { verb: 'INSERT OR IGNORE' });
+    const scopeOf = target.prepare('SELECT chat_scope FROM users WHERE id = ?');
+    const chatExists = target.prepare('SELECT 1 FROM chats WHERE jid = ?');
+    for (const m of rows(lite, 'SELECT * FROM member_chats')) {
+      const user = maps.user(m.user_id);
+      const chat = maps.chat(m.chat_jid as string);
+      if (user === null || !chat || !chatExists.get(chat)) continue;
+      const scope = scopeOf.get(user) as { chat_scope: string } | undefined;
+      if (scope?.chat_scope !== 'chosen') continue;
+      addMemberChat({ ...m, user_id: user, chat_jid: chat, added_by: maps.user(m.added_by) });
+    }
   });
 
   // ── WhatsApp Safety findings ─────────────────────────────────────────────────────────────

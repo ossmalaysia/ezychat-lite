@@ -231,6 +231,22 @@ assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests a
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 
+**Scheduled tasks** (design `docs/features/scheduled-tasks/design.md`, migration 036, `scheduled/` (`repo.ts` is its only
+SQL), routes `/api/ai/agents/:agentId/scheduled-tasks*`, admins). Up to `SCHEDULED_TASKS_MAX` (10) tasks per agent; each
+sends one message at one time on its days (`ai_timezone`, `scheduled/time.ts`) to ONE existing chat or group of the
+agent's inbox (400 `chat_not_in_inbox`), never a new number or a list. `scheduled/service.ts` ticks every 30 s: a slot is
+claimed once (`UNIQUE(task_id, slot)` in `ai_scheduled_runs`) and runs only within 15 minutes of its time; later it is
+recorded `missed`, never caught up; a task created or edited after a slot skips it. Paused (`agent_off`, `access_closed`,
+`ai_disconnected` via `AiService.answerReady`, `wa_disconnected`): the slot waits inside the grace. One
+`AiService.scheduledTurn` (`SCHEDULED_RULES` + `currentSituation.scheduledTask`, look-ups only, `save_file_to_drive`
+removed, Sheets `add_sheet_row` kept, answer or `no_reply`; handoff = skipped `needs_team`, no notification; leak check)
+then `messages.sendText(…, { scheduledTaskId })`: never claims the chat, `messages.scheduled_task_id` gives
+`Message.scheduledTask` ("Scheduled · <task>"), and the send queue asks `scheduled.canSend` instead of the AI's
+`canSend`. Business API window closed → skipped `window_closed`. Run now 3/task/h and 20/admin/h (429 `rate_limited`,
+409 `scheduled_paused`); preview 20/min, nothing sent or stored. Runs keep ids and reasons only (last 100); logs and
+audit `scheduled_task.*` never hold the instruction or text. Lite import copies tasks switched off, no runs. Web:
+`admin/AgentScheduledTasksCard.tsx`, `ScheduledTaskDialog.tsx`, `ScheduledRunsDialog.tsx`, `api/scheduled-tasks.ts`.
+
 **AI in groups** (design `docs/features/ai-groups/design.md`). Off by default: `ai_agents.answer_groups` (agent page
 Groups card) and `ai_group_chats` per group (Group info switch), migration 024; routes `/api/ai/agents/:agentId/groups`,
 `/api/chats/:jid/ai-group`. `ai/groups.ts` answers only a live group message that tags the inbox's own JID/LID
@@ -634,6 +650,15 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   MCP tools are filtered; chat events go to `inbox:<id>` socket rooms (rebuilt live on access changes);
   push, assignment and AI hand-off only reach people who may open the chat's inbox. An edition limit
   never widens access: the "one inbox" shortcut also checks the stored rows.
+- Limited chat access (design `docs/features/partner-role/design.md`, migration 037): an agent with
+  `users.chat_scope = 'chosen'` opens only the chats in `member_chats` (any active inbox; they replace inbox access).
+  `scopeFor` returns an empty inbox scope for them **before** the single-inbox shortcut, so `canOpen(inboxId)` is
+  false; one chat is checked with `canOpenChat` (`requireChatAccess`, `requireMessageAccess`, assignment, typing).
+  Every per-chat, media and message-id route answers 404 outside the chosen chats; the list, search and tags read only
+  them; sockets join `chat:<jid>` rooms (and `inbox-status:<id>` for connection state), never `inbox:<id>`, rebuilt
+  on `member-chats:changed`; push, `notification:new`, AI hand-offs (group ones too) and unassigned-chat notices go
+  only to `usersWhoCanOpenChat`. No chat from a group member (403 `chat_scope_limited`) and no Ask Ezy. "Chosen"
+  with no rows means no chats, never all; a promotion to admin clears the choice.
 - Host-only extension routes (`/api/ext/<name>/host/…`) answer only a direct loopback peer with a
   loopback `Host` and no `CF-Connecting-IP`; the access gate allowlist matches the decoded path and the
   matched route, never a raw prefix alone.
