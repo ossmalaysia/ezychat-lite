@@ -1002,6 +1002,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
+  return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
+  denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function
+  (`usersWhoCanOpenChat`) for every notification path. Grep every `scopeFor`/`canOpen`/`usersWhoCanOpen` caller and
+  decide each one explicitly (status banners and templates needed `visibleInboxIds`).
 - Data a device keeps for one user (saved queries, service worker photo/file caches) is cleared on every way a session
   ends, not only the sign-out button: the `session:revoked` socket event and a 401 from `/api/me` too
   (`startQueryPersistence` `clearCaches`). Test each path.
@@ -1473,6 +1478,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A list or panel component whose tests render it without an auth provider reads the signed-in user from the props it
+  already gets (`directory.me`), not from `useAuth()`: a new hook there breaks every existing test with "No
+  QueryClient set".
 - The persisted query cache (`api/query-persist.ts`) saves with a delay, so a reload can restore state from before the last mutation: never persist state a route guard acts on in a transitional form (e.g. `mustChangePassword`), and when an e2e step reloads right after a mutation and lands on an old page, suspect the restored copy first.
 
 - Every round trip counts over a slow tunnel (~0.7 s each): the live connection reloads every query when it joins,

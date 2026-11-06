@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Give an agent only the chats you choose.** In Members → Edit, an agent's new setting **Chats this member can see**
+  is All chats (as before) or **Only chosen chats**, with a list you add direct chats and groups to. Use it for an
+  outside or support agent: they work as usual in those chats, and every other chat stays invisible to them, with no
+  notifications about it. They cannot start new chats or use Ask Ezy.
+
 - **AI assistants can open photos, PDFs and Word files from chats.** A connected AI assistant (MCP) can now look at a
   customer's photo or read the text of a PDF or Word file in a chat, with the new `get_message_file` tool. It only
   reaches chats you can open, never gets a download link, and never gets a file WhatsApp Safety locked.
