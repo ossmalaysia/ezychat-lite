@@ -747,10 +747,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   one hash only: after each Enterprise release, report the new installer when a vendor flags it, and point users
   at `ezychat.ai/guides/install-on-windows#antivirus`. McAfee: a `ti!<hash>` detection is reputation only; report
   it on its "Dispute a Detection & Allowlisting" web form. A 407 MB ZIP of the installer plus its extracted files
-  failed although the page names no limit: attach the installer alone (a 173 MB ZIP went through) and put the
-  download links and SHA-256 values in Details. The owner attaches it by hand: browser automation uploads 10 MB at
-  most and its click on a file input opens no OS dialog; a tab that reports viewport 0x0 or times out on
-  screenshots is in a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
+  failed although the page names no limit: attach the installer alone (files up to 230 MB went through) and put the
+  download links and SHA-256 values in Details. The form refuses a `.dmg`: send each Mac file in its own ZIP. Do not
+  ask the owner to attach: Claude in Chrome uploads 10 MB at most, but Playwright in a separate Chrome window attaches
+  from disk (`setInputFiles`, about 70 s per file); a tab that reports viewport 0x0 or times out on screenshots is in
+  a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
   Google Threat Intelligence (VirusTotal) docs.
 - An antivirus that blocks the update installer (Windows Update helper `helper-error.log`: "the file contains a virus
   or potentially unwanted software") can leave `Program Files\<product>` empty: the rollback ran although nothing was
