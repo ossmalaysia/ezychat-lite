@@ -20,6 +20,7 @@ import {
   useCustomerProfile,
   useCustomerTags,
   useSaveCustomerProfile,
+  useSendMedia,
   useSendReaction,
   type MessagesData,
 } from './queries';
@@ -365,5 +366,43 @@ describe('inboxes', () => {
     expect(after.inboxes.map((i) => i.status.state)).toEqual(['open', 'open']);
     patchInboxStatusInCache(qc, { inboxId: 7, status: offline });
     expect(qc.getQueryData(qk.inboxes)).toBe(after);
+  });
+});
+
+describe('media upload refusals', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function upload(status: number, code: string) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: { code, message: 'Server words' } }), {
+            status,
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    );
+    const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    seed(qc, []);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useSendMedia(JID), { wrapper });
+    const file = new File(['x'], 'big.mp4', { type: 'video/mp4' });
+    await act(async () => {
+      await result.current.mutateAsync({ file, clientId: 'c9' }).catch(() => undefined);
+    });
+    return cached(qc).find((m) => m.clientId === 'c9')!;
+  }
+
+  it('keeps the code of a size refusal so the bubble words it, else the server message', async () => {
+    expect(await upload(413, 'too_large_as_video')).toMatchObject({
+      status: 'failed',
+      error: 'too_large_as_video',
+      type: 'video',
+    });
+    expect((await upload(413, 'too_large_for_whatsapp')).error).toBe('too_large_for_whatsapp');
+    expect((await upload(413, 'something_else')).error).toBe('Server words');
+    expect((await upload(500, 'too_large')).error).toBe('Server words');
   });
 });

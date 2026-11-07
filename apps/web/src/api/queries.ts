@@ -635,6 +635,13 @@ export interface SendMediaInput {
   voiceNote?: boolean;
 }
 
+/** 413 answers of the media upload that the failed bubble words itself. */
+const SIZE_REFUSALS: ReadonlySet<string> = new Set([
+  'too_large',
+  'too_large_as_video',
+  'too_large_for_whatsapp',
+]);
+
 export function useSendMedia(jid: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -689,7 +696,13 @@ export function useSendMedia(jid: string) {
         { id: `local-${input.clientId}`, clientId: input.clientId },
         {
           status: 'failed',
-          error: e instanceof Error ? e.message : 'Upload failed',
+          // WhatsApp's size refusals keep their code: the bubble words them (MessageBubble).
+          error:
+            e instanceof ApiError && e.status === 413 && SIZE_REFUSALS.has(e.code)
+              ? e.code
+              : e instanceof Error
+                ? e.message
+                : 'Upload failed',
         },
       );
     },
