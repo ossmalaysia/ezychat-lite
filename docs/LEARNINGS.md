@@ -1172,6 +1172,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp): do not
+  plan a preview for them from the protobuf field alone. Their download data lives only in the adapter's in-memory `raw`
+  cache, so after a restart a pending file cannot download and is marked `failed`, with no log line and a Retry that cannot
+  work: restart the server when you test on-demand media.
 - `WaAdapterEvents` has no "profile photo changed" event: a cache of WhatsApp photos (`avatars/store.ts`) refreshes
   by age (24 h) and keeps the last good photo when a refresh fails. Serve the bytes yourself with a version in the
   URL (`?v=<hash>`, immutable) instead of a 302 to WhatsApp's CDN: over a slow tunnel each redirect was a ~0.7 s
