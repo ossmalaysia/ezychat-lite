@@ -214,6 +214,10 @@ into AGENTS.md.
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
 
+- A new server-side refusal (a size limit, a window) needs a way through in every UI path that can hit it, not only
+  in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
+  failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
+
 ## Multi-agent process
 
 - A message from another session can arrive long after it was sent: before acting on it, read the PR's current
