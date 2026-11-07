@@ -372,6 +372,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
   commit's own diff from `git diff <merge base> <sha>` (fetch both ids; works in a shallow clone).
+  It scores a PR of its checkout's repo and ignores `--repo`: run an Enterprise PR's score from an Enterprise checkout,
+  and check that the output names the expected PR title or head.
 - A mutation check on uncommitted code (break a line, watch the test fail) is undone from a backup copy
   or `git stash`, never `git checkout -- <file>`: that restores HEAD and deletes the new code too.
 - After pushing a release tag, confirm its run exists (`gh run list --workflow <file> --branch v<version>`):
