@@ -27,6 +27,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { resolveTool } from './build-summary.mjs';
 
 const FORM_URL =
   'https://www.mcafee.com/en-us/consumer-support/dispute-detection-allowlisting.html';
@@ -34,6 +35,7 @@ const LITE_REPO = 'ossmalaysia/ezychat-lite';
 const ENTERPRISE_FEED = 'https://dl.ezychat.ai/enterprise';
 const SIGNER = /CN="?Anchor Sprint Pte\. Ltd\./;
 const REPORTER_FILE = join(homedir(), '.ezychat', 'mcafee-reporter.json');
+const WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 
 export const KINDS = {
   win: { suffix: 'win-x64.exe', label: 'Windows installer' },
@@ -133,7 +135,7 @@ async function loadRelease(edition, version) {
   if (edition === 'lite') {
     const path = version ? `tags/v${version}` : 'latest';
     const release = JSON.parse(
-      execFileSync('gh', ['api', `repos/${LITE_REPO}/releases/${path}`], {
+      execFileSync(resolveTool('gh'), ['api', `repos/${LITE_REPO}/releases/${path}`], {
         encoding: 'utf8',
         maxBuffer: 2 ** 26,
       }),
@@ -185,7 +187,7 @@ export function powershellEnv(parent, env) {
 
 // Windows PowerShell only reads the file; the path goes through the environment, never into the command text.
 function powershell(command, env) {
-  return execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', command], {
+  return execFileSync(WINDOWS_POWERSHELL, ['-NoProfile', '-NonInteractive', '-Command', command], {
     encoding: 'utf8',
     env: powershellEnv(process.env, env),
   }).trim();
