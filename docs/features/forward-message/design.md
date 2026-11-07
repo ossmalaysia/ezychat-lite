@@ -1,8 +1,9 @@
 # Forward a message
 
-Status: **proposal, waiting for the owner's confirmation of the mock.** Created 2026-11-07 (creationOrder 38).
-Branch `feat/forward-message`, workbook [docs/workbooks/feat\_\_forward-message.md](../../workbooks/feat__forward-message.md).
-Production work waits for the confirmation.
+Status: **confirmed 2026-11-07** with every proposed answer (see "Owner decisions"). Created 2026-11-07
+(creationOrder 38). Branch `feat/forward-message`, workbook
+[docs/workbooks/feat\_\_forward-message.md](../../workbooks/feat__forward-message.md). Production work on
+`feat/forward-message-impl`.
 
 Owner request (Jazz, 2026-11-07, relayed by the main session): forward a message to another chat, in the **Lite
 core** (Lite and Enterprise both get it). **Keep it simple.** Forward from a message's menu, pick one or a few
@@ -373,7 +374,23 @@ is written `[forwarded] …` so the agent does not take a forwarded text as the 
   WhatsApp".
 - Network: no listener changes (no security review needed for that rule).
 
-## Open questions for the owner
+## Owner decisions (confirmation record)
+
+Owner (Jazz) **confirmed the Forward mock on 2026-11-07** (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd)
+with all proposed answers to the open questions; confirmed mock revision `2549b7afac813d8c2c957d15d653b2a150325866`:
+
+1. **Offline:** refuse while the chosen chat's WhatsApp number is offline (503 `wa_disconnected`, nothing queued).
+2. **Claiming:** a forward claims the chat like a reply (an unassigned chat becomes the forwarder's; a forward into an
+   AI-owned chat takes it over).
+3. **Limits:** at most 5 chats per forward, 30 forwards a minute per user.
+4. **Business API:** copies go without WhatsApp's "Forwarded" mark (the Cloud API has none); our app still shows it.
+5. **AI:** an inbound forwarded message appears as `[forwarded] …` in the AI's conversation.
+6. **Upload limit:** the composer's upload limit rises from 64 MB to **100 MB** for every type, checked per number
+   against WhatsApp's limits; a Business API video above 16 MB is offered as a file.
+7. **Linked-phone video limit:** 64 MB until the Dev Build measures WhatsApp's real limit; above it the video goes as a
+   file.
+
+The questions as they were asked:
 
 1. **Offline:** refuse while that WhatsApp number is offline (proposed), or queue like a typed reply (sent when it
    reconnects, fails after 10 minutes)?

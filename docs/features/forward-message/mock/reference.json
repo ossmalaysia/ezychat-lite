@@ -4,7 +4,7 @@
   "appRevisionAtProposal": "2bb1c87",
   "appVersionAtProposal": "0.1.79",
   "hashNormalization": "text LF; binary unchanged",
-  "status": "proposal",
+  "status": "confirmed",
   "feature": "forward-message",
   "createdAt": "2026-11-07",
   "branchBase": "2bb1c87 (main, 0.1.79)",
@@ -1622,5 +1622,6 @@
       "src/main.tsx",
       "src/lib/tips.ts"
     ]
-  }
+  },
+  "confirmedAt": "2026-11-07"
 }
