@@ -4,6 +4,7 @@ import {
   checkVersion,
   liteAssets,
   pickAssets,
+  powershellEnv,
   reportText,
   selectKinds,
   signatureProblem,
@@ -26,6 +27,13 @@ describe('checkVersion', () => {
       expect(() => checkVersion(version)).toThrow('not a version');
     },
   );
+});
+
+describe('powershellEnv', () => {
+  it('drops the module path of PowerShell 7, in any case, and keeps the rest', () => {
+    const parent = { PSModulePath: 'a', PSMODULEPATH: 'b', PATH: 'c' };
+    expect(powershellEnv(parent, { TARGET_FILE: 'f' })).toEqual({ PATH: 'c', TARGET_FILE: 'f' });
+  });
 });
 
 describe('pickAssets', () => {

@@ -174,11 +174,20 @@ async function download(asset, dir) {
   return file;
 }
 
+/** PowerShell 7 passes on its own PSModulePath, and Windows PowerShell then cannot load its signature and archive commands. */
+export function powershellEnv(parent, env) {
+  const result = { ...parent, ...env };
+  for (const name of Object.keys(result)) {
+    if (name.toLowerCase() === 'psmodulepath') delete result[name];
+  }
+  return result;
+}
+
 // Windows PowerShell only reads the file; the path goes through the environment, never into the command text.
 function powershell(command, env) {
   return execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', command], {
     encoding: 'utf8',
-    env: { ...process.env, ...env },
+    env: powershellEnv(process.env, env),
   }).trim();
 }
 
