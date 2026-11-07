@@ -214,7 +214,8 @@ into AGENTS.md.
   as `local-<clientId>` and renamed to WhatsApp's id when sent (`message:status` with `newId`), so key it by
   `clientId` until then, or the mark vanishes from the sent bubble.
 - Shot scripts that create server-side records (chats, audit rows) need a fresh runner per run, or the second run
-  meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run.
+  meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run. Within one run, a step that "creates" a value must use one no seed has (a seeded
+  tag turned "Add “Wholesale”" into a plain pick), and steps reset persisted list filters (session storage) before the next.
 - A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
   nothing unless the `*_LIST_URL` env is set, so set it to the production URL (assert it equals the built-in constant)
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
