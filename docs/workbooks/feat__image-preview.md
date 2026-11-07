@@ -8,7 +8,7 @@ Branch: `feat/image-preview` · Every agent updates its stage with
 | Design | skip | Bug fix with no new screen or flow: no mock needed | 7ce2fab | 2026-11-07 |
 | Dev | done | Added: chat shows WhatsApp's thumbnail, real file only when opened; Lite merge keeps refs and thumbs | 3457a9b | 2026-11-07 |
 | Unit tests | pass | media-ref, mapping, adapter, messages, MediaView, upgrade, contract and multi-inbox tests | 7ce2fab | 2026-11-07 |
-| E2E | pass | npm run e2e 159 passed, 27 skipped; e2e:electron-links 17/17 screens (9186d35) | 9186d35 | 2026-11-07 |
+| E2E | pass | npm run e2e 159 passed, 27 skipped; e2e:electron-links 17/17 screens (6653c6b) | 6653c6b | 2026-11-07 |
 | Dev Build | pass | Fake WhatsApp copy: 130 thumbnails 105 KB, 0 real image files until opened; opened = real 768x1024 file; real WhatsApp restart check on 9186d35 | 08c8718 | 2026-11-07 |
 | Screen review | todo |  |  |  |
 
@@ -22,3 +22,4 @@ Branch: `feat/image-preview` · Every agent updates its stage with
 - 2026-11-07 E2E: pass — npm run e2e 159 passed, 27 skipped; e2e:electron-links 17/17 screens (9186d35) (9186d35)
 - 2026-11-07 Dev: done — Added: chat shows WhatsApp's thumbnail, real file only when opened; Lite merge keeps refs and thumbs (3457a9b)
 - 2026-11-07 Dev Build: pass — Fake WhatsApp copy: 130 thumbnails 105 KB, 0 real image files until opened; opened = real 768x1024 file; real WhatsApp restart check on 9186d35 (08c8718)
+- 2026-11-07 E2E: pass — npm run e2e 159 passed, 27 skipped; e2e:electron-links 17/17 screens (6653c6b) (6653c6b)
