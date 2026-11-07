@@ -118,7 +118,9 @@ export function NewChatDialog({
 
   useEffect(() => {
     if (!open) return;
-    setInboxId(inboxes[0]?.id ?? '');
+    // Proposed (mobile-redesign, owner 2026-11-07): Send from starts on the number being viewed
+    // (the number switcher / inbox filter), else the first number.
+    setInboxId(inboxes.find((i) => i.id === mock.inboxFilter)?.id ?? inboxes[0]?.id ?? '');
     setPhone('');
     setName('');
     setSubmitted(false);

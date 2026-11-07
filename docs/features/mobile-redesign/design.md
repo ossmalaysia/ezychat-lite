@@ -212,8 +212,8 @@ the inbox already turns from two columns into one. `30-desktop-list` and `31-des
 
 ### Phase 3 (only if the owner wants it)
 
-- Bottom navigation (Chats · Reports · Admin · Me) for admins; selection mode in the list (bulk assign / resolve);
-  New chat "Send from" defaulting to the number being viewed.
+- Selection mode in the list (bulk assign / resolve). (Bottom navigation: owner said no, 2026-11-07. New chat
+  "Send from" on the number being viewed moved into phase 1.)
 
 ## Rules (phase 1)
 
@@ -239,6 +239,7 @@ Sizes: `m360` (360 × 780 touch), `m390` (390 × 844 touch), `desktop` (1280). L
 | 1   | Chat list: switcher title, chips, number badges, FAB (+ 390, dark, ms, zh-CN)               | `01-list`                                                    |
 | 2   | Number switcher sheet: All numbers + 3 numbers, unread, connection (+ 390, dark, ms, zh-CN) | `02-inbox-switcher`                                          |
 | 3   | Switched to Catering: title and number, dot for unread elsewhere                            | `03-switched-catering`                                       |
+| 3b  | New chat from Catering: Send from starts on Catering (owner 2026-11-07)                     | `03b-new-chat-sends-from-catering`                           |
 | 4   | Unread chip on                                                                              | `04-chip-unread`                                             |
 | 5   | Tag filter sheet (+ 390, dark, ms, zh-CN)                                                   | `05-tag-filter-sheet`                                        |
 | 6   | Filtered by VIP: chip "VIP ×"                                                               | `06-tag-filtered`                                            |
@@ -272,7 +273,7 @@ Sizes: `m360` (360 × 780 touch), `m390` (390 × 844 touch), `desktop` (1280). L
 | 34  | Desktop Customer details with the Tags row                                                  | `34-desktop-customer-tags`                                   |
 | 35  | Desktop tag filter returns the tagged group                                                 | `35-desktop-tag-filter-groups`                               |
 
-`mobile-results.json`: 65 shots, 0 page errors, 0 horizontal overflow, 0 list controls under 44 px.
+`mobile-results.json`: 66 shots, 0 page errors, 0 horizontal overflow, 0 list controls under 44 px.
 
 Not yet covered (phase 2 screens; the owner may want them before confirming): composer, message press-and-hold, the
 Customer details sheet, Group info, Admin on a phone, the keyboard open, empty states other than Unread / Groups.
@@ -301,7 +302,24 @@ Tests to add with the build: list filters (server), unread counts by access (adm
 route limits and audit, `MobileListHeader` / sheets / swipe threshold and Undo (web), contract test entries, the e2e
 phone project (360 px) for switch number, tag a chat, swipe, New chat.
 
-## Open questions for the owner
+## Owner decisions (2026-11-07, relayed by the main session)
+
+The mock itself is **not yet confirmed**: the owner confirms it after seeing the group tagging and the tag-screens
+audit. These answers are recorded now:
+
+1. Swipe right = **Assign to me**, swipe left = **Resolve**, both with Undo.
+2. Chips stay as shown (All · Unread · Mine · Unassigned · Groups · Tag · Resolved); a phone opens on **All**.
+3. Admin stays in the account menu; **no bottom bar**.
+4. Resolve in the phone chat header is icon only at 360 px, labelled from 375 px.
+5. Any teammate who can open the chat creates and adds tags, on **direct chats and groups** ("Follow existing";
+   see "Tags on every chat and every screen").
+6. New chat's **Send from starts on the number being viewed** (built into the mock: `03b-new-chat-sends-from-catering`).
+7. Phase 2 order: **composer first**, then message actions, then the Customer details and Group info sheets.
+8. The Mobile patterns and the Editions table in `docs/design-system.md` are **the rules for both editions**.
+9. Desktop chat header: "Rest as proposed", so tags stay in the side panels (Customer details, Group info) on
+   desktop; the header is unchanged.
+
+## Open questions for the owner (all answered 2026-11-07, see above)
 
 1. **Swipe directions**: right = Assign to me, left = Resolve (Undo on both). Keep, or another pair (e.g. Mark as read)?
 2. **Chips**: All · Unread · Mine · Unassigned · Groups · Tag · Resolved. Right set and order? Should a phone open on

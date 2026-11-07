@@ -181,8 +181,8 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
 For phones (below 768 px, the width at which the inbox becomes one column). Every rule has a mock screen in
 [`features/mobile-redesign/mock/screenshots`](features/mobile-redesign/mock/screenshots) (`<shot>-m360-light.png`;
 390 px, dark, Malay and Chinese variants beside it). Desktop keeps its own layout; never let a phone pattern leak
-into it. These are the proposed patterns of the mobile redesign (owner confirmation pending): the existing app
-follows them once that work is built.
+into it. The owner made these the rules for both editions on 2026-11-07; the app follows them once the mobile redesign is
+built (the mock shows each one).
 
 ### App bar and number switcher
 
@@ -264,7 +264,7 @@ follows them once that work is built.
 - **Do** reach rarely used destinations (Admin settings, language, theme, About and the version, sign out) from
   the account menu in the app bar while there are fewer than three everyday destinations.
 - **Don't** add a bottom navigation bar for two items; propose one (Chats · Reports · Admin · Me) only when three
-  or more destinations are used daily (open question to the owner).
+  or more destinations are used daily, and only with the owner's confirmation (2026-11-07: no bottom bar).
 
 ### Empty states
 

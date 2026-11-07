@@ -133,6 +133,12 @@ async function swipe(page, index, dx, { release = true } = {}) {
     await page.getByTestId('switch-catering').click();
     await page.getByTestId('inbox-switcher-sheet').waitFor({ state: 'detached' });
     await shot('03-switched-catering');
+    // Owner 2026-11-07: New chat's Send from starts on the number being viewed.
+    await page.getByTestId('new-chat-fab').click();
+    await page.getByRole('dialog').waitFor();
+    await shot('03b-new-chat-sends-from-catering');
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
     await page.getByTestId('inbox-switcher').click();
     await page.getByTestId('switch-all').click();
     await page.getByTestId('inbox-switcher-sheet').waitFor({ state: 'detached' });
