@@ -126,7 +126,8 @@
     "src/mock/inboxes.ts",
     "src/mock/replySuggestions.ts",
     "src/setup/SetupWizard.tsx",
-    "src/inbox/ReactionPicker.tsx"
+    "src/inbox/ReactionPicker.tsx",
+    "src/App.tsx"
   ],
   "proposalChanged": [
     "src/inbox/InboxPage.tsx",
@@ -138,7 +139,8 @@
     "src/main.tsx",
     "src/i18n/locales/en/inbox.json",
     "src/i18n/locales/ms/inbox.json",
-    "src/i18n/locales/zh-CN/inbox.json"
+    "src/i18n/locales/zh-CN/inbox.json",
+    "src/App.tsx"
   ],
   "addedFrontend": [
     "src/admin/AgentBookingsCard.tsx",
@@ -207,7 +209,8 @@
     "src/inbox/mobile/MobileListHeader.tsx",
     "src/inbox/mobile/NewChatFab.tsx",
     "src/inbox/mobile/TagSheet.tsx",
-    "src/inbox/mobile/phone.ts"
+    "src/inbox/mobile/phone.ts",
+    "src/design-system/DesignSystemPage.tsx"
   ],
   "proposalAdded": [
     "src/inbox/mobile/AssignSheet.tsx",
@@ -217,7 +220,8 @@
     "src/inbox/mobile/MobileListHeader.tsx",
     "src/inbox/mobile/NewChatFab.tsx",
     "src/inbox/mobile/TagSheet.tsx",
-    "src/inbox/mobile/phone.ts"
+    "src/inbox/mobile/phone.ts",
+    "src/design-system/DesignSystemPage.tsx"
   ],
   "baselineProposal": {
     "feature": "concept-tips",
@@ -1661,7 +1665,8 @@
       "src/inbox/mobile/TagSheet.tsx",
       "src/inbox/mobile/phone.ts",
       "mobile-shots.mjs",
-      "audit-shots.mjs"
+      "audit-shots.mjs",
+      "src/design-system/DesignSystemPage.tsx"
     ],
     "changed": [
       "src/inbox/InboxPage.tsx",
@@ -1676,7 +1681,8 @@
       "src/i18n/locales/zh-CN/inbox.json",
       "run.ts",
       "README.md",
-      "reference.json"
+      "reference.json",
+      "src/App.tsx"
     ]
   },
   "inheritedFrozenDrift": {

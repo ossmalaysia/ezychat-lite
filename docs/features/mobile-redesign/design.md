@@ -31,6 +31,28 @@ node docs/features/mobile-redesign/mock/mobile-shots.mjs   # PW_CHROMIUM=<chromi
 Open `http://localhost:7489/` on a phone or in the browser's device mode (360 or 390 px), sign in as `aisyah`
 (admin), `daniel` (agent, 2 numbers) or `meiling` (agent, 1 number), password `demo-pass-123`.
 
+## Design system (added scope, owner via the main session 2026-11-07)
+
+`docs/design-system.md` is now the single design system for Lite and Enterprise (AGENTS.md rule PRs #327 and
+anchorsprint/ezychat-enterprise#96). This PR:
+
+- adds **Mobile patterns** (app bar and number switcher, FAB, filter chips, sheets vs dialogs vs pages, swipe and
+  press and hold, detail header with chips, selection bar, composer and keyboard, bottom navigation vs menu, empty
+  states, pull to refresh, back behaviour), each as a do / don't rule linked to the mock screens;
+- adds **Editions**: where Enterprise screens (lock screen, licence, connectors, wa-cloud inbox, extension slots)
+  use the shared patterns;
+- fixes what the redesign changes or what was out of date: radius classes (the file called 16 px `--radius-lg`;
+  `index.css` maps `--radius-lg` to 10 px and 16 px is `rounded-xl`), `--overlay` and the number (inbox) colours
+  as identity tones, the 15 px phone list size, chip hit areas, toast position on phones, `ResponsiveDialog`, the
+  phone layout below `md`, and the "add it to the design system in the same PR" rule;
+- adds the living reference page **`/design-system`** to the mock
+  (`docs/features/mobile-redesign/mock/src/design-system/DesignSystemPage.tsx`, no sign-in): colour tokens read from
+  the real `index.css` (light and dark values), type scale, spacing, radius, elevation, touch targets, components and
+  states (buttons, filter chip, badges, number chip and badge, status, inputs, list row, sheet, confirm dialog, toast
+  with Undo, banners, skeleton, empty state, FAB, tabs), the mobile patterns with their screens, and the editions
+  table; a Light/Dark switch at the top. Screens `40-design-system`, `41-design-system-full` (whole page),
+  `42-design-system-sheet`.
+
 ## Audit (before), 360 px, seeded demo
 
 | Measure                                   | Before                                               | After (mock)            |
@@ -174,8 +196,11 @@ Sizes: `m360` (360 × 780 touch), `m390` (390 × 844 touch), `desktop` (1280). L
 | 22  | Team member with one number (Mei Ling)                                                      | `22-agent-one-number`           |
 | 23  | Desktop list, unchanged                                                                     | `30-desktop-list-desktop-light` |
 | 24  | Desktop chat, unchanged                                                                     | `31-desktop-chat-desktop-light` |
+| 25  | Design system page, top (desktop + 360, light + dark)                                       | `40-design-system`              |
+| 26  | Design system page, whole page (desktop + 360, light + dark)                                | `41-design-system-full`         |
+| 27  | Design system page: a bottom sheet on a phone (light + dark)                                | `42-design-system-sheet`        |
 
-`mobile-results.json`: 44 shots, 0 page errors, 0 horizontal overflow, 0 list controls under 44 px.
+`mobile-results.json`: 54 shots, 0 page errors, 0 horizontal overflow, 0 list controls under 44 px.
 
 Not yet covered (phase 2 screens; the owner may want them before confirming): composer, message press-and-hold, the
 Customer details sheet, Group info, Admin on a phone, the keyboard open, empty states other than Unread / Groups.
@@ -194,6 +219,7 @@ Customer details sheet, Group info, Admin on a phone, the keyboard open, empty s
 | new `inbox/mobile/*`                           | `MobileListHeader`, `InboxSwitcherSheet`, `TagSheet`, `AssignSheet`, `ChatRowActions`, `NewChatFab`, `MobileConversationHeader`, `phone.ts` |
 | new `components/app/FilterChip.tsx`            | The chip as an app composite (the mock uses a styled `<button>`; ESLint forbids raw buttons in feature code)                                |
 | `i18n/locales/{en,ms,zh-CN}/inbox.json`        | `mobile.*`                                                                                                                                  |
+| `docs/design-system.md`                        | Updated in this PR (Mobile patterns, Editions, fixes)                                                                                       |
 | `packages/shared` `ChatListQuery`              | `unread`, `type`                                                                                                                            |
 | `packages/server` `routes/chats.ts`, `inboxes` | the two filters; `GET /api/inboxes/unread`; recommended `PUT /api/chats/:jid/tags`                                                          |
 
@@ -213,6 +239,7 @@ phone project (360 px) for switch number, tag a chat, swipe, New chat.
 6. **Number switcher**: remembered per phone (like today's filter). And should New chat's "Send from" start on the
    number you are viewing? (proposed: yes, phase 1)
 7. **Phase 2 order**: composer first, or message actions, or the Customer details / Group info sheets?
+8. **Design system**: are the new Mobile patterns and the Editions table right as the rules for both editions?
 
 ## Five-folder retention
 

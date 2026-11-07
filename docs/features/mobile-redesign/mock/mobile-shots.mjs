@@ -304,6 +304,34 @@ for (const opts of [
   await ctx.close();
 }
 
+// ---------- Design system reference page (/design-system), light and dark ----------
+for (const opts of [
+  { size: 'desktop', scale: 1 },
+  { size: 'desktop', scale: 1, scheme: 'dark' },
+  { size: 'm360' },
+  { size: 'm360', scheme: 'dark' },
+]) {
+  const { ctx, page, shot, step, suffix } = await session('aisyah', opts);
+  await step('design system', async () => {
+    await page.goto('/design-system');
+    await page.getByTestId('design-system').waitFor();
+    await page.waitForTimeout(600);
+    await shot('40-design-system');
+    await page.screenshot({
+      path: join(OUT, `41-design-system-full-${suffix}.png`),
+      fullPage: true,
+    });
+    passed.push(`41-design-system-full-${suffix}`);
+    if (opts.size === 'm360') {
+      await page.getByTestId('ds-sheet').scrollIntoViewIfNeeded();
+      await page.getByTestId('ds-sheet').click();
+      await page.getByRole('dialog').waitFor();
+      await shot('42-design-system-sheet');
+    }
+  });
+  await ctx.close();
+}
+
 // ---------- Desktop 1280 px: unchanged ----------
 {
   const { ctx, page, shot, step } = await session('aisyah', { size: 'desktop', scale: 1 });

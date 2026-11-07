@@ -5,6 +5,8 @@ import { LoginPage } from './auth/LoginPage';
 import { RequireAuth } from './auth/RequireAuth';
 import { InboxPage } from './inbox/InboxPage';
 import { SetupWizard } from './setup/SetupWizard';
+// Proposed (mobile-redesign): living design-system reference, no sign-in (mock only).
+import { DesignSystemPage } from './design-system/DesignSystemPage';
 import { ErrorBoundary } from '@/components/app/ErrorBoundary';
 import { DesktopUpdateNotice } from '@/components/app/DesktopUpdates';
 import { DevBuildBadge } from '@/components/app/DevBuildBadge';
@@ -20,6 +22,7 @@ export function App() {
       <Routes>
         <Route path="/setup" element={<SetupWizard />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/design-system" element={<DesignSystemPage />} />
         <Route
           path="/change-password"
           element={
