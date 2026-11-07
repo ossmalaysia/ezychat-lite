@@ -1,24 +1,45 @@
 // Dev Build check for Forward (docs/features/forward-message/design.md) against a running Dev Build started with
 //   npx tsx packages/server/src/cli.ts --data <temp> --port 7494 --fake-wa --mode dev --max-inboxes 3 --web-dist apps/web/dist
-// on a fresh temp data folder. Usage: node e2e/devbuild-forward-check.mjs <port> <fixture.mp4>
-// The fixture is any small MP4; the check pads it to 70 MB so the server stores a large video.
+// on a fresh temp data folder. Usage: node e2e/devbuild-forward-check.mjs <port>
+// It builds its own MP4 (a file-type box the server recognises, then padding) up to 70 MB.
 // Prints PASS/FAIL per step; never calls a model or a real WhatsApp number (fake WhatsApp only).
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { checker, poll, wait } from './devbuild-client.mjs';
 
 const PORT = Number(process.argv[2] ?? 7494);
-const FIXTURE = process.argv[3];
-if (!FIXTURE) throw new Error('Usage: node e2e/devbuild-forward-check.mjs <port> <fixture.mp4>');
+// Only a local Dev Build: a numeric port on the loopback address, never another host.
+if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
+  throw new Error('Usage: node e2e/devbuild-forward-check.mjs <port 1024-65535>');
 const BASE = `http://127.0.0.1:${PORT}`;
+const API_PATH = /^\/[\w%@.:?=&#/-]*$/;
 const { check, finish } = checker();
 const MB = 1024 * 1024;
+/** An MP4 of `size` bytes: an `ftyp` box (what the server's type check reads), then zeros. */
+const mp4 = (size) => {
+  const head = Buffer.from([
+    0,
+    0,
+    0,
+    0x18,
+    ...Buffer.from('ftypisom'),
+    0,
+    0,
+    2,
+    0,
+    ...Buffer.from('isomiso2'),
+  ]);
+  return Buffer.concat([head, Buffer.alloc(size - head.length)]);
+};
 
 /** A signed-in session: JSON calls and one multipart upload, keeping the cookie. */
 function session() {
   let cookie = '';
   const call = async (method, path, body, form) => {
-    const res = await fetch(`${BASE}/api${path}`, {
+    if (!API_PATH.test(path) || path.split('/').some((p) => p === '..' || p === '.'))
+      throw new Error(`Unexpected API path: ${path}`);
+    const url = new URL(`/api${path}`, BASE);
+    if (url.origin !== BASE) throw new Error('Refusing a request outside the local Dev Build');
+    const res = await fetch(url, {
       method,
       headers: {
         origin: BASE,
@@ -143,7 +164,7 @@ check(stranger.status === 404, 'a number without a chat is refused (404, never a
 
 // Large file: a 70 MB video (uploads now go up to 100 MB). As a video it is over the linked phone's
 // 64 MB video limit, so the composer sends it as a file; then it is forwarded across numbers.
-const video = Buffer.concat([readFileSync(FIXTURE), Buffer.alloc(70 * MB - 16 * 1024)]);
+const video = mp4(70 * MB);
 const videoForm = (fields) => {
   const f = new FormData();
   f.set('clientId', randomUUID());
@@ -192,7 +213,7 @@ check(
 // A real video message (from WhatsApp) above a chat's video limit: refused as a video, fine as a file.
 const clip = await incoming(1, farah, 'Farah Aziz', 'Short clip', {
   type: 'video',
-  media: { mime: 'video/mp4', base64: readFileSync(FIXTURE).toString('base64') },
+  media: { mime: 'video/mp4', base64: mp4(4096).toString('base64') },
 });
 const clipFwd = await fwd(admin, clip.id, [jasonKey]);
 check(clipFwd.status === 200, 'a small video forwards as a video to the Business API chat');
