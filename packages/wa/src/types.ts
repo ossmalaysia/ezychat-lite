@@ -35,6 +35,8 @@ export interface WaIncomingMessage {
     /** The image's size as reported with the message, when known. */
     width?: number;
     height?: number;
+    /** WhatsApp's small JPEG preview of an image, when the message has one. */
+    thumbnail?: Buffer;
   };
 }
 

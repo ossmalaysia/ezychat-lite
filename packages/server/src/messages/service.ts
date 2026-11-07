@@ -190,6 +190,8 @@ export interface MessageService {
   /** Earlier versions; the original of a deleted message (and its versions) only for admins. */
   messageEdits(id: string, isAdmin: boolean): MessageEditsResponse;
   mediaPath(id: string): MediaFile | null;
+  /** WhatsApp's small preview of an image; null when it has none, or for a deleted or hidden message. */
+  mediaThumb(id: string): Buffer | null;
   redownload(id: string): Promise<Message>;
   /**
    * The one way to turn stored rows into outbound Messages (REST and socket): maps each row and
@@ -1197,6 +1199,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_status: m.media ? 'pending' : 'none',
         media_width: m.media?.width ?? null,
         media_height: m.media?.height ?? null,
+        media_has_thumb: m.media?.thumbnail ? 1 : 0,
         quoted_id: m.quotedId ? messageKey(inboxId, m.quotedId) : null,
         status: m.fromMe ? 'sent' : 'delivered',
         error: null,
@@ -1210,6 +1213,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       };
       if (!repo.insert(row)) return null; // concurrent duplicate
       if (m.media?.ref) repo.setMediaRef(id, m.media.ref);
+      if (m.media?.thumbnail) repo.setMediaThumb(id, m.media.thumbnail);
 
       const isNewLiveInbound = source === 'live' && !m.fromMe;
       let reopened = false;
@@ -1757,6 +1761,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       }
       if (!existsSync(p)) return null;
       return { path: p, mime: r.media_mime ?? 'application/octet-stream', name: r.media_name };
+    },
+
+    mediaThumb(id) {
+      const r = repo.get(id);
+      if (!r || r.deleted_at != null || r.hidden_at != null) return null;
+      return repo.mediaThumb(id);
     },
 
     redownload(id) {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Message } from '@ezychat/shared';
 import { imageBox, MediaView } from './MediaView';
@@ -118,6 +118,58 @@ describe('MediaView stored image', () => {
     const img = screen.getByRole('img');
     expect(img.style.width).toBe('');
     expect(img.className).toContain('size-32');
+  });
+});
+
+describe('MediaView with WhatsApp thumbnail', () => {
+  const thumb = '/api/media/3EB0ABC/thumb';
+  const real = '/api/media/3EB0ABC';
+  const image: Message = { ...base, type: 'image', mediaMime: 'image/jpeg', mediaThumbUrl: thumb, mediaWidth: 768, mediaHeight: 1024 };
+
+  it('the chat shows only the thumbnail, and opening shows only the real photo', async () => {
+    show({ ...image, mediaStatus: 'ok', mediaUrl: real });
+    const inChat = screen.getByRole('img') as HTMLImageElement;
+    expect(inChat.getAttribute('src')).toBe(thumb);
+    expect(document.querySelector(`img[src="${real}"]`)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /open image/i }));
+    const dialog = await screen.findByRole('dialog');
+    const photo = dialog.querySelector('img')!;
+    expect(photo.getAttribute('src')).toBe(real);
+    expect(dialog.querySelector(`img[src="${thumb}"]`)).toBeNull();
+  });
+
+  it('a pending image with a thumbnail downloads nothing until it is opened', async () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal('fetch', fetchMock);
+    show(image);
+    expect((screen.getByRole('img') as HTMLImageElement).getAttribute('src')).toBe(thumb);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /open image/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.querySelector('img')!.getAttribute('src')).toBe(real);
+  });
+
+  it('shows a spinner until the real photo has loaded', async () => {
+    show({ ...image, mediaStatus: 'ok', mediaUrl: real });
+    fireEvent.click(screen.getByRole('button', { name: /open image/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.querySelector('.animate-spin')).toBeTruthy();
+    fireEvent.load(dialog.querySelector('img')!);
+    expect(dialog.querySelector('.animate-spin')).toBeNull();
+  });
+
+  it('falls back to the real photo when the thumbnail cannot load', () => {
+    show({ ...image, mediaStatus: 'ok', mediaUrl: real });
+    fireEvent.error(screen.getByRole('img'));
+    expect((screen.getByRole('img') as HTMLImageElement).getAttribute('src')).toBe(real);
+  });
+
+  it('a failed image shows the failed state, not its thumbnail', () => {
+    show({ ...image, mediaStatus: 'failed' });
+    expect(document.querySelector('img')).toBeNull();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
   });
 });
 

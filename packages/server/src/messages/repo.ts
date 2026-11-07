@@ -64,10 +64,16 @@ export interface MessageRow {
   /** The image's size as WhatsApp reports it (039); NULL = not known. */
   media_width?: number | null;
   media_height?: number | null;
+  /** 1 = `media_thumbs` holds WhatsApp's small preview of this image (040). */
+  media_has_thumb?: number;
 }
 
 export function mediaUrlFor(id: string): string {
   return `/api/media/${encodeURIComponent(id)}`;
+}
+
+export function mediaThumbUrlFor(id: string): string {
+  return `${mediaUrlFor(id)}/thumb`;
 }
 
 /**
@@ -94,6 +100,7 @@ export function rowToMessage(r: MessageRow): Message {
         media_size: null,
         media_width: null,
         media_height: null,
+        media_has_thumb: 0,
       }),
       deletedAt: r.deleted_at,
       deletedBy: r.deleted_by ?? null,
@@ -129,6 +136,7 @@ export function rowToMessage(r: MessageRow): Message {
     ...(r.media_width && r.media_height
       ? { mediaWidth: r.media_width, mediaHeight: r.media_height }
       : {}),
+    ...(r.media_has_thumb === 1 ? { mediaThumbUrl: mediaThumbUrlFor(r.id) } : {}),
     ...(r.sent_via_token_id != null ? { viaAssistant: true } : {}),
     ...(r.template_name
       ? { template: { name: r.template_name, language: r.template_language ?? '' } }
@@ -215,11 +223,11 @@ export class MessageRepo {
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
            media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
            wa_remote_jid, voice_note, mentioned_jids, sent_via_token_id, template_name, template_language,
-           template_params, scheduled_task_id, forwarding_score, media_size, media_width, media_height)
+           template_params, scheduled_task_id, forwarding_score, media_size, media_width, media_height, media_has_thumb)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
            @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
            @wa_remote_jid, @voice_note, @mentioned_jids, @sent_via_token_id, @template_name, @template_language,
-           @template_params, @scheduled_task_id, @forwarding_score, @media_size, @media_width, @media_height)`,
+           @template_params, @scheduled_task_id, @forwarding_score, @media_size, @media_width, @media_height, @media_has_thumb)`,
       )
       .run({
         ...r,
@@ -230,6 +238,7 @@ export class MessageRepo {
         media_size: r.media_size ?? null,
         media_width: r.media_width ?? null,
         media_height: r.media_height ?? null,
+        media_has_thumb: r.media_has_thumb ?? 0,
         template_name: r.template_name ?? null,
         template_language: r.template_language ?? null,
         template_params: r.template_params ?? null,
@@ -245,6 +254,24 @@ export class MessageRepo {
     this.db.prepare(`UPDATE messages SET ${sets} WHERE id = @__id`).run({ ...fields, __id: id });
     // The download data has no use once the file is stored, and must not outlive a deleted message.
     if (fields.media_status === 'ok' || fields.deleted_at != null) this.dropMediaRef(id);
+    if (fields.deleted_at != null) this.dropMediaThumb(id);
+  }
+
+  /** WhatsApp's small JPEG preview of an image, written once at ingest. */
+  mediaThumb(id: string): Buffer | null {
+    const r = this.db.prepare('SELECT jpeg FROM media_thumbs WHERE message_id = ?').get(id) as
+      { jpeg: Buffer } | undefined;
+    return r?.jpeg ?? null;
+  }
+
+  setMediaThumb(id: string, jpeg: Buffer): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO media_thumbs (message_id, jpeg) VALUES (?, ?)')
+      .run(id, jpeg);
+  }
+
+  private dropMediaThumb(id: string): void {
+    this.db.prepare('DELETE FROM media_thumbs WHERE message_id = ?').run(id);
   }
 
   /** What the WhatsApp adapter needs to download this message's file later; opaque here. */
@@ -271,6 +298,7 @@ export class MessageRepo {
   delete(id: string): void {
     this.db.prepare('DELETE FROM messages WHERE id = ?').run(id);
     this.dropMediaRef(id);
+    this.dropMediaThumb(id);
   }
 
   /** Newest first, strictly before (ts,id) if given. */
