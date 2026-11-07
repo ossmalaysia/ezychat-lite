@@ -887,9 +887,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     let buf: Buffer | null = null;
     try {
       // the chat's own phone, asked with the WhatsApp id (no inbox suffix)
+      const ref = repo.mediaRef(id);
       buf = await downloads.run(() =>
-        connections.forChatKey(r.chat_jid).downloadMedia(waMessageId(id)),
+        connections.forChatKey(r.chat_jid).downloadMedia(waMessageId(id), ref),
       );
+      if (!buf) log.warn({ id, hasRef: !!ref }, 'media not available for download');
     } catch (err) {
       log.warn({ err, id }, 'media redownload failed');
     }
@@ -1193,6 +1195,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_mime: m.media?.mime ?? null,
         media_name: m.media?.fileName ?? null,
         media_status: m.media ? 'pending' : 'none',
+        media_width: m.media?.width ?? null,
+        media_height: m.media?.height ?? null,
         quoted_id: m.quotedId ? messageKey(inboxId, m.quotedId) : null,
         status: m.fromMe ? 'sent' : 'delivered',
         error: null,
@@ -1205,6 +1209,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           m.forwardingScore && m.forwardingScore > 0 ? Math.floor(m.forwardingScore) : null,
       };
       if (!repo.insert(row)) return null; // concurrent duplicate
+      if (m.media?.ref) repo.setMediaRef(id, m.media.ref);
 
       const isNewLiveInbound = source === 'live' && !m.fromMe;
       let reopened = false;

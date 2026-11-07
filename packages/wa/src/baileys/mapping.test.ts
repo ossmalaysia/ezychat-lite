@@ -103,6 +103,30 @@ describe('mapWAMessage', () => {
     ).toMatchObject({ senderJid: '123@lid', senderJidAlt: '60111@s.whatsapp.net' });
   });
 
+  it('carries an image size and the download ref', () => {
+    const m = mapWAMessage(
+      base({
+        message: {
+          imageMessage: { width: 1600, height: 900, mediaKey: Uint8Array.from([1]), url: 'u' },
+        },
+      }),
+    );
+    expect(m?.media).toMatchObject({ width: 1600, height: 900 });
+    expect(m?.media?.ref).toContain('imageMessage');
+  });
+
+  it.each([
+    ['missing', {}],
+    ['zero', { width: 0, height: 900 }],
+    ['one side only', { width: 1600 }],
+    ['too large', { width: 70000, height: 900 }],
+  ])('treats an image size that is %s as unknown', (_name, size) => {
+    const media = mapWAMessage(base({ message: { imageMessage: size } }))?.media;
+    expect(media).not.toHaveProperty('width');
+    expect(media).not.toHaveProperty('height');
+    expect(media).not.toHaveProperty('ref');
+  });
+
   it('maps image with caption and media download', () => {
     const m = mapWAMessage(
       base({ message: { imageMessage: { caption: 'look', mimetype: 'image/jpeg' } } }),

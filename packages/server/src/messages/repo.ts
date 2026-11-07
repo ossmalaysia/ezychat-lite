@@ -61,6 +61,9 @@ export interface MessageRow {
   forwarding_score?: number | null;
   /** Bytes of the stored file (038); NULL = not known yet. */
   media_size?: number | null;
+  /** The image's size as WhatsApp reports it (039); NULL = not known. */
+  media_width?: number | null;
+  media_height?: number | null;
 }
 
 export function mediaUrlFor(id: string): string {
@@ -89,6 +92,8 @@ export function rowToMessage(r: MessageRow): Message {
         voice_note: 0,
         forwarding_score: null,
         media_size: null,
+        media_width: null,
+        media_height: null,
       }),
       deletedAt: r.deleted_at,
       deletedBy: r.deleted_by ?? null,
@@ -121,6 +126,9 @@ export function rowToMessage(r: MessageRow): Message {
       ? { forwarded: { manyTimes: forwardedManyTimes(r.forwarding_score) } }
       : {}),
     ...(r.media_size != null && r.media_path ? { mediaSize: r.media_size } : {}),
+    ...(r.media_width && r.media_height
+      ? { mediaWidth: r.media_width, mediaHeight: r.media_height }
+      : {}),
     ...(r.sent_via_token_id != null ? { viaAssistant: true } : {}),
     ...(r.template_name
       ? { template: { name: r.template_name, language: r.template_language ?? '' } }
@@ -207,11 +215,11 @@ export class MessageRepo {
         `INSERT OR IGNORE INTO messages (id, chat_jid, sender_jid, sender_name, from_me, sent_by_user_id, type, body,
            media_path, media_mime, media_name, media_status, quoted_id, status, error, timestamp, created_at, client_id,
            wa_remote_jid, voice_note, mentioned_jids, sent_via_token_id, template_name, template_language,
-           template_params, scheduled_task_id, forwarding_score, media_size)
+           template_params, scheduled_task_id, forwarding_score, media_size, media_width, media_height)
          VALUES (@id, @chat_jid, @sender_jid, @sender_name, @from_me, @sent_by_user_id, @type, @body,
            @media_path, @media_mime, @media_name, @media_status, @quoted_id, @status, @error, @timestamp, @created_at, @client_id,
            @wa_remote_jid, @voice_note, @mentioned_jids, @sent_via_token_id, @template_name, @template_language,
-           @template_params, @scheduled_task_id, @forwarding_score, @media_size)`,
+           @template_params, @scheduled_task_id, @forwarding_score, @media_size, @media_width, @media_height)`,
       )
       .run({
         ...r,
@@ -220,6 +228,8 @@ export class MessageRepo {
         scheduled_task_id: r.scheduled_task_id ?? null,
         forwarding_score: r.forwarding_score ?? null,
         media_size: r.media_size ?? null,
+        media_width: r.media_width ?? null,
+        media_height: r.media_height ?? null,
         template_name: r.template_name ?? null,
         template_language: r.template_language ?? null,
         template_params: r.template_params ?? null,
@@ -233,6 +243,25 @@ export class MessageRepo {
     if (!keys.length) return;
     const sets = keys.map((k) => `${k} = @${k}`).join(', ');
     this.db.prepare(`UPDATE messages SET ${sets} WHERE id = @__id`).run({ ...fields, __id: id });
+    // The download data has no use once the file is stored, and must not outlive a deleted message.
+    if (fields.media_status === 'ok' || fields.deleted_at != null) this.dropMediaRef(id);
+  }
+
+  /** What the WhatsApp adapter needs to download this message's file later; opaque here. */
+  mediaRef(id: string): string | null {
+    const r = this.db.prepare('SELECT ref FROM media_refs WHERE message_id = ?').get(id) as
+      { ref: string } | undefined;
+    return r?.ref ?? null;
+  }
+
+  setMediaRef(id: string, ref: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO media_refs (message_id, ref) VALUES (?, ?)')
+      .run(id, ref);
+  }
+
+  private dropMediaRef(id: string): void {
+    this.db.prepare('DELETE FROM media_refs WHERE message_id = ?').run(id);
   }
 
   rename(oldId: string, newId: string): void {
@@ -241,6 +270,7 @@ export class MessageRepo {
 
   delete(id: string): void {
     this.db.prepare('DELETE FROM messages WHERE id = ?').run(id);
+    this.dropMediaRef(id);
   }
 
   /** Newest first, strictly before (ts,id) if given. */

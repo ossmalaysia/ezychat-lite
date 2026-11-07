@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Copy, Download, FileText, ImageIcon, Loader2, RotateCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -135,6 +135,47 @@ function Lightbox({
   );
 }
 
+const IMAGE_MAX_WIDTH = 320;
+const IMAGE_MAX_HEIGHT = 288;
+
+/** The space an image takes in the chat, so nothing moves when its file arrives; undefined when its size is not known. */
+export function imageBox(
+  width: number | null | undefined,
+  height: number | null | undefined,
+): CSSProperties | undefined {
+  if (!width || !height) return undefined;
+  const w = Math.min(width, IMAGE_MAX_WIDTH);
+  const h = Math.min(Math.round((w * height) / width), IMAGE_MAX_HEIGHT);
+  return { width: w, maxWidth: '100%', aspectRatio: `${w} / ${h}` };
+}
+
+/**
+ * Calls `onNear` once when the returned element is within 300 px of the chat's visible part, so a chat
+ * full of images downloads only what the reader reaches. Without IntersectionObserver: at once.
+ */
+function useWhenNear(enabled: boolean, onNear: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      onNear();
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        onNear();
+      },
+      { root: el.closest('[data-chat-scroll]'), rootMargin: '300px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [enabled, onNear]);
+  return ref;
+}
+
 /** Renders the media part of a message (image, sticker, video, audio, document). */
 export function MediaView({ message: m, onLoad }: MediaViewProps) {
   const { t } = useTranslation(['inbox', 'common']);
@@ -146,11 +187,11 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
   const onDemand = m.mediaStatus === 'pending' && !m.id.startsWith('local-');
   const autoLoad = onDemand && (m.type === 'image' || m.type === 'sticker');
   const { mutate: fetchMedia, isIdle } = redownload;
+  const box = m.type === 'image' ? imageBox(m.mediaWidth, m.mediaHeight) : undefined;
 
-  // Small media loads as soon as it is shown; large media waits for a tap.
-  useEffect(() => {
-    if (autoLoad && isIdle) fetchMedia(m.id);
-  }, [autoLoad, isIdle, fetchMedia, m.id]);
+  // Small media loads when the reader reaches it; large media waits for a tap.
+  const fetchThis = useCallback(() => fetchMedia(m.id), [fetchMedia, m.id]);
+  const nearRef = useWhenNear(autoLoad && isIdle, fetchThis);
 
   if (onDemand && !autoLoad && !redownload.isPending) {
     return (
@@ -175,7 +216,11 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
     (!m.mediaUrl && m.status === 'pending')
   ) {
     return (
-      <div className="flex min-h-14 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+      <div
+        ref={nearRef}
+        style={box}
+        className="flex min-h-14 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground"
+      >
         <Loader2
           className="size-4 shrink-0 animate-spin"
           role="img"
@@ -234,10 +279,13 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
               loading="lazy"
               onLoad={onLoad}
               onDragStart={dragOut(m, url)}
+              style={box}
               className={
                 m.type === 'sticker'
                   ? 'size-32 object-contain'
-                  : 'max-h-72 w-full max-w-full object-cover sm:max-w-xs'
+                  : box
+                    ? 'object-cover'
+                    : 'max-h-72 w-full max-w-full object-cover sm:max-w-xs'
               }
             />
           </Button>
