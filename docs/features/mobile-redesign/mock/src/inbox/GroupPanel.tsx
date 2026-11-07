@@ -28,6 +28,8 @@ import { formatDate } from '../lib/format';
 import { encodeJid } from '../lib/jid';
 import { ChatAvatar } from './ChatAvatar';
 import { GroupAiRow } from './GroupAiRow';
+// Proposed (mobile-redesign): groups get tags like direct chats (owner 2026-11-07).
+import { ChatTagsRow } from './mobile/ChatTagsRow';
 import { GroupAdminBar, GroupAdminMockBox, MemberAdminActions } from './GroupAdmin';
 import { PanelHeader } from './PanelHeader';
 import { useMyChats } from '../mock/memberChats';
@@ -164,6 +166,7 @@ function MemberList({
           </p>
         )}
       </div>
+      <ChatTagsRow chat={{ jid: group.jid, type: 'group' }} className="px-4 pt-2 pb-1" />
       {/* Proposed (group-management): manage the group without switching to the phone. */}
       <GroupAdminBar data={data} />
       {/* Proposed (ai-groups): whether the AI agent answers in this group when mentioned. */}

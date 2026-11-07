@@ -985,8 +985,10 @@
       "searchOrCreate": "Search or add a tag",
       "create": "Add “{{tag}}”",
       "none": "No tags yet. Type one to add it.",
-      "full": "This customer has 10 tags. Remove one to add another.",
-      "saved": "Tags saved"
+      "full": "This chat has 10 tags. Remove one to add another.",
+      "saved": "Tags saved",
+      "edit": "Edit tags",
+      "empty": "No tags yet."
     },
     "row": {
       "assignToMe": "Assign to me",

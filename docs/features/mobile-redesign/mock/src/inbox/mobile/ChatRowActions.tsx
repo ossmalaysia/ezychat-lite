@@ -233,13 +233,7 @@ export function ChatRowActions({
           {action('assign', icon(UserRound), t('mobile.row.chooseAssignee'), () =>
             setSheet('assign'),
           )}
-          {action(
-            'tags',
-            icon(Tag),
-            t('mobile.row.tags'),
-            () => setSheet('tags'),
-            chat.type !== 'dm',
-          )}
+          {action('tags', icon(Tag), t('mobile.row.tags'), () => setSheet('tags'))}
           {action(
             'read',
             icon(MailOpen),
@@ -285,13 +279,14 @@ export function ChatRowActions({
           )
         }
       />
-      {chat.type === 'dm' && (
+      {
         <ChatTagsSheet
           jid={chat.jid}
+          group={chat.type === 'group'}
           open={sheet === 'tags'}
           onOpenChange={(o) => setSheet(o ? 'tags' : null)}
         />
-      )}
+      }
     </div>
   );
 }

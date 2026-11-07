@@ -225,12 +225,12 @@ async function swipe(page, index, dx, { release = true } = {}) {
     await page.getByTestId('chat-tags-sheet').waitFor();
     await shot('16-chat-tags-sheet');
     await page.getByTestId('chat-tags-sheet').getByRole('button', { name: 'VIP' }).click();
-    await page.getByRole('searchbox').fill('Wholesale');
+    await page.getByRole('searchbox').fill('Bulk order');
     await shot('17-chat-tags-create');
-    await page.getByRole('button', { name: /Add .Wholesale./ }).click();
+    await page.getByRole('button', { name: /Add .Bulk order./ }).click();
     await page.getByTestId('chat-tags-done').click();
     await page.getByTestId('chat-tags-sheet').waitFor({ state: 'detached' });
-    await page.getByTestId('chat-chips').getByText('Wholesale').waitFor();
+    await page.getByTestId('chat-chips').getByText('Bulk order').waitFor();
     await shot('18-chat-tags-saved');
     await page.getByTestId('mobile-chat-more').click();
     await page.getByTestId('chat-more-sheet').waitFor();
@@ -245,6 +245,53 @@ async function swipe(page, index, dx, { release = true } = {}) {
       .click();
     await page.getByTestId('mobile-chat-header').waitFor();
     await shot('20-group-header');
+  });
+  // Owner 2026-11-07: tags on groups too, and the same tags on every screen.
+  await step('group tags', async () => {
+    await page.getByTestId('chip-add-tag').click();
+    await page.getByTestId('chat-tags-sheet').waitFor();
+    await page.getByRole('searchbox').fill('Events');
+    await page.getByRole('button', { name: /Add .Events./ }).click();
+    await shot('23-group-tags-sheet');
+    await page.getByTestId('chat-tags-done').click();
+    await page.getByTestId('chat-tags-sheet').waitFor({ state: 'detached' });
+    await page.getByTestId('chat-chips').getByText('Events').waitFor();
+    await shot('24-group-tags-saved');
+    await page.getByRole('button', { name: /Open group info/ }).click();
+    await page.getByTestId('chat-tags-row').waitFor();
+    await shot('25-group-info-tags');
+  });
+  await step('group row and filter', async () => {
+    await page.goto('/');
+    await page.getByTestId('swipe-row').first().waitFor();
+    const group = page.locator('[data-testid=swipe-row]', { hasText: 'Reseller Group' });
+    await group.locator('> div').nth(1).dispatchEvent('contextmenu');
+    await page.getByTestId('row-actions-sheet').waitFor();
+    await shot('26-group-row-actions');
+    await page.getByTestId('row-actions-sheet').getByRole('button', { name: 'Tags' }).click();
+    await page.getByTestId('chat-tags-sheet').waitFor();
+    await shot('27-group-row-tags-sheet');
+    await page.keyboard.press('Escape');
+    await page.getByTestId('chat-tags-sheet').waitFor({ state: 'detached' });
+    await page.getByTestId('chip-tag').click();
+    await page.getByTestId('tag-filter-sheet').getByRole('button', { name: 'Wholesale' }).click();
+    await page.getByTestId('tag-filter-sheet').waitFor({ state: 'detached' });
+    await page
+      .getByRole('link', { name: /Reseller Group/ })
+      .first()
+      .waitFor();
+    await shot('28-tag-filter-includes-groups');
+    await page.getByRole('button', { name: 'Clear tag filter' }).click();
+  });
+  await step('customer details tags', async () => {
+    await page.goto('/');
+    await page
+      .getByRole('link', { name: /Farah Aziz/ })
+      .first()
+      .click();
+    await page.getByRole('button', { name: /Open customer details/ }).click();
+    await page.getByTestId('chat-tags-row').waitFor();
+    await shot('29-customer-details-tags');
   });
   await ctx.close();
 }
@@ -350,6 +397,33 @@ for (const opts of [
       .click();
     await page.getByRole('combobox', { name: 'Assigned to' }).waitFor();
     await shot('31-desktop-chat');
+    // Group tags on desktop: list row, Group info panel, the same editor (a dialog here), the filter.
+    await page
+      .getByRole('link', { name: /Kopi Lovers Club/ })
+      .first()
+      .click();
+    await page.getByRole('button', { name: /Open group info/ }).click();
+    await page.getByTestId('chat-tags-row').waitFor();
+    await shot('32-desktop-group-info-tags');
+    await page.getByTestId('chat-tags-edit').click();
+    await page.getByTestId('chat-tags-sheet').waitFor();
+    await shot('33-desktop-group-tags-dialog');
+    await page.keyboard.press('Escape');
+    await page.getByTestId('chat-tags-sheet').waitFor({ state: 'detached' });
+    await page
+      .getByRole('link', { name: /Priya Nair/ })
+      .first()
+      .click();
+    await page.getByRole('button', { name: 'Customer details', exact: true }).first().click();
+    await page.getByTestId('chat-tags-row').waitFor();
+    await shot('34-desktop-customer-tags');
+    await page.getByRole('button', { name: 'Filter by tag' }).click();
+    await page.getByRole('option', { name: 'Wholesale' }).click();
+    await page
+      .getByRole('link', { name: /Reseller Group/ })
+      .first()
+      .waitFor();
+    await shot('35-desktop-tag-filter-groups');
   });
   await ctx.close();
 }

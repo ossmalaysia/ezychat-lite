@@ -223,6 +223,10 @@ into AGENTS.md.
 - Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
   that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
   so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
+- Before designing storage for "X on a new kind of record" (tags on groups), read the table's key and the read
+  model: `customer_tags` is keyed by `chat_jid` with no type check, so groups needed no table or migration, only
+  `rowToChat` stopped hiding them. A mock stand-in that writes the real table then proves filter, search and
+  suggestions without new server code.
 - Check `docs/design-system.md` token values against `apps/web/src/index.css` before quoting them in a mock or a
   review: the file named 16 px `--radius-lg` while the CSS maps `--radius-lg` to 10 px; a reference page that reads
   the tokens from the loaded stylesheets (mock `/design-system`) keeps the two honest.

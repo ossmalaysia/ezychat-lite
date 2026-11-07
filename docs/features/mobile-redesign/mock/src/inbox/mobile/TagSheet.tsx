@@ -12,6 +12,7 @@ import { SearchField } from '@/components/app/SearchField';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useCustomerProfile, useCustomerTags, useSaveCustomerProfile } from '../../api/queries';
+import { useGroupTags, useSaveGroupTags } from '../../mock/groupTags';
 
 /** At most 10 tags per customer (`CustomerProfileBody`). */
 export const MAX_CHAT_TAGS = 10;
@@ -103,18 +104,32 @@ export function TagFilterSheet({
   );
 }
 
+/**
+ * The one tag editor for a chat, direct or group (owner 2026-11-07: any teammate who can open the chat
+ * may add, remove and create tags, on direct chats and groups alike). Opened from the chat header's
+ * + Tag chip, a list row's press-and-hold sheet, Customer details and Group info.
+ */
 export function ChatTagsSheet({
   jid,
+  group = false,
   open,
   onOpenChange,
-}: Readonly<{ jid: string; open: boolean; onOpenChange(open: boolean): void }>) {
+}: Readonly<{ jid: string; group?: boolean; open: boolean; onOpenChange(open: boolean): void }>) {
   const { t } = useTranslation(['inbox', 'common']);
-  const profile = useCustomerProfile(open ? jid : null);
+  const profile = useCustomerProfile(open && !group ? jid : null);
   const save = useSaveCustomerProfile(jid);
+  const groupTags = useGroupTags();
+  const saveGroup = useSaveGroupTags(jid);
   const [search, setSearch] = useState('');
   const [chosen, setChosen] = useState<string[]>([]);
   const known = useCustomerTags(search.trim());
-  const saved = profile.data?.profile.tags;
+  const saved = group
+    ? groupTags.data
+      ? (groupTags.data[jid] ?? [])
+      : undefined
+    : profile.data?.profile.tags;
+  const ready = group ? !!groupTags.data : !!profile.data;
+  const pending = group ? saveGroup.isPending : save.isPending;
 
   useEffect(() => {
     if (open && saved) setChosen(saved);
@@ -145,6 +160,17 @@ export function ChatTagsSheet({
     );
 
   const done = () => {
+    const finish = {
+      onSuccess: () => {
+        toast.success(t('mobile.tags.saved'));
+        onOpenChange(false);
+      },
+      onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
+    };
+    if (group) {
+      saveGroup.mutate(chosen, finish);
+      return;
+    }
     const p = profile.data?.profile;
     if (!p) return;
     save.mutate(
@@ -176,7 +202,7 @@ export function ChatTagsSheet({
         <Button
           size="touch"
           onClick={done}
-          disabled={!profile.data || save.isPending}
+          disabled={!ready || pending}
           data-testid="chat-tags-done"
         >
           {t('common:actions.done')}

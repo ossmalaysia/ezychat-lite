@@ -21,6 +21,7 @@ import { registerScheduledTasks } from './scheduled-tasks.js';
 import { registerNewChat } from './new-chat.js';
 import { registerMemberChats } from './member-chats.js';
 import { registerForward } from './forward.js';
+import { registerGroupTags } from './group-tags.js';
 
 const DEMO_JID = '60129900001@s.whatsapp.net';
 const INTRODUCTION =
@@ -54,6 +55,8 @@ export function registerProposal(app: FastifyInstance, ctx: AppContext, wa: Fake
   registerMemberChats(app, ctx);
   // Proposed (forward-message): forward a message to up to 5 existing chats or groups.
   registerForward(app, ctx);
+  // Proposed (mobile-redesign): tags on group chats (stand-in for PUT /api/chats/:jid/tags).
+  registerGroupTags(app, ctx);
   let enabled = false;
   const setting = () => ({
     enabled,

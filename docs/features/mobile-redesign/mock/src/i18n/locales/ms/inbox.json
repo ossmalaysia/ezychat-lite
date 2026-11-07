@@ -982,8 +982,10 @@
       "searchOrCreate": "Cari atau tambah tag",
       "create": "Tambah “{{tag}}”",
       "none": "Belum ada tag. Taip satu untuk menambahnya.",
-      "full": "Pelanggan ini ada 10 tag. Buang satu untuk menambah yang lain.",
-      "saved": "Tag disimpan"
+      "full": "Sembang ini ada 10 tag. Buang satu untuk menambah yang lain.",
+      "saved": "Tag disimpan",
+      "edit": "Edit tag",
+      "empty": "Belum ada tag."
     },
     "row": {
       "assignToMe": "Tugaskan kepada saya",

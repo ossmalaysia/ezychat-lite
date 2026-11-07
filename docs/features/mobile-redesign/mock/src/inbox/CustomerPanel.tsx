@@ -14,6 +14,8 @@ import {
 } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
 import { useCustomerProfile, useCustomerTags, useSaveCustomerProfile } from '../api/queries';
+// Proposed (mobile-redesign): one Tags row and editor on every screen (phone and desktop).
+import { ChatTagsRow } from './mobile/ChatTagsRow';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -204,6 +206,7 @@ export function CustomerDetails({
   whatsappPhone,
   whatsapp,
   directory,
+  hideTags = false,
 }: {
   profile: CustomerProfile;
   whatsappName: string | null;
@@ -213,6 +216,8 @@ export function CustomerDetails({
   whatsapp?: WhatsappFactsData;
   /** For "Updated by <teammate>"; that line is left out without it. */
   directory?: Directory;
+  /** Proposed (mobile-redesign): the panel shows tags in its own Tags row instead. */
+  hideTags?: boolean;
 }) {
   const { t } = useTranslation('inbox');
   const name = profile.name?.trim() || null;
@@ -286,7 +291,7 @@ export function CustomerDetails({
           ))}
         </dl>
       )}
-      {profile.tags.length > 0 && (
+      {!hideTags && profile.tags.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label={t('customer.tags')}>
           {profile.tags.map((tag) => (
             <li key={tag} className="min-w-0 max-w-full">
@@ -653,35 +658,45 @@ function CustomerBody({
             >
               {errorMessage(query.error)}
             </Banner>
-          ) : hasDetails(data.profile) ? (
-            <CustomerDetails
-              profile={data.profile}
-              whatsappName={data.whatsappName}
-              whatsappPhone={data.whatsappPhone ?? null}
-              whatsapp={data.whatsapp}
-              directory={directory}
-            />
           ) : (
             <div className="space-y-4">
-              {/* Compact empty state: what is missing, why it matters, one action. */}
-              <div className="space-y-2 rounded-lg border border-dashed px-4 py-4">
-                <p className="text-sm font-medium text-foreground">{t('customer.empty')}</p>
-                <p className="text-sm text-muted-foreground">{t('customer.emptyHint')}</p>
-                <Button size="touch" className="w-full" onClick={() => setEditing(data.profile)}>
-                  <Plus aria-hidden="true" />
-                  {t('customer.addDetails')}
-                </Button>
-              </div>
-              {data.whatsapp ? (
-                <WhatsappFacts facts={data.whatsapp} />
+              <ChatTagsRow chat={{ jid, type: 'dm', tags: data.profile.tags }} />
+              {hasDetails(data.profile) ? (
+                <CustomerDetails
+                  hideTags
+                  profile={data.profile}
+                  whatsappName={data.whatsappName}
+                  whatsappPhone={data.whatsappPhone ?? null}
+                  whatsapp={data.whatsapp}
+                  directory={directory}
+                />
               ) : (
-                whatsappDetails(data.whatsappName, data.whatsappPhone, null) && (
-                  <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                    {t('customer.whatsappName', {
-                      name: whatsappDetails(data.whatsappName, data.whatsappPhone, null),
-                    })}
-                  </p>
-                )
+                <div className="space-y-4">
+                  {/* Compact empty state: what is missing, why it matters, one action. */}
+                  <div className="space-y-2 rounded-lg border border-dashed px-4 py-4">
+                    <p className="text-sm font-medium text-foreground">{t('customer.empty')}</p>
+                    <p className="text-sm text-muted-foreground">{t('customer.emptyHint')}</p>
+                    <Button
+                      size="touch"
+                      className="w-full"
+                      onClick={() => setEditing(data.profile)}
+                    >
+                      <Plus aria-hidden="true" />
+                      {t('customer.addDetails')}
+                    </Button>
+                  </div>
+                  {data.whatsapp ? (
+                    <WhatsappFacts facts={data.whatsapp} />
+                  ) : (
+                    whatsappDetails(data.whatsappName, data.whatsappPhone, null) && (
+                      <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                        {t('customer.whatsappName', {
+                          name: whatsappDetails(data.whatsappName, data.whatsappPhone, null),
+                        })}
+                      </p>
+                    )
+                  )}
+                </div>
               )}
             </div>
           )}

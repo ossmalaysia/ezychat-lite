@@ -127,7 +127,8 @@
     "src/mock/replySuggestions.ts",
     "src/setup/SetupWizard.tsx",
     "src/inbox/ReactionPicker.tsx",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/inbox/CustomerPanel.tsx"
   ],
   "proposalChanged": [
     "src/inbox/InboxPage.tsx",
@@ -140,7 +141,9 @@
     "src/i18n/locales/en/inbox.json",
     "src/i18n/locales/ms/inbox.json",
     "src/i18n/locales/zh-CN/inbox.json",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/inbox/CustomerPanel.tsx",
+    "src/inbox/GroupPanel.tsx"
   ],
   "addedFrontend": [
     "src/admin/AgentBookingsCard.tsx",
@@ -210,7 +213,9 @@
     "src/inbox/mobile/NewChatFab.tsx",
     "src/inbox/mobile/TagSheet.tsx",
     "src/inbox/mobile/phone.ts",
-    "src/design-system/DesignSystemPage.tsx"
+    "src/design-system/DesignSystemPage.tsx",
+    "src/mock/groupTags.ts",
+    "src/inbox/mobile/ChatTagsRow.tsx"
   ],
   "proposalAdded": [
     "src/inbox/mobile/AssignSheet.tsx",
@@ -221,7 +226,9 @@
     "src/inbox/mobile/NewChatFab.tsx",
     "src/inbox/mobile/TagSheet.tsx",
     "src/inbox/mobile/phone.ts",
-    "src/design-system/DesignSystemPage.tsx"
+    "src/design-system/DesignSystemPage.tsx",
+    "src/mock/groupTags.ts",
+    "src/inbox/mobile/ChatTagsRow.tsx"
   ],
   "baselineProposal": {
     "feature": "concept-tips",
@@ -1666,7 +1673,10 @@
       "src/inbox/mobile/phone.ts",
       "mobile-shots.mjs",
       "audit-shots.mjs",
-      "src/design-system/DesignSystemPage.tsx"
+      "src/design-system/DesignSystemPage.tsx",
+      "src/mock/groupTags.ts",
+      "src/inbox/mobile/ChatTagsRow.tsx",
+      "group-tags.ts"
     ],
     "changed": [
       "src/inbox/InboxPage.tsx",
@@ -1682,7 +1692,10 @@
       "run.ts",
       "README.md",
       "reference.json",
-      "src/App.tsx"
+      "src/App.tsx",
+      "src/inbox/CustomerPanel.tsx",
+      "src/inbox/GroupPanel.tsx",
+      "proposal.ts"
     ]
   },
   "inheritedFrozenDrift": {

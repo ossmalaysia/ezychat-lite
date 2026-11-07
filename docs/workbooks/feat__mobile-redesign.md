@@ -16,3 +16,4 @@ Branch: `feat/mobile-redesign` · Every agent updates its stage with
 
 - 2026-11-07 Design: doing — Mock + design.md (mobile-redesign), PR #328, waiting for owner confirmation (1c4ece9)
 - 2026-11-07 Design: doing — Added scope: docs/design-system.md Mobile patterns + Editions + fixes, living /design-system page in the mock; 54 shots, 0 problems
+- 2026-11-07 Design: doing — Owner: tags on groups too and the same tags on every screen; group tags (stand-in route on the real customer_tags table), Tags row in Customer details and Group info, tag-screens audit table, server/contract scope; 65 shots, 0 problems

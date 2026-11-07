@@ -17,7 +17,8 @@ Open `http://localhost:7489/` on a phone on the same network, or in the browser'
 sign in as `aisyah` (`demo-pass-123`). Try: the title → switch to **Catering** (the dot shows unread on other
 numbers), the chips, **Tag ▾ → VIP**, the search icon, **New chat**, swipe **Nurul Huda** right (Assign to me →
 Undo) or a row left (Resolve), press and hold a row, open **Priya Nair** → **Unassigned ▾**, **+ Tag** (type a new
-tag, Done), **⋮**. `daniel` sees 2 numbers, `meiling` one (plain "Inbox" title); `?edition=lite` (or Mock view →
+tag, Done), **⋮**. **Groups have tags too** (owner 2026-11-07): open **Kopi Lovers Club** → **+ Tag**, Group info → **Tags**, or
+**Tag ▾ → Wholesale** in the list; Customer details has the same **Tags** row. `daniel` sees 2 numbers, `meiling` one (plain "Inbox" title); `?edition=lite` (or Mock view →
 Lite in Admin) shows Lite. The living design system reference is `http://localhost:7489/design-system` (no sign-in; Light/Dark at the
 top). Swipes change the demo data: restart the runner for a fresh demo. Everything below is the
 inherited forward-message README; every inherited flow still works (on desktop unchanged, on a phone through the new

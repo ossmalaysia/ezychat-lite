@@ -17,6 +17,7 @@ import { TimerOff } from 'lucide-react';
 // keeps its room; the full name chip stays in the chat header and on desktop.
 import { InboxSwatch } from './mobile/InboxSwitcherSheet';
 import { usePhone } from './mobile/phone';
+import { useChatTags } from '../mock/groupTags';
 
 export interface ChatListItemProps {
   chat: Chat;
@@ -42,7 +43,8 @@ export function ChatListItem({
   const { t } = useTranslation('inbox');
   const name = chatTitle(chat, t);
   const unread = chat.unreadCount > 0;
-  const tags = chat.tags ?? [];
+  // Proposed (mobile-redesign): groups show their tags too (one rule for every screen).
+  const tags = useChatTags(chat);
   const { pathname } = useLocation();
   const to = `/chats/${encodeJid(chat.jid)}`;
   // Lets the mobile back button pop history instead of pushing "/" again.

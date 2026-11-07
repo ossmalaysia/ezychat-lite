@@ -31,6 +31,7 @@ import type { Directory } from '../useDirectory';
 import { inboxOfChat, useMockInboxes } from '../../mock/inboxes';
 import { AssignSheet } from './AssignSheet';
 import { ChatTagsSheet } from './TagSheet';
+import { useChatTags } from '../../mock/groupTags';
 
 const chip =
   'relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring after:absolute after:-inset-y-1 after:inset-x-0 active:bg-muted';
@@ -65,7 +66,8 @@ export function MobileConversationHeader({
   const name = chatTitle(chat, t);
   const resolved = chat.status === 'resolved';
   const dm = chat.type === 'dm';
-  const tags = chat.tags ?? [];
+  // Owner 2026-11-07: tags on groups as well as direct chats.
+  const tags = useChatTags(chat);
   const subtitle =
     chat.type === 'group'
       ? memberCount != null
@@ -182,22 +184,21 @@ export function MobileConversationHeader({
           <span className="truncate">{assignee ?? t('header.unassigned')}</span>
           <ChevronDown className="size-4 shrink-0" aria-hidden />
         </button>
-        {dm &&
-          tags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => setSheet('tags')}
-              className={cn(
-                chip,
-                'max-w-36 border-transparent bg-secondary text-secondary-foreground',
-              )}
-            >
-              <Tag className="size-3.5 shrink-0" aria-hidden />
-              <span className="truncate">{tag}</span>
-            </button>
-          ))}
-        {dm && (
+        {tags.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => setSheet('tags')}
+            className={cn(
+              chip,
+              'max-w-36 border-transparent bg-secondary text-secondary-foreground',
+            )}
+          >
+            <Tag className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{tag}</span>
+          </button>
+        ))}
+        {
           <button
             type="button"
             onClick={() => setSheet('tags')}
@@ -207,7 +208,7 @@ export function MobileConversationHeader({
             <Plus className="size-4" aria-hidden />
             {t('mobile.header.addTag')}
           </button>
-        )}
+        }
         {/* Groups: the AI badge moves from the crowded subtitle into the strip. */}
         {chat.type === 'group' && (
           <span className="flex shrink-0 items-center">
@@ -247,7 +248,7 @@ export function MobileConversationHeader({
             },
           )}
           {more('assign', UserRound, t('mobile.row.chooseAssignee'), () => setSheet('assign'))}
-          {more('tags', Tag, t('mobile.row.tags'), () => setSheet('tags'), !dm)}
+          {more('tags', Tag, t('mobile.row.tags'), () => setSheet('tags'))}
           {more('notes', NotebookPen, t('header.notesTitle'), () => {
             setSheet(null);
             onToggleNotes();
@@ -270,13 +271,14 @@ export function MobileConversationHeader({
         value={chat.assignedTo ?? null}
         onAssign={onAssign}
       />
-      {dm && (
+      {
         <ChatTagsSheet
           jid={chat.jid}
+          group={!dm}
           open={sheet === 'tags'}
           onOpenChange={(o) => setSheet(o ? 'tags' : null)}
         />
-      )}
+      }
     </header>
   );
 }

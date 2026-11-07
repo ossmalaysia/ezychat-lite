@@ -53,6 +53,70 @@ anchorsprint/ezychat-enterprise#96). This PR:
   table; a Light/Dark switch at the top. Screens `40-design-system`, `41-design-system-full` (whole page),
   `42-design-system-sheet`.
 
+## Tags on every chat and every screen (owner 2026-11-07)
+
+Owner (relayed by the main session): "Follow existing — all can add tag to group chat and individual chat, check on
+other screen." Decisions:
+
+1. **Who**: any teammate who can open the chat may add, remove and create tags, as today. No admin-only rule
+   (answers open question 5).
+2. **Groups get tags** like direct chats: from the chat header (**+ Tag** chip), a list row's press-and-hold sheet
+   and Group info, on phone and desktop. Group rows show their tag chips; the Tag filter, tag search and tag
+   suggestions include tagged groups.
+3. **One look, one editor**: a tag is a `secondary` pill everywhere; every place that edits tags opens the same
+   **Tags** editor (`ChatTagsSheet`: a bottom sheet on phones, a dialog on desktop); Customer details and Group info
+   get the same **Tags** row (chips + **Edit tags** / **+ Tag**).
+
+### Tag screens audit (before → after)
+
+| Screen                                    | Before (app today)                                                    | After (this proposal)                                                                          | Shots                                                                                  |
+| ----------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Chat list row (phone + desktop)           | Direct chats: 1 tag (+N) on narrow rows, 2 on wide; groups: never     | Same for direct chats **and groups** (plain pill, no icon: the row has no room)                | `01-list`, `28-tag-filter-includes-groups`, `30-desktop-list`                          |
+| Chat header (phone)                       | No tags                                                               | Tag chips (tag icon) + **+ Tag** in the chip strip, direct chats and groups                    | `14-chat-header`, `18-chat-tags-saved`, `24-group-tags-saved`                          |
+| Chat header (desktop)                     | No tags                                                               | Unchanged (the side panel holds them; desktop header change left for phase 2, open question 9) | `31-desktop-chat`                                                                      |
+| Customer details (phone + desktop)        | Tags only as read-only pills; editing means Edit → whole profile form | **Tags** row on top with **Edit tags** → the Tags editor; the profile form keeps its tag field | `29-customer-details-tags`, `34-desktop-customer-tags`                                 |
+| Group info (phone + desktop)              | No tags                                                               | **Tags** row under the group name, same editor                                                 | `25-group-info-tags`, `32-desktop-group-info-tags`, `33-desktop-group-tags-dialog`     |
+| Row press-and-hold sheet (phone)          | (new)                                                                 | **Tags** for direct chats and groups                                                           | `13-row-actions`, `26-group-row-actions`, `27-group-row-tags-sheet`                    |
+| Tag filter (phone sheet, desktop popover) | Tags of direct chats; filters direct chats only                       | Tags of direct chats and groups; the filter returns tagged groups too                          | `05-tag-filter-sheet`, `28-tag-filter-includes-groups`, `35-desktop-tag-filter-groups` |
+| Search                                    | Finds direct chats by tag text (profile search)                       | Also groups by tag text (same SQL; it already reads `customer_tags` by chat)                   | (no shot: same list)                                                                   |
+| Reports                                   | No tags                                                               | No change (tags are not a report dimension)                                                    | –                                                                                      |
+| MCP `list_chats` / `get_chat`, Ask Ezy    | `tags` on direct chats (`Chat.tags`)                                  | `tags` on groups too (same field, from the read model); Ask Ezy shows what MCP returns         | –                                                                                      |
+| AI agent prompt                           | Never tags (`aiCustomer`)                                             | Unchanged: never tags, direct or group                                                         | –                                                                                      |
+
+### Server and contract change (phase 1 scope)
+
+- **Storage: no new table and no schema migration.** `customer_tags (chat_jid, tag, tag_key, created_at)` is keyed
+  by chat with no foreign key and no type check, so a group's tags go in the same table. The tag filter
+  (`TAG_FILTER`), tag search (`PROFILE_SEARCH`) and suggestions (`CustomerRepo.suggest`) already read it by
+  `chat_jid` and therefore include groups once groups have rows (proved in the mock, which writes the real table).
+  Upgrades: nothing to move; `upgrade-from-oldest` unaffected. Group chats are never merged by alias, so
+  `chats/merge.ts` needs nothing new; Lite import already copies `customer_tags`; `customers/linked.ts` keeps skipping
+  groups (tags are not shared between linked chats anyway).
+- **Read model**: `rowToChat` returns `profile_tags` for groups too (today `dm ? r.profile_tags : []`).
+- **Route**: new `PUT /api/chats/:jid/tags { tags }` for direct chats and groups (shared `ChatTagsBody`: ≤ 10 tags,
+  ≤ 30 characters, normalised as `CustomerProfileBody.tags`; `customerTagKey` de-duplicates). Through
+  `chatJidParam` (`requireChatAccess`: 404 outside the caller's inboxes and, for an agent limited to chosen chats,
+  outside those chats). It replaces only the tags, so a concurrent profile edit is never overwritten; the profile
+  route keeps accepting tags for direct chats. The mock's stand-in is `PUT /api/mock/group-tags/:jid`
+  (`group-tags.ts`).
+- **Realtime**: the saved chat is emitted like a profile save, so lists and headers update for everyone who may open
+  the chat (`inbox:<id>` / `chat:<jid>` rooms).
+- **Audit**: `chat.tags` {chatJid, fields: ['tags'], count}, field names and ids only, never the tag text (same rule as
+  customer profile audits). Logs: counts only.
+- **Shared schema**: `ChatTagsBody`, `ChatTagsResponse { tags }`; `Chat.tags` documented as "direct chats and groups".
+- **Web**: `ChatTagsSheet` and `ChatTagsRow` (one editor everywhere), `useChatTags` replaced by `chat.tags`.
+- **Tests**: route limits, 404 outside access (agent, limited agent), group and direct chat, audit without text,
+  read model returns group tags, filter/search/suggest include a tagged group, contract test entry, e2e: tag a group
+  on 360 px and desktop.
+
+### Security and invariants
+
+- Tagging needs only the right to open the chat (inbox access; chosen chats for limited agents); the route is under
+  `/api` with session + Origin checks, never MCP or the AI (MCP stays read-only for tags).
+- Tag suggestions keep their access scoping (`suggest(…, inboxIds, chatJids)`), so a limited agent sees only tags
+  of chats they may open.
+- Tags never reach the AI prompt (direct or group) and never appear in audit rows or logs as text.
+
 ## Audit (before), 360 px, seeded demo
 
 | Measure                                   | Before                                               | After (mock)            |
@@ -158,70 +222,80 @@ the inbox already turns from two columns into one. `30-desktop-list` and `31-des
   filters in the browser). The chip counts come from a new `GET /api/inboxes/unread` → `{ total, byInbox: { id: n } }`
   (chats with unread messages the caller may open; limited agents: their chosen chats only). Both respect inbox access
   and limited chat access exactly like the list.
-- Tags: the Tags sheet saves only the tags. **Recommended for the build:** a new `PUT /api/chats/:jid/tags { tags }`
-  (same limits and audit as the profile, changed field `tags`), so a tag change never overwrites a teammate's
-  concurrent profile edit (the mock uses the whole-profile `PUT …/profile`).
+- Tags: the Tags editor saves only the tags through the new `PUT /api/chats/:jid/tags` (direct chats and groups;
+  see "Tags on every chat and every screen"). The mock saves direct chats through the whole-profile
+  `PUT …/profile` and groups through the stand-in `PUT /api/mock/group-tags/:jid`.
 - Swipe and the action sheet use the existing `PATCH /api/chats/:jid` (assign, status) and `POST …/read`; Undo sends
   the previous value back. No new permission: the same people who can assign and resolve today.
 - The number switcher only filters the list (as the select does today); it never changes access. Kept per browser.
-- No network, listener or security change.
+- No network or listener change. The new tags route follows the existing access rules (see Security and invariants).
 
 ## Screen and state checklist (`mock/screenshots/<shot>-<size>-<scheme>[-locale].png`)
 
 Sizes: `m360` (360 × 780 touch), `m390` (390 × 844 touch), `desktop` (1280). Light unless noted.
 
-| #   | Screen / state                                                                              | Shot                            |
-| --- | ------------------------------------------------------------------------------------------- | ------------------------------- |
-| 1   | Chat list: switcher title, chips, number badges, FAB (+ 390, dark, ms, zh-CN)               | `01-list`                       |
-| 2   | Number switcher sheet: All numbers + 3 numbers, unread, connection (+ 390, dark, ms, zh-CN) | `02-inbox-switcher`             |
-| 3   | Switched to Catering: title and number, dot for unread elsewhere                            | `03-switched-catering`          |
-| 4   | Unread chip on                                                                              | `04-chip-unread`                |
-| 5   | Tag filter sheet (+ 390, dark, ms, zh-CN)                                                   | `05-tag-filter-sheet`           |
-| 6   | Filtered by VIP: chip "VIP ×"                                                               | `06-tag-filtered`               |
-| 7   | Search open ("kopi")                                                                        | `07-search`                     |
-| 8   | New chat sheet from the FAB                                                                 | `08-new-chat-sheet`             |
-| 9   | FAB shrunk while scrolling                                                                  | `09-fab-compact-on-scroll`      |
-| 10  | Swipe right: Assign to me                                                                   | `10-swipe-assign`               |
-| 11  | After the swipe: toast with Undo, "You" on the row                                          | `11-swipe-assigned-toast`       |
-| 12  | Swipe left: Resolve                                                                         | `12-swipe-resolve`              |
-| 13  | Press and hold: row action sheet                                                            | `13-row-actions`                |
-| 14  | Chat header: one row + chips (+ 390, dark, ms, zh-CN)                                       | `14-chat-header`                |
-| 15  | Assign sheet                                                                                | `15-assign-sheet`               |
-| 16  | Tags sheet (+ 390, dark, ms, zh-CN)                                                         | `16-chat-tags-sheet`            |
-| 17  | Tags sheet: typing a new tag → "Add “Wholesale”"                                            | `17-chat-tags-create`           |
-| 18  | Tags saved: chips in the header, toast at the bottom                                        | `18-chat-tags-saved`            |
-| 19  | ⋮ sheet                                                                                     | `19-chat-more-sheet`            |
-| 20  | Group header: assignee chip, AI badge in the strip                                          | `20-group-header`               |
-| 21  | Lite (one number): plain "Inbox" title, no badges                                           | `21-lite-one-number`            |
-| 22  | Team member with one number (Mei Ling)                                                      | `22-agent-one-number`           |
-| 23  | Desktop list, unchanged                                                                     | `30-desktop-list-desktop-light` |
-| 24  | Desktop chat, unchanged                                                                     | `31-desktop-chat-desktop-light` |
-| 25  | Design system page, top (desktop + 360, light + dark)                                       | `40-design-system`              |
-| 26  | Design system page, whole page (desktop + 360, light + dark)                                | `41-design-system-full`         |
-| 27  | Design system page: a bottom sheet on a phone (light + dark)                                | `42-design-system-sheet`        |
+| #   | Screen / state                                                                              | Shot                                                         |
+| --- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 1   | Chat list: switcher title, chips, number badges, FAB (+ 390, dark, ms, zh-CN)               | `01-list`                                                    |
+| 2   | Number switcher sheet: All numbers + 3 numbers, unread, connection (+ 390, dark, ms, zh-CN) | `02-inbox-switcher`                                          |
+| 3   | Switched to Catering: title and number, dot for unread elsewhere                            | `03-switched-catering`                                       |
+| 4   | Unread chip on                                                                              | `04-chip-unread`                                             |
+| 5   | Tag filter sheet (+ 390, dark, ms, zh-CN)                                                   | `05-tag-filter-sheet`                                        |
+| 6   | Filtered by VIP: chip "VIP ×"                                                               | `06-tag-filtered`                                            |
+| 7   | Search open ("kopi")                                                                        | `07-search`                                                  |
+| 8   | New chat sheet from the FAB                                                                 | `08-new-chat-sheet`                                          |
+| 9   | FAB shrunk while scrolling                                                                  | `09-fab-compact-on-scroll`                                   |
+| 10  | Swipe right: Assign to me                                                                   | `10-swipe-assign`                                            |
+| 11  | After the swipe: toast with Undo, "You" on the row                                          | `11-swipe-assigned-toast`                                    |
+| 12  | Swipe left: Resolve                                                                         | `12-swipe-resolve`                                           |
+| 13  | Press and hold: row action sheet                                                            | `13-row-actions`                                             |
+| 14  | Chat header: one row + chips (+ 390, dark, ms, zh-CN)                                       | `14-chat-header`                                             |
+| 15  | Assign sheet                                                                                | `15-assign-sheet`                                            |
+| 16  | Tags sheet (+ 390, dark, ms, zh-CN)                                                         | `16-chat-tags-sheet`                                         |
+| 17  | Tags sheet: typing a new tag → "Add “Wholesale”"                                            | `17-chat-tags-create`                                        |
+| 18  | Tags saved: chips in the header, toast at the bottom                                        | `18-chat-tags-saved`                                         |
+| 19  | ⋮ sheet                                                                                     | `19-chat-more-sheet`                                         |
+| 20  | Group header: assignee chip, AI badge in the strip                                          | `20-group-header`                                            |
+| 21  | Lite (one number): plain "Inbox" title, no badges                                           | `21-lite-one-number`                                         |
+| 22  | Team member with one number (Mei Ling)                                                      | `22-agent-one-number`                                        |
+| 23  | Desktop list, unchanged                                                                     | `30-desktop-list-desktop-light`                              |
+| 24  | Desktop chat, unchanged                                                                     | `31-desktop-chat-desktop-light`                              |
+| 25  | Design system page, top (desktop + 360, light + dark)                                       | `40-design-system`                                           |
+| 26  | Design system page, whole page (desktop + 360, light + dark)                                | `41-design-system-full`                                      |
+| 27  | Design system page: a bottom sheet on a phone (light + dark)                                | `42-design-system-sheet`                                     |
+| 28  | Group header: tag chips; + Tag adds "Events" (group Tags editor)                            | `23-group-tags-sheet`, `24-group-tags-saved`                 |
+| 29  | Group info with the Tags row (phone)                                                        | `25-group-info-tags`                                         |
+| 30  | Press and hold a group row → Tags                                                           | `26-group-row-actions`, `27-group-row-tags-sheet`            |
+| 31  | Tag filter "Wholesale" returns the tagged group                                             | `28-tag-filter-includes-groups`                              |
+| 32  | Customer details with the Tags row (phone)                                                  | `29-customer-details-tags`                                   |
+| 33  | Desktop Group info with tags; the same editor as a dialog                                   | `32-desktop-group-info-tags`, `33-desktop-group-tags-dialog` |
+| 34  | Desktop Customer details with the Tags row                                                  | `34-desktop-customer-tags`                                   |
+| 35  | Desktop tag filter returns the tagged group                                                 | `35-desktop-tag-filter-groups`                               |
 
-`mobile-results.json`: 54 shots, 0 page errors, 0 horizontal overflow, 0 list controls under 44 px.
+`mobile-results.json`: 65 shots, 0 page errors, 0 horizontal overflow, 0 list controls under 44 px.
 
 Not yet covered (phase 2 screens; the owner may want them before confirming): composer, message press-and-hold, the
 Customer details sheet, Group info, Admin on a phone, the keyboard open, empty states other than Unread / Groups.
 
 ## Components and routes touched (production, phase 1)
 
-| App file (`apps/web/src`)                      | Change                                                                                                                                      |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inbox/InboxPage.tsx`                          | Phone: `MobileListHeader` instead of header + `ChatFilters`; FAB; no version line                                                           |
-| `inbox/ChatList.tsx`                           | `unread` / `type` filters; rows wrapped in `ChatRowActions` on phones; bottom padding                                                       |
-| `inbox/ChatListItem.tsx`                       | Number badge on the photo on phones; no inbox chip there                                                                                    |
-| `inbox/ConversationHeader.tsx`                 | Phone variant `MobileConversationHeader`                                                                                                    |
-| `inbox/Conversation.tsx`                       | `?info=1` opens Group info (from the row sheet)                                                                                             |
-| `inbox/NewChatDialog.tsx`                      | Export the dialog for the FAB                                                                                                               |
-| `main.tsx` / `components/ui/sonner.tsx`        | Toasts at the bottom on phones                                                                                                              |
-| new `inbox/mobile/*`                           | `MobileListHeader`, `InboxSwitcherSheet`, `TagSheet`, `AssignSheet`, `ChatRowActions`, `NewChatFab`, `MobileConversationHeader`, `phone.ts` |
-| new `components/app/FilterChip.tsx`            | The chip as an app composite (the mock uses a styled `<button>`; ESLint forbids raw buttons in feature code)                                |
-| `i18n/locales/{en,ms,zh-CN}/inbox.json`        | `mobile.*`                                                                                                                                  |
-| `docs/design-system.md`                        | Updated in this PR (Mobile patterns, Editions, fixes)                                                                                       |
-| `packages/shared` `ChatListQuery`              | `unread`, `type`                                                                                                                            |
-| `packages/server` `routes/chats.ts`, `inboxes` | the two filters; `GET /api/inboxes/unread`; recommended `PUT /api/chats/:jid/tags`                                                          |
+| App file (`apps/web/src`)                         | Change                                                                                                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inbox/InboxPage.tsx`                             | Phone: `MobileListHeader` instead of header + `ChatFilters`; FAB; no version line                                                           |
+| `inbox/ChatList.tsx`                              | `unread` / `type` filters; rows wrapped in `ChatRowActions` on phones; bottom padding                                                       |
+| `inbox/ChatListItem.tsx`                          | Number badge on the photo on phones; no inbox chip there                                                                                    |
+| `inbox/ConversationHeader.tsx`                    | Phone variant `MobileConversationHeader`                                                                                                    |
+| `inbox/Conversation.tsx`                          | `?info=1` opens Group info (from the row sheet)                                                                                             |
+| `inbox/NewChatDialog.tsx`                         | Export the dialog for the FAB                                                                                                               |
+| `main.tsx` / `components/ui/sonner.tsx`           | Toasts at the bottom on phones                                                                                                              |
+| new `inbox/mobile/*`                              | `MobileListHeader`, `InboxSwitcherSheet`, `TagSheet`, `AssignSheet`, `ChatRowActions`, `NewChatFab`, `MobileConversationHeader`, `phone.ts` |
+| new `components/app/FilterChip.tsx`               | The chip as an app composite (the mock uses a styled `<button>`; ESLint forbids raw buttons in feature code)                                |
+| `i18n/locales/{en,ms,zh-CN}/inbox.json`           | `mobile.*`                                                                                                                                  |
+| `docs/design-system.md`                           | Updated in this PR (Mobile patterns, Editions, fixes)                                                                                       |
+| `inbox/CustomerPanel.tsx`, `inbox/GroupPanel.tsx` | Tags row (`ChatTagsRow`) with the shared Tags editor                                                                                        |
+| `packages/server` `chats/repo.ts`, new tags route | `rowToChat` returns group tags; `PUT /api/chats/:jid/tags`; audit `chat.tags`                                                               |
+| `packages/shared` `ChatListQuery`                 | `unread`, `type`                                                                                                                            |
+| `packages/server` `routes/chats.ts`, `inboxes`    | the two filters; `GET /api/inboxes/unread`; recommended `PUT /api/chats/:jid/tags`                                                          |
 
 Tests to add with the build: list filters (server), unread counts by access (admin / agent / limited agent), tags
 route limits and audit, `MobileListHeader` / sheets / swipe threshold and Undo (web), contract test entries, the e2e
@@ -234,12 +308,13 @@ phone project (360 px) for switch number, tag a chat, swipe, New chat.
    **Mine** instead of **All**?
 3. **Admin on a phone**: keep it in the account menu (proposed), or add a bottom bar (Chats · Admin · Me)?
 4. **Resolve in the chat header**: icon with label from 375 px, icon only on 360 px phones. OK, or move Resolve into ⋮?
-5. **Tags**: any teammate who can open the chat may add or remove tags and create new ones (as in the profile today).
-   Keep, or only admins create new tag names?
+5. ~~Tags~~: **answered 2026-11-07**: any teammate who can open the chat adds, removes and creates tags, on direct
+   chats and groups ("Follow existing"). See "Tags on every chat and every screen".
 6. **Number switcher**: remembered per phone (like today's filter). And should New chat's "Send from" start on the
    number you are viewing? (proposed: yes, phase 1)
 7. **Phase 2 order**: composer first, or message actions, or the Customer details / Group info sheets?
 8. **Design system**: are the new Mobile patterns and the Editions table right as the rules for both editions?
+9. **Desktop chat header**: show the tag chips there too (like the phone strip), or keep them in the side panels?
 
 ## Five-folder retention
 

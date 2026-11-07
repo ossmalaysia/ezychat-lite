@@ -163,6 +163,11 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
 - **Confirmations** use `AlertDialog` (logout WhatsApp, reset password, reply to someone else's chat).
 - **Feedback** uses toasts for success/failure of actions; inline `Banner` for persistent state
   (WhatsApp disconnected, tunnel error, LAN over HTTP).
+- **Tags** (direct chats and groups) are `secondary` pills: plain in list rows (no room for an icon), with the tag
+  icon in the chat header strip and the Tags row of Customer details / Group info. Every place that edits tags opens
+  the same Tags editor (bottom sheet on phones, dialog on desktop): search or type to add, tick to keep, **Done**.
+  Never a coloured or bordered tag, and never a second way to edit them. — mobile-redesign `14-chat-header`,
+  `24-group-tags-saved`, `25-group-info-tags`, `32-desktop-group-info-tags`
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.
 - **Loading** uses `Skeleton` rows, not spinners, for lists.
 - **Small screens:** Dialog → Drawer (bottom sheet) below `sm` (`ResponsiveDialog`); tables → stacked cards below
