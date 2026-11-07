@@ -558,8 +558,14 @@ describe('composer upload limit per number', () => {
       contentType: `multipart/form-data; boundary=${boundary}`,
     };
   }
-  const upload = (jid: string, clientId: string, data: Buffer, name = 'clip.mp4') => {
-    const mp = multipart({ clientId }, name, 'video/mp4', data);
+  const upload = (
+    jid: string,
+    clientId: string,
+    data: Buffer,
+    name = 'clip.mp4',
+    fields: Record<string, string> = {},
+  ) => {
+    const mp = multipart({ clientId, ...fields }, name, 'video/mp4', data);
     return t.app.inject({
       method: 'POST',
       url: `/api/chats/${enc(jid)}/media`,
@@ -581,6 +587,18 @@ describe('composer upload limit per number', () => {
     const ok = await upload(D3, 'u-3', Buffer.alloc(8, 7));
     expect(ok.statusCode).toBe(201);
     expect(ok.json().mediaSize).toBe(8);
+    // Above the video limit it can still go as a file (a document), up to the document limit.
+    const asFile = await upload(D3, 'u-4', Buffer.alloc(20, 7), 'clip.mp4', { asFile: '1' });
+    expect(asFile.statusCode).toBe(201);
+    expect(asFile.json()).toMatchObject({ type: 'document', mediaName: 'clip.mp4' });
+    expect(rowById(asFile.json().id)!.type).toBe('document');
+    expect(code(await upload(D3, 'u-5', Buffer.alloc(50, 7), 'clip.mp4', { asFile: '1' }))).toEqual(
+      [413, 'too_large_for_whatsapp'],
+    );
+    expect(
+      (await upload(D3, 'u-6', Buffer.alloc(8, 7), 'clip.mp4', { asFile: '1', voiceNote: '1' }))
+        .statusCode,
+    ).toBe(400);
   });
 });
 

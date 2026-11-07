@@ -184,7 +184,8 @@
       "clean": "没有错误",
       "unavailable": "语法检查暂不可用",
       "unavailableHint": "AI 连接需要处理。拼写仍会检查，消息也可以正常发送。"
-    }
+    },
+    "sentAsFile": "{{name}} 对这个号码来说太大，无法作为视频发送，将以文件形式发送，保持原始画质。"
   },
   "quickReplies": {
     "title": "快捷回复",

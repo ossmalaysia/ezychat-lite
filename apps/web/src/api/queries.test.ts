@@ -395,6 +395,33 @@ describe('media upload refusals', () => {
     return cached(qc).find((m) => m.clientId === 'c9')!;
   }
 
+  it('sends asFile=1 for a video going as a file', async () => {
+    let form: FormData | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        form = init.body as FormData;
+        return new Response(JSON.stringify({ error: { code: 'x', message: 'no' } }), {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        });
+      }),
+    );
+    const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    seed(qc, []);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useSendMedia(JID), { wrapper });
+    const file = new File(['x'], 'big.mp4', { type: 'video/mp4' });
+    await act(async () => {
+      await result.current
+        .mutateAsync({ file, clientId: 'c8', asFile: true })
+        .catch(() => undefined);
+    });
+    expect(form!.get('asFile')).toBe('1');
+    expect(form!.get('clientId')).toBe('c8');
+  });
+
   it('keeps the code of a size refusal so the bubble words it, else the server message', async () => {
     expect(await upload(413, 'too_large_as_video')).toMatchObject({
       status: 'failed',

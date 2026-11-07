@@ -30,7 +30,7 @@ function session() {
     const set = res.headers.get('set-cookie');
     if (set) cookie = set.split(';')[0];
     const text = await res.text();
-    let json = null;
+    let json;
     try {
       json = text ? JSON.parse(text) : null;
     } catch {
@@ -93,7 +93,7 @@ const fwd = (api, id, to, extra = {}) =>
   api('POST', `/messages/${enc(id)}/forward`, { to, clientRequestId: randomUUID(), ...extra });
 const r1 = await fwd(admin, src.id, [priyaKey, jasonKey]);
 check(
-  r1.status === 201 && r1.json.messages.length === 2,
+  r1.status === 200 && r1.json.messages.length === 2,
   'a text forwards to chats on two other numbers',
   `${r1.status} ${JSON.stringify(r1.json).slice(0, 200)}`,
 );
@@ -103,8 +103,8 @@ const last = async (key) =>
 const copyPriya = await last(priyaKey);
 const copyJason = await last(jasonKey);
 check(
-  copyPriya.body === src.body ||
-    (copyPriya.body?.startsWith('Our menu') && copyPriya.forwarded?.manyTimes === false),
+  copyPriya.body === 'Our menu for the 30 pax event, please check' &&
+    copyPriya.forwarded?.manyTimes === false,
   'the copy on the second number is marked Forwarded',
   JSON.stringify({
     body: copyPriya.body,
@@ -141,37 +141,44 @@ check(six.status === 400, 'six chats are refused');
 const stranger = await fwd(admin, src.id, ['60199999999@s.whatsapp.net']);
 check(stranger.status === 404, 'a number without a chat is refused (404, never a new chat)');
 
-// Large file: upload a 70 MB video (allowed now: 100 MB), then forward it across numbers.
+// Large file: a 70 MB video (uploads now go up to 100 MB). As a video it is over the linked phone's
+// 64 MB video limit, so the composer sends it as a file; then it is forwarded across numbers.
 const video = Buffer.concat([readFileSync(FIXTURE), Buffer.alloc(70 * MB - 16 * 1024)]);
-const form = new FormData();
-form.set('clientId', randomUUID());
-form.set('caption', 'Walkthrough of the event hall for Saturday');
-form.set('file', new Blob([video], { type: 'video/mp4' }), 'Event hall walkthrough.mp4');
-const up = await admin('POST', `/chats/${enc(farah)}/media`, undefined, form);
+const videoForm = (fields) => {
+  const f = new FormData();
+  f.set('clientId', randomUUID());
+  for (const [k, v] of Object.entries(fields)) f.set(k, v);
+  f.set('file', new Blob([video], { type: 'video/mp4' }), 'Event hall walkthrough.mp4');
+  return f;
+};
+const asVideoUp = await admin('POST', `/chats/${enc(farah)}/media`, undefined, videoForm({}));
 check(
-  up.status === 201 || up.status === 200,
-  'the composer accepts a 70 MB file (limit now 100 MB)',
-  `${up.status} ${JSON.stringify(up.json).slice(0, 200)}`,
+  asVideoUp.status === 413 && code(asVideoUp) === 'too_large_as_video',
+  'a 70 MB video is over the linked phone’s 64 MB video limit',
+  `${asVideoUp.status} ${code(asVideoUp)}`,
 );
-await wait(3000);
-const big = await last(farah);
+const up = await admin(
+  'POST',
+  `/chats/${enc(farah)}/media`,
+  undefined,
+  videoForm({ asFile: '1', caption: 'Walkthrough of the event hall for Saturday' }),
+);
 check(
-  big.type === 'video' && big.mediaSize >= 69 * MB,
-  'the stored video reports its size',
-  `${big.type} ${big.mediaSize}`,
+  up.status === 201 && up.json.type === 'document' && up.json.mediaSize >= 69 * MB,
+  'the composer sends the 70 MB video as a file (limit now 100 MB)',
+  `${up.status} ${up.json?.type} ${up.json?.mediaSize}`,
 );
-const asVideo = await fwd(admin, big.id, [priyaKey]);
-check(
-  asVideo.status === 413 && code(asVideo) === 'too_large_as_video',
-  '70 MB is over the linked phone’s 64 MB video limit: refused as a video',
-  `${asVideo.status} ${code(asVideo)}`,
-);
+const big = await poll(async () => {
+  const m = await last(farah);
+  return m.id && !m.id.startsWith('local-') ? m : null;
+}, 20_000);
+check(big?.status !== 'failed', 'WhatsApp took the 70 MB file', JSON.stringify(big?.status));
 await admin('POST', '/dev/fake-window', { chatJid: jasonKey, hoursAgo: 1 });
-const asFile = await fwd(admin, big.id, [priyaKey, jasonKey], { sendAs: 'file' });
+const asFile = await fwd(admin, big.id, [priyaKey, jasonKey]);
 check(
-  asFile.status === 201 && asFile.json.messages.every((m) => m.type === 'document'),
-  'as a file it goes to the second number and the Business API chat (100 MB document limit)',
-  `${asFile.status} ${JSON.stringify(asFile.json?.messages?.map((m) => m.type))}`,
+  asFile.status === 200 && asFile.json.messages.every((m) => m.type === 'document'),
+  'the file forwards to the second number and the Business API chat (100 MB document limit)',
+  `${asFile.status} ${code(asFile)} ${JSON.stringify(asFile.json?.messages?.map((m) => m.type))}`,
 );
 const sent = await poll(async () => {
   const m = await last(priyaKey);
@@ -182,6 +189,13 @@ check(
   'the large copy is sent with its size and Forwarded mark',
   JSON.stringify({ status: sent?.status, size: sent?.mediaSize }),
 );
+// A real video message (from WhatsApp) above a chat's video limit: refused as a video, fine as a file.
+const clip = await incoming(1, farah, 'Farah Aziz', 'Short clip', {
+  type: 'video',
+  media: { mime: 'video/mp4', base64: readFileSync(FIXTURE).toString('base64') },
+});
+const clipFwd = await fwd(admin, clip.id, [jasonKey]);
+check(clipFwd.status === 200, 'a small video forwards as a video to the Business API chat');
 const tooBig = await admin(
   'POST',
   `/chats/${enc(jasonKey)}/media`,
@@ -202,7 +216,7 @@ check(
 // Audit: ids only.
 const rows = (await admin('GET', '/audit?limit=100')).json.entries;
 const fw = rows.filter((r) => r.action === 'message.forwarded');
-check(fw.length === 2, 'Audit has the two forwards', String(fw.length));
+check(fw.length === 3, 'Audit has the three forwards', String(fw.length));
 check(
   !JSON.stringify(fw).includes('Our menu') && !JSON.stringify(fw).includes('walkthrough'),
   'audit rows carry ids only (no text, caption or file name)',

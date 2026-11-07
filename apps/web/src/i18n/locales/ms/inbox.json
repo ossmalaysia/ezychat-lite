@@ -184,7 +184,8 @@
       "clean": "Tiada kesilapan",
       "unavailable": "Semakan tatabahasa tidak tersedia",
       "unavailableHint": "Sambungan AI perlu diperiksa. Ejaan masih disemak, dan mesej anda boleh dihantar."
-    }
+    },
+    "sentAsFile": "{{name}} terlalu besar untuk video pada nombor ini, jadi ia dihantar sebagai fail dalam kualiti penuh."
   },
   "quickReplies": {
     "title": "Balasan pantas",

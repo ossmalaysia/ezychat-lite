@@ -30,6 +30,7 @@ import { useGroupChatAi } from '../api/ai-groups';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
+import { videoNeedsFile } from '../lib/file-transfer';
 import { Banner, EmptyState } from '@/components/app';
 import { FileDropZone } from '@/components/app/FileDropZone';
 import {
@@ -551,12 +552,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                   // Only the first file of a send quotes the message being replied to.
                   const quotedId = index === 0 ? replyTo?.id : undefined;
                   if (index === 0) setReplyTo(null);
+                  // A video above this number's video limit goes as a file (owner 2026-11-07).
+                  const asFile = videoNeedsFile(file, caps.mediaLimits);
+                  if (asFile) toast.info(t('composer.sentAsFile', { name: file.name }));
                   try {
                     await sendMedia.mutateAsync({
                       file,
                       caption,
                       clientId: newClientId(),
                       quotedId,
+                      ...(asFile ? { asFile: true } : {}),
                     });
                   } catch (e) {
                     onSendError(e);

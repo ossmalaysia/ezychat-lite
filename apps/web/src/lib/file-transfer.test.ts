@@ -11,6 +11,7 @@ import {
   safeMime,
   setDownloadDrag,
   uploadLimitFor,
+  videoNeedsFile,
 } from './file-transfer';
 
 /** A file whose `size` reads as `size` without allocating it. */
@@ -76,6 +77,16 @@ describe('file transfer', () => {
     expect(checkAttachments([sized('max.bin', MEDIA_UPLOAD_LIMIT_BYTES)], 0).accepted).toHaveLength(
       1,
     );
+  });
+
+  it("a video above the number's video limit goes as a file; nothing else does", () => {
+    const MB = 1024 * 1024;
+    const cloud = { video: 16 * MB, document: 100 * MB };
+    expect(videoNeedsFile(sized('v.mp4', 70 * MB, 'video/mp4'), cloud)).toBe(true);
+    expect(videoNeedsFile(sized('v.mp4', 10 * MB, 'video/mp4'), cloud)).toBe(false);
+    expect(videoNeedsFile(sized('p.pdf', 70 * MB, 'application/pdf'), cloud)).toBe(false);
+    expect(videoNeedsFile(sized('v.mp4', 70 * MB, 'video/mp4'), null)).toBe(false);
+    expect(videoNeedsFile(sized('v.mp4', 70 * MB, 'video/mp4'), { document: MB })).toBe(false);
   });
 
   it("the upload limit is 100 MB, lowered by what the chat's number takes per kind", () => {

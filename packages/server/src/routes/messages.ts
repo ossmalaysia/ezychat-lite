@@ -81,6 +81,7 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
     if (!file) throw errors.validation('file is required');
     const f = parse(SendMediaFields, fields);
     if (f.voiceNote && f.caption) throw errors.validation('A voice note has no caption');
+    if (f.voiceNote && f.asFile) throw errors.validation('A voice note cannot be sent as a file');
     const msg = await messages.sendMedia(
       jid,
       {
@@ -89,6 +90,7 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
         ...(f.caption ? { caption: f.caption } : {}),
         ...(f.quotedId ? { quotedId: f.quotedId } : {}),
         ...(f.voiceNote ? { voiceNote: true } : {}),
+        ...(f.asFile ? { asFile: true } : {}),
       },
       req.user!.id,
       f.clientId,

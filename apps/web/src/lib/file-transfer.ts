@@ -65,6 +65,11 @@ export function uploadLimitFor(mime: string, limits?: MediaLimits | null): numbe
   return own ? Math.min(own, MEDIA_UPLOAD_LIMIT_BYTES) : MEDIA_UPLOAD_LIMIT_BYTES;
 }
 
+/** A video above the number's video limit (it can still go as a file, up to the document limit). */
+export function videoNeedsFile(file: File, limits?: MediaLimits | null): boolean {
+  return file.type.startsWith('video/') && !!limits?.video && file.size > limits.video;
+}
+
 /** Splits files into the ones that can be sent and the ones refused before any upload. */
 export function checkAttachments(
   files: readonly File[],

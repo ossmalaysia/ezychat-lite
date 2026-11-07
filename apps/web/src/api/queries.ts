@@ -633,6 +633,8 @@ export interface SendMediaInput {
   quotedId?: string;
   /** A recorded Ogg/Opus voice note: sent as a WhatsApp voice note, never with a caption. */
   voiceNote?: boolean;
+  /** A video above the number's video limit goes as a file (a document, full quality). */
+  asFile?: boolean;
 }
 
 /** 413 answers of the media upload that the failed bubble words itself. */
@@ -651,6 +653,7 @@ export function useSendMedia(jid: string) {
         ...(input.caption ? { caption: input.caption } : {}),
         ...(input.quotedId ? { quotedId: input.quotedId } : {}),
         ...(input.voiceNote ? { voiceNote: '1' as const } : {}),
+        ...(input.asFile ? { asFile: '1' as const } : {}),
       };
       const form = new FormData();
       for (const [key, value] of Object.entries(fields)) form.append(key, value);

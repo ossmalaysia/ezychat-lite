@@ -187,7 +187,8 @@
       "clean": "No mistakes",
       "unavailable": "Grammar check unavailable",
       "unavailableHint": "The AI connection needs attention. Spelling is still checked, and your message can be sent."
-    }
+    },
+    "sentAsFile": "{{name}} is too big for a video on this number, so it goes as a file in full quality."
   },
   "quickReplies": {
     "title": "Quick replies",
