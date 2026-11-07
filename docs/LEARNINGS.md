@@ -223,6 +223,9 @@ into AGENTS.md.
 - Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
   that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
   so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
+- Check `docs/design-system.md` token values against `apps/web/src/index.css` before quoting them in a mock or a
+  review: the file named 16 px `--radius-lg` while the CSS maps `--radius-lg` to 10 px; a reference page that reads
+  the tokens from the loaded stylesheets (mock `/design-system`) keeps the two honest.
 - A phone-only redesign renders the phone parts through one `usePhone()` (`max-width: 767px`, the inbox's `md` split)
   and keeps the desktop render path byte-for-byte; the mock's shot script asserts the phone header is absent at 1280 px.
 
