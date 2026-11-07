@@ -203,10 +203,14 @@ into AGENTS.md.
 - Bringing a parallel confirmed mock into a new clone: per differing file run `git merge-file <latest> <shared
   baseline> <parallel>` (the shared baseline folder is still in the tree), merge catalogs by key, then
   `snapshot.mjs --check`. A confirmed baseline may already fail its own `--check`: record that drift as inherited
-  (copied unchanged) instead of re-hashing it away.
+  (copied unchanged) instead of re-hashing it away. When the shared baseline folder is already pruned, read it from
+  its recorded revision (`git fetch --depth=1 origin <sha>` in a shallow cloud clone, then `git show <sha>:<path>`).
 - Before pruning a feature folder for retention, `git grep` for imports of it outside `docs/features` and run the
   `scripts/*.test.mjs` suite: `template-store/publisher/` is live tooling (`scripts/template-store.test.mjs` imports
   it), so prune the next oldest mock instead.
+- Mock state keyed by a message id the team sends (marks, labels) must follow the id change: a queued send is stored
+  as `local-<clientId>` and renamed to WhatsApp's id when sent (`message:status` with `newId`), so key it by
+  `clientId` until then, or the mark vanishes from the sent bubble.
 - Shot scripts that create server-side records (chats, audit rows) need a fresh runner per run, or the second run
   meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run.
 - A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
@@ -838,6 +842,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   sessions and test agents stay, so nobody registers again.
 - On macOS a full menu bar (notch) hides tray icons: every tray-only action (Status & Service, updates) is also
   in the Dock menu (`app.dock.setMenu`, `tray.ts`). macOS adds Quit there itself.
+- Measure before porting to Rust (or rewriting for speed): the 2026-11-07 review found only one measurable
+  hot spot (the AI leak check), fixed in TypeScript. See `docs/DEBT.md` (Open) for the numbers and the
+  ranked Rust candidates.
 - Changed-lines coverage counts an untested entry `main()`: put new start-up logic in an exported function
   with injectable I/O (`startArgs` in `server-host.cts`) so `main()` gains one call line, and leave
   unrelated log text alone (each touched line counts).
@@ -1248,6 +1255,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `aliases.group`) carry the push and saved names: a screen that names a person must fall back to those
   facts, never only to `chat.whatsappName` (the customer panel showed "No name set" above its own
   "Name on WhatsApp" row).
+
+- Sending one stored file to several chats: pass it to Baileys by path (`{ url: path }`, streamed) and set the
+  socket's `mediaCache`; the cache key is media type + url (`Utils/messages.js`), so a Buffer never hits it and every
+  copy uploads again. WhatsApp publishes size limits only for the Business API (video 16 MB, document 100 MB); a linked
+  phone's video limit is unpublished: measure it in a Dev Build before coding a value.
 
 ## AI sales agent
 
