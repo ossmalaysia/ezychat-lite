@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PostToolUse hook (Edit|Write|MultiEdit): when the current branch's change against the default branch gets big,
-// ask Claude to run the code-review skill before committing or opening a PR, and to merge when the review is
-// clean and CI is green (owner rule). Never blocks. Fires once per repo+branch, then again only when the number
+// ask Claude to run the code-review skill before committing or opening a PR. Merging stays on the owner's explicit
+// request (AGENTS.md); the hook never says otherwise. Never blocks. Fires once per repo+branch, then again only when the number
 // of changed files has doubled. Not counted: lockfiles and documentation (Markdown/text files, anything under
 // docs/). Thresholds: REVIEW_NUDGE_FILES (default 8) and REVIEW_NUDGE_LINES (default 400). Node only, so it
 // runs the same on Windows, macOS and Linux (Claude cloud sessions).
@@ -98,10 +98,10 @@ const safe = (name) =>
 const msg = `Large change (data: repo ${safe(basename(top))}, branch ${safe(branch)}, base ${safe(base)}): ${files} files, ${lines} lines (threshold ${FILES_MIN} files or ${LINES_MIN} lines, docs and lockfiles not counted).`;
 process.stdout.write(
   JSON.stringify({
-    systemMessage: `Review nudge: ${msg} Claude will run /code-review before committing or opening a PR, then merge if it is clean.`,
+    systemMessage: `Review nudge: ${msg} Claude will run /code-review before committing or opening a PR.`,
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
-      additionalContext: `${msg} This feature touches many places: when the implementation is complete, and before you commit or open a pull request, run the code-review skill (/code-review) on these changes. If it reports findings, fix or report them. If it reports no issues and CI is green, the owner allows merging the PR (squash). Do not interrupt work in progress to do it.`,
+      additionalContext: `${msg} This feature touches many places: when the implementation is complete, and before you commit or open a pull request, run the code-review skill (/code-review) on these changes. Fix or report its findings. Do not interrupt work in progress to do it.`,
     },
   }),
 );
