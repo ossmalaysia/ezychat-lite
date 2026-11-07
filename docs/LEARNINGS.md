@@ -1172,8 +1172,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
-- Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp): do not
-  plan a preview for them from the protobuf field alone. The adapter's `raw` cache is memory only, so a later download goes
+- Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
+  live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
+  app must make its own. The adapter's `raw` cache is memory only, so a later download goes
   through the stored `media_refs` row: restart the server when you test on-demand media.
 - Opening a chat sends read receipts for its newest 20 customer messages while the number is connected, also in a Dev Build
   (`chats/service.ts#markRead`). On a real number, drive only a chat the owner named, and say so first.
