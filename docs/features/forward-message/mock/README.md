@@ -16,7 +16,9 @@ Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`), open **Pri
 **⋮ → Forward** (on a phone: press and hold the message). Try: search, pick chats in two inboxes, pick 5 (the rest
 grey out), **Jason Lim** (Business API, 24-hour window closed: greyed out), the dashed **Mock only** buttons (WhatsApp
 offline, Safety locked), Forward → toast → open the other chat to see **Forwarded**. **Jason Lim** and **Nurul Huda**
-show customers' forwarded messages; forwarding Nurul's ("Forwarded many times") allows one chat. Sign in as `ravi`
+show customers' forwarded messages; forwarding Nurul's ("Forwarded many times") allows one chat. **The owner's case:** open **Farah Aziz** (Catering) → the event hall video (shown as 70 MB) → Forward to **Priya Nair**
+(Online orders, Business API) and **Kopi Apong Staff**: it goes as a file; Mock only adds Slow upload, Upload fails
+and Video 120 MB. Sign in as `ravi`
 (limited to 3 chosen chats) to see only those. `?edition=lite` shows Lite (one inbox, no inbox chips). Everything
 below is the inherited new-chat README; every inherited flow still works.
 

@@ -215,6 +215,50 @@ for (const size of Object.keys(sizes)) {
     await page.getByText('Forwarded to Kopi Apong Staff').first().waitFor();
     await shot('15-sent-one-open-chat');
   });
+  // The owner's case: a 70 MB video from a chat on one number (Catering) to chats on other numbers.
+  await step('video-70', async () => {
+    await openForward(s, FARAH, 'Walkthrough of the event hall');
+    await shot('19-video-70mb-dialog');
+    await pick(page, 'Priya Nair');
+    await pick(page, 'Kopi Apong Staff');
+    await page.getByTestId('forward-send-as-note').scrollIntoViewIfNeeded();
+    await shot('20-video-70mb-cross-inbox-as-file');
+    await page.keyboard.press('Escape');
+  });
+  await step('video-120', async () => {
+    await openForward(s, FARAH, 'Walkthrough of the event hall');
+    await mock(page, 'Video 120 MB');
+    await page.keyboard.press('Escape');
+    await openForward(s, FARAH, 'Walkthrough of the event hall');
+    await dialog(page).getByTestId('forward-search').fill('Priya');
+    await page.waitForTimeout(500);
+    await shot('21-video-120mb-too-large-row');
+    await mock(page, 'Video 120 MB');
+    await page.keyboard.press('Escape');
+  });
+  await step('sending-large', async () => {
+    await openForward(s, FARAH, 'Walkthrough of the event hall');
+    await mock(page, 'Slow upload');
+    await pick(page, 'Kopi Apong Staff');
+    await page.getByTestId('forward-send').click();
+    await page.getByText('Forwarded to Kopi Apong Staff').first().waitFor();
+    await page.goto(chatUrl('120363025550005@g.us'));
+    await page.getByTestId('forward-sending-large').last().waitFor();
+    await shot('22-sending-large');
+    await api('PUT', '/mock/forward/scenario', { scenario: 'normal' });
+  });
+  await step('upload-fails', async () => {
+    await page.waitForTimeout(8000);
+    await openForward(s, FARAH, 'Walkthrough of the event hall');
+    await mock(page, 'Upload fails');
+    await pick(page, 'Ahmad');
+    await page.getByTestId('forward-send').click();
+    await page.getByText('Forwarded to Ahmad').first().waitFor();
+    await page.goto(chatUrl('60125550142@s.whatsapp.net'));
+    await page.getByText('Upload to WhatsApp failed').last().waitFor();
+    await shot('23-upload-failed-retry');
+    await api('PUT', '/mock/forward/scenario', { scenario: 'normal' });
+  });
   if (size === 'desktop')
     await step('activity', async () => {
       await page.goto('/admin/audit');

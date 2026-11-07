@@ -4,7 +4,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 
-export type ForwardScenario = 'normal' | 'offline';
+export type ForwardScenario = 'normal' | 'offline' | 'slow_upload' | 'upload_fails';
+export type InboxKind = 'linked_phone' | 'business_api';
+export interface MediaLimits {
+  video: number;
+  image: number;
+  document: number;
+}
 
 export interface ForwardState {
   scenario: ForwardScenario;
@@ -13,6 +19,16 @@ export interface ForwardState {
   /** Messages WhatsApp Safety rated High: their files are locked and never forwarded. */
   safetyLocked: string[];
   limits: { maxChats: number; manyTimesScore: number; perMinute: number };
+  /** What WhatsApp takes per connection kind (the app: `WaCapabilities.mediaLimits`). */
+  mediaLimits: Record<InboxKind, MediaLimits>;
+  /** Mock only: file sizes (message id → bytes); the app sends `Message.mediaSize`. */
+  sizes: Record<string, number>;
+}
+
+/** "70 MB", "850 KB". */
+export function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 export const forwardKey = ['mock', 'forward'] as const;

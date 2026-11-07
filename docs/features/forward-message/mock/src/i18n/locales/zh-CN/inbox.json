@@ -917,6 +917,14 @@
       "other": {
         "title": "未转发",
         "body": "出了点问题，什么都没有发送。请再试一次。"
+      },
+      "too_large_as_video": {
+        "title": "视频太大",
+        "body": "请改为以文件形式发送。文件保持原始画质。"
+      },
+      "too_large_for_whatsapp": {
+        "title": "超出 WhatsApp 的上限",
+        "body": "你选的一个聊天所在号码不能接收这么大的文件。请移除它后再试。"
       }
     },
     "mock": {
@@ -924,7 +932,18 @@
       "normal": "正常",
       "offline": "WhatsApp 离线",
       "safety": "安全锁定（此消息）",
-      "hint": "应用中没有：切换 WhatsApp 和安全功能的回应，以查看每种状态。"
-    }
+      "hint": "应用中没有：切换 WhatsApp 和安全功能的回应，以查看每种状态。",
+      "slow_upload": "上传缓慢",
+      "upload_fails": "上传失败",
+      "size120": "视频 120 MB"
+    },
+    "largeNote": "大文件（{{size}}）。每个副本都会重新上传到 WhatsApp，可能需要几分钟。",
+    "sendAs": "发送方式",
+    "asVideo": "视频",
+    "asFile": "文件",
+    "sendAsHint": "视频可在聊天中播放。文件保持原始画质，客户下载后观看。",
+    "videoTooBig": "这个视频（{{size}}）太大，无法以视频形式发送到你选的聊天（上限 {{max}}）。将以文件形式发送，保持原始画质。",
+    "tooBigRow": "对这个号码来说太大：文件上限 {{max}}",
+    "sendingLarge": "正在发送 {{size}} 到 WhatsApp…"
   }
 }

@@ -917,6 +917,14 @@
       "other": {
         "title": "Tidak dimajukan",
         "body": "Ada masalah. Tiada apa-apa dihantar. Cuba lagi."
+      },
+      "too_large_as_video": {
+        "title": "Terlalu besar untuk video",
+        "body": "Hantar sebagai fail. Fail mengekalkan kualiti penuh."
+      },
+      "too_large_for_whatsapp": {
+        "title": "Terlalu besar untuk WhatsApp",
+        "body": "Sembang yang anda pilih menggunakan nombor yang tidak boleh menerima fail sebesar ini. Buang sembang itu dan cuba lagi."
       }
     },
     "mock": {
@@ -924,7 +932,18 @@
       "normal": "Biasa",
       "offline": "WhatsApp di luar talian",
       "safety": "Dikunci Keselamatan (mesej ini)",
-      "hint": "Tiada dalam aplikasi: menukar jawapan WhatsApp dan Keselamatan untuk melihat setiap keadaan."
-    }
+      "hint": "Tiada dalam aplikasi: menukar jawapan WhatsApp dan Keselamatan untuk melihat setiap keadaan.",
+      "slow_upload": "Muat naik perlahan",
+      "upload_fails": "Muat naik gagal",
+      "size120": "Video 120 MB"
+    },
+    "largeNote": "Fail besar ({{size}}). Setiap salinan dimuat naik ke WhatsApp semula, jadi ia mungkin mengambil beberapa minit.",
+    "sendAs": "Hantar sebagai",
+    "asVideo": "Video",
+    "asFile": "Fail",
+    "sendAsHint": "Video dimainkan dalam sembang. Fail mengekalkan kualiti penuh; pelanggan memuat turunnya untuk menonton.",
+    "videoTooBig": "Video ini ({{size}}) terlalu besar untuk dihantar sebagai video ke sembang yang anda pilih (hingga {{max}}). Ia dihantar sebagai fail, dalam kualiti penuh.",
+    "tooBigRow": "Terlalu besar untuk nombor ini: fail hingga {{max}}",
+    "sendingLarge": "Menghantar {{size}} ke WhatsApp…"
   }
 }

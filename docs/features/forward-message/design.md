@@ -11,6 +11,14 @@ New chat). Send it as WhatsApp's "Forwarded" through the normal send queue as th
 Respect WhatsApp Safety, the Business API reply window and inbox access. Show "Forwarded" in our chat view, for
 our copies and for forwarded messages customers send us.
 
+Owner's real case (added 2026-11-07, relayed by the main session): **forward a 70 MB video from a chat on one
+WhatsApp number to a chat on another number.** Today that is impossible: there is no forward, and the composer's upload
+cap is 64 MB (`MEDIA_UPLOAD_LIMIT_BYTES` in `packages/shared/src/api.ts`, `fastifyMultipart` `fileSize` in
+`packages/server/src/app.ts`), so re-uploading fails too. Hence: forward is **server-side** and re-uses the stored
+file (never the 64 MB upload; only WhatsApp's limits apply), **cross-inbox forwarding is a must-have case**, a video
+above WhatsApp's video limit can go **as a file**, and large copies show **sending** and **failed + Retry** states
+(see [Large files](#large-files)).
+
 ## Mock and baseline
 
 - Mock: [mock/index.html](mock/index.html) (the whole app, run with `run.ts`), README [mock/README.md](mock/README.md),
@@ -48,6 +56,7 @@ chats), password `demo-pass-123`. Open **Priya Nair** (a photo), hover the photo
 | `src/mock/forward.ts` (new)                 | Mock state hook (scenario, forwarded marks, Safety locks)                              |
 | `forward.ts` (new, runner)                  | Stand-in for `POST /api/messages/:id/forward`; real send queue, audit; seed            |
 | `forward-shots.mjs` (new)                   | The screenshot run (page-error and overflow checks)                                    |
+| `fixtures/event-walkthrough.mp4` (new)      | A 9 KB video the mock presents as 70 MB (sizes and limits are mock state)              |
 | `src/inbox/MessageBubble.tsx`               | ⋮ menu beside Reply, Forwarded label at the top of the bubble, the dialog              |
 | `src/inbox/ReactionPicker.tsx`              | Touch press-and-hold bar: Forward under Reply                                          |
 | `src/admin/audit-actions.ts`                | `message.forwarded` label; `messageId`, `chatJids` fields; `messageIds` hidden         |
@@ -57,32 +66,37 @@ chats), password `demo-pass-123`. Open **Priya Nair** (a photo), hover the photo
 
 ### Screen and state checklist (`mock/screenshots/<shot>-<desktop|mobile>-light.png`, 1280 px / 360 px)
 
-| #   | Screen / state                                                                                | Shot                        |
-| --- | --------------------------------------------------------------------------------------------- | --------------------------- |
-| 1   | Message menu: ⋮ → Forward (desktop); press-and-hold bar → Forward (touch)                     | `01-menu-forward`           |
-| 2   | Dialog: what is forwarded, 0 of 5 chosen, search, chats and groups of the user's inboxes      | `02-dialog-list`            |
-| 3   | Search ("kopi")                                                                               | `03-search`                 |
-| 4   | Two chosen in two inboxes: chips, "Each chat gets it from its own number" (+ dark, ms, zh-CN) | `04-picked-two-inboxes`     |
-| 5   | 5 of 5: note, other rows disabled                                                             | `05-five-of-five`           |
-| 6   | Business API chat with the 24-hour window closed: row disabled with the reason                | `06-window-closed-row`      |
-| 7   | Safety locked file: danger banner, no list, Forward disabled                                  | `07-safety-locked`          |
-| 8   | ⋮ menu: Forward disabled "Locked by WhatsApp Safety" (desktop)                                | `08-menu-locked`            |
-| 9   | WhatsApp offline: danger banner, Forward disabled                                             | `09-offline`                |
-| 10  | Sent: toast "Forwarded to 2 chats"                                                            | `10-sent-toast`             |
-| 11  | The copy in the other chat with "Forwarded"                                                   | `11-copy-forwarded-label`   |
-| 12  | A customer's forwarded message: "Forwarded"                                                   | `12-inbound-forwarded`      |
-| 13  | "Forwarded many times" (+ dark, ms, zh-CN)                                                    | `13-inbound-forwarded-many` |
-| 14  | Forwarding a many-times message: one chat at a time (1 of 1)                                  | `14-many-times-one-chat`    |
-| 15  | One chat: toast "Forwarded to Kopi Apong Staff" with **Open chat** (a PDF)                    | `15-sent-one-open-chat`     |
-| 16  | Admin → Activity: "Message forwarded", message and chats (ids)                                | `16-activity`               |
-| 17  | Limited agent (Ravi): only the 3 chosen chats are listed                                      | `17-limited-agent-list`     |
-| 18  | Lite: one inbox, no inbox chips                                                               | `18-lite-dialog`            |
+| #   | Screen / state                                                                                                              | Shot                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 1   | Message menu: ⋮ → Forward (desktop); press-and-hold bar → Forward (touch)                                                   | `01-menu-forward`                   |
+| 2   | Dialog: what is forwarded, 0 of 5 chosen, search, chats and groups of the user's inboxes                                    | `02-dialog-list`                    |
+| 3   | Search ("kopi")                                                                                                             | `03-search`                         |
+| 4   | Two chosen in two inboxes: chips, "Each chat gets it from its own number" (+ dark, ms, zh-CN)                               | `04-picked-two-inboxes`             |
+| 5   | 5 of 5: note, other rows disabled                                                                                           | `05-five-of-five`                   |
+| 6   | Business API chat with the 24-hour window closed: row disabled with the reason                                              | `06-window-closed-row`              |
+| 7   | Safety locked file: danger banner, no list, Forward disabled                                                                | `07-safety-locked`                  |
+| 8   | ⋮ menu: Forward disabled "Locked by WhatsApp Safety" (desktop)                                                              | `08-menu-locked`                    |
+| 9   | WhatsApp offline: danger banner, Forward disabled                                                                           | `09-offline`                        |
+| 10  | Sent: toast "Forwarded to 2 chats"                                                                                          | `10-sent-toast`                     |
+| 11  | The copy in the other chat with "Forwarded"                                                                                 | `11-copy-forwarded-label`           |
+| 12  | A customer's forwarded message: "Forwarded"                                                                                 | `12-inbound-forwarded`              |
+| 13  | "Forwarded many times" (+ dark, ms, zh-CN)                                                                                  | `13-inbound-forwarded-many`         |
+| 14  | Forwarding a many-times message: one chat at a time (1 of 1)                                                                | `14-many-times-one-chat`            |
+| 15  | One chat: toast "Forwarded to Kopi Apong Staff" with **Open chat** (a PDF)                                                  | `15-sent-one-open-chat`             |
+| 16  | Admin → Activity: "Message forwarded", message and chats (ids)                                                              | `16-activity`                       |
+| 17  | Limited agent (Ravi): only the 3 chosen chats are listed                                                                    | `17-limited-agent-list`             |
+| 18  | Lite: one inbox, no inbox chips                                                                                             | `18-lite-dialog`                    |
+| 19  | The owner's case: a 70 MB video on Catering (linked phone): size, large-file note, Send as Video / File                     | `19-video-70mb-dialog`              |
+| 20  | 70 MB video to a Business API chat (Online orders) + a group on Kopi Apong: Video disabled, goes as a file, own-number note | `20-video-70mb-cross-inbox-as-file` |
+| 21  | 120 MB video: the Business API chat is greyed out "files up to 100 MB"                                                      | `21-video-120mb-too-large-row`      |
+| 22  | Sending a large copy: "Sending 70 MB to WhatsApp…" in the other chat                                                        | `22-sending-large`                  |
+| 23  | Upload failed: the copy shows Failed with Retry                                                                             | `23-upload-failed-retry`            |
 
 Mock simplifications (not the design): inboxes, chat→inbox and reply windows live in the browser, so the browser
 tells the stand-in route which chosen chats have a closed window (the app reads `chats.last_inbound_at` and the
 inbox's capabilities on the server); the "Forwarded" marks and Safety locks are kept in the runner's memory, not on
 the message; "Safety locked" and "WhatsApp offline" are dashed **Mock only** buttons; Activity shows raw chat ids.
-Seed: Priya's photo, Farah's catering menu PDF, Jason's promo (arrived "Forwarded"), Nurul's rumour ("Forwarded
+Seed: Priya's photo, Farah's catering menu PDF and "70 MB" event hall video (a small MP4; the runner keeps the pretend size, forces the type to document for "as a file", and the dashed buttons add Slow upload, Upload fails and Video 120 MB), Jason's promo (arrived "Forwarded"), Nurul's rumour ("Forwarded
 many times").
 
 ### Five-folder retention
@@ -128,9 +142,65 @@ The rule: **whoever may reply in the source chat may forward from it, into chats
 | MCP token / Ask Ezy                     | Never in v1 (no tool)                                                                   |
 | Removed inbox                           | Its chats stay read only: Forward from it works (admins), forward into it answers 409   |
 
-Across inboxes (Enterprise, several WhatsApp numbers): allowed when the user can open both chats; the copy goes from
-the **target chat's** number (a chat key belongs to one inbox). The dialog says so when a chosen chat is in another
-inbox. Lite has one inbox: no chips, no note.
+**Across inboxes (must-have; Enterprise, several WhatsApp numbers):** number A → a chat on number B is allowed when
+the user can open both chats (`canOpenChat` on the source and on each target). The copy goes from the **target
+chat's** number (a chat key belongs to one inbox; `connections.adapter(inboxOfKey(target))`), so the file is
+uploaded again by number B: nothing is shared between the two WhatsApp sessions. Each chosen chat follows its own
+number's rules (reply window, connection state, media limits, `forwardedMark`). The dialog shows each chat's inbox
+chip and says "Each chat gets the message from its own WhatsApp number" when a chosen chat is on another number
+(mock shots 04, 20). Lite has one inbox: no chips, no note.
+
+## Large files
+
+What limits apply (sources: Meta's Cloud API media reference, developers.facebook.com/docs/whatsapp/cloud-api/reference/media,
+checked 2026-11-07; Baileys 7.0.0-rc14 source in `node_modules/baileys/lib/Utils/messages*.js`):
+
+| Connection               | Video sent as video                                      | Document (any file, incl. a video)    | Image      | Audio  |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------- | ---------- | ------ |
+| Business API (Cloud API) | **16 MB** (H.264 + AAC only)                             | **100 MB**                            | 5 MB       | 16 MB  |
+| Linked phone (Baileys)   | **not published**; proposed setting 64 MB until measured | **2 GB** (WhatsApp's announced limit) | (as video) | 16 MB¹ |
+
+- Baileys itself has **no size cap**: it encrypts the file to a temp file and uploads it (`encryptedStream`,
+  `uploadWithNodeHttp`); its upload has no timeout unless `mediaUploadTimeoutMs` is set (we leave it unset or set
+  it high, e.g. 10 minutes, so a 70 MB upload on a slow line is not cut off).
+- WhatsApp's own apps send large videos "as a document" to keep quality; the linked-phone video limit is not in
+  WhatsApp's documentation (third-party sources give 16 MB to 100 MB depending on app and connection). **The Dev Build
+  check measures it** against real WhatsApp (64 MB, 70 MB, 100 MB as a video) and the measured value goes into
+  `LINKED_PHONE_CAPABILITIES.mediaLimits`. ¹ audio limit for the linked phone: same check.
+- Our own send path keeps one rule: **every check before anything is sent**, per chosen chat, from that chat's
+  inbox's `WaCapabilities.mediaLimits` (new optional capability `{ video, image, audio, document }` in bytes; absent
+  = no limit known, WhatsApp's answer decides).
+
+Rules:
+
+1. A video bigger than a chosen chat's **video** limit can still go **as a file** (`sendAs: 'file'` → Baileys
+   `document` with the original file name and `video/mp4`; Cloud API `document`). The dialog shows **Send as: Video |
+   File** for videos; when any chosen chat cannot take it as a video, Video is disabled and the note says "This video
+   (70 MB) is too big to send as a video to the chats you chose (up to 16 MB). It goes as a file, in full quality."
+   One choice for the whole forward (simple), not per chat.
+2. A file bigger than a chosen chat's **document** limit (e.g. 120 MB to a Business API number, 100 MB) cannot be
+   picked: the row is greyed out "Too large for this number: files up to 100 MB". The server answers 413
+   `too_large_for_whatsapp` if it gets one anyway; 413 `too_large_as_video` for `sendAs: 'original'` above the video
+   limit.
+3. The file is read **from disk by path**, never into memory per copy: `WaSendFile` gets `path?: string` and the
+   Baileys adapter passes `{ url: path }` (streamed). With Baileys' `mediaCache` set on the socket (cache key =
+   media type + path, `Utils/messages.js` `prepareWAMessageMedia`), **five copies on the same number upload the 70 MB
+   once**; another number uploads it again (separate session). The fake adapter reads the path.
+4. Each copy has its own `media/` entry (hard link where the file system allows, else a copy), so deleting or
+   expiring one message never removes another's file.
+5. **Sending state:** a queued copy is `pending` with the clock tick; for a file of 20 MB or more the bubble adds
+   "Sending 70 MB to WhatsApp…" with a spinner (Baileys reports no upload progress, so no percentage). The dialog
+   warns before sending: "Large file (70 MB). Each copy is uploaded to WhatsApp again, so it can take a few minutes."
+6. **Failure:** an upload error or WhatsApp's refusal fails that copy (`failed`, error "Upload to WhatsApp failed" /
+   "Too large for WhatsApp") with the existing **Retry** (re-sends from the stored file, same `resendId` rule). The
+   send queue's 10-minute expiry counts while a job waits, not while it uploads. Other copies are not affected.
+7. Large uploads do not block other chats: the queue is per chat; a 70 MB copy delays only later messages in that
+   one chat (FIFO), as with any media today.
+
+Raising the general upload limit (composer, `POST /chats/:jid/media`) is **separate from forwarding** and an owner
+decision (open question 6): proposed **100 MB** for every type, checked again per inbox against `mediaLimits` (a
+Business API video above 16 MB is offered as a file), with the browser warning above 25 MB on a phone connection. The
+multipart limit and `MEDIA_UPLOAD_LIMIT_BYTES` change together; the media route already streams.
 
 ## Which messages can be forwarded
 
@@ -177,7 +247,11 @@ is stored. The core decides only from the capability, never from an inbox type.
 ```sql
 -- 038_message_forwarding.sql
 ALTER TABLE messages ADD COLUMN forwarding_score INTEGER;  -- NULL = not forwarded; inbound and outbound
+ALTER TABLE messages ADD COLUMN media_size INTEGER;        -- bytes of the stored file; NULL = not known yet
 ```
+
+`media_size` is written when a file is stored (upload, download, forward) and filled lazily from `stat` when a
+message without it is presented with media `ok`; it gives `Message.mediaSize` for the dialog's size line and limits.
 
 No backfill (old messages stay unmarked; history imported later carries the mark). `upgrade-from-oldest` needs no
 seed change (nullable column, no data moved). The send queue rebuilds jobs from rows (`jobFromRow`), so a pending
@@ -195,11 +269,18 @@ export const ForwardMessageBody = z.object({
   to: z.array(z.string().min(1).max(256)).min(1).max(FORWARD_MAX_CHATS),
   /** One per dialog opening: a retry answers the same messages and sends nothing again. */
   clientRequestId: z.string().min(1).max(64),
+  /** Videos: 'file' sends it as a document (above a chat's video limit, or by choice). */
+  sendAs: z.enum(['original', 'file']).default('original'),
 });
 export const ForwardMessageResponse = z.object({ messages: z.array(MessageSchema) });
 
 // MessageSchema: `forwarded` (absent/null = not forwarded). The score itself stays on the server.
 forwarded: z.object({ manyTimes: z.boolean() }).nullable().optional(),
+mediaSize: z.number().int().nonnegative().nullable().optional(),
+
+// Inbox (what GET /api/inboxes already returns per inbox): WhatsApp's per-message limits, bytes.
+mediaLimits: z.object({ video: z.number(), image: z.number(), audio: z.number(), document: z.number() })
+  .partial().nullable().optional(),
 ```
 
 The dialog's list uses the existing `GET /api/chats?q=` (already filtered on the server by inbox access and chosen
@@ -221,7 +302,8 @@ grey out closed windows. No other new route.
    checked before anything is sent**: one bad chat sends nothing.
 4. Rate limit: 30 a minute per user, each chosen chat counts one (429 `rate_limited`), counted after the checks.
 5. Media: `ensureMedia(id)` (pending history media downloaded through the download limiter); `null`/`unavailable`
-   → 502 `media_unavailable`. Each copy gets its own file under `media/` (hard link, else copy), so deleting one
+   → 502 `media_unavailable`. Size against each chosen chat's `mediaLimits` (Large files rules 1–2: 413
+   `too_large_as_video` / `too_large_for_whatsapp`). Each copy gets its own file under `media/` (hard link, else copy), so deleting one
    message never removes another's file.
 6. For each target, the same outgoing path as the composer (`insertOutgoing`): `claimOnReply` (an unassigned chat
    becomes the forwarder's; a teammate's forward into an AI-owned chat takes it over, as a reply does), row with
@@ -265,6 +347,10 @@ is written `[forwarded] …` so the agent does not take a forwarded text as the 
 - **wa (Baileys):** `mapWAMessage` reads `isForwarded`/`forwardingScore` on extended text, image, document, audio;
   plain `conversation` = not forwarded; adapter `sendText`/`sendMedia` with `forwarded` add `contextInfo` (and keep
   mentions); fake adapter records the score and `simulateIncoming` takes one.
+- **Large files (server):** `sendAs: 'original'` above a chat's video limit → 413 and nothing sent; `'file'` → document
+  with the file name; above a document limit → 413; limits read per chosen chat's inbox (two inboxes, two limits);
+  the adapter gets a `path`, not a buffer; `media_size` stored and presented; a failed upload fails only that copy
+  and Retry re-sends it.
 - **Server (`messages/forward.test.ts`):** text and media to 2 chats (queued in order, `sent_by_user_id`, score 1,
   claim); score + 1 of a forwarded source; many-times → 400 with 2 chats, ok with 1; 6 chats → 400; agent to a chat
   of another inbox → 404 and nothing sent; limited agent source/target outside the chosen chats → 404; AI user 403;
@@ -281,7 +367,10 @@ is written `[forwarded] …` so the agent does not take a forwarded text as the 
   row; limited agent sees only chosen chats; Lite one inbox.
 - **Dev Build check** (`docs/dev-build-checks.md`) and **real WhatsApp** smoke for the Baileys change (sent copy shows
   "Forwarded" on the recipient's phone; "Forwarded many times" at score 5; a forwarded message from a phone shows
-  the label). Until then: "untested against real WhatsApp".
+  the label). Large files: a 70 MB video sent as a video and as a file from a linked phone (measure the video limit:
+  64, 70, 100 MB), a 70 MB video to a Business API chat (as a file), five copies on one number (one upload: check the
+  log for the `mediaCache` hit), an upload cut off mid-way (Failed + Retry). Until then: "untested against real
+  WhatsApp".
 - Network: no listener changes (no security review needed for that rule).
 
 ## Open questions for the owner
@@ -294,3 +383,9 @@ is written `[forwarded] …` so the agent does not take a forwarded text as the 
 4. **Business API copies** go without WhatsApp's "Forwarded" mark (the Cloud API has none) but show it in our app.
    Fine?
 5. The AI sees an inbound forwarded message as `[forwarded] …` (proposed). Keep?
+6. **Upload limit:** raise the composer's upload limit from 64 MB to **100 MB** for every type (checked per number
+   against WhatsApp's limits; a Business API video above 16 MB is offered as a file), or keep 64 MB and let large
+   files come in only through WhatsApp and Forward? Larger documents (up to WhatsApp's 2 GB on a linked phone) would
+   need streaming uploads end to end and are proposed for later.
+7. **Linked-phone video limit:** use 64 MB until the Dev Build measures WhatsApp's real limit, then set the measured
+   value (proposed)? Above it, the video goes as a file.

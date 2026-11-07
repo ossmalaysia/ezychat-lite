@@ -33,6 +33,7 @@ import {
   forwardKey,
   forwardedMark,
   useForwardState,
+  formatSize,
   type ForwardScenario,
   type ForwardState,
 } from '../mock/forward';
@@ -50,6 +51,8 @@ type Problem =
   | 'rate_limited'
   | 'media_unavailable'
   | 'message_deleted'
+  | 'too_large_as_video'
+  | 'too_large_for_whatsapp'
   | 'other';
 const KNOWN: ReadonlySet<string> = new Set([
   'wa_disconnected',
@@ -58,6 +61,8 @@ const KNOWN: ReadonlySet<string> = new Set([
   'rate_limited',
   'media_unavailable',
   'message_deleted',
+  'too_large_as_video',
+  'too_large_for_whatsapp',
 ]);
 
 function TypeIcon({ type, voiceNote }: Readonly<{ type: Message['type']; voiceNote?: boolean }>) {
@@ -93,6 +98,7 @@ export function ForwardDialog({
   const [picked, setPicked] = useState<Chat[]>([]);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [requestId] = useState(() => crypto.randomUUID());
+  const [sendAs, setSendAs] = useState<'original' | 'file'>('original');
 
   useEffect(() => {
     if (!open) {
@@ -136,8 +142,18 @@ export function ForwardDialog({
   const toggle = (c: Chat) => {
     setProblem(null);
     if (isPicked(c.jid)) setPicked((p) => p.filter((x) => x.jid !== c.jid));
-    else if (!full && !closed(c.jid)) setPicked((p) => [...p, c]);
+    else if (!full && !closed(c.jid) && !tooBig(c.jid)) setPicked((p) => [...p, c]);
   };
+  // Large files: what WhatsApp takes depends on the connection of each chat's number.
+  const size = state?.sizes[message.id] ?? 0;
+  const kindOf = (jid: string) => inboxOfChat(inboxState, jid)?.type ?? 'linked_phone';
+  const limitOf = (jid: string) =>
+    state?.mediaLimits[kindOf(jid)] ?? { video: Infinity, image: Infinity, document: Infinity };
+  const tooBig = (jid: string) => size > limitOf(jid).document;
+  const isVideo = message.type === 'video' && size > 0;
+  const videoMax = Math.min(...picked.map((c) => limitOf(c.jid).video));
+  const videoBlocked = isVideo && picked.length > 0 && size > videoMax;
+  const effectiveSendAs = videoBlocked ? 'file' : sendAs;
   const otherInbox = picked.some((c) => inboxOfChat(inboxState, c.jid)?.id !== sourceInbox?.id);
 
   const send = useMutation({
@@ -148,7 +164,9 @@ export function ForwardDialog({
           messageId: message.id,
           to: picked.map((c) => c.jid),
           clientRequestId: requestId,
+          sendAs: effectiveSendAs,
           closedWindow: picked.filter((c) => closed(c.jid)).map((c) => c.jid),
+          kinds: Object.fromEntries(picked.map((c) => [c.jid, kindOf(c.jid)])),
         },
       }),
     onSuccess: (r) => {
@@ -229,7 +247,62 @@ export function ForwardDialog({
           <p className="min-w-0 flex-1 truncate text-sm" data-testid="forward-preview">
             {quotedPreview(message, t)}
           </p>
+          {size > 0 && (
+            <span className="shrink-0 text-xs text-muted-foreground" data-testid="forward-size">
+              {formatSize(size)}
+            </span>
+          )}
         </div>
+        {size >= 20 * 1024 * 1024 && !blocked && (
+          <p className="text-sm text-muted-foreground">
+            {t('mockForward.largeNote', { size: formatSize(size) })}
+          </p>
+        )}
+        {isVideo && !blocked && (
+          <div className="flex min-w-0 flex-col gap-1.5" data-testid="forward-send-as">
+            <span className="text-sm font-medium" id={`${ids.scenario}-as`}>
+              {t('mockForward.sendAs')}
+            </span>
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-labelledby={`${ids.scenario}-as`}
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={effectiveSendAs === 'original' ? 'default' : 'outline'}
+                aria-pressed={effectiveSendAs === 'original'}
+                disabled={videoBlocked}
+                className="pointer-coarse:min-h-11"
+                onClick={() => setSendAs('original')}
+              >
+                {t('mockForward.asVideo')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={effectiveSendAs === 'file' ? 'default' : 'outline'}
+                aria-pressed={effectiveSendAs === 'file'}
+                className="pointer-coarse:min-h-11"
+                onClick={() => setSendAs('file')}
+              >
+                {t('mockForward.asFile')}
+              </Button>
+            </div>
+            <p
+              className={cn('text-sm', videoBlocked ? 'text-warning' : 'text-muted-foreground')}
+              data-testid="forward-send-as-note"
+            >
+              {videoBlocked
+                ? t('mockForward.videoTooBig', {
+                    size: formatSize(size),
+                    max: formatSize(videoMax),
+                  })
+                : t('mockForward.sendAsHint')}
+            </p>
+          </div>
+        )}
         {mark === 'many' && (
           <p className="text-sm text-muted-foreground">{t('mockForward.manyTimesNote')}</p>
         )}
@@ -313,7 +386,8 @@ export function ForwardDialog({
                 chats.map((c) => {
                   const on = isPicked(c.jid);
                   const windowShut = closed(c.jid);
-                  const disabled = !on && (windowShut || full);
+                  const fileTooBig = tooBig(c.jid);
+                  const disabled = !on && (windowShut || fileTooBig || full);
                   const inbox = inboxOfChat(inboxState, c.jid);
                   const name = chatTitle(c, t);
                   const rowId = `fwd-${c.jid}`;
@@ -333,7 +407,7 @@ export function ForwardDialog({
                           checked={on}
                           disabled={disabled}
                           onCheckedChange={() => toggle(c)}
-                          aria-describedby={windowShut ? `${rowId}-why` : undefined}
+                          aria-describedby={windowShut || fileTooBig ? `${rowId}-why` : undefined}
                         />
                         <ChatAvatar name={name} src={c.avatarUrl} seed={c.jid} size="sm" />
                         <span className="flex min-w-0 flex-1 flex-col">
@@ -346,7 +420,13 @@ export function ForwardDialog({
                               />
                             )}
                           </span>
-                          {windowShut ? (
+                          {fileTooBig ? (
+                            <span id={`${rowId}-why`} className="text-xs text-warning">
+                              {t('mockForward.tooBigRow', {
+                                max: formatSize(limitOf(c.jid).document),
+                              })}
+                            </span>
+                          ) : windowShut ? (
                             <span id={`${rowId}-why`} className="text-xs text-warning">
                               {t('mockForward.windowClosedRow')}
                             </span>
@@ -375,6 +455,8 @@ export function ForwardDialog({
         <MockControls
           scenario={state?.scenario ?? 'normal'}
           locked={locked}
+          isVideo={isVideo}
+          big={size >= 120 * 1024 * 1024}
           messageId={message.id}
           labelId={ids.scenario}
         />
@@ -386,9 +468,18 @@ export function ForwardDialog({
 function MockControls({
   scenario,
   locked,
+  isVideo,
+  big,
   messageId,
   labelId,
-}: Readonly<{ scenario: ForwardScenario; locked: boolean; messageId: string; labelId: string }>) {
+}: Readonly<{
+  scenario: ForwardScenario;
+  locked: boolean;
+  isVideo: boolean;
+  big: boolean;
+  messageId: string;
+  labelId: string;
+}>) {
   const { t } = useTranslation('inbox');
   const qc = useQueryClient();
   const set = useMutation({
@@ -396,7 +487,11 @@ function MockControls({
       api<ForwardState>('/mock/forward/scenario', { method: 'PUT', body }),
     onSuccess: (data) => qc.setQueryData(forwardKey, data),
   });
-  const buttons: ['normal' | 'offline' | 'safety', boolean, object][] = [
+  const buttons: [
+    'normal' | 'offline' | 'safety' | 'slow_upload' | 'upload_fails' | 'size120',
+    boolean,
+    object,
+  ][] = [
     [
       'normal',
       scenario === 'normal' && !locked,
@@ -404,7 +499,10 @@ function MockControls({
     ],
     ['offline', scenario === 'offline', { scenario: 'offline' }],
     ['safety', locked, { safetyLock: { messageId, locked: !locked } }],
+    ['slow_upload', scenario === 'slow_upload', { scenario: 'slow_upload' }],
+    ['upload_fails', scenario === 'upload_fails', { scenario: 'upload_fails' }],
   ];
+  if (isVideo) buttons.push(['size120', big, { size: { messageId, mb: big ? 70 : 120 } }]);
   return (
     <div
       className="flex flex-col gap-2 rounded-lg border border-dashed px-3 py-3"

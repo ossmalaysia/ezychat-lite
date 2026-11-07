@@ -31,7 +31,7 @@ import { ReactionPicker } from './ReactionPicker';
 import { ScheduledMark } from '../mock/ScheduledMark';
 import { forwardedMark, useForwardState } from '../mock/forward';
 import { ForwardDialog } from './ForwardDialog';
-import { ForwardedLabel, MessageMoreMenu } from './MessageMoreMenu';
+import { ForwardedLabel, MessageMoreMenu, SendingLarge } from './MessageMoreMenu';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
@@ -339,6 +339,10 @@ export function MessageBubble({
         )}
         {/* Proposed (forward-message): "Forwarded" / "Forwarded many times", as WhatsApp shows it. */}
         {fwdMark && <ForwardedLabel mark={fwdMark} />}
+        {/* Proposed (forward-message): a large file still going up to WhatsApp. */}
+        {out && m.status === 'pending' && (forwardState?.sizes[m.id] ?? 0) >= 20 * 1024 * 1024 && (
+          <SendingLarge size={forwardState!.sizes[m.id]!} />
+        )}
         {/* Proposed (scheduled-tasks): a message a scheduled task sent carries a "Scheduled" mark. */}
         {out && <ScheduledMark clientId={m.clientId} />}
         {m.quotedId && (

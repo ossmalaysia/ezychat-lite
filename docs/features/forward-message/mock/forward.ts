@@ -21,7 +21,19 @@ import { getMessages } from '../../../../packages/server/src/wa-bridge/index.js'
  */
 
 /** Mock-only scenarios, switched from the dashed Mock only box in the dialog. */
-type Scenario = 'normal' | 'offline';
+type Scenario = 'normal' | 'offline' | 'slow_upload' | 'upload_fails';
+type InboxKind = 'linked_phone' | 'business_api';
+
+const MB = 1024 * 1024;
+/**
+ * What WhatsApp takes per message, by connection (design.md → Large files). Business API: Meta's published
+ * Cloud API limits. Linked phone: WhatsApp publishes no figure for videos sent as a video; 64 MB is the
+ * proposed setting until the Dev Build measures it; documents go up to 2 GB (WhatsApp's announced limit).
+ */
+export const MEDIA_LIMITS: Record<InboxKind, { video: number; image: number; document: number }> = {
+  linked_phone: { video: 64 * MB, image: 64 * MB, document: 2048 * MB },
+  business_api: { video: 16 * MB, image: 5 * MB, document: 100 * MB },
+};
 
 export const FORWARD_MAX_CHATS = 5;
 /** A message WhatsApp marks "Forwarded many times" goes to one chat at a time (WhatsApp's own rule). */
@@ -35,14 +47,22 @@ export interface MockForwardState {
   /** Messages WhatsApp Safety rated High (their files are locked: never forwarded). */
   safetyLocked: string[];
   limits: { maxChats: number; manyTimesScore: number; perMinute: number };
+  /** WhatsApp's limits per connection kind (the app: `WaCapabilities.mediaLimits`). */
+  mediaLimits: typeof MEDIA_LIMITS;
+  /** Mock only: the size the mock pretends a file has (message id → bytes); the app stores it. */
+  sizes: Record<string, number>;
 }
 
 const ForwardBody = z.object({
   messageId: z.string().min(1).max(256),
   to: z.array(z.string().min(1).max(256)).min(1).max(FORWARD_MAX_CHATS),
   clientRequestId: z.string().min(1).max(64),
+  /** A video above WhatsApp's video limit can go as a file (a document: full quality, no preview). */
+  sendAs: z.enum(['original', 'file']).default('original'),
   /** Mock only: the browser's list of picked chats whose reply window is closed. */
   closedWindow: z.array(z.string().max(256)).max(50).default([]),
+  /** Mock only: the connection kind of each picked chat's inbox (the app reads its capabilities). */
+  kinds: z.record(z.string().max(256), z.enum(['linked_phone', 'business_api'])).default({}),
 });
 
 const fail = (status: number, code: string, message: string) =>
@@ -75,7 +95,21 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
       manyTimesScore: MANY_TIMES_SCORE,
       perMinute: PER_MINUTE,
     },
+    mediaLimits: MEDIA_LIMITS,
+    sizes: Object.fromEntries(sizes),
   });
+
+  // Mock only: "Slow upload" holds each media send for 8 s (a big file going up to WhatsApp); "Upload
+  // fails" makes the next media send fail like a refused upload (the copy shows Failed with Retry).
+  const wa = ctx.wa as unknown as {
+    sendMedia: (...a: unknown[]) => Promise<unknown>;
+    failNextSend?: (e: Error) => void;
+  };
+  const sendMedia = wa.sendMedia.bind(wa);
+  wa.sendMedia = async (...a: unknown[]) => {
+    if (scenario === 'slow_upload') await new Promise((r) => setTimeout(r, 8000));
+    return sendMedia(...a);
+  };
 
   app.get('/api/mock/forward', { preHandler: requireUser(ctx) }, () => state());
 
@@ -83,7 +117,11 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
   app.put('/api/mock/forward/scenario', { preHandler: requireUser(ctx) }, (req) => {
     const body = parse(
       z.object({
-        scenario: z.enum(['normal', 'offline']).optional(),
+        scenario: z.enum(['normal', 'offline', 'slow_upload', 'upload_fails']).optional(),
+        /** Mock only: pretend a message's file has this many MB. */
+        size: z
+          .object({ messageId: z.string().max(256), mb: z.number().min(0).max(4096) })
+          .optional(),
         /** Mark (or unmark) a message as Safety High, to show the locked state. */
         safetyLock: z.object({ messageId: z.string().max(256), locked: z.boolean() }).optional(),
       }),
@@ -94,6 +132,7 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
       if (body.safetyLock.locked) safetyLocked.add(body.safetyLock.messageId);
       else safetyLocked.delete(body.safetyLock.messageId);
     }
+    if (body.size) sizes.set(body.size.messageId, body.size.mb * MB);
     if (body.scenario === 'normal') perUser.clear();
     return state();
   });
@@ -132,6 +171,18 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
       throw fail(429, 'rate_limited', `At most ${PER_MINUTE} forwards a minute`);
     perUser.set(user.id, [...recent, ...to.map(() => Date.now())]);
 
+    // Large files: what WhatsApp takes depends on each chosen chat's connection. Checked for every
+    // chat before anything is sent; a video above a video limit may go as a file instead.
+    const size = sizes.get(row.id) ?? 0;
+    const asFile = body.sendAs === 'file' || row.type === 'document';
+    for (const jid of to) {
+      const limit = MEDIA_LIMITS[body.kinds[jid] ?? 'linked_phone'];
+      if (size > limit.document)
+        throw fail(413, 'too_large_for_whatsapp', 'This file is larger than WhatsApp allows');
+      if (!asFile && row.type === 'video' && size > limit.video)
+        throw fail(413, 'too_large_as_video', 'Too large to send as a video: send it as a file');
+    }
+
     // Media: the stored file (history media is downloaded first); fail before anything is queued.
     let file: { buffer: Buffer; fileName: string } | null = null;
     if (row.type !== 'text') {
@@ -144,6 +195,8 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
       };
     }
     const messageIds: string[] = [];
+    if (scenario === 'upload_fails' && file)
+      wa.failNextSend?.(new Error('Upload to WhatsApp failed'));
     for (const [i, jid] of to.entries()) {
       const clientId = `fwd-${body.clientRequestId}-${i}`;
       const sent = file
@@ -161,6 +214,13 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
         : messages.sendText(jid, { text: row.body ?? '', clientId }, user.id);
       forwarded.set(sent.id, score);
       pendingMarks.set(clientId, score);
+      if (size) {
+        sizes.set(sent.id, size);
+        pendingSizes.set(clientId, size);
+      }
+      // Mock only: the message service picks the type from the bytes; the app sends it as a document.
+      if (file && asFile && row.type === 'video')
+        ctx.db.prepare("UPDATE messages SET type = 'document' WHERE client_id = ?").run(clientId);
       messageIds.push(sent.id);
     }
     audit(ctx.db, {
@@ -179,6 +239,8 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
   ctx.bus.on('message:status', (u) => {
     const s = u.clientId ? pendingMarks.get(u.clientId) : undefined;
     if (s !== undefined && u.newId) forwarded.set(u.newId, s);
+    const b = u.clientId ? pendingSizes.get(u.clientId) : undefined;
+    if (b !== undefined && u.newId) sizes.set(u.newId, b);
   });
 }
 
@@ -186,6 +248,8 @@ export function registerForward(app: FastifyInstance, ctx: AppContext): void {
 const forwarded = new Map<string, number>();
 const safetyLocked = new Set<string>();
 const pendingMarks = new Map<string, number>();
+const sizes = new Map<string, number>();
+const pendingSizes = new Map<string, number>();
 
 // A 1×1 PDF page with a title line: enough for the file bubble (name, size, icon).
 const MENU_PDF = Buffer.from(
@@ -233,4 +297,19 @@ export async function seedForward(call: Call, publicDir: string): Promise<void> 
     text: 'URGENT: all shops in Penang closed tomorrow, share with everyone!!',
   });
   forwarded.set(nurul.id, 7);
+  // The owner's case: a 70 MB video on one number (Catering) to forward to a chat on another number.
+  const video = await call('POST', '/dev/fake-incoming', {
+    chatJid: '60123110021@s.whatsapp.net',
+    senderName: 'Farah Aziz',
+    text: 'Walkthrough of the event hall for Saturday',
+    type: 'video',
+    media: {
+      mime: 'video/mp4',
+      fileName: 'Event hall walkthrough.mp4',
+      base64: readFileSync(new URL('./fixtures/event-walkthrough.mp4', import.meta.url)).toString(
+        'base64',
+      ),
+    },
+  });
+  sizes.set(video.id, 70 * MB);
 }

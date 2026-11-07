@@ -1590,7 +1590,8 @@
       "src/inbox/MessageMoreMenu.tsx",
       "src/mock/forward.ts",
       "forward.ts",
-      "forward-shots.mjs"
+      "forward-shots.mjs",
+      "fixtures/event-walkthrough.mp4"
     ],
     "changed": [
       "src/inbox/MessageBubble.tsx",
@@ -1607,7 +1608,8 @@
       "run.ts",
       "README.md",
       "reference.json"
-    ]
+    ],
+    "largeFiles": "2026-11-07 (main session, owner case): 70 MB video across numbers: Send as Video/File, per-number limits, Slow upload / Upload fails / Video 120 MB mock buttons."
   },
   "inheritedFrozenDrift": {
     "note": "Already differ from their frozen hash in the confirmed scheduled-tasks mock (its snapshot.mjs --check fails on main afc97fd; the index calls it advisory). Copied unchanged and listed in allowedDelta so the check covers everything else.",

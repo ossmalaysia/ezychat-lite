@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { EllipsisVertical, Forward } from 'lucide-react';
+import { EllipsisVertical, Forward, Loader2 } from 'lucide-react';
+import { formatSize } from '../mock/forward';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -70,6 +71,21 @@ export function ForwardedLabel({ mark }: Readonly<{ mark: 'once' | 'many' }>) {
     >
       <Forward className="size-3.5 shrink-0" aria-hidden="true" />
       {mark === 'many' ? t('mockForward.forwardedMany') : t('mockForward.forwarded')}
+    </p>
+  );
+}
+
+/** Proposed (forward-message): a large copy still uploading to WhatsApp (pending in the send queue). */
+export function SendingLarge({ size }: Readonly<{ size: number }>) {
+  const { t } = useTranslation('inbox');
+  return (
+    <p
+      className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground"
+      role="status"
+      data-testid="forward-sending-large"
+    >
+      <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+      {t('mockForward.sendingLarge', { size: formatSize(size) })}
     </p>
   );
 }

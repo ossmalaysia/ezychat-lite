@@ -920,6 +920,14 @@
       "other": {
         "title": "Not forwarded",
         "body": "Something went wrong. Nothing was sent. Try again."
+      },
+      "too_large_as_video": {
+        "title": "Too big for a video",
+        "body": "Send it as a file instead. Files keep full quality."
+      },
+      "too_large_for_whatsapp": {
+        "title": "Too large for WhatsApp",
+        "body": "A chat you chose is on a number that can't take a file this large. Remove it and try again."
       }
     },
     "mock": {
@@ -927,7 +935,18 @@
       "normal": "Normal",
       "offline": "WhatsApp offline",
       "safety": "Safety locked (this message)",
-      "hint": "Not in the app: switches what WhatsApp and Safety answer, to see each state."
-    }
+      "hint": "Not in the app: switches what WhatsApp and Safety answer, to see each state.",
+      "slow_upload": "Slow upload",
+      "upload_fails": "Upload fails",
+      "size120": "Video 120 MB"
+    },
+    "largeNote": "Large file ({{size}}). Each copy is uploaded to WhatsApp again, so it can take a few minutes.",
+    "sendAs": "Send as",
+    "asVideo": "Video",
+    "asFile": "File",
+    "sendAsHint": "A video plays in the chat. A file keeps full quality; the customer downloads it to watch.",
+    "videoTooBig": "This video ({{size}}) is too big to send as a video to the chats you chose (up to {{max}}). It goes as a file, in full quality.",
+    "tooBigRow": "Too large for this number: files up to {{max}}",
+    "sendingLarge": "Sending {{size}} to WhatsApp…"
   }
 }
