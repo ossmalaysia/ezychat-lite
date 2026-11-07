@@ -160,7 +160,9 @@ into AGENTS.md.
   fail while CI is green. Check `node -v` before calling such a failure the branch's or the machine's. `npm run e2e`
   in the cloud container also needs the Playwright build it expects: link `/opt/pw-browsers/chromium-<wanted>` (and
   `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
-  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it.
+  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it. So does a `/proc` loop whose
+  pattern appears literally in the same command (a heredoc that writes the restart script counts): split the pattern
+  (`PAT="mobile-redes""ign/mock/run"`) and run the restart script in its own call.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -217,6 +219,12 @@ into AGENTS.md.
   nothing unless the `*_LIST_URL` env is set, so set it to the production URL (assert it equals the built-in constant)
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
+
+- Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
+  that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
+  so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
+- A phone-only redesign renders the phone parts through one `usePhone()` (`max-width: 767px`, the inbox's `md` split)
+  and keeps the desktop render path byte-for-byte; the mock's shot script asserts the phone header is absent at 1280 px.
 
 - A new server-side refusal (a size limit, a window) needs a way through in every UI path that can hit it, not only
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
