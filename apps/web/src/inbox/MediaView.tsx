@@ -222,6 +222,7 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
           <img
             src={thumbUrl}
             alt={m.body ?? m.mediaName ?? t('media.imageAlt')}
+            loading="lazy"
             onLoad={onLoad}
             onError={() => setThumbFailed(true)}
             style={box ?? THUMB_WITHOUT_SIZE}
