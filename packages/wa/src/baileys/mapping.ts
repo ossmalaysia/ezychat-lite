@@ -3,6 +3,7 @@ import type { MessageType } from '@ezychat/shared';
 import type { WaIncomingMessage, WaMediaDownloadOptions, WaReaction } from '../types.js';
 import { downloadBoundedMessage } from './bounded-download.js';
 import { normalizeContactJid } from './contact-aliases.js';
+import { encodeMediaRef } from './media-ref.js';
 
 export type JidKind = 'dm' | 'group' | 'other';
 
@@ -156,7 +157,7 @@ export function mapWAMessage(
   let type: MessageType;
   let body: string | null = null;
   let ctx: ContextCarrier | null | undefined;
-  let media: { mime: string; fileName: string | null } | null = null;
+  let media: MappedMedia | null = null;
 
   if (content.conversation != null) {
     type = 'text';
@@ -170,7 +171,12 @@ export function mapWAMessage(
     type = 'image';
     body = m.caption ?? null;
     ctx = m;
-    media = { mime: m.mimetype ?? 'image/jpeg', fileName: null };
+    media = {
+      mime: m.mimetype ?? 'image/jpeg',
+      fileName: null,
+      ...imageSize(m),
+      ...imageThumbnail(m),
+    };
   } else if (content.videoMessage) {
     const m = content.videoMessage;
     type = 'video';
@@ -234,18 +240,46 @@ export function mapWAMessage(
     quotedId,
     ...(forwardingScore ? { forwardingScore } : {}),
     timestamp,
-    media: media
-      ? {
-          ...media,
-          download: () => download(raw),
-          ...(downloadBounded
-            ? {
-                downloadBounded: (options: WaMediaDownloadOptions) => downloadBounded(raw, options),
-              }
-            : {}),
-        }
-      : null,
+    media: media ? mediaOf(media, raw, download, downloadBounded) : null,
   };
+}
+
+type MappedMedia = Omit<NonNullable<WaIncomingMessage['media']>, 'download' | 'ref'>;
+
+/** Largest preview kept; WhatsApp's are far smaller, and anyone can send a message with a large one. */
+export const MAX_THUMBNAIL_BYTES = 64 * 1024;
+
+/** Only real JPEG bytes: the server serves them as an image on our origin. */
+function imageThumbnail(m: proto.Message.IImageMessage): { thumbnail: Buffer } | object {
+  const bytes = m.jpegThumbnail;
+  if (!bytes || bytes.length > MAX_THUMBNAIL_BYTES) return {};
+  const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  return jpeg ? { thumbnail: Buffer.from(bytes) } : {};
+}
+
+function mediaOf(
+  media: MappedMedia,
+  raw: WAMessage,
+  download: (raw: WAMessage) => Promise<Buffer>,
+  downloadBounded?: (raw: WAMessage, options: WaMediaDownloadOptions) => Promise<Buffer>,
+): NonNullable<WaIncomingMessage['media']> {
+  const ref = encodeMediaRef(raw);
+  return {
+    ...media,
+    download: () => download(raw),
+    ...(downloadBounded
+      ? { downloadBounded: (options: WaMediaDownloadOptions) => downloadBounded(raw, options) }
+      : {}),
+    ...(ref ? { ref } : {}),
+  };
+}
+
+/** Both sides or neither: a size WhatsApp reports as 0, or as absurdly large, is treated as unknown. */
+function imageSize(m: proto.Message.IImageMessage): { width: number; height: number } | object {
+  const { width, height } = m;
+  const usable = (n: number | null | undefined): n is number =>
+    typeof n === 'number' && n > 0 && n <= 65535;
+  return usable(width) && usable(height) ? { width, height } : {};
 }
 
 /**
