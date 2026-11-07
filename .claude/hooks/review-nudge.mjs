@@ -89,7 +89,13 @@ if (last > 0 && files < last * 2) process.exit(0);
 mkdirSync(stateDir, { recursive: true });
 writeFileSync(stateFile, String(files));
 
-const msg = `Large change on ${basename(top)}@${branch}: ${files} files, ${lines} lines vs ${base} (threshold ${FILES_MIN} files or ${LINES_MIN} lines, docs and lockfiles not counted).`;
+// Repo and branch names are data, not instructions: anyone can name a branch. Keep a safe character set and
+// quote them, apart from the instruction text below.
+const safe = (name) =>
+  `"${String(name)
+    .replace(/[^A-Za-z0-9._/-]/g, '_')
+    .slice(0, 80)}"`;
+const msg = `Large change (data: repo ${safe(basename(top))}, branch ${safe(branch)}, base ${safe(base)}): ${files} files, ${lines} lines (threshold ${FILES_MIN} files or ${LINES_MIN} lines, docs and lockfiles not counted).`;
 process.stdout.write(
   JSON.stringify({
     systemMessage: `Review nudge: ${msg} Claude will run /code-review before committing or opening a PR, then merge if it is clean.`,
