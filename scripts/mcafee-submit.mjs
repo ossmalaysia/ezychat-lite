@@ -3,10 +3,12 @@
 // Skill and rules: .claude/skills/submit-installers/SKILL.md
 //
 //   node scripts/mcafee-submit.mjs [--edition lite|enterprise|all] [--version 0.1.79]
-//     [--only win,mac-arm64,mac-x64] [--dry-run] [--work <dir>] [--reporter <file>]
+//     [--only win,mac-arm64,mac-x64] [--dry-run] [--work <dir>]
 //
 // --dry-run does everything except clicking Submit. Every file is downloaded and checked before the first report
 // goes out, and a report that went out is remembered in <work>/results.json, so a rerun does not send it twice.
+// The reporter's details come only from REPORTER_FILE: its fields go to an outside form, so no argument can name
+// another file.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -31,6 +33,7 @@ const FORM_URL =
 const LITE_REPO = 'ossmalaysia/ezychat-lite';
 const ENTERPRISE_FEED = 'https://dl.ezychat.ai/enterprise';
 const SIGNER = /CN="?Anchor Sprint Pte\. Ltd\./;
+const REPORTER_FILE = join(homedir(), '.ezychat', 'mcafee-reporter.json');
 
 export const KINDS = {
   win: { suffix: 'win-x64.exe', label: 'Windows installer' },
@@ -66,6 +69,13 @@ export function liteAssets(release) {
     size: a.size,
     sha256: (a.digest ?? '').replace(/^sha256:/, ''),
   }));
+}
+
+/** A version goes into URLs and folder names, so it is x.y.z and nothing else, also when a release feed supplies it. */
+export function checkVersion(version) {
+  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version))
+    throw new Error(`not a version: ${version}`);
+  return version;
 }
 
 export function selectKinds(only) {
@@ -128,7 +138,7 @@ async function loadRelease(edition, version) {
         maxBuffer: 2 ** 26,
       }),
     );
-    const found = release.tag_name.replace(/^v/, '');
+    const found = checkVersion(release.tag_name.replace(/^v/, ''));
     return { version: found, assets: pickAssets(edition, found, liteAssets(release)) };
   }
   const url = version
@@ -137,7 +147,8 @@ async function loadRelease(edition, version) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url} answered ${response.status}`);
   const feed = await response.json();
-  return { version: feed.version, assets: pickAssets(edition, feed.version, feed.assets) };
+  const found = checkVersion(feed.version);
+  return { version: found, assets: pickAssets(edition, found, feed.assets) };
 }
 
 async function sha256(file) {
@@ -244,7 +255,6 @@ async function main() {
       only: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
       work: { type: 'string', default: join(tmpdir(), 'ezychat-mcafee') },
-      reporter: { type: 'string', default: join(homedir(), '.ezychat', 'mcafee-reporter.json') },
     },
   });
   const editions = values.edition === 'all' ? ['lite', 'enterprise'] : [values.edition];
@@ -253,8 +263,9 @@ async function main() {
     throw new Error(
       '--version needs --edition lite or enterprise: the two have different versions',
     );
+  if (values.version) checkVersion(values.version);
   const kinds = selectKinds(values.only);
-  const reporter = checkReporter(JSON.parse(readFileSync(values.reporter, 'utf8')));
+  const reporter = checkReporter(JSON.parse(readFileSync(REPORTER_FILE, 'utf8')));
   const dryRun = values['dry-run'];
 
   // Prepare everything first: a bad file then stops the run before any report goes out.

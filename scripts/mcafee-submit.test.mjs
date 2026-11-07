@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkReporter,
+  checkVersion,
   liteAssets,
   pickAssets,
   reportText,
@@ -13,6 +14,19 @@ const file = (name) => ({ name, url: `https://x/${name}`, sha256: sha, size: 10 
 const enterprise = ['win-x64.exe', 'mac-arm64.dmg', 'mac-x64.dmg'].map((s) =>
   file(`EzyChat-Enterprise-0.1.28-${s}`),
 );
+
+describe('checkVersion', () => {
+  it('accepts x.y.z', () => {
+    expect(checkVersion('0.1.79')).toBe('0.1.79');
+  });
+
+  it.each(['../../etc', '0.1.79/../..', '0.1', 'v0.1.79', '0.1.79\n', '', undefined])(
+    'stops for %j, which would reach a URL or a folder name',
+    (version) => {
+      expect(() => checkVersion(version)).toThrow('not a version');
+    },
+  );
+});
 
 describe('pickAssets', () => {
   it('keeps only the versioned installers, ignoring the permanent names', () => {

@@ -739,7 +739,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   Its API calls go through `cookieSession` (`devbuild-client.mjs`): a raw `fetch(base + path)` fails SonarCloud's
   security rating (S7044/S8476, request forgery from argv input). A check that needs its own fetch (multipart upload)
   repeats that guard (port range, path pattern, `new URL(...).origin === base`), and builds its test files in code
-  instead of reading a path from argv (S8707 counts reads too, not only writes).
+  instead of reading a path from argv (S8707 counts reads too, not only writes). A script that sends a file's fields to
+  an outside service reads that file from a fixed path, with no argument to name another, and checks a version as x.y.z
+  before it reaches a URL or folder name, also when a release feed supplies it.
 - Report installers to McAfee only with the `submit-installers` skill (`scripts/mcafee-submit.mjs`), never with a
   one-off script: it checks every file before the first report goes out, and it never sends the same file twice. A
   report states only what was checked: no "McAfee blocks" for a file nobody saw blocked, no signature claim for a Mac file.
