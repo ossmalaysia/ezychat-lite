@@ -1249,6 +1249,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   facts, never only to `chat.whatsappName` (the customer panel showed "No name set" above its own
   "Name on WhatsApp" row).
 
+- Sending one stored file to several chats: pass it to Baileys by path (`{ url: path }`, streamed) and set the
+  socket's `mediaCache`; the cache key is media type + url (`Utils/messages.js`), so a Buffer never hits it and every
+  copy uploads again. WhatsApp publishes size limits only for the Business API (video 16 MB, document 100 MB); a linked
+  phone's video limit is unpublished: measure it in a Dev Build before coding a value.
+
 ## AI sales agent
 
 - A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
