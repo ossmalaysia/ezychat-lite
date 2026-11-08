@@ -716,6 +716,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- Run `prettier --write` only on the files you changed (`git diff --name-only origin/main`), never on a folder glob:
+  many files on `main` are not Prettier-clean, and a glob drags unrelated reformatting into the PR.
 - PowerShell does not wait for a GUI-subsystem program (Electron, also with `ELECTRON_RUN_AS_NODE=1`) called with
   `&`, and leaves `$LASTEXITCODE` unset, so its output and exit code are lost: pipe the call (`& $exe … | Write-Output`)
   and test the generated script with the real Electron binary (`windows.test.ts`). A test that sets `$LASTEXITCODE`
