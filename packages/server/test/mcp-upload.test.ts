@@ -169,6 +169,8 @@ describe('POST /mcp/uploads: reach and token', () => {
     expect(r.json().error.message).toMatch(/cannot send/);
     const big = await uploadRaw(PDF, { headers: { 'content-length': String(200 * 1024 * 1024) } });
     expect(big.statusCode).toBe(413);
+    // the rest of a refused body is not drained: the connection closes
+    expect(big.headers.connection).toBe('close');
     expect(big.json().error.code).toBe('upload_too_large');
     expect(uploadFiles()).toEqual([]);
   });
@@ -197,7 +199,8 @@ describe('POST /mcp/uploads: bodies', () => {
       expect(statSync(join(uploadDir, files[0]!)).mode & 0o777).toBe(0o600);
       expect(statSync(uploadDir).mode & 0o777).toBe(0o700);
     }
-    t.ctx.services.mcpUploads!.consume(body.uploadId);
+    const store = t.ctx.services.mcpUploads!;
+    store.discard(store.take(senderId, body.uploadId)!.path);
     expect(uploadFiles()).toEqual([]);
   });
 
@@ -205,7 +208,8 @@ describe('POST /mcp/uploads: bodies', () => {
     const r = await uploadMultipart(PNG, 'photo.png');
     expect(r.statusCode).toBe(201);
     expect(r.json()).toMatchObject({ name: 'photo.png', type: 'image/png', size: PNG.length });
-    t.ctx.services.mcpUploads!.consume(r.json().uploadId);
+    const store = t.ctx.services.mcpUploads!;
+    store.discard(store.take(senderId, r.json().uploadId)!.path);
     const wrong = await uploadMultipart(PNG, 'photo.png', 'image');
     expect(wrong.statusCode).toBe(400);
     expect(wrong.json().error.message).toMatch(/named "file"/);
@@ -288,6 +292,22 @@ describe('send tools with uploadId', () => {
     expect(t.ctx.services.mcpUploads!.get(principalOf(t, otherSender).tokenId, theirs)).toBeNull();
   });
 
+  it('lends an upload to one send at a time, and gives a refused one back', async () => {
+    const store = t.ctx.services.mcpUploads!;
+    const uploadId = await upload(PDF, 'one.pdf');
+    const taken = store.take(senderId, uploadId)!;
+    // while one send has it, another send and the sweep cannot use or delete it
+    const second = await call('send_file', { jid: LID, uploadId, requestId: requestId() });
+    expect(second.content[0]!.text).toMatch(/No upload/);
+    clock += MCP_UPLOAD_TTL_MS + 1;
+    store.sweep();
+    expect(existsSync(taken.path)).toBe(true);
+    // given back after it expired: deleted
+    store.restore(taken);
+    expect(existsSync(taken.path)).toBe(false);
+    expect(store.get(senderId, uploadId)).toBeNull();
+  });
+
   it('needs exactly one source and a name for a base64 or link file', async () => {
     const uploadId = await upload(PNG, 'a.png');
     const both = await call('send_image', {
@@ -347,6 +367,23 @@ describe('send tools with uploadId', () => {
   });
 });
 
+describe('POST /mcp/uploads: a client that goes away', () => {
+  it('answers 400 upload_incomplete and keeps nothing', async () => {
+    const { store, dir } = testUploadStore();
+    const broken = new Readable({
+      read() {
+        this.push(PDF.subarray(0, 10));
+        this.destroy(new Error('aborted'));
+      },
+    });
+    await expect(store.receive(1, broken, { name: 'a.pdf' })).rejects.toMatchObject({
+      status: 400,
+      code: 'upload_incomplete',
+    });
+    expect(readdirSync(dir)).toEqual([]);
+  });
+});
+
 describe('send port: link downloads stream to a temporary file', () => {
   it('moves the download into the message, and removes it when the send is refused', async () => {
     const { store, dir } = testUploadStore();
@@ -357,16 +394,18 @@ describe('send port: link downloads stream to a temporary file', () => {
     };
     const port = createInboxSendPort(t.ctx, {
       uploads: store,
-      fetchVideo: async () => write(mp4(900)),
+      fetchVideo: async (_url, tokenId) => (tokens.push(tokenId), write(mp4(900))),
       fetchFile: async () => write(Buffer.from('not a pdf at all')),
     });
     const principal = principalOf(t, sender);
+    const tokens: number[] = [];
     const sent = await port.sendVideo(principal, {
       jid: LID,
       videoUrl: 'https://example.com/v.mp4',
       requestId: requestId(),
     });
     expect(sent.sentAs).toBe('video');
+    expect(tokens).toEqual([senderId]);
     expect(readdirSync(dir)).toEqual([]);
     await expect(
       port.sendFile(principal, {
@@ -392,11 +431,28 @@ describe('send port: link downloads stream to a temporary file', () => {
     try {
       const { store, dir } = testUploadStore();
       const get = guardedVideoFetcher(store, { allowLoopback: true, ca: site.ca }, 4096);
-      const got = await get(`${site.origin}/v.mp4`);
+      const got = await get(`${site.origin}/v.mp4`, 1);
       expect(Buffer.isBuffer(got)).toBe(false);
       expect(bytesOf(got)).toEqual(video);
-      await expect(get(`${site.origin}/big`)).rejects.toThrow(/video is larger than/);
+      await expect(get(`${site.origin}/big`, 1)).rejects.toThrow(/video is larger than/);
+      await expect(get(`${site.origin}/missing`, 1)).rejects.toThrow(/answered 404/);
       expect(readdirSync(dir)).toHaveLength(1);
+      // a download counts against the token's daily bytes, like an upload
+      const tight = testUploadStore();
+      const capped = createMcpUploadStore(tight.dir + '-cap', {
+        log: pino({ level: 'silent' }),
+        freeBytes: () => 1e12,
+        limits: { bytesPerDay: 3000 },
+      });
+      const small = guardedVideoFetcher(capped, { allowLoopback: true, ca: site.ca }, 4096);
+      await expect(small(`${site.origin}/v.mp4`, 7)).resolves.toBeTruthy();
+      await expect(small(`${site.origin}/v.mp4`, 7)).rejects.toThrow(/daily amount/);
+      const full = createMcpUploadStore(tight.dir + '-full', {
+        log: pino({ level: 'silent' }),
+        freeBytes: () => 0,
+      });
+      const none = guardedVideoFetcher(full, { allowLoopback: true, ca: site.ca }, 4096);
+      await expect(none(`${site.origin}/v.mp4`, 7)).rejects.toThrow(/free disk space/);
     } finally {
       await site.close();
     }
@@ -475,7 +531,7 @@ describe('upload store limits', () => {
     await expect(
       full.store.receive(1, body(PDF), { name: 'a.pdf', declaredLength: PDF.length }),
     ).rejects.toMatchObject({ status: 507, code: 'upload_storage_full' });
-    await expect(full.store.writeTemp(body(PDF), 1000)).rejects.toMatchObject({ status: 507 });
+    await expect(full.store.writeTemp(1, body(PDF), 1000)).rejects.toMatchObject({ status: 507 });
   });
 
   it('receives at most two uploads of a token at the same time', async () => {

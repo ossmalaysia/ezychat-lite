@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { createWriteStream, mkdirSync, rmSync, statfsSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, rmSync, statfsSync } from 'node:fs';
 import { join } from 'node:path';
 import { Transform, type Readable, type TransformCallback } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -7,8 +7,10 @@ import { fileTypeFromFile } from 'file-type';
 import type { Logger } from 'pino';
 import type { AppContext } from '../context.js';
 import { MCP_UPLOAD_MAX_BYTES, MCP_UPLOAD_TTL_MS, type McpUploadResponse } from '@ezychat/shared';
+import { ResponseTooLargeError } from '../connectors/mcp/net.js';
 import { HttpError, errors } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
+import { MCP_UPLOAD_TYPES } from './media-types.js';
 
 /**
  * Files an MCP client uploads (`POST /mcp/uploads`, design docs/features/mcp-file-upload/design.md)
@@ -17,15 +19,7 @@ import { WindowLimiter } from '../http/window-limiter.js';
  * when it is sent, when it expires (1 hour) or when the server starts again.
  */
 
-/** Types an upload may have (read from the bytes), with the extension it is sent with. */
-export const MCP_UPLOAD_TYPES: ReadonlyMap<string, string> = new Map([
-  ['image/jpeg', 'jpg'],
-  ['image/png', 'png'],
-  ['image/webp', 'webp'],
-  ['application/pdf', 'pdf'],
-  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
-  ['video/mp4', 'mp4'],
-]);
+export { MCP_UPLOAD_TYPES } from './media-types.js';
 
 export interface UploadLimits {
   perHour: { windowMs: number; max: number };
@@ -126,7 +120,7 @@ const dailyLimit = () =>
   );
 
 export interface McpUploadStore {
-  /** Receives one upload of `tokenId`; 413/415/429/400/507 HttpErrors for a refused one. */
+  /** Receives one upload of `tokenId`; 400/408/413/415/429/507 HttpErrors for a refused one. */
   receive(
     tokenId: number,
     body: Readable,
@@ -134,18 +128,33 @@ export interface McpUploadStore {
   ): Promise<McpUploadResponse>;
   /** The token's own upload that has not expired, or null ("not found" for every other case). */
   get(tokenId: number, id: string): McpUpload | null;
-  /** Forgets an upload that was sent (its file was moved) and removes whatever is left of it. */
-  consume(id: string): void;
   /**
-   * Streams `body` (at most `max` bytes) into a new private file for a link download; the caller
-   * moves or deletes it (`discard`). Throws TooLargeError above `max`, HttpError 507 when the disk
-   * is nearly full.
+   * Takes the token's upload out of the store for one send, so a second send or the expiry sweep
+   * cannot touch its file meanwhile; null when there is none. The send moves the file, or gives the
+   * upload back with `restore`.
    */
-  writeTemp(body: Readable, max: number): Promise<{ path: string; size: number }>;
+  take(tokenId: number, id: string): McpUpload | null;
+  /** Gives back an upload a send did not use (refused); its file is still there. */
+  restore(upload: McpUpload): void;
+  /**
+   * Streams a link download of `tokenId` (at most `max` bytes) into a new private file, under the
+   * same transfer slots, daily byte budget and disk checks as an upload; the caller moves or deletes
+   * it (`discard`). Throws TooLargeError above `max`, IncompleteError when the stream broke, HttpError
+   * for a refusal.
+   */
+  writeTemp(tokenId: number, body: Readable, max: number): Promise<{ path: string; size: number }>;
   discard(path: string): void;
   /** Deletes expired uploads (also on a timer). */
   sweep(): void;
   shutdown(): void;
+}
+
+/** The body stopped before it ended (the client went away, the link broke). */
+export class IncompleteError extends Error {
+  constructor() {
+    super('incomplete');
+    this.name = 'IncompleteError';
+  }
 }
 
 export function createMcpUploadStore(
@@ -181,6 +190,8 @@ export function createMcpUploadStore(
   const received = new Map<number, Array<[number, number]>>();
   const active = new Map<number, number>();
   let activeTotal = 0;
+  /** Bytes the transfers in progress may still write (their limit): counted as used disk. */
+  let reserved = 0;
 
   const remove = (path: string) => rmSync(path, { force: true });
 
@@ -195,6 +206,9 @@ export function createMcpUploadStore(
     return [...uploads.values()].filter((u) => tokenId === undefined || u.tokenId === tokenId);
   }
 
+  const storageFull = (message: string) => new HttpError(507, 'upload_storage_full', message);
+
+  /** The free disk space after every transfer in progress and this one, or a 507. */
   function requireDisk(size: number) {
     let free: number;
     try {
@@ -202,19 +216,52 @@ export function createMcpUploadStore(
     } catch {
       return; // unknown: the write itself fails when the disk is full
     }
-    if (free - size < limits.minFreeBytes)
-      throw new HttpError(
-        507,
-        'upload_storage_full',
+    if (free - reserved - size < limits.minFreeBytes)
+      throw storageFull(
         'Not enough free disk space on the computer that runs EzyChat for this file.',
       );
+  }
+
+  /** The daily budget left for `tokenId`, or a 429 when it is used up. */
+  function budgetLeft(tokenId: number): number {
+    const left = limits.bytesPerDay - bytesToday(tokenId);
+    if (left <= 0) throw dailyLimit();
+    return left;
+  }
+
+  /**
+   * One transfer slot of `tokenId` with `size` bytes reserved; the write counts what arrived against
+   * the token's daily budget (also when it fails) and frees the slot.
+   */
+  async function transfer(
+    tokenId: number,
+    body: Readable,
+    max: number,
+    size: number,
+  ): Promise<{ path: string; size: number }> {
+    const mine = active.get(tokenId) ?? 0;
+    if (mine >= limits.activePerToken || activeTotal >= limits.activeTotal)
+      throw errors.rateLimited(5);
+    requireDisk(size);
+    active.set(tokenId, mine + 1);
+    activeTotal++;
+    reserved += size;
+    let bytes = 0;
+    try {
+      return await write(body, max, (n) => (bytes = n));
+    } finally {
+      active.set(tokenId, (active.get(tokenId) ?? 1) - 1);
+      activeTotal--;
+      reserved -= size;
+      received.set(tokenId, [...(received.get(tokenId) ?? []), [now(), bytes]]);
+    }
   }
 
   /** Streams into a new private file; counts bytes; deletes the file on any failure. */
   async function write(
     body: Readable,
     max: number,
-    onBytes?: (bytes: number) => void,
+    onBytes: (bytes: number) => void,
   ): Promise<{ path: string; size: number }> {
     const path = join(dir, `${randomBytes(16).toString('hex')}.bin`);
     // Fastify has no request timeout: a sender that stalls or trickles never holds a slot for long.
@@ -228,15 +275,17 @@ export function createMcpUploadStore(
       });
     } catch (err) {
       remove(path);
-      if (counter.bytes > max) throw new TooLargeError();
+      if (counter.bytes > max || err instanceof ResponseTooLargeError) throw new TooLargeError();
       if (abort.signal.aborted)
         throw new HttpError(408, 'upload_timeout', 'The upload was too slow and was stopped.');
-      throw err;
+      if ((err as { code?: string }).code === 'ENOSPC')
+        throw storageFull('The disk of the computer that runs EzyChat is full.');
+      throw new IncompleteError();
     } finally {
       clearTimeout(idle);
       clearTimeout(total);
       // the caller counts what arrived, also for a failed upload
-      onBytes?.(counter.bytes);
+      onBytes(counter.bytes);
     }
     return { path, size: counter.bytes };
   }
@@ -253,13 +302,24 @@ export function createMcpUploadStore(
   const timer = setInterval(sweep, 5 * 60_000);
   timer.unref();
 
+  function get(tokenId: number, id: string): McpUpload | null {
+    if (!UPLOAD_ID.test(id)) return null;
+    const u = uploads.get(id);
+    if (!u || u.tokenId !== tokenId) return null;
+    if (u.expiresAt <= now()) {
+      uploads.delete(id);
+      remove(u.path);
+      return null;
+    }
+    return u;
+  }
+
   return {
     async receive(tokenId, body, opts) {
       sweep();
       const hit = perHour.hit(String(tokenId));
       if (!hit.allowed) throw errors.rateLimited(hit.retryAfterSec);
-      const budget = limits.bytesPerDay - bytesToday(tokenId);
-      if (budget <= 0) throw dailyLimit();
+      const budget = budgetLeft(tokenId);
       if (pending(tokenId).length >= limits.pendingPerToken)
         throw new HttpError(
           429,
@@ -270,31 +330,23 @@ export function createMcpUploadStore(
       const declared = opts.declaredLength;
       if (declared !== undefined && declared > max)
         throw max < maxUpload && declared <= maxUpload ? dailyLimit() : tooLarge(maxUpload);
+      const size = declared ?? max;
       const waiting = pending().reduce((sum, u) => sum + u.size, 0);
-      if (waiting + (declared ?? max) > limits.pendingBytes)
-        throw new HttpError(
-          507,
-          'upload_storage_full',
-          'Too many uploaded files are waiting to be sent; try again later.',
-        );
-      requireDisk(declared ?? max);
-      const mine = active.get(tokenId) ?? 0;
-      if (mine >= limits.activePerToken || activeTotal >= limits.activeTotal)
-        throw errors.rateLimited(5);
-      active.set(tokenId, mine + 1);
-      activeTotal++;
+      if (waiting + reserved + size > limits.pendingBytes)
+        throw storageFull('Too many uploaded files are waiting to be sent; try again later.');
       const started = now();
       let file: { path: string; size: number };
-      let bytes = 0;
       try {
-        file = await write(body, max, (n) => (bytes = n));
+        file = await transfer(tokenId, body, max, size);
       } catch (err) {
         if (err instanceof TooLargeError) throw max < maxUpload ? dailyLimit() : tooLarge(max);
+        if (err instanceof IncompleteError)
+          throw new HttpError(
+            400,
+            'upload_incomplete',
+            'The upload stopped before the whole file arrived.',
+          );
         throw err;
-      } finally {
-        active.set(tokenId, (active.get(tokenId) ?? 1) - 1);
-        activeTotal--;
-        received.set(tokenId, [...(received.get(tokenId) ?? []), [now(), bytes]]);
       }
       if (!file.size) {
         remove(file.path);
@@ -335,28 +387,32 @@ export function createMcpUploadStore(
       };
     },
 
-    get(tokenId, id) {
-      if (!UPLOAD_ID.test(id)) return null;
-      const u = uploads.get(id);
-      if (!u || u.tokenId !== tokenId) return null;
-      if (u.expiresAt <= now()) {
-        uploads.delete(id);
-        remove(u.path);
-        return null;
-      }
+    get,
+
+    take(tokenId, id) {
+      const u = get(tokenId, id);
+      if (u) uploads.delete(id);
       return u;
     },
 
-    consume(id) {
-      const u = uploads.get(id);
-      if (!u) return;
-      uploads.delete(id);
-      remove(u.path);
+    restore(upload) {
+      if (upload.expiresAt <= now() || !existsSync(upload.path)) remove(upload.path);
+      else uploads.set(upload.id, upload);
     },
 
-    async writeTemp(body, max) {
-      requireDisk(max);
-      return write(body, max);
+    async writeTemp(tokenId, body, max) {
+      try {
+        const limit = Math.min(max, budgetLeft(tokenId));
+        try {
+          return await transfer(tokenId, body, limit, limit);
+        } catch (err) {
+          if (err instanceof TooLargeError && limit < max) throw dailyLimit();
+          throw err;
+        }
+      } finally {
+        // a refused or failed download never leaves its connection open
+        body.destroy();
+      }
     },
 
     discard: remove,

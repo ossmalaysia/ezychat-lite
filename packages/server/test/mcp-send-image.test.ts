@@ -224,17 +224,17 @@ describe('guardedImageFetcher', () => {
 
   it('downloads an image (loopback only allowed in tests)', async () => {
     const get = guardedImageFetcher(store, { allowLoopback: true, ca }, 5 * 1024 * 1024);
-    expect(bytesOf(await get(`${origin}/photo.png`))).toEqual(PNG);
-    await expect(get(`${origin}/missing`)).rejects.toThrow(/answered 404/);
-    await expect(get(`${origin}/big`)).rejects.toThrow(/larger than 5 MB/);
+    expect(bytesOf(await get(`${origin}/photo.png`, 1))).toEqual(PNG);
+    await expect(get(`${origin}/missing`, 1)).rejects.toThrow(/answered 404/);
+    await expect(get(`${origin}/big`, 1)).rejects.toThrow(/larger than 5 MB/);
   });
 
   it('never reaches this computer, a private network or plain http', async () => {
     const get = guardedImageFetcher(store);
-    await expect(get(`${origin}/photo.png`)).rejects.toThrow(/public internet address/);
-    await expect(get('https://10.0.0.5/a.png')).rejects.toThrow(/public internet address/);
-    await expect(get('http://example.com/a.png')).rejects.toThrow(/https:\/\//);
-    await expect(get('https://unreachable.invalid/a.png')).rejects.toThrow(
+    await expect(get(`${origin}/photo.png`, 1)).rejects.toThrow(/public internet address/);
+    await expect(get('https://10.0.0.5/a.png', 1)).rejects.toThrow(/public internet address/);
+    await expect(get('http://example.com/a.png', 1)).rejects.toThrow(/https:\/\//);
+    await expect(get('https://unreachable.invalid/a.png', 1)).rejects.toThrow(
       /could not be downloaded/,
     );
   });

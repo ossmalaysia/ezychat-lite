@@ -138,8 +138,11 @@ export interface MessageService {
       caption?: string;
       quotedId?: string;
       voiceNote?: boolean;
-      /** A video goes as a document (full quality, no preview); ignored for other types. */
-      asFile?: boolean;
+      /**
+       * A video goes as a document (full quality, no preview); ignored for other types. `auto`: only
+       * when it is above this chat's number's video limit (MCP send_video).
+       */
+      asFile?: boolean | 'auto';
     },
     userId: number,
     clientId: string,
@@ -1493,7 +1496,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const ext = file.voiceNote ? 'ogg' : (sniffed?.ext ?? extFor(mimeType, file.fileName));
       // WhatsApp's per-message limits of this chat's number (e.g. 16 MB videos on the Business API)
       const wa = adapterOf(inboxOfKey(jid));
-      const asFile = !!file.asFile && messageTypeForMime(mimeType) === 'video';
+      const isVideo = messageTypeForMime(mimeType) === 'video';
+      const videoLimit = wa ? capabilitiesOf(wa).mediaLimits?.video : undefined;
+      const asFile =
+        isVideo &&
+        (file.asFile === 'auto'
+          ? videoLimit !== undefined && size > videoLimit
+          : file.asFile === true);
       const tooLarge = wa
         ? mediaLimitRefusal(
             capabilitiesOf(wa).mediaLimits,

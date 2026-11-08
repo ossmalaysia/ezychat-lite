@@ -27,7 +27,8 @@ import { capabilitiesOf } from '../inboxes/types.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { createNewChatService } from '../chats/new-chat.js';
 import { ambiguousChat, findChats } from './inbox.js';
-import { TooLargeError, mcpUploadStore, type McpUploadStore } from './uploads.js';
+import { MCP_FILE_TYPES, MCP_IMAGE_TYPES, MCP_VIDEO_TYPES } from './media-types.js';
+import { TooLargeError, mcpUploadStore, type McpUpload, type McpUploadStore } from './uploads.js';
 
 /** Thrown for an expected failure of a send; its message is shown to the model. */
 export class SendError extends Error {}
@@ -109,24 +110,19 @@ export interface SendVideoInput {
   quotedMessageId?: string;
 }
 
-/** Image types WhatsApp shows as a photo; anything else is refused (checked on the bytes). */
-export const MCP_IMAGE_TYPES: ReadonlySet<string> = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-]);
+export { MCP_FILE_TYPES, MCP_IMAGE_TYPES, MCP_VIDEO_TYPES } from './media-types.js';
 
-/** Documents send_file accepts, by the type found in the bytes, with the extension they are sent with. */
-export const MCP_FILE_TYPES: ReadonlyMap<string, string> = new Map([
-  ['application/pdf', 'pdf'],
-  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
-]);
+/**
+ * A file to send: small bytes (base64, a test fetcher) or a private file on disk (upload, link); an
+ * upload carries the type read when it arrived.
+ */
+export type MediaSource = Buffer | { path: string; size: number; mime?: string; ext?: string };
 
-/** A file to send: small bytes (base64, a test fetcher) or a private file on disk (upload, link). */
-export type MediaSource = Buffer | { path: string; size: number };
-
-/** Downloads an image or file link; throws SendError with a message for the model. */
-export type ImageFetcher = (url: string) => Promise<MediaSource>;
+/**
+ * Downloads an image, file or video link for a token (its transfer slots and daily bytes); throws
+ * SendError with a message for the model.
+ */
+export type ImageFetcher = (url: string, tokenId: number) => Promise<MediaSource>;
 
 type Attachment = 'image' | 'file' | 'video';
 
@@ -152,15 +148,23 @@ function guardedDownloader(
     longTransfer: true,
     maxResponseBytes: maxBytes,
   });
-  return async (url) => {
+  return async (url, tokenId) => {
     let res: Response;
     try {
       res = await get(url, { method: 'GET', headers: { accept } });
-      if (!res.ok) throw new SendError(`The ${what} link answered ${res.status}; check the link.`);
+      if (!res.ok) {
+        await res.body?.cancel().catch(() => undefined);
+        throw new SendError(`The ${what} link answered ${res.status}; check the link.`);
+      }
       if (!res.body) throw new SendError(`The ${what} is empty.`);
-      return await store.writeTemp(Readable.fromWeb(res.body as WebReadableStream), maxBytes);
+      return await store.writeTemp(
+        tokenId,
+        Readable.fromWeb(res.body as WebReadableStream),
+        maxBytes,
+      );
     } catch (err) {
-      if (err instanceof SendError || err instanceof HttpError) throw err;
+      if (err instanceof SendError) throw err;
+      if (err instanceof HttpError) throw new SendError(err.message);
       if (err instanceof BlockedAddressError)
         throw new SendError(`The ${what} link must be a public internet address.`);
       if (err instanceof ResponseTooLargeError || err instanceof TooLargeError)
@@ -327,9 +331,17 @@ export function createInboxSendPort(
     );
   }
 
+  /** Where a send's file comes from; `upload` is taken out of the store until the send ends. */
+  interface Source {
+    load: () => Promise<MediaSource>;
+    upload?: McpUpload;
+    name?: string;
+  }
+
   /**
-   * The one source of a send (link, base64 or upload); an upload is checked here, before the send is
-   * counted, and is "not found" unless this token uploaded it and it has not expired.
+   * The one source of a send (link, base64 or upload). An upload is taken here, after the retry
+   * check and before the send is counted, and is "not found" unless this token uploaded it, it has
+   * not expired and no other send has it.
    */
   function sourceOf(
     principal: ApiPrincipal,
@@ -337,27 +349,37 @@ export function createInboxSendPort(
     fields: { url?: string; base64?: string; uploadId?: string; names: string },
     fromUrl: ImageFetcher,
     decode: (raw: string) => Buffer,
-  ): { load: () => Promise<MediaSource>; uploadId?: string; name?: string } {
+  ): () => Source {
     const given = [fields.url, fields.base64, fields.uploadId].filter(Boolean).length;
     if (given !== 1)
       throw new SendError(`Pass the ${what} as ${fields.names} (exactly one of them).`);
-    if (fields.uploadId) {
-      const upload = uploads.get(principal.tokenId, fields.uploadId);
-      if (!upload)
-        throw new SendError(
-          `No upload ${fields.uploadId} from this token: it was already sent, it expired (uploads are kept 1 hour) or the id is wrong. Upload the file again.`,
-        );
-      return {
-        load: () => Promise.resolve({ path: upload.path, size: upload.size }),
-        uploadId: upload.id,
-        name: upload.name,
-      };
-    }
-    if (fields.base64) {
-      const base64 = fields.base64;
-      return { load: () => Promise.resolve(decode(base64)) };
-    }
-    return { load: () => fromUrl(fields.url!) };
+    return () => {
+      if (fields.uploadId) {
+        const upload = uploads.take(principal.tokenId, fields.uploadId);
+        if (!upload)
+          throw new SendError(
+            `No upload ${fields.uploadId} from this token: it was already sent, it expired (uploads are kept 1 hour) or the id is wrong. Upload the file again.`,
+          );
+        const { path, size, mime, ext } = upload;
+        return {
+          load: () => Promise.resolve({ path, size, mime, ext }),
+          upload,
+          name: upload.name,
+        };
+      }
+      if (fields.base64) {
+        const base64 = fields.base64;
+        return { load: () => Promise.resolve(decode(base64)) };
+      }
+      return { load: () => fromUrl(fields.url!, principal.tokenId) };
+    };
+  }
+
+  /** The type of a file to send: an upload's from when it arrived, else read from the bytes. */
+  async function typeOf(source: MediaSource) {
+    if (Buffer.isBuffer(source)) return fileTypeFromBuffer(source).catch(() => undefined);
+    if (source.mime && source.ext) return { mime: source.mime, ext: source.ext };
+    return fileTypeFromFile(source.path).catch(() => undefined);
   }
 
   /**
@@ -379,15 +401,15 @@ export function createInboxSendPort(
       /** Stored message types this send may have (a video sent as a file is a document). */
       types: ReadonlyArray<Message['type']>;
       /** Read after the retry check, so a retry never needs the (used up) upload again. */
-      source: () => { load: () => Promise<MediaSource>; uploadId?: string; name?: string };
-      /** The extension to send with, or null when this tool refuses the detected type. */
-      extFor: (mime: string, ext: string) => string | null;
+      source: () => Source;
+      /** The types this tool sends, with their extensions. */
+      accepts: ReadonlyMap<string, string>;
       refused: string;
       defaultName: string;
       /** A file name must come from the caller or the upload (send_file). */
       needsName?: boolean;
-      /** send_video: decides video or file once the size is known. */
-      asFile?: (size: number, chatJid: string) => boolean;
+      /** send_video: as a file always (`true`), never, or above the number's video limit. */
+      asFile?: boolean | 'auto';
     },
   ): Promise<SendResult> {
     const chatJid = targetChat(principal, input.jid);
@@ -407,22 +429,23 @@ export function createInboxSendPort(
       return result(before, true);
     }
     const from = kind.source();
-    const name = input.fileName?.trim() || from.name;
-    if (kind.needsName && !name) throw new SendError('fileName is required with a link or base64.');
-    countSend(principal);
-    const source = await from.load();
-    // A link download is this send's own temporary file: removed unless the send moved it.
-    const temp = !Buffer.isBuffer(source) && !from.uploadId ? source.path : null;
+    // A link download is this send's own temporary file, an upload goes back to the store: unless
+    // the send moved the file into the message.
+    let temp: string | null = null;
+    let moved = false;
     try {
+      const name = input.fileName?.trim() || from.name;
+      if (kind.needsName && !name)
+        throw new SendError('fileName is required with a link or base64.');
+      countSend(principal);
+      const source = await from.load();
+      if (!Buffer.isBuffer(source) && !from.upload) temp = source.path;
       const size = Buffer.isBuffer(source) ? source.length : source.size;
       if (!size) throw new SendError(`The ${kind.what} is empty.`);
-      const type = await (
-        Buffer.isBuffer(source) ? fileTypeFromBuffer(source) : fileTypeFromFile(source.path)
-      ).catch(() => undefined);
-      const ext = type ? kind.extFor(type.mime, type.ext) : null;
+      const type = await typeOf(source);
+      const ext = type ? kind.accepts.get(type.mime) : undefined;
       if (!ext) throw new SendError(kind.refused);
       const base = (name || kind.defaultName).replace(/\.[A-Za-z0-9]{1,5}$/, '');
-      const asFile = kind.asFile?.(size, chatJid) ?? false;
       let msg: Message;
       try {
         msg = await messages.sendMedia(
@@ -432,7 +455,7 @@ export function createInboxSendPort(
             fileName: `${base || kind.defaultName}.${ext}`,
             ...(caption ? { caption } : {}),
             ...(input.quotedMessageId ? { quotedId: input.quotedMessageId } : {}),
-            ...(asFile ? { asFile: true } : {}),
+            ...(kind.asFile ? { asFile: kind.asFile } : {}),
           },
           principal.user.id,
           clientId,
@@ -441,8 +464,7 @@ export function createInboxSendPort(
       } catch (err) {
         throw sendFailure(err);
       }
-      // The upload's file now belongs to the message: the upload is used up.
-      if (from.uploadId) uploads.consume(from.uploadId);
+      moved = true;
       audit(ctx.db, {
         userId: principal.user.id,
         action: 'mcp.send',
@@ -453,11 +475,13 @@ export function createInboxSendPort(
       return {
         ...result(msg, false),
         ...(kind.what === 'video'
-          ? { sentAs: asFile ? ('file' as const) : ('video' as const) }
+          ? { sentAs: msg.type === 'document' ? ('file' as const) : ('video' as const) }
           : {}),
       };
     } finally {
-      if (temp) uploads.discard(temp);
+      if (temp && !moved) uploads.discard(temp);
+      // A refused send keeps the upload for another try (until it expires).
+      if (from.upload && !moved) uploads.restore(from.upload);
     }
   }
 
@@ -470,20 +494,19 @@ export function createInboxSendPort(
       return sendAttachment(principal, input, {
         what: 'image',
         types: ['image'],
-        source: () =>
-          sourceOf(
-            principal,
-            'image',
-            {
-              url: input.imageUrl,
-              base64: input.imageBase64,
-              uploadId: input.uploadId,
-              names: 'imageUrl, imageBase64 or uploadId',
-            },
-            fetchImage,
-            decodeImageBase64,
-          ),
-        extFor: (mime, ext) => (MCP_IMAGE_TYPES.has(mime) ? ext : null),
+        source: sourceOf(
+          principal,
+          'image',
+          {
+            url: input.imageUrl,
+            base64: input.imageBase64,
+            uploadId: input.uploadId,
+            names: 'imageUrl, imageBase64 or uploadId',
+          },
+          fetchImage,
+          decodeImageBase64,
+        ),
+        accepts: MCP_IMAGE_TYPES,
         refused: 'Only JPEG, PNG or WebP images can be sent.',
         defaultName: 'image',
       });
@@ -493,20 +516,19 @@ export function createInboxSendPort(
       return sendAttachment(principal, input, {
         what: 'file',
         types: ['document'],
-        source: () =>
-          sourceOf(
-            principal,
-            'file',
-            {
-              url: input.fileUrl,
-              base64: input.fileBase64,
-              uploadId: input.uploadId,
-              names: 'fileUrl, fileBase64 or uploadId',
-            },
-            fetchFile,
-            decodeFileBase64,
-          ),
-        extFor: (mime) => MCP_FILE_TYPES.get(mime) ?? null,
+        source: sourceOf(
+          principal,
+          'file',
+          {
+            url: input.fileUrl,
+            base64: input.fileBase64,
+            uploadId: input.uploadId,
+            names: 'fileUrl, fileBase64 or uploadId',
+          },
+          fetchFile,
+          decodeFileBase64,
+        ),
+        accepts: MCP_FILE_TYPES,
         refused: 'Only PDF or Word (.docx) files can be sent.',
         defaultName: 'document',
         needsName: true,
@@ -517,30 +539,24 @@ export function createInboxSendPort(
       return sendAttachment(principal, input, {
         what: 'video',
         types: ['video', 'document'],
-        source: () =>
-          sourceOf(
-            principal,
-            'video',
-            {
-              url: input.videoUrl,
-              base64: input.videoBase64,
-              uploadId: input.uploadId,
-              names: 'videoUrl, videoBase64 or uploadId',
-            },
-            fetchVideo,
-            decodeVideoBase64,
-          ),
-        extFor: (mime) => (mime === 'video/mp4' ? 'mp4' : null),
+        source: sourceOf(
+          principal,
+          'video',
+          {
+            url: input.videoUrl,
+            base64: input.videoBase64,
+            uploadId: input.uploadId,
+            names: 'videoUrl, videoBase64 or uploadId',
+          },
+          fetchVideo,
+          decodeVideoBase64,
+        ),
+        accepts: MCP_VIDEO_TYPES,
         refused: 'Only MP4 videos can be sent.',
         defaultName: 'video',
         // Omitted: a video above this number's video limit goes as a file (as Forward offers);
         // `video` asked explicitly is refused with too_large_as_video instead.
-        asFile: (size, chatJid) => {
-          if (input.sendAs) return input.sendAs === 'file';
-          const limit = capabilitiesOf(ctx.inboxes.connections.adapter(inboxOfKey(chatJid)))
-            .mediaLimits?.video;
-          return limit !== undefined && size > limit;
-        },
+        asFile: input.sendAs ? input.sendAs === 'file' : 'auto',
       });
     },
 

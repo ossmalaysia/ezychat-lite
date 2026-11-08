@@ -234,13 +234,13 @@ describe('guardedFileFetcher', () => {
 
   it('downloads a file, with file wording in its refusals', async () => {
     const get = guardedFileFetcher(store, { allowLoopback: true, ca: site.ca }, 5 * 1024 * 1024);
-    expect(bytesOf(await get(`${site.origin}/q.pdf`))).toEqual(PDF);
-    await expect(get(`${site.origin}/missing`)).rejects.toThrow(/file link answered 404/);
-    await expect(get(`${site.origin}/big`)).rejects.toThrow(/file is larger than 5 MB/);
-    await expect(guardedFileFetcher(store)(`${site.origin}/q.pdf`)).rejects.toThrow(
+    expect(bytesOf(await get(`${site.origin}/q.pdf`, 1))).toEqual(PDF);
+    await expect(get(`${site.origin}/missing`, 1)).rejects.toThrow(/file link answered 404/);
+    await expect(get(`${site.origin}/big`, 1)).rejects.toThrow(/file is larger than 5 MB/);
+    await expect(guardedFileFetcher(store)(`${site.origin}/q.pdf`, 1)).rejects.toThrow(
       /file link must be a public internet address/,
     );
-    await expect(guardedFileFetcher(store)('http://example.com/a.pdf')).rejects.toThrow(
+    await expect(guardedFileFetcher(store)('http://example.com/a.pdf', 1)).rejects.toThrow(
       /https:\/\//,
     );
   });

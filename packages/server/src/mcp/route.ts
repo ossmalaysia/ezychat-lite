@@ -139,6 +139,10 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
     await scope.register(async (up) => {
       up.removeContentTypeParser(['application/json', 'text/plain']);
       up.addContentTypeParser('*', (_req, payload, done) => done(null, payload));
+      // A refused upload may not have been read: close the connection rather than drain the rest.
+      up.addHook('onSend', async (_req, reply) => {
+        if (reply.statusCode >= 400) reply.header('connection', 'close');
+      });
       up.post(
         MCP_UPLOADS_PATH,
         {
