@@ -1172,6 +1172,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   with a pass-through content-type parser, or multipart `req.file()`), count bytes in the pipe, and send it by path
   (`MessageService.sendMedia({ path })`). Fastify sets no request timeout, so a streamed upload needs its own idle and
   total timeout, plus per-token concurrency and a free-disk check, or one slow sender holds a slot forever.
+- File size limits come from WhatsApp only (owner): check the target number's `WaCapabilities.mediaLimits` (an upload
+  for several numbers: the largest) and the free disk; never add an app cap. Through the Cloudflare tunnel the edge caps
+  bodies at 100 MB, so the web refuses larger files there before uploading and says where they work.
+- To screenshot the app "through the tunnel" locally: set the `named_tunnel_hostname` setting, launch Chromium with
+  `--host-resolver-rules=MAP <host> 127.0.0.1` and `--unsafely-treat-insecure-origin-as-secure=http://<host>:<port>`
+  (the session cookie is Secure off loopback), as `docs/features/mcp-file-upload/screens/shots.mjs` does.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
