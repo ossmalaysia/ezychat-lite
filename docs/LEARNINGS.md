@@ -1177,6 +1177,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - File size limits come from WhatsApp only (owner): check the target number's `WaCapabilities.mediaLimits` (an upload
   for several numbers: the largest) and the free disk; never add an app cap. Through the Cloudflare tunnel the edge caps
   bodies at 100 MB, so the web refuses larger files there before uploading and says where they work.
+- Invisible characters (bidi overrides U+202A–202E, U+2066–2069) in source must stay `\u` escapes: a file-writing tool
+  may turn `\u202e` into the raw character, which Sonar fails as a vulnerability (S6389). Check new files with
+  `grep -nP '[\x{202A}-\x{202E}\x{2066}-\x{2069}]'` (PCRE) or a short script before pushing.
 - Before a Dev Build re-run, stop every server you started (`pkill -f packages/server/src/cli.ts`) and give the new one a
   fresh `--data` and port: a server left running keeps answering on its port after its data folder is deleted, and the
   check silently measures the old one.

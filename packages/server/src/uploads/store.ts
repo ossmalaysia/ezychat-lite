@@ -61,7 +61,7 @@ const UPLOAD_ID = /^upl_[a-f0-9]{32}$/;
 const MB = 1024 * 1024;
 /** Control characters and the bidirectional overrides and isolates (a name that reads backwards). */
 // eslint-disable-next-line no-control-regex
-const UNSAFE_NAME_CHARS = /[\u0000-\u001f\u007f‪-‮⁦-⁩]/g;
+const UNSAFE_NAME_CHARS = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g;
 
 /** A file name safe to show: no folders, no control characters, at most 120 characters. */
 export function cleanUploadName(raw = ''): string {
