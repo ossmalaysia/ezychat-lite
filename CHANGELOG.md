@@ -7,6 +7,188 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.81] - 2026-11-08
+
+### Added
+
+- WhatsApp adapters accept an isolated durable authentication storage backend, so hosted connections can restore credentials and Signal keys without a local auth directory. The default desktop filesystem backend is unchanged.
+
+## [0.1.80] - 2026-11-08
+
+### Added
+
+- Public WhatsApp adapters can opt into bounded media downloads with a decrypted-byte limit and cancellation signal; existing unbounded methods keep their behavior.
+
+- **Forward a message.** **⋮ → Forward** on a message (press and hold on a phone) sends a copy to up to 5 chats or groups
+  you can open, shown as "Forwarded" on WhatsApp. It works across your WhatsApp numbers, re-uses the stored file (no
+  re-upload from your computer) and shows "Forwarded" / "Forwarded many times" in the chat, also on forwarded messages
+  customers send you. A video too big to send as a video goes as a file in full quality.
+
+### Changed
+
+- Files up to **100 MB** can be sent from the composer (was 64 MB), within what each WhatsApp number allows.
+- New images load much faster, also through remote access: the chat shows WhatsApp's small, blurred preview, and the real
+  photo loads when you open the image. An image with no preview, such as an older imported one, still shows the real photo.
+- A chat with many older images now downloads each image when you reach it, not all at once, and keeps the right space
+  for it, so the chat does not jump while images load.
+- The AI's check for leaked internal notes is about ten times faster on each reply.
+
+### Fixed
+
+- Older images, videos and files imported from your phone could show "could not load" after the app restarted or
+  updated, and Retry did not help. Messages imported from this version on stay available after a restart.
+
+## [0.1.79] - 2026-11-06
+
+### Added
+
+- **Start a chat with a new number.** The **New chat** icon next to the Inbox title starts a WhatsApp chat with a number
+  that is not in your inbox yet, one number at a time (Malaysian numbers can start with 0). On a linked phone, EzyChat
+  checks the number is on WhatsApp, warns about the ban risk and opens the chat assigned to you; on the WhatsApp
+  Business API the first message is an approved template, and the chat starts once it is sent. A number that already has
+  a chat opens that chat. Admins can always do it; **Settings → General → New chats** lets team members do it too (off
+  by default) and sets **New chats per day, per WhatsApp number** (20 by default, 0 = no limit, shared with AI
+  assistants). Agents limited to chosen chats cannot start new chats.
+- **Give an agent only the chats you choose.** In Members → Edit, an agent's new setting **Chats this member can see**
+  is All chats (as before) or **Only chosen chats**, with a list you add direct chats and groups to. Use it for an
+  outside or support agent: they work as usual in those chats, and every other chat stays invisible to them, with no
+  notifications about it. They cannot start new chats or use Ask Ezy.
+- **Scheduled tasks for AI agents.** On an AI agent's page, add a task that sends one message at a set time (every day,
+  weekdays or chosen days) to a chat or group you pick, for example today's bookings to the staff group every weekday
+  at 8:30. The agent uses its business context and connectors, and sends nothing when there is nothing to tell.
+  Preview it before saving, run it now, and see each run in History. Only existing chats and groups, at most 10 tasks
+  per agent, and missed times are not sent later. The message shows "Scheduled" in the chat.
+- **AI assistants can open photos, PDFs and Word files from chats.** A connected AI assistant (MCP) can now look at a
+  customer's photo or read the text of a PDF or Word file in a chat, with the new `get_message_file` tool. It only
+  reaches chats you can open, never gets a download link, and never gets a file WhatsApp Safety locked.
+
+### Fixed
+
+- **Phone notifications show the EzyChat parrot again.** On Android, EzyChat notifications showed a plain white
+  square as their small icon. They now show the parrot.
+- **Partner connectors keep free-form fields.** A partner tool that takes a map of names to values (for example the
+  columns of a Notion page in Notion's `notion-create-pages` and `notion-update-page`) lost every entry, so a new page
+  had no title and a database row had no fields. Such maps now reach the partner, bounded (100 keys, 10,000 characters
+  per text, 100 items per list) and checked against the partner's value type; every guard still applies to their
+  values. A connection saved before this release picks it up after **Test connection**.
+
+## [0.1.78] - 2026-11-06
+
+### Added
+
+- **Google Sheets: let the AI fill worked-out values and formulas.** On a tab set to Add rows, an admin can now let
+  the AI write figures it looked up in your sheet or worked out from the chat (such as a total), and allow formulas
+  (numbers and dates are then saved as numbers and dates). Both are off by default. Formulas that reach outside your
+  sheet are always blocked, and a formula a customer types is saved as plain text.
+- **Google Sheets: create a new sheet from the connector page.** Admins can create a spreadsheet in the connected
+  Google account, blank or from a template's layout (the Claims template has one), with its tabs, column names and
+  what the AI agent may do with each tab. It is used by the agent at once.
+- **Tap a quote to see the original.** In a conversation, click or tap the quoted part of a reply (from a customer
+  or a teammate, in direct chats and groups) to scroll to the message it answers, which is highlighted for a
+  moment. Older messages load by themselves when the original is further back. When the original is not in
+  EzyChat (it came before WhatsApp was linked, or was removed for the team), a short note says so instead.
+- **SQL Account connector (beta).** Your AI agent can now answer from SQL Account (eStream): stock and selling
+  prices for everyone, and each customer's own invoices, quotations, sales orders and delivery orders, and (once you
+  turn it on) what they still owe, said exactly as recorded in your accounts. It works
+  only when your SQL Account has the API module (API Link, a paid add-on from your SQL dealer). Connect it in
+  Admin → Connectors → SQL Account with the access key and secret key from SQL Account. For each AI agent you
+  choose, per kind of record, Off, Read or Read + create (create is offered only for quotations, after the
+  customer confirms). A customer only ever sees their own records: EzyChat matches a chat to a SQL Account
+  customer by a link your team sets or by a WhatsApp number exactly one customer has, and otherwise hands the
+  chat to your team. The AI never changes or deletes anything in SQL Account. Not yet tried against a real SQL
+  Account.
+- **Google Drive connector (Beta).** Admin → Connectors → Google Drive: sign in with Google and choose a folder for each
+  AI agent. With **Save files** on, the agent saves photos and documents people send in a chat into that folder (named
+  by date and time, never a file WhatsApp Safety locked, up to 25 MB). With **Read files**, it answers from the Drive
+  files you pick (Google Docs, Sheets, PDF, Word, text). The agent's instructions say what to save or read, and when.
+  EzyChat sees only the folder and files you choose.
+
+### Fixed
+
+- **Mac updates install again — install this version by hand once.** On a Mac, an update downloaded and asked
+  for your password, then stopped with "could not update" and kept the old version. This version fixes it, but a
+  Mac on 0.1.77 or earlier cannot update itself to it: download the Mac installer from
+  github.com/ossmalaysia/ezychat-lite/releases/latest (arm64 for Apple silicon, x64 for Intel), quit EzyChat
+  and drag the new app over the old one in Applications. Your chats, accounts and settings stay. Later updates
+  install from inside the app again.
+- **The background service works on a Mac downloaded from the website.** Turning on "Run as background
+  service" showed "cannot be opened" again and again and the service never started. It now starts.
+- **A Mac running EzyChat no longer falls asleep on its own.** While EzyChat answers chats, the Mac stays
+  awake, so customers and AI replies are not left waiting. The screen can still turn off, and closing the lid
+  still puts the Mac to sleep.
+- **A Mac background service that cannot start stops retrying.** If the data folder is in use or was moved
+  to EzyChat Enterprise, the service now stops instead of restarting every few seconds, and its log no
+  longer grows without limit.
+- **Turning the Mac background service off or on again no longer fails halfway.** EzyChat now waits until
+  the old service has fully stopped before it moves your data or starts the new one. Before, this could
+  fail with "Input/output error".
+- **A clearer message when macOS blocks the background service.** If EzyChat is switched off under Allow in
+  the Background in System Settings, EzyChat now says where to switch it on instead of "Input/output error".
+- **Open logs works for the Mac background service.** It asks for your password and opens a copy of the
+  service logs.
+- **On a Mac, right-click EzyChat in the Dock for Status & Service and updates.** When the menu bar is full,
+  macOS hides the EzyChat icon there, and with it the only way to the background service and updates.
+- **Mac updates clean up after themselves.** Small leftover update folders older than a day are removed.
+- **An update blocked by antivirus software no longer breaks EzyChat on Windows.** When an antivirus program stopped
+  the update installer, EzyChat could be left without its program files. Now it keeps the version you had, starts it
+  again and says that the installer was blocked.
+- **A new teammate is no longer sent back to "Change password" after setting one.** Reloading the app within a
+  second of saving the new password could show the password page again.
+
+## [0.1.77] - 2026-11-05
+
+### Added
+
+- **Anonymous usage stats (you can turn them off).** EzyChat now counts a few setup steps (installed, admin
+  created, WhatsApp linked, AI connected, AI agent on, first message sent) and whether the app was used that day, so
+  we can see where new users get stuck. Only a random install code, the app version, Windows or Mac and the step are
+  sent, to the EzyChat licence server; never names, numbers, chats, messages, emails or keys. Admins switch it off in
+  Settings → General → Privacy or on the last step of the setup wizard.
+
+## [0.1.76] - 2026-11-05
+
+### Changed
+
+- **Faster when you open EzyChat from outside your office.** Over a slow connection (for example the shared link
+  through Cloudflare), the inbox now shows your last chat list at once and updates it a moment later. Contact photos
+  are kept on your phone and only load again when a contact changes their photo, and files you opened stay on your
+  phone for 30 days. In a test with a slow link, the chat list showed in about 1 second instead of 2.7, with half
+  the requests. Everything kept on the phone is removed when you sign out, and files that WhatsApp Safety flags or
+  is still checking are never kept.
+
+### Fixed
+
+- **Reset admin password from the tray works when EzyChat runs as a background service.** Before, it set a new
+  password but did not show it, so you could not sign in. It now waits and shows the new password.
+
+## [0.1.75] - 2026-11-04
+
+### Added
+
+- **New AI agent templates without an app update.** The business-template gallery now also reads a signed template
+  library from EzyChat's servers when it opens, so new templates (and fixes to existing ones) arrive without
+  installing a new version. The templates built into the app stay available offline, and the gallery says when the
+  library was last updated. A template still only fills the boxes after you click Apply.
+- **Manage WhatsApp groups from Group info.** EzyChat admins can rename a group, edit its description, add one
+  member at a time (with a ban-risk note; when the person's privacy settings refuse, a Send invite button sends them a
+  private invite), remove members, make or remove group admins, copy or reset the invite link, change the group's
+  settings (only admins send, only admins edit info, who can add members, approve new members) and approve or reject
+  join requests, without switching to the phone. Only what the connection supports is shown, the linked number must
+  be a group admin, adds are limited to 20 a day and 6 an hour per number, and Settings lists the recent changes
+  made in EzyChat. Team members see Group info read-only.
+- **Claims agent template.** The business-template gallery of the AI agent page has a new category, Team and
+  operations, with a Claims agent: it records claims that members post in your WhatsApp groups to the Claims tab of
+  Google Sheets, replies "Recorded ✅" with the key values, asks for missing details, reads receipts and PDFs, stays
+  quiet on other messages and never approves or promises payment. Applying it fills the name, instructions and
+  hand-off rules and adds a "Claim rules" Business context item to fill in. A new agent made from it answers in groups
+  only; an existing agent shows which switches to change.
+
+### Fixed
+
+- **Fix English no longer suggests the same fix again or adds the text twice.** After you apply a grammar fix
+  (for example a full stop), the next check no longer offers it again, and a word that needs two changes ("check
+  email" → "check your email.") gets one suggestion instead of two that added the word twice.
+
 ## [0.1.73] - 2026-11-04
 
 ### Added

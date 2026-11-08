@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ExternalLink, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { ChevronRight, ExternalLink, Loader2, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { connectorText, type ConnectorEntry } from '@ezychat/shared';
 import { useConnectorGallery } from '../../api/connector-list';
 import { Banner } from '@/components/app';
@@ -196,6 +196,7 @@ export function ToolSwitchRow({
   label,
   hint,
   badge,
+  tip,
   checked,
   disabled,
   onCheckedChange,
@@ -205,6 +206,8 @@ export function ToolSwitchRow({
   label: string;
   hint: string;
   badge?: string;
+  /** An InfoTip after the label (what a risky switch does). */
+  tip?: ReactNode;
   checked: boolean;
   disabled?: boolean;
   onCheckedChange: (checked: boolean) => void;
@@ -217,6 +220,7 @@ export function ToolSwitchRow({
           <span className="flex flex-wrap items-center gap-2">
             <Label htmlFor={id}>{label}</Label>
             {badge && <Badge variant="secondary">{badge}</Badge>}
+            {tip}
           </span>
           <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
         </div>
@@ -226,5 +230,53 @@ export function ToolSwitchRow({
       </div>
       {children}
     </div>
+  );
+}
+
+/**
+ * While Google's file picker is open in another window (Google Sheets, Google Drive): what is
+ * happening, a link to open it again (the browser may have blocked the window) and Cancel.
+ */
+export function PickerWaiting({
+  testId,
+  title,
+  hint,
+  url,
+  blocked,
+  openLabel,
+  sameComputer,
+  onCancel,
+}: Readonly<{
+  testId: string;
+  title: string;
+  hint: string;
+  url: string;
+  blocked: boolean;
+  openLabel: string;
+  sameComputer: string;
+  onCancel: () => void;
+}>) {
+  const { t } = useTranslation('admin');
+  return (
+    <output
+      className="flex flex-col items-start gap-3 rounded-lg border px-3 py-3"
+      data-testid={testId}
+    >
+      <p className="flex items-center gap-2 text-sm font-medium">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+        {title}
+      </p>
+      <p className="text-sm text-muted-foreground">{hint}</p>
+      <Button asChild size="touch" variant={blocked ? 'default' : 'outline'}>
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          {openLabel}
+          <ExternalLink aria-hidden />
+        </a>
+      </Button>
+      <p className="text-sm text-muted-foreground">{sameComputer}</p>
+      <Button size="touch" variant="ghost" onClick={onCancel}>
+        {t('connectors.gc.cancelSignIn')}
+      </Button>
+    </output>
   );
 }

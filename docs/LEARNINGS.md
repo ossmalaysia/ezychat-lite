@@ -10,9 +10,28 @@ into AGENTS.md.
 
 ## Working method
 
+- A change that touches many places (8+ files or 400+ lines, docs and lockfiles excluded; the `review-nudge` hook
+  says so) gets `/code-review` before its PR, its findings fixed or reported in the PR; merging still waits for the
+  owner's explicit request.
+- Do not edit, rename or check out files while a full `npm test` / `test:coverage` run is in progress: tests that
+  migrate a data dir mid-run see two schema versions ("duplicate column") and the result proves nothing. Run it again
+  on the final tree before reporting it.
+- Before you call a PR a break of an owner rule, read that rule in `origin/main`'s `AGENTS.md`: memory notes and older
+  checkouts lag rule changes ("No tracking in Lite" became "Anonymous usage stats only" with #285).
+- A new connector modelled on an existing one fails SonarCloud's 3 % new-code duplication gate (tests count too) when
+  its tool wrapper, account-card texts, picker waiting card or route-test setup are copied: put each in one shared helper
+  (`connectors/tool-run.ts`, `googleAccountTexts`, `PickerWaiting`, `connectorTestApp`) and move the older connector onto
+  it in the same PR. Read the duplicated blocks with `api/duplications/show?key=<project>:<path>&pullRequest=<n>`.
+- `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
+  field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
+- SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
+  `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
+  and trim before a plain-value regex instead of allowing spaces twice.
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
-  character; an editor or tool may turn the escape into the character) and on a JSON key containing "password" (S2068,
-  even a translation key). Name such keys after what they mean (`unlockCodeInMessage`).
+  character; an editor or the agent's file-writing tool may turn the escape into the character, so scan new test
+  files for U+200E/F, U+202A–202E, U+2066–2069, U+FEFF before pushing) and on a JSON key containing "password" (S2068,
+  even a translation key, or a demo user's `password:` literal in an `e2e/*.mjs` script). Name such keys after what they
+  mean (`unlockCodeInMessage`); a capture script creates extra users with `randomBytes` secrets or `DEMO_ADMIN`.
 - In a Playwright Test spec, `browser.newContext()` inherits the project's `storageState`: a second person's context
   starts signed in as the saved admin, so `/login` redirects and the sign-in waits until the test times out. Pass
   `storageState: { cookies: [], origins: [] }` for a fresh sign-in.
@@ -32,6 +51,21 @@ into AGENTS.md.
 - Ask for a mock confirmation with the key screenshots in front of the owner (send the image files, one per
   screen and state), not only a folder path: the owner confirms what they saw, and record the confirmation
   in `design.md` only after that reply.
+
+- Hand-written request signing (SigV4 and the like) is tested against the vendor's published test vectors, not only
+  against our own fake: a fake built from the same code agrees with any bug. Keep the signer's optional headers
+  switchable so the official vectors can run unchanged.
+- `npx prettier --write packages/server/test/*.test.ts` rewrites unrelated files that were not formatted on `main`:
+  run Prettier on the files you changed by name, then check `git status` for files you did not mean to touch.
+- Research a vendor API from the vendor's own docs source when its site refuses automated readers (403): eStream's
+  `github.com/eStreamSoftware/docs-sqlacc` (Docusaurus source + screenshots) gave the SQL Account API host, SigV4
+  region/service and paging that `sql.com.my` and the wiki would not serve. Mark third-party API references as
+  unconfirmed in the design and leave what no official source shows as owner questions, never as guessed endpoints.
+  Ask the owner early for the vendor's own API collection (a Postman export from inside the product): it settled
+  the host, the balance fields and where phones live, which no public page did. Check whether list answers carry
+  detail rows; when they do not (SQL Account lists master fields only), a lookup index needs paced per-record reads.
+- `scripts/build-summary.mjs` needs `gh repo view` (GraphQL), which cloud sessions refuse: write the workbook rows by
+  hand in its table format there.
 
 - A bug report with a screenshot of the live app shows real customers: rebuild the case with demo names,
   companies and numbers in tests, docs and commits; grep the branch for the real values before pushing.
@@ -55,7 +89,8 @@ into AGENTS.md.
   password is only the owner's (reset needs the CLI `--reset-admin` with the server stopped).
   `start.ps1` builds whatever the primary checkout has checked out, often another session's branch: for a
   given commit, detach a spare clean worktree at it (`npm ci` when the lockfile moved) and start a copy of
-  the script pointed there.
+  the script pointed there. When the branch adds a migration, copy `data/` to a backup folder first: the
+  permanent data then has a schema that `main` does not know.
 - A project skill (`.claude/skills/<name>/`) is a slash command only in checkouts that contain it:
   on a feature branch it is not live in the owner's main checkout until merged — say so.
 - Progress the owner asks about comes from committed records (the feature workbook, the Dev Build
@@ -92,6 +127,15 @@ into AGENTS.md.
   an open PR rewrites it again when the base merges: update the revision after that last rebase.
   A `gitRevision` in the index is often a branch commit that the squash merge left out of `main`'s history:
   `git fetch origin <sha>` before `git archive <sha> docs/features/<feature>/mock`.
+- Two confirmed mocks built in parallel from one baseline merge by patch, not by hand: `diff -ruN` the shared baseline
+  against the sibling mock, rewrite the headers to relative paths, `patch -p1` onto your clone, then merge the
+  rejected catalog JSON key by key (add missing keys only) and fix the few `.rej` code hunks by hand.
+- A mock for a new role or permission the server does not know yet: create real users with an existing role and mark
+  them through a `/api/mock/<feature>` stand-in route; every mock-only access filter (e.g. `mock/inboxes` `canOpen`)
+  must be bypassed for the new role, or its screens come up empty for a reason the design does not have.
+- When the owner cuts a mock's scope, restore each touched file from the baseline mock folder (`cp` from the source
+  feature, drop the added files and catalog keys) and rebuild the smaller change, instead of editing the old feature out:
+  leftovers (routes, keys, guards) survive a patch-out and drift from the design.
 - Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
   a faint, half-transparent card that reads like a z-index bug.
 - Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
@@ -104,6 +148,11 @@ into AGENTS.md.
   cancel) and mark the seeded replies sent. In the cloud container run shot scripts with
   `PW_CHROMIUM` set to the browser binary (`/opt/pw-browsers/chromium-<rev>/chrome-linux64/chrome`; the
   `/opt/pw-browsers/chromium` folder alone fails to launch; no Edge there).
+- Mock seeds that place a message at a clock time ("yesterday 8:30") must compute it in the business zone
+  (`ai_timezone`, UTC+8), not with `setHours`: the cloud container runs in UTC, so a local-time seed shows 16:30 in
+  the Asia/Kuala_Lumpur screenshots. Browser-side seeds may use local time (the shot context sets `timezoneId`).
+- Merging two confirmed sibling mocks (same baseline): `git merge-file <ours> <base> <theirs>` per changed file;
+  catalog JSON conflicts are usually both sides appending keys at one spot, so keep both and re-check `JSON.parse`.
 - Mock shot scripts: wait for a locator, never `waitForLoadState('networkidle')` (the Socket.IO connection keeps
   the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
   first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
@@ -114,7 +163,9 @@ into AGENTS.md.
   fail while CI is green. Check `node -v` before calling such a failure the branch's or the machine's. `npm run e2e`
   in the cloud container also needs the Playwright build it expects: link `/opt/pw-browsers/chromium-<wanted>` (and
   `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
-  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it.
+  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it. So does a `/proc` loop whose
+  pattern appears literally in the same command (a heredoc that writes the restart script counts): split the pattern
+  (`PAT="mobile-redes""ign/mock/run"`) and run the restart script in its own call.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -131,7 +182,8 @@ into AGENTS.md.
 - Before building UI for existing data, check the live data for why the current UI is empty; prefer making
   the data appear over adding UI.
 - Re-fetch `main` and re-verify paths and conventions right before planning or executing a plan; plans in
-  this repo go stale within hours.
+  this repo go stale within hours. A cloud checkout's `origin/main` ref can be days behind its own detached
+  HEAD: `git fetch origin main` before `git checkout -b … origin/main`, or the branch starts on an old release.
 - Reshape existing data once at startup, before any service runs; runtime code only routes and resolves.
 - Evals and tests must assert the business outcome (chat handed to the team, order not lost), not only the
   agent's words.
@@ -145,13 +197,87 @@ into AGENTS.md.
   tokens from local caches.
 - A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
   we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- A new button in the chat list header must fit the 360 px list beside Ask Ezy, Admin and the account menu: make it
+  icon-only with `aria-label` + `title`, and measure the header children's right edges in the screen script (a mock
+  made before a later header button looks fine and still overflows in the app).
+- A Dev Build screen script that starts several chats runs into the product's own per-person limits (New chat: 5 an
+  hour): spread the runs over several seeded users instead of loosening the limit.
 - Two feature branches that clone the same mock baseline both prune the oldest folder and collide on merge: keep
   both feature folders, renumber the later one, archive the next oldest, and note in `latestConfirmed` which
   parallel feature's screens the next clone must add.
+- Bringing a parallel confirmed mock into a new clone: per differing file run `git merge-file <latest> <shared
+  baseline> <parallel>` (the shared baseline folder is still in the tree), merge catalogs by key, then
+  `snapshot.mjs --check`. A confirmed baseline may already fail its own `--check`: record that drift as inherited
+  (copied unchanged) instead of re-hashing it away. When the shared baseline folder is already pruned, read it from
+  its recorded revision (`git fetch --depth=1 origin <sha>` in a shallow cloud clone, then `git show <sha>:<path>`).
+- Before pruning a feature folder for retention, `git grep` for imports of it outside `docs/features` and run the
+  `scripts/*.test.mjs` suite: `template-store/publisher/` is live tooling (`scripts/template-store.test.mjs` imports
+  it), so prune the next oldest mock instead.
+- Mock state keyed by a message id the team sends (marks, labels) must follow the id change: a queued send is stored
+  as `local-<clientId>` and renamed to WhatsApp's id when sent (`message:status` with `newId`), so key it by
+  `clientId` until then, or the mark vanishes from the sent bubble.
+- Shot scripts that create server-side records (chats, audit rows) need a fresh runner per run, or the second run
+  meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run. Within one run, a step that "creates" a value must use one no seed has (a seeded
+  tag turned "Add “Wholesale”" into a plain pick), and steps reset persisted list filters (session storage) before the next.
+- A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
+  nothing unless the `*_LIST_URL` env is set, so set it to the production URL (assert it equals the built-in constant)
+  and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
+  are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
+
+- Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
+  that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
+  so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
+- Before designing storage for "X on a new kind of record" (tags on groups), read the table's key and the read
+  model: `customer_tags` is keyed by `chat_jid` with no type check, so groups needed no table or migration, only
+  `rowToChat` stopped hiding them. A mock stand-in that writes the real table then proves filter, search and
+  suggestions without new server code.
+- Check `docs/design-system.md` token values against `apps/web/src/index.css` before quoting them in a mock or a
+  review: the file named 16 px `--radius-lg` while the CSS maps `--radius-lg` to 10 px; a reference page that reads
+  the tokens from the loaded stylesheets (mock `/design-system`) keeps the two honest.
+- A phone-only redesign renders the phone parts through one `usePhone()` (`max-width: 767px`, the inbox's `md` split)
+  and keeps the desktop render path byte-for-byte; the mock's shot script asserts the phone header is absent at 1280 px.
+
+- A new server-side refusal (a size limit, a window) needs a way through in every UI path that can hit it, not only
+  in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
+  failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
 
 ## Multi-agent process
 
+- A message from another session can arrive long after it was sent: before acting on it, read the PR's current
+  state (merged, head, conflicts) and do only what is still open.
+- A change to an owner rule (e.g. "No tracking in Lite") needs the owner's own words in the session doing it: child
+  cloud sessions refuse approvals relayed by another session. When the owner approves in the main session, do the
+  work there (or in a fork of it), not in a child.
+- `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
+  counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
+  docs-only commit, or the stages show as `✗ missing`. The same holds for the commit cited in a
+  `docs/dev-build-checks.md` row: cite the commit that already contains a new check script, not the one before it;
+  a row with no commit in backticks never counts. Record screen and devbuild only on a commit after the last UI fix.
+- Never rebase, stash or switch branches in a checkout where subagents are still writing files: commit each finished
+  agent's files first, and rebase onto a newly merged base only after the last agent has handed back.
 - AGENTS.md is the single source of truth (CLAUDE.md imports it); edit rules there.
+- Child cloud sessions refuse a merge or CI-gate change that another session relays to them, even when it quotes
+  the owner. Brief children to stop at a green PR and report to `@parent`; the main session, which holds the
+  owner's own words, merges (or pushes the gate change) and then archives the child.
+- Before merging a PR, wait for every check on its current head, SonarCloud included: CI jobs finish before
+  SonarCloud reports, and a merge on green jobs alone shipped a quality-gate failure that needed a follow-up PR. Re-read
+  the head SHA right before the merge (pass it as `expectedHeadSha`), because a child session may still be pushing.
+- Cloud sessions cannot push git tags (the git proxy answers 403 on tag refs) or run `gh release edit`. Release
+  from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
+  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
+- A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
+  `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
+  (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
+  through `env:` after a strict format check (`^[0-9]+\.[0-9]+\.[0-9]+$`), never as `${{ inputs.* }}` in `run:`.
+- A job's `environment:` that does not exist yet is created **unprotected** on its first run: never present an
+  environment as an approval gate unless its required reviewers are set; put the real gate in the workflow (dispatch
+  on `main`, a `confirm` input, strict checks). Agents start `release-approve.yml` only when the owner says "release".
+- `/security-review` in a fresh cloud clone fails on `origin/HEAD...`: run `git remote set-head origin main` first.
+- Any edit to a workflow makes SonarCloud re-flag its old workflow-level write permissions (S8233, Security C fails
+  the gate): when touching a workflow, set `permissions: {}` at the top and give each job only what it needs.
+- An edition's AI-agent limit defaults to its `maxInboxes` (`ai/service.ts`: `config.maxAgents ?? maxInboxes`), so
+  Enterprise (10 numbers) has had 10 agents since core 0.1.73 without passing `maxAgents`. Before saying an edition
+  lacks a feature, read the core default as well as the options the edition passes.
 - Order the end checks: independent (security) review first, its fixes, then e2e + workbook record. A fix
   commit after the e2e round changes the PR's own code, so the release review drops the e2e evidence and the
   2–3 minute round runs twice.
@@ -190,6 +316,23 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
+  push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
+  (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
+- Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables; conflicts in `chats/merge.ts` (each feature's `chat_jid` table) and `CHANGELOG.md` keep both sides. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
+
+- A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
+  `pull_request` runs need the merge commit. Merge main, then re-run e2e and the Dev Build check on the new head,
+  because release-review counts a stage only at a commit with the head's code diff.
+- In a fresh cloud clone `/security-review` fails on `origin/HEAD...`: run `git remote set-head origin main` first, and
+  review only your own commits (`git show <sha>`) when the base moved.
+- A change for another repository that a cloud session may not attach (add_repo refused) ships as a `git apply`-ready
+  patch in the feature folder (`publisher/*.patch`, checked by applying it to an empty repo) plus the owner's steps.
+- A test server that serves a payload and its signature in two requests must build them once (per version), never per
+  request with a clock in the signed body: a second boundary between the two fetches fails the signature check on CI
+  only (`e2e/partner-mcp/server.mjs` signed list).
+- `npm ci` in a Linux cloud session marks `apps/desktop/scripts/fetch-*.mjs` executable (mode-only diff): reset them with
+  `chmod 644` instead of committing the mode change, and check `git status` before every commit in a fresh checkout.
 - A Cloudflare Workers Builds check that fails at "Initializing build environment… Build failed to initialize and was
   timed out" never ran your code: read the build log (Cloudflare connector, Builds API `/builds/builds/<id>/logs`) before
   blaming a binding or token, and retry the build; prove the config with `npx wrangler deploy --dry-run` locally.
@@ -204,7 +347,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   next `creationOrder`, and prune the next-oldest folder. Resolving them file by file with `--ours/--theirs` puts some
   files in the wrong folder.
 - In a cloud shell, `pkill -f <pattern>` / `kill $(pgrep -f …)` also matches the shell's own command line and kills
-  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that.
+  the tool call (exit 144): keep the server's PID from `$!` in a file and kill that. The `[a]gents` bracket trick
+  does not help when the same tool call also starts or names that program.
+- Updating a branch from `main` right after a release commit can move your `[Unreleased]` CHANGELOG entry into the new
+  version's section with no conflict (the release only added a heading above it): read `CHANGELOG.md` after every
+  merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
+- The update helper is built by the app that is running, so an updater fix protects only updates that start from a
+  version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
+  an updater fix.
 - A rebase conflict in an append-only log (`docs/release-review/*.md`, `docs/dev-build-checks.md`): take
   `main`'s file and insert only the lines the PR itself added (`git show <commit> -- <file>`), in date order.
   Never merge by line text (`main` realigned the table, so old rows came back twice), and never run
@@ -217,6 +367,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
+- In a cloud session the permission check may refuse any force-push, including `--force-with-lease`. When a stacked
+  base PR is squash-merged, merge `origin/main` into the branch instead of `rebase --onto`: it needs no force, and
+  `git diff <rebased> HEAD` proves that the trees are the same. Point a confirmation `gitRevision` at main's squash commit.
 - Another session may push to the same PR branch while you work on it: force-push a rebase only with
   `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
   commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
@@ -235,7 +388,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
   has finished; a second failure is real.
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
-  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` a compare function (Reliability D).
+  bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` in any code (server and web too, even of string ids) a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
+  names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
@@ -250,7 +404,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review; a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
-  SonarCloud duplication fix) voids it too: push and settle SonarCloud before the Dev Build check. Rebase onto `main` before the checks
+  SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
+  before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
   you record: a rebase gives every commit a new id, so the recorded ones stop counting. Merging `main` keeps them:
   evidence holds while the PR's own change to code, pipeline and test files is the same.
 - `gh pr checks --watch` can return while required checks are still queued (one check, e.g. SonarCloud,
@@ -273,6 +428,21 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   (`ELECTRON_RUN_AS_NODE=1 electron -e "require(…)…"`); unmaintained `sudo-prompt` broke every Mac update and
   service change in every release, because no one ran a real Mac update (now `@vscode/sudo-prompt`). A
   platform-only privileged path gets one real run on that OS before its first release.
+  Never start a root helper with `nohup` on macOS: under the admin prompt (`@vscode/sudo-prompt`, no console)
+  it prints "can't detach from console" and exits without running the command, so every Mac update stopped
+  after the password (no `state.json`). Background with `&` and full redirection; the helper ignores `HUP`.
+  A Mac that sleeps drops WhatsApp and every AI reply waits (lost sales): the server holds
+  `caffeinate -i -w <pid>` (`keep-awake.ts`), which ends by itself when the server exits, even after a crash.
+  A root-owned copy of a downloaded, unnotarized app keeps `com.apple.quarantine` (`ditto` keeps xattrs):
+  Gatekeeper then refuses every launchd start (`OS_REASON_EXEC`, "cannot be opened" popups in a loop). Clear
+  it with `xattr -dr com.apple.quarantine` after the copy. Test the Mac service with a quarantined build
+  (`xattr -r -w com.apple.quarantine "0083;<hex time>;Safari;" <app>`): a local build has no flag and hides it.
+  launchd has no restart limit: use `KeepAlive {SuccessfulExit false}` and exit 0 for errors a restart
+  cannot fix. A platform-level `files:` in electron-builder.yml replaces the top-level list (the 32 MB
+  `server.cjs.map` came back), it does not add to it.
+  `launchctl bootout` returns while the job still shuts down: a `bootstrap` right after fails with
+  "5: Input/output error" (reproduced with a user job), and data moved then is still open. Follow every bootout
+  with a `launchctl print` wait loop (`macStopAndWait`) before bootstrap, data moves or runtime removal.
   Log it as a `real:` Dev Build row. Combine the critical updates into one PR so one smoke covers them.
   A critical `server-host` change gets the same packaged run, with the server started through the packaged
   `app.asar.unpacked/dist/server-host.cjs`. Run `prettier --write docs/dev-build-checks.md` after a new row:
@@ -286,7 +456,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   expected 409 of AI assistant access being off, not a fault.
 - GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
-  (`compare.commits`), not just any commit in a log.
+  (`compare.commits`), not just any commit in a log. A rebase gives every commit a new SHA, so it drops all recorded
+  stages and Dev Build rows: rebase onto `main` first, then run and record the checks.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
@@ -389,8 +560,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   search the open `docs(learnings)` PRs (`gh pr diff <n>`), not only `main`: one may already hold it. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
   commit. After a base PR is squash-merged, replay only your own commits
-  (`git rebase --onto origin/main <old base>`); a clean rebase still needs a typecheck (semantic
-  conflicts), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
+  (`git rebase --onto origin/main <old base>`); a clean rebase or merge still needs a typecheck (semantic
+  conflicts) and a look at the import blocks of auto-merged files (both sides adding an import from the same module
+  leaves two lines that ESLint passes and SonarCloud flags, S3863), and never chain `git add`/`rebase --continue` after edits that may have failed — grep for
   conflict markers first.
 - After merging `main` into the rename branch, `git grep -l "@wa-team-inbox/" -- apps packages e2e scripts`
   (not `grep -r | head`, which shows ignored release folders first): new files from `main` keep old imports.
@@ -475,13 +647,17 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
   `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
   or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
+  A required job `cancelled` after about 15 min with no runner and no steps never started (macOS runners
+  busy): `gh run rerun <id> --failed`, not a code fault. Push every log-only commit (workbook, Dev Build row,
+  review approval) in one push before that wait: each push starts all of CI again.
 - Before you start a new run or a rerun, stop every old watcher or retry task: a leftover one can start an old
   run again, and that attempt can still publish. Report a release from the live files (feed, sizes,
   SHA-256), never from a run's conclusion alone.
 - SonarCloud's reliability gate fails on `.map(namedFn)` (write `.map((x) => fn(x))`) and on regexes
   over user input with overlapping quantified classes (e.g. `[^@]+\.[^@]+`): keep classes disjoint.
   A migration `UPDATE`/`DELETE` needs a `WHERE` (blocker otherwise): backfills write
-  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below.
+  `WHERE col IS NULL`. Before opening a PR, check new scripts against the S4036 and S2068 rules below, and S9382 (each `await`
+  written inside a loop body is one issue: a screen script loops over sets that call one `async function captureSet`).
   After merging one PR, the next needs `gh pr update-branch` and fresh checks (main requires up-to-date).
 - Solo maintainer: PRs + green CI + resolved conversations, zero required approvals; restore approval when
   another reviewer exists.
@@ -508,6 +684,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   labels and open the section first in each; agents that own the page miss specs owned by other features.
 - SonarCloud's security gate fails on running a tool by bare name (S4036, PATH lookup): scripts run
   `gh`/`git` from absolute install paths or an absolute `<TOOL>_PATH` override (`scripts/build-summary.mjs`).
+  An e2e check that starts a server never spawns `npx`: run `process.execPath` with `node_modules/tsx/dist/cli.mjs`
+  (`e2e/start-multi-inbox.mjs`).
   It also fails on any `http://` literal (S5332): an RFC 3161 timestamp URL (signed replies, published as
   http) gets a `// NOSONAR (javascript:S5332): <reason>` on its line; everything else uses https.
   It treats `process.argv` in `e2e/` scripts as untrusted (SSRF S5144/S8703): parse the port with
@@ -536,6 +714,29 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- PowerShell does not wait for a GUI-subsystem program (Electron, also with `ELECTRON_RUN_AS_NODE=1`) called with
+  `&`, and leaves `$LASTEXITCODE` unset, so its output and exit code are lost: pipe the call (`& $exe … | Write-Output`)
+  and test the generated script with the real Electron binary (`windows.test.ts`). A test that sets `$LASTEXITCODE`
+  itself makes a local copy; read `$global:LASTEXITCODE`.
+- To test Windows file code against a folder "being used by another process", spawn a child with that folder as its
+  `cwd` (it holds the folder itself open, as an antivirus scan or a shell does); kill it and await its `exit` before
+  cleanup, or `rm` fails with EBUSY. Updater helper pieces are exported constants (`WINDOWS_START_INSTALLER`,
+  `WINDOWS_RESTORE_OLD_APP`) so such tests run the real PowerShell.
+- Measuring a slow tunnel locally: put a proxy that delays every request (and the WebSocket upgrade) in front
+  of the server; Chrome throttling does not slow the service worker's own fetches. The fake WhatsApp has no
+  photos, so give contacts a photo address in a measurement-only preload. Do not use Playwright `context.route`
+  for the new code (it turns off the HTTP cache and changes service worker handling), and measure only after the
+  service worker controls the page: installing it through a 650 ms proxy took 16–19 s, and opens before that
+  showed photo requests that an installed PWA never makes.
+- A contract the publishing repo validates through `z.toJSONSchema(…, { io: 'input' })` must stay plain: a
+  `.transform()` (and every check piped after it, e.g. lengths) vanishes from the schema. Clean values before
+  `safeParse` instead (`cleanAgentTemplateValue`). The root `ajv` is ESLint's v6; ajv 8 is only nested, so repo
+  scripts take a validator as a parameter and tests pass one built from the zod contract.
+- A generated folder that a test compares byte for byte with its generator goes into `.prettierignore`; Prettier
+  rewrites JSON arrays and Markdown and the drift test fails.
+- In a Linux cloud session `e2e/screens-common.mjs#launchBrowser` falls back to msedge and fails: run capture scripts
+  with `PW_CHROMIUM=/opt/pw-browsers/chromium-<n>/chrome-linux64/chrome`, and restart the server on fresh data after a
+  failed run (the script's seed users already exist).
 - A random "can't reach" from the server while the browser and curl work: test the app's own runtime
   (`ELECTRON_RUN_AS_NODE=1 <app> script.js` with `fetch`), and `curl -4` / `curl -6` on that computer. A network
   with IPv6 addresses but no IPv6 route made fetch time out (`UND_ERR_CONNECT_TIMEOUT`) at random; `runCli`
@@ -555,7 +756,22 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
   admin, and `/setup` then no longer shows (a second run times out waiting for it). A desktop-only screen gets
-  its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`).
+  its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`). Grep `e2e/` for a shared module before
+  copying any script's setup (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
+  cloud session `launchBrowser` needs `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`. A script's
+  fetch sends `content-type: application/json` only with a body: the server answers 400 to a bodiless DELETE with it.
+  Its API calls go through `cookieSession` (`devbuild-client.mjs`): a raw `fetch(base + path)` fails SonarCloud's
+  security rating (S7044/S8476, request forgery from argv input). A check that needs its own fetch (multipart upload)
+  repeats that guard (port range, path pattern, `new URL(...).origin === base`), and builds its test files in code
+  instead of reading a path from argv (S8707 counts reads too, not only writes). A script that sends a file's fields to
+  an outside service reads that file from a fixed path, with no argument to name another, and checks a version as x.y.z
+  before it reaches a URL or folder name, also when a release feed supplies it.
+- Report installers to McAfee only with the `submit-installers` skill (`scripts/mcafee-submit.mjs`), never with a
+  one-off script: it checks every file before the first report goes out, and it never sends the same file twice. A
+  report states only what was checked: no "McAfee blocks" for a file nobody saw blocked, no signature claim for a Mac file.
+- A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
+  its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
+  shell that its instructions name, not only from Bash.
 - An antivirus "threat blocked" report on our installer: first compare the file's SHA-256 with the release digest
   (`gh api …/releases/tags/<tag>` asset `digest`; Enterprise `latest.json`) and check `Get-AuthenticodeSignature`
   (signer Anchor Sprint Pte. Ltd.). Genuine and signed means a reputation false positive (each release is a new,
@@ -568,6 +784,21 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   most and its click on a file input opens no OS dialog; a tab that reports viewport 0x0 or times out on
   screenshots is in a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
   Google Threat Intelligence (VirusTotal) docs.
+- An antivirus that blocks the update installer (Windows Update helper `helper-error.log`: "the file contains a virus
+  or potentially unwanted software") can leave `Program Files\<product>` empty: the rollback ran although nothing was
+  replaced (`$replacementStarted` was set before `Start-Process`), and its `Remove-Item $installDir -Recurse` deleted
+  every file, then failed on the folder itself (in use) before it copied `old-app` back. A state flag that gates a
+  destructive rollback is set only after the step it describes has really started. The full copy stays in `<ProgramData>\<product>-updates\<nonce>\old-app` (signed, data
+  untouched): recover by copying it back as admin and `Start-Service`, and tell the owner not to accept the update
+  again (each accept repeats the failure). McAfee for home users excludes single files, and each update try uses a
+  new `<nonce>` folder: update by hand instead (download the installer, verify SHA-256 and signer, exclude that file).
+  A manual installer run over a service install leaves the service Stopped (it fails to restart while files are
+  replaced): `Start-Service` as admin afterwards, then check `/api/health`. A VirusTotal checksum lookup of a new
+  release answers "Item not found" (no evidence either way); only an upload (public and permanent: owner's yes first)
+  gives a scan. Browser automation cannot upload it (10 MB limit); its URL scan rates the address only, not the file.
+  A clean result does not predict the home products: Enterprise 0.1.26 scored 0/53 with "McAfee Scanner" and Trellix
+  undetected while McAfee at home blocked it, and `dl.ezychat.ai` and GitHub both scored 0/93. So hosting is not
+  proven as the cause, and the fix stays the vendor's dispute form plus a safe updater.
 - `graphify hook install` appends `graphify-out/graph.json merge=graphify` to the tracked `.gitattributes`; here the graph is
   git-ignored, so revert that line or the primary checkout stays dirty and `git pull` stops. Its hooks skip linked
   worktrees, so the primary checkout needs a `post-merge` hook (`graphify update .`) to follow `git pull`.
@@ -643,6 +874,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   registers it (real email code, real trial record). To show new core code, stop only that server, rerun
   `use-local-core.mjs` + `build:web` + `bundle:server`, and restart on the SAME data folder: the trial,
   sessions and test agents stay, so nobody registers again.
+- On macOS a full menu bar (notch) hides tray icons: every tray-only action (Status & Service, updates) is also
+  in the Dock menu (`app.dock.setMenu`, `tray.ts`). macOS adds Quit there itself.
+- Measure before porting to Rust (or rewriting for speed): the 2026-11-07 review found only one measurable
+  hot spot (the AI leak check), fixed in TypeScript. See `docs/DEBT.md` (Open) for the numbers and the
+  ranked Rust candidates.
 - Changed-lines coverage counts an untested entry `main()`: put new start-up logic in an exported function
   with injectable I/O (`startArgs` in `server-host.cts`) so `main()` gains one call line, and leave
   unrelated log text alone (each touched line counts).
@@ -833,7 +1069,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   worker before reporting, because the order differs from the parallel run, and give each "already exists" branch its
   own assertion that runs on desktop too.
 - Lite → Enterprise merge (`lite-import/merge-tables.ts` `TABLE_PLAN`): every new core table must be listed as merged
-  or skipped with a reason; the coverage test fails otherwise. A failed hand-over after a committed merge restores the
+  or skipped with a reason; the coverage test fails otherwise. A branch with a migration runs
+  `lite-import-merge*.test.ts` and `upgrade-from-oldest.test.ts` after every rebase, not only its own files. A failed hand-over after a committed merge restores the
   pre-import backup (`onCommitted` undo) so Lite and Enterprise never both keep one number.
 - A read-only better-sqlite3 open of a stopped WAL database still creates `-wal`/`-shm` files: remove them afterwards
   when a folder must stay byte-identical (Lite's data during an import).
@@ -843,11 +1080,23 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
+  return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
+  denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function
+  (`usersWhoCanOpenChat`) for every notification path. Grep every `scopeFor`/`canOpen`/`usersWhoCanOpen` caller and
+  decide each one explicitly (status banners and templates needed `visibleInboxIds`).
+- Data a device keeps for one user (saved queries, service worker photo/file caches) is cleared on every way a session
+  ends, not only the sign-out button: the `session:revoked` socket event and a 401 from `/api/me` too
+  (`startQueryPersistence` `clearCaches`). Test each path.
 - A script that writes files to a folder named on the command line resolves it against the repository and refuses
-  anything outside it (SonarCloud `jssecurity:S8707` fails the security rating otherwise).
+  anything outside it (SonarCloud `jssecurity:S8707` fails the security rating otherwise). A new e2e screen script
+  starts from the `inside()` guard of `e2e/connectors-screens.mjs`, before its first push.
 - A third-party browser widget that needs outside scripts (Google's file picker) never goes into the app window: its
   CSP stays `script-src 'self'`. Serve it on its own host-only page with a CSP limited to that vendor, guarded by a
   one-time token, and hand it an access token once (`connectors/google-sheets/picker-page.ts`).
+- Google `drive.file` grants only what the app created and each item picked in the picker: a picked folder lets the
+  app create inside it, but its existing files stay 404 until each is picked. Design "read files" as files the admin
+  picks; reading a whole folder needs a restricted scope (security assessment), so never assume it.
 - Stop a Playwright run with its servers: killing only `playwright` leaves the e2e web servers on 7497/7498 holding the
   ports, and the next `npm run e2e` hangs at "WebServer" without a test result. Check `ps` for old `cli.ts --port` processes.
 - A destructive elevated step (remove a service, move data) can still be checked on the owner's live PC: keep
@@ -872,6 +1121,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A script that writes to a folder named on the command line fails the SonarCloud gate (S8707, path
   traversal): resolve it and accept only the repo or `os.tmpdir()` (`path.relative`, no `..`), and check
   ports. Read a PR's Sonar issues with a script file: `api/issues/search?componentKeys=ossmalaysia_wa-team-inbox&pullRequest=<n>&types=VULNERABILITY` (public, no token).
+  New code meets Sonar's usual findings before the first push (and say so in a subagent's brief): no nested
+  ternaries (S3358), `toSorted`/`replaceAll`/`find`, no `async` without `await`, one import per module, no `await` inside a loop (S9382:
+  a deliberately sequential, paced loop becomes a recursive step function), functions under cognitive complexity 15: a first push of a new feature otherwise drew 42 findings.
+  Tests of such a guard build paths from `os.tmpdir()`, never `/tmp`: macOS's temp folder is `/var/folders/…`.
 - Every `/api/ai` route is admin-only (`ai-routes-access.test.ts` lists them all): an AI route that every
   signed-in user may call lives outside that prefix (`GET /api/reply-suggestions`, `/api/chats/:jid/ai/*`).
 - An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
@@ -934,9 +1187,31 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   slot synchronously with the check, before any `await`: the AI SDK runs the tool calls of one step in parallel.
 - A signed list that the app downloads is trusted only after the signature over the exact bytes, a sequence that
   never goes down, and the hash of every referenced file pass; one bad file rejects the whole list.
+- Two signed lists that share keys sign a domain prefix before the bytes (`ezychat-templates-v1\n` + file): zod
+  strips unknown keys, so a validly signed list of one kind can parse as the other and replace it with an empty list.
+  Give each list file its own marker field too (`catalog: "templates"`).
 
 ## WhatsApp / Baileys
 
+- Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
+  live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
+  app must make its own. The adapter's `raw` cache is memory only, so a later download goes
+  through the stored `media_refs` row: restart the server when you test on-demand media.
+- Opening a chat sends read receipts for its newest 20 customer messages while the number is connected, also in a Dev Build
+  (`chats/service.ts#markRead`). To drive a screen on real data, copy `app.db`, `secret.key` and `media/` without `wa-auth/`
+  to a temp folder and start it with `--fake-wa`: nothing can reach WhatsApp.
+- A bounded-media API is an explicit optional hook, counts decrypted bytes before retention, and tests cancellation through a real local HTTP stream: Baileys getHttpStream drops AbortSignal, and destroying its decrypting Transform alone does not cancel the upstream request.
+
+- `WaAdapterEvents` has no "profile photo changed" event: a cache of WhatsApp photos (`avatars/store.ts`) refreshes
+  by age (24 h) and keeps the last good photo when a refresh fails. Serve the bytes yourself with a version in the
+  URL (`?v=<hash>`, immutable) instead of a 302 to WhatsApp's CDN: over a slow tunnel each redirect was a ~0.7 s
+  round trip on every open, and the CDN URL expires anyway.
+- Baileys group changes report refusals two ways: `groupParticipantsUpdate` / `groupRequestParticipantsUpdate` return
+  per-person `{status: <code>}` (403 + `add_request` = privacy, send the invite), while subject, description, settings
+  and invite-code calls throw a Boom whose `data` is the code (401/403 = not a group admin). Map both; fail closed.
+- A core route that calls an optional `WaAdapter` method passes through an adapter error whose `err.code` is in the
+  feature's shared error list (e.g. `GROUP_ADMIN_ERRORS`), with its natural status: Enterprise adapters (`wa-cloud`)
+  signal whole-request refusals that way, and a catch-all 502 hides them.
 - Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
   and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
   background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
@@ -1024,11 +1299,47 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   facts, never only to `chat.whatsappName` (the customer panel showed "No name set" above its own
   "Name on WhatsApp" row).
 
+- Sending one stored file to several chats: pass it to Baileys by path (`{ url: path }`, streamed) and set the
+  socket's `mediaCache`; the cache key is media type + url (`Utils/messages.js`), so a Buffer never hits it and every
+  copy uploads again. WhatsApp publishes size limits only for the Business API (video 16 MB, document 100 MB); a linked
+  phone's video limit is unpublished: measure it in a Dev Build before coding a value.
+
 ## AI sales agent
 
+- A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
+  `currentSituation` field) before a Dev Build check can show it. A timer feature's Dev Build check waits for one real
+  due time (the next slot a couple of minutes away, in the business zone): fake-clock unit tests never prove the timer
+  starts and ticks in the running server.
+- "Can the AI run a turn?" is `AiService.answerReady()`; `connectionReady()` also needs the provider's customer
+  extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
+  task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
+  as "chat ownership changed".
+- A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
+  reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
+  chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and
+  Origin checks), and a second path parameter is named `:id` (the table's normaliser). Test service code by parsing bodies through the zod schema (`Schema.parse`), never passing raw objects: the
+  defaults (`enabled: true`) only exist after the parse.
 - A connector tool that writes into a customer-visible business system (a sheet row, a calendar event) must store the
   customer's text as data, never as something the other system runs: Google Sheets `append` with
-  `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`.
+  `valueInputOption=RAW` (USER_ENTERED would run `=HYPERLINK(…)`), and pin it with a test that writes `=…`. When an
+  admin switch allows USER_ENTERED, escape every value that is not the AI's own allowed formula with a leading `'`,
+  auto-filled ones too (a WhatsApp push name can be `=IMPORTXML(…)`), and check formulas fail closed (URL anywhere,
+  blocked function names and name parts), with a test per escape path.
+- A schema bounder that copies only `properties` turns a free-form map (`type: object` + `additionalProperties`
+  true/schema, no fixed fields; zod `z.record`, e.g. Notion page properties) into an empty object, and the argument
+  cleaner then drops every key silently. Keep maps as maps with their own bounds (keys, key/string length, list
+  items, depth; past a bound refuse, never cut), validate values against the value schema, keep fixed-field levels
+  closed, write map keys with `defineProperty` (`__proto__` is data), and test the bounder and cleaner together on a
+  real partner's schema shape (`connectors/mcp/mcp.ts#boundedNode`, `guards.ts#cleanArgs`).
+- A connector tool that acts on a chat's file lets the model choose a **label** of files the server listed (this chat's
+  inbound files, its senders), never a message id, link or path from the model; the server maps the label back and
+  re-checks Safety, size and duplicates (`connectors/google-drive/tools.ts`).
+- A new `AiToolUsedPayload` field must also be copied in `chats/service.ts#addAiToolUsed`, which builds the stored
+  payload field by field; otherwise the chat line silently loses it.
+- Test media with a spoofed name (right-to-left override, `…\u202egpj.exe`) is rated High by WhatsApp Safety at ingest:
+  use plain file names in fixtures unless the test is about Safety (then assert `levelOf`, no mock).
+- Parallel feature sessions pick the same next migration number: before naming `0NN_*.sql`, check the open PRs'
+  `db/migrations/` too; the PR that merges second renumbers its file (and its tests that drop tables by number).
 - A Lite → Enterprise import test that fakes "an older Lite" by dropping the newest tables must be extended with every
   new migration's tables, or it fails with "table already exists" (`lite-import-merge.test.ts`).
 - A fixed rule in `CORE_RULES` that says the admin's rules "never override" it silently beats the admin: the model
@@ -1077,7 +1388,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Ready-made Business context (templates) uses blank fill-in lines (`Opening hours:`), never sample
   values or `[your price]` placeholders: the AI repeats a placeholder as a fact, but a blank line is no
   fact, so it hands over. Build template instructions as the type's tested text plus a short business
-  part, and test the length limits in every language.
+  part, and test the length limits in every language. A Custom template has no starting text: its business
+  part is the whole role (no leading blank lines, no sales/FAQ text). A template that changes how an agent
+  works (Claims: groups only) flips switches only on a new agent; an existing agent gets a note, because
+  turning direct chats off hands its open chats back. A text naming a sheet tab keeps the tab's real name
+  in every language, and its test accepts the language's quotes (zh-CN writes “Claims”).
 - An MCP tool that writes text a person reads in a box must say the format: AI assistants hard-wrap long
   text at about 60–80 characters, and the box shows every line break, so rules looked cut short. The
   `update_ai_setup` description and `text` field say "one line per paragraph or list item".
@@ -1168,6 +1483,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   sets look the same and the test proves nothing.
 - Features that connect outside AI tools are vendor-neutral in name and copy ("AI assistants", MCP),
   never one provider's name; state which clients a given auth method actually supports.
+- An MCP tool that returns MCP content (an image) sets `content` in its `ToolRun`; keep it out of `INBOX_TOOLS` (Ask
+  Ezy reuses those as AI SDK tools and only passes JSON). Safety checks run before the type check, so a
+  `cantInspect` ZIP or a High file answers "locked", never "not supported".
+- `extractKnowledge` refuses > 10 MB, > 100 pages and > 100,000 characters and throws `NO_READABLE_TEXT` for a
+  scan: a reader that wants "no text" as a result matches that constant, never the message wording.
 - A new MCP tool must be added to every exact tool-name list in the tests (`mcp.test.ts` and
   `mcp-ai-setup.test.ts`): grep `server/test` for an existing tool name before pushing.
 - The server applies a token's scope change on the next call, but MCP clients cache `tools/list` until
@@ -1261,11 +1581,36 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   item: use `flatMap` so the helper keeps the filter. A deleted group message broke every live group AI turn.
 - A draft prompt that tells the model to use a value (a group member's name) must put that value in the fact-check
   `sources`, or the number check drops correct drafts ("Kopi88 Ali"). Group prompts send no customer details.
-- A connector gives access (which tabs, which tools), the agent's instructions say when and why: never hard-code a use case (leads, claims) into connector code; tool descriptions are built per turn from the allowed tabs and their live first rows.
+- Connectors are use-case agnostic (owner rule, `docs/connector-design.md`): a connector page holds only access (resource, one switch per capability), the agent's instructions say when, why and what for. No use-case settings on a connector page (file types, folder schemes, example instructions, "leads"/"claims"); tool names and descriptions are generic and built per turn from the agent's allowed resources; guards cover safety only.
 - A provider mode whose request format is undocumented for a content type (ChatGPT backend and PDFs) gets a text fallback, never a guessed part type.
 
 ## Desktop and web UI
 
+- A web push `badge` must be a white shape on a transparent background (`public/badge-96.png`): Android draws it from
+  the alpha only, so a full-colour app icon becomes a white square. `notification-badge.test.ts` checks it.
+- A list or panel component whose tests render it without an auth provider reads the signed-in user from the props it
+  already gets (`directory.me`), not from `useAuth()`: a new hook there breaks every existing test with "No
+  QueryClient set".
+- The persisted query cache (`api/query-persist.ts`) saves with a delay, so a reload can restore state from before the last mutation: never persist state a route guard acts on in a transitional form (e.g. `mustChangePassword`), and when an e2e step reloads right after a mutation and lands on an old page, suspect the restored copy first.
+
+- A live event that patches a react-query cache must handle "no data yet" (a first fetch in flight): `setQueryData` on an empty entry is a no-op and a plain `invalidateQueries` does not restart a fetch that has no data, so `cancelQueries({ revert: true })` first (`upsertMessageInCache`).
+
+- Every round trip counts over a slow tunnel (~0.7 s each): the live connection reloads every query when it joins,
+  so a list already on screen waits for that reload (with a short fallback) instead of loading itself; an infinite
+  list reloads every loaded page, so persist and restore page 1 only. One open loaded `/api/chats` up to 6 times.
+  The PWA caches (`sw-routes.ts`) never store a `no-store` answer, are cleared at sign-out and on a user switch,
+  and a media file is cacheable only once WhatsApp Safety's AI check has answered (`safety.cacheable`).
+- A list row with a label and action buttons (join requests, approvals): keep a phone number `whitespace-nowrap` and the
+  buttons in one `ml-auto shrink-0` group, so a narrow panel moves the whole group below instead of truncating the
+  number or putting one button per line (a `min-w-*` on the label did the latter at 360 px).
+- Screen-review states the fake WhatsApp cannot produce (offline with a cached panel, another connection type's
+  capabilities, a 422 from WhatsApp) come from `page.route` on that one GET/POST in the capture script, with the real
+  app rendering them (`e2e/group-management-screens.mjs`); never add a dev-only server switch just for screenshots.
+- Jumping to a message that may be on an unloaded page: ask the server where it is (`…/messages/:id/locate`: found +
+  newer count) before paging, so a missing original costs one request instead of loading all history, and bound the
+  paging (`QUOTE_JUMP_MAX_PAGES`). Key a scroll request by `seq:id`, not object identity, and retry it on each `items`
+  change until the row is rendered. In e2e, find bubbles by `data-message-id`: a reply's bubble also contains the
+  quoted text, so `hasText` matches both.
 - A dialog whose body holds buttons (show details, add files, remove) uses a plain container, not a `<form>`: shadcn
   `Button` defaults to `type="submit"`, so every toggle sent the report. Send stays an explicit button in the footer.
 - A route that takes several files reads `req.parts({ limits: { files: N, fileSize } })`: the app-wide multipart limit
@@ -1373,6 +1718,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   meaningful. A runner that replaces Vite's `resolve` with only an alias drops the `ezychat-source`
   condition and serves stale `dist/` packages (a new field never reached the page): spread the web
   config's `resolve`.
+  A mock stand-in route that later ships in the core (`POST /api/feedback`) stops the runner with
+  `FST_ERR_DUPLICATED_ROUTE`: start a clone once before editing it, and register stand-ins only when
+  `app.hasRoute(…)` is false.
 - An outgoing message's id is `local-<clientId>` until WhatsApp accepts it, then the WhatsApp id: an
   API or tool that returns it must say so, and tests must find the row by `client_id`.
 - A socket event that arrives while its list is still loading is lost: the load's older answer replaces the
@@ -1537,6 +1885,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   runs later, after the code that updates the ref. Shifting marks with `ref.current` inside the updater kept stale
   grammar marks in "Fix N". A popover anchored to a word near the screen edge is `fixed` and measured after render,
   then moved left to fit (an `absolute` card inside a narrow composer ran off a 360 px screen).
+- A diff turned into fix marks must never give two marks on one range: merge changes that meet or overlap, and
+  never widen an insertion across another change (only over unchanged tokens). Two marks on "email" ("your email",
+  "email.") applied one after the other added text twice. Test it as a property: applying every mark gives the
+  corrected text, and the fixed text gets no new mark. On the client, tie an AI answer to the exact text it was
+  asked for and remember applied fixes per draft: the model answers each check afresh and may re-add the same
+  insertion ("email." → "email..").
 - OAuth sign-in from a page (ChatGPT, Google Calendar) opens `about:blank` synchronously in the click,
   then sets its URL, and keeps a visible "Open the sign-in page" link for a blocked window.
 - Marks drawn in a `pointer-events-none` layer over the composer (grey completion, Fix English underlines) are
@@ -1587,6 +1941,17 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Cloudflare and sharing
 
+- A container auth backend must persist every credential and Signal-key batch before resolving, keep each inbox isolated, and fail closed on storage errors; filesystem snapshots cannot preserve writes made after the snapshot.
+
+- Slow remote access through the tunnel: measure before changing code. In the browser on the tunnel host, read
+  `performance.getEntriesByType('resource')` (count, `transferSize`, duration per kind) and `/cdn-cgi/trace`
+  (`colo` = where the visitor enters); on the PC read cloudflared's `/metrics` on `127.0.0.1:20241…`
+  (`edge_location`, `quic_client_smoothed_rtt`) by port, never its command line (the token). The dashboard's
+  "Edge Locations" are the tunnel side only. From Malaysia, TM/Unifi entered at `SJC` and mobile data at `FRA`
+  (Cloudflare status: KUL re-routed) while the tunnel was Singapore at 25–50 ms: ~660 ms per request for a 43 KB
+  page, so cut round trips, not bytes. No Cloudflare plan chooses the entry point (Enterprise Regional Services
+  only moves decryption); ngrok's region pinning (`ap` = Singapore) does, as do Tailscale (needs its `*.ts.net`
+  name in the Host allowlist) or an own Malaysian relay.
 - Anchor Sprint Workers deploy with Workers Builds, not Actions: `main` runs `wrangler d1 migrations apply
 DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A trigger needs an existing
   Worker tag and a build token: upload a placeholder Worker first and reuse the account's build token.

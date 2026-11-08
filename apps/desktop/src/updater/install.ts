@@ -75,6 +75,30 @@ export interface PrepareUpdateInstallOptions {
 
 const resultMessage = 'Update installed. Your conversations, accounts and settings are preserved.';
 
+/**
+ * Starts the verified NSIS installer. An installer that cannot start (an antivirus block makes Start-Process throw)
+ * replaced nothing: the replacement flag is cleared so the helper restarts the old service instead of rolling back.
+ * NSIS requires /D last and unquoted, even when the target contains spaces.
+ */
+export const WINDOWS_START_INSTALLER: readonly string[] = [
+  `  $replacementStarted = $true`,
+  `  try { $process = Start-Process -FilePath $installer -ArgumentList @('/S', ('/D=' + $installDir)) -Wait -PassThru -WindowStyle Hidden }`,
+  `  catch { $replacementStarted = $false; $installerBlocked = $true; throw }`,
+];
+
+/**
+ * Puts the previous app back from the rollback copy. It empties the install folder but never removes the folder
+ * itself: another program (an antivirus scan, a shell) may hold it open, and removing it once failed after every
+ * file was gone, which left Program Files empty. The copy-back always runs.
+ */
+export const WINDOWS_RESTORE_OLD_APP = [
+  'function Restore-OldApp([string]$InstallDir, [string]$Backup) {',
+  '  if (-not (Test-Path -LiteralPath $InstallDir)) { New-Item -ItemType Directory -Path $InstallDir | Out-Null }',
+  '  Get-ChildItem -LiteralPath $InstallDir -Force | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Continue }',
+  '  Get-ChildItem -LiteralPath $Backup -Force | Copy-Item -Destination $InstallDir -Recurse -Force',
+  '}',
+].join('\r\n');
+
 /** Advisory UI eligibility. Elevated helper independently enforces ownership/ACLs and service identity. */
 /** Current and legacy program names (lower case); the Mac checks accept both bundle names too. */
 const windowsExecutables = (): string[] =>
@@ -408,6 +432,7 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       `$installedService = ${flag(c.serviceInstalled)}`,
       `$serviceStopped = $false`,
       `$replacementStarted = $false`,
+      `$installerBlocked = $false`,
       `$accepted = $false`,
       `$backupReady = $false`,
       `$safeStage = $false`,
@@ -420,6 +445,7 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       `  [IO.File]::WriteAllText($temporary, $state, (New-Object Text.UTF8Encoding $false))`,
       `  Move-Item -LiteralPath $temporary -Destination (Join-Path $stage 'state.json') -Force`,
       `}`,
+      WINDOWS_RESTORE_OLD_APP,
       `function Check-Hash { if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedHash) { throw 'Installer checksum mismatch' } }`,
       `function Assert-Service {`,
       `  Assert-Locked ${psQuote(serviceDir)} -Recurse`,
@@ -507,9 +533,7 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       `  }`,
       `  if ($runtimeProcesses.Count -ne 0) { throw 'The old app did not shut down. No replacement was attempted.' }`,
       `  Check-Hash; Assert-ProtectedRuntime $appExe`,
-      `  $replacementStarted = $true`,
-      // NSIS requires /D last and unquoted, even when the target contains spaces.
-      `  $process = Start-Process -FilePath $installer -ArgumentList @('/S', ('/D=' + $installDir)) -Wait -PassThru -WindowStyle Hidden`,
+      ...WINDOWS_START_INSTALLER,
       `  if ($process.ExitCode -ne 0) { throw 'The installer failed' }`,
       `  Assert-ProtectedRuntime $appExe`,
       `  $installedVersion = (Get-Content -LiteralPath (Join-Path $installDir 'resources\\app.asar.unpacked\\dist\\package.json') -Raw | ConvertFrom-Json).version`,
@@ -535,16 +559,14 @@ export function buildWindowsInstallScript(plan: InstallPlan): string {
       `      if ($resolved -ne [IO.Path]::GetDirectoryName($appExe) -or -not (Test-Path -LiteralPath $backup)) { throw 'Unsafe rollback target' }`,
       `      if (Test-Path -LiteralPath $installDir) {`,
       `        if ((Get-Item -LiteralPath $installDir -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unsafe rollback link' }`,
-      `        Remove-Item -LiteralPath $installDir -Recurse -Force`,
       `      }`,
-      `      New-Item -ItemType Directory -Path $installDir | Out-Null`,
-      `      Get-ChildItem -LiteralPath $backup -Force | Copy-Item -Destination $installDir -Recurse -Force`,
+      `      Restore-OldApp $installDir $backup`,
       `      Assert-ProtectedRuntime $appExe; $restored = $true`,
       `    }`,
       `    if ($accepted -and $installedService) { Start-InboxService $originalVersion }`,
       `  } catch { if ($safeStage) { ($_ | Out-String) | Out-File -LiteralPath (Join-Path $stage 'rollback-error.log') -Encoding utf8 } }`,
       `  if ($safeStage) {`,
-      `    $message = if ($replacementStarted -and -not $restored) { 'Update failed and automatic recovery could not finish. Keep the rollback copy and check Status & Service.' } elseif ($accepted) { 'Update failed. The previous app was retained or restored and its service restart was attempted.' } else { 'The update could not be prepared. Your running app and service were not changed.' }`,
+      `    $message = if ($installerBlocked) { 'The update installer was blocked from starting, often by antivirus software. Your app was not changed and its service was restarted.' } elseif ($replacementStarted -and -not $restored) { 'Update failed and automatic recovery could not finish. Keep the rollback copy and check Status & Service.' } elseif ($accepted) { 'Update failed. The previous app was retained or restored and its service restart was attempted.' } else { 'The update could not be prepared. Your running app and service were not changed.' }`,
       `    Write-State 'error' $message`,
       `  }`,
       `  exit 1`,
@@ -569,16 +591,20 @@ function macStageGuards(plan: InstallPlan): string[] {
   ];
 }
 
-function buildMacHelperBootstrap(plan: InstallPlan, scriptBase64: string): string {
+export function buildMacHelperBootstrap(plan: InstallPlan, scriptBase64: string): string {
   return [
     'set -euo pipefail',
     'PATH=/usr/bin:/bin:/usr/sbin:/sbin; export PATH',
     ...macStageGuards(plan),
+    // Finished updates leave a small stage folder (state, log); keep the last day's for support.
+    `find "$stage_root" -mindepth 1 -maxdepth 1 -type d ! -name "$nonce" -mtime +0 -exec rm -rf {} + 2>/dev/null || true`,
     `if [ -e "$stage" ] || [ -L "$stage" ]; then echo 'Updater stage already exists' >&2; exit 12; fi`,
     `mkdir "$stage"; chown root:wheel "$stage"; chmod -N "$stage"; chmod 755 "$stage"`,
     `printf '%s' ${shQuote(scriptBase64)} | /usr/bin/base64 --decode > "$stage/install.sh"`,
     `chmod 700 "$stage/install.sh"`,
-    `nohup /bin/bash "$stage/install.sh" > "$stage/helper.log" 2>&1 < /dev/null &`,
+    // No nohup: root under the admin prompt has no console, and macOS nohup then exits with "can't detach
+    // from console" without starting the helper. Nothing sends a hangup here; install.sh also ignores HUP.
+    `/bin/bash "$stage/install.sh" > "$stage/helper.log" 2>&1 < /dev/null &`,
   ].join('\n');
 }
 
@@ -599,6 +625,7 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       '#!/bin/bash',
       'set -Eeuo pipefail',
       'umask 077',
+      "trap '' HUP",
       'PATH=/usr/bin:/bin:/usr/sbin:/sbin; export PATH',
       ...macStageGuards(plan),
       `app=${shQuote(app)}`,
@@ -665,6 +692,8 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       `  local restored=1`,
       `  if [ "$runtime_replaced" = 1 ]; then`,
       `    launchctl bootout system/${MAC_LABEL} >/dev/null 2>&1`,
+      // bootout returns before launchd unloads the job; the bootstrap in start_service would fail (error 5)
+      `    n=0; while launchctl print system/${MAC_LABEL} >/dev/null 2>&1 && [ "$n" -lt 120 ]; do n=$((n + 1)); sleep 0.5; done`,
       `    if [ -d "$backup_runtime" ] && [ ! -L "$runtime" ]; then rm -rf "$runtime"; mv "$backup_runtime" "$runtime" || restored=0; else restored=0; fi`,
       `    cp "$stage/old-service.plist" "$plist"; chown root:wheel "$plist"; chmod -N "$plist"; chmod 644 "$plist"`,
       `  fi`,
@@ -697,7 +726,8 @@ export function buildMacInstallScript(plan: InstallPlan): string {
       `candidate="\${candidates[0]}"`,
       `case "$(basename "$candidate")" in ${quotedBundles}) ;; *) echo 'Unrecognized update app' >&2; false;; esac`,
       `if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$candidate/Contents/Info.plist")" != '${product.appUserModelId}' ] || [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$candidate/Contents/Info.plist")" != "$version" ]; then echo 'Wrong update identity or version' >&2; false; fi`,
-      `ditto --noacl "$candidate" "$new_main"; validate_links "$new_main"; protect_tree "$new_main"; assert_protected "$new_main"`,
+      // An unnotarized copy that keeps the quarantine flag is refused by Gatekeeper (the service copy on every start).
+      `ditto --noacl "$candidate" "$new_main"; xattr -dr com.apple.quarantine "$new_main" 2>/dev/null || true; validate_links "$new_main"; protect_tree "$new_main"; assert_protected "$new_main"`,
       `new_executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$new_main/Contents/Info.plist")`,
       `case "$new_executable" in ${quotedNames}) ;; *) echo 'Unrecognized update executable' >&2; false;; esac`,
       `if [ ! -f "$new_main/Contents/MacOS/$new_executable" ] || [ -L "$new_main/Contents/MacOS/$new_executable" ]; then false; fi`,

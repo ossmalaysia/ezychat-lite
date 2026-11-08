@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { jidType, mapStoredReactions, mapWAMessage, mapWAReaction } from './mapping.js';
+import {
+  forwardingScoreOf,
+  jidType,
+  mapStoredReactions,
+  mapWAMessage,
+  mapWAReaction,
+} from './mapping.js';
 
 const base = (over: Record<string, unknown> = {}) => ({
   key: { remoteJid: '60123456789@s.whatsapp.net', fromMe: false, id: 'ABC' },
@@ -95,6 +101,45 @@ describe('mapWAMessage', () => {
         }),
       ),
     ).toMatchObject({ senderJid: '123@lid', senderJidAlt: '60111@s.whatsapp.net' });
+  });
+
+  it("carries WhatsApp's JPEG preview of an image", () => {
+    const jpegThumbnail = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]);
+    const media = mapWAMessage(base({ message: { imageMessage: { jpegThumbnail } } }))?.media;
+    expect(media?.thumbnail).toEqual(Buffer.from(jpegThumbnail));
+  });
+
+  it.each([
+    ['empty', new Uint8Array()],
+    ['not a JPEG', Uint8Array.from([0x3c, 0x73, 0x76, 0x67])],
+    ['too large', new Uint8Array(64 * 1024 + 1).fill(0xff)],
+  ])('drops a preview that is %s', (_name, jpegThumbnail) => {
+    const media = mapWAMessage(base({ message: { imageMessage: { jpegThumbnail } } }))?.media;
+    expect(media).not.toHaveProperty('thumbnail');
+  });
+
+  it('carries an image size and the download ref', () => {
+    const m = mapWAMessage(
+      base({
+        message: {
+          imageMessage: { width: 1600, height: 900, mediaKey: Uint8Array.from([1]), url: 'u' },
+        },
+      }),
+    );
+    expect(m?.media).toMatchObject({ width: 1600, height: 900 });
+    expect(m?.media?.ref).toContain('imageMessage');
+  });
+
+  it.each([
+    ['missing', {}],
+    ['zero', { width: 0, height: 900 }],
+    ['one side only', { width: 1600 }],
+    ['too large', { width: 70000, height: 900 }],
+  ])('treats an image size that is %s as unknown', (_name, size) => {
+    const media = mapWAMessage(base({ message: { imageMessage: size } }))?.media;
+    expect(media).not.toHaveProperty('width');
+    expect(media).not.toHaveProperty('height');
+    expect(media).not.toHaveProperty('ref');
   });
 
   it('maps image with caption and media download', () => {
@@ -394,5 +439,60 @@ describe('mapStoredReactions (history sync)', () => {
     expect(dmList[0]).toMatchObject({ senderJid: '60123@s.whatsapp.net', fromMe: false });
     expect(mapStoredReactions(base({ message: { conversation: 'x' } }))).toEqual([]);
     expect(mapStoredReactions(stored([{ text: '👍', key: {} }], 'status@broadcast'))).toEqual([]);
+  });
+});
+
+describe('forwarded messages', () => {
+  const ctx = (contextInfo: Record<string, unknown>) => contextInfo;
+  it('reads the forwarding score from the content carrier (text, image, document, audio)', () => {
+    const text = mapWAMessage(
+      base({
+        message: {
+          extendedTextMessage: {
+            text: 'fwd',
+            contextInfo: ctx({ isForwarded: true, forwardingScore: 4 }),
+          },
+        },
+      }),
+    );
+    expect(text?.forwardingScore).toBe(4);
+    const image = mapWAMessage(
+      base({
+        message: { imageMessage: { caption: 'p', contextInfo: ctx({ isForwarded: true }) } },
+      }),
+    );
+    // marked forwarded without a score: once
+    expect(image?.forwardingScore).toBe(1);
+    const doc = mapWAMessage(
+      base({
+        message: {
+          documentMessage: {
+            fileName: 'a.pdf',
+            contextInfo: ctx({ isForwarded: true, forwardingScore: 127 }),
+          },
+        },
+      }),
+    );
+    expect(doc?.forwardingScore).toBe(127);
+    const audio = mapWAMessage(
+      base({ message: { audioMessage: { ptt: true, contextInfo: ctx({ forwardingScore: 5 }) } } }),
+    );
+    expect(audio?.forwardingScore).toBe(5);
+  });
+
+  it('leaves a message that was not forwarded unmarked', () => {
+    expect(mapWAMessage(base({ message: { conversation: 'own words' } }))).not.toHaveProperty(
+      'forwardingScore',
+    );
+    expect(
+      mapWAMessage(
+        base({
+          message: { extendedTextMessage: { text: 'x', contextInfo: ctx({ isForwarded: false }) } },
+        }),
+      ),
+    ).not.toHaveProperty('forwardingScore');
+    expect(forwardingScoreOf(null)).toBe(0);
+    expect(forwardingScoreOf({ forwardingScore: 0, isForwarded: false })).toBe(0);
+    expect(forwardingScoreOf({ forwardingScore: 2.5 })).toBe(2);
   });
 });

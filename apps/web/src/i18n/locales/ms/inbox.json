@@ -51,7 +51,11 @@
       "search": "Tiada sembang sepadan dengan “{{query}}”.",
       "resolvedTitle": "Tiada sembang selesai",
       "resolvedDescription": "Tiada sembang selesai di sini.",
-      "tag": "Tiada sembang dengan tag “{{tag}}”."
+      "tag": "Tiada sembang dengan tag “{{tag}}”.",
+      "chosen": {
+        "title": "Belum ada sembang",
+        "description": "Pentadbir belum memberi anda sebarang sembang terbuka. Ia muncul di sini sebaik sahaja ditambah."
+      }
     }
   },
   "chatListItem": {
@@ -180,7 +184,8 @@
       "clean": "Tiada kesilapan",
       "unavailable": "Semakan tatabahasa tidak tersedia",
       "unavailableHint": "Sambungan AI perlu diperiksa. Ejaan masih disemak, dan mesej anda boleh dihantar."
-    }
+    },
+    "sentAsFile": "{{name}} terlalu besar untuk video pada nombor ini, jadi ia dihantar sebagai fail dalam kualiti penuh."
   },
   "quickReplies": {
     "title": "Balasan pantas",
@@ -285,6 +290,7 @@
     "aiToolUsed": "AI menyemak {{title}} · {{source}}",
     "internalNote": "Nota dalaman",
     "sheetRowAdded": "AI menambah satu baris ke {{tab}} · {{source}}",
+    "driveFileSaved": "AI menyimpan fail ke Google Drive · {{source}}",
     "calendarChecked": "AI menyemak masa lapang · {{source}}",
     "calendarBooked": "AI menempah {{when}} · {{source}}",
     "calendarBookedNoTime": "AI menempah satu masa · {{source}}",
@@ -315,6 +321,12 @@
     "you": "Anda",
     "contact": "Kenalan",
     "quotedMessage": "Mesej dipetik",
+    "quoteJump": {
+      "go": "Pergi ke mesej yang dipetik",
+      "unavailable": "Mesej asal tidak tersedia",
+      "tooFar": "Mesej asal terlalu lama untuk ditunjukkan di sini",
+      "failed": "Tidak dapat membuka mesej asal. Cuba lagi."
+    },
     "notSent": "Tidak dihantar",
     "voiceNote": "Nota suara",
     "quote": {
@@ -391,6 +403,13 @@
       "showOriginal": "Tunjuk asal (admin)",
       "hideOriginal": "Sembunyi asal",
       "noText": "Tiada teks (media sahaja)"
+    },
+    "scheduled": "Berjadual",
+    "scheduledNamed": "Berjadual · {{name}}",
+    "uploadErrors": {
+      "too_large": "Terlalu besar untuk dihantar.",
+      "too_large_as_video": "Terlalu besar untuk dihantar sebagai video melalui nombor WhatsApp ini.",
+      "too_large_for_whatsapp": "Terlalu besar untuk nombor WhatsApp ini."
     }
   },
   "media": {
@@ -616,7 +635,8 @@
     "cancel": "Batal",
     "start": "Mulakan perbualan",
     "startFailed": "Tidak dapat memulakan perbualan",
-    "listLabel": "Ahli kumpulan"
+    "listLabel": "Ahli kumpulan",
+    "chosenChatsOnly": "Anda hanya boleh membuka sembang yang dipilih oleh pentadbir untuk anda."
   },
   "gettingStarted": {
     "title": "Bermula",
@@ -901,5 +921,289 @@
     "noMatch": "Tiada ahli sepadan dengan “@{{query}}”.",
     "admin": "Admin",
     "noName": "Tiada nama dikongsi"
+  },
+  "groupAdmin": {
+    "title": "Urus kumpulan",
+    "agentOnly": "Hanya admin EzyChat boleh mengubah kumpulan ini.",
+    "notAdminTitle": "Nombor WhatsApp anda bukan admin kumpulan ini",
+    "notAdminBody": "Hanya admin kumpulan boleh mengubahnya. Minta admin kumpulan jadikan nombor anda admin, kemudian cuba lagi.",
+    "offline": "WhatsApp di luar talian. Perubahan ditangguhkan sehingga ia bersambung semula.",
+    "inviteOnly": "WhatsApp Business API: orang hanya boleh menyertai melalui pautan jemputan. {{n}} daripada {{max}} ahli.",
+    "inviteOnlyNoMax": "WhatsApp Business API: orang hanya boleh menyertai melalui pautan jemputan.",
+    "edit": "Edit maklumat",
+    "add": "Tambah ahli",
+    "link": "Pautan jemputan",
+    "invite": "Jemput orang",
+    "settings": "Tetapan",
+    "full": "Kumpulan ini penuh ({{max}} ahli). Keluarkan seseorang sebelum menjemput lagi.",
+    "requests_other": "{{count}} orang minta untuk menyertai",
+    "approve": "Lulus",
+    "reject": "Tolak",
+    "approved": "{{name}} telah menyertai kumpulan",
+    "editTitle": "Nama dan keterangan kumpulan",
+    "editHint": "Semua ahli kumpulan nampak perubahan ini dan notis WhatsApp.",
+    "name": "Nama kumpulan",
+    "description": "Keterangan",
+    "descriptionPlaceholder": "Tujuan kumpulan ini (pilihan)",
+    "saved": "Kumpulan dikemas kini",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "done": "Selesai",
+    "addTitle": "Tambah ahli",
+    "addHint": "Tambah seorang demi seorang dengan nombor WhatsApp. Mereka akan menerima notis WhatsApp.",
+    "phone": "Nombor WhatsApp",
+    "banRisk": "Tambah hanya orang yang mengenali perniagaan anda. Menambah ramai orang asing boleh menyebabkan nombor anda disekat oleh WhatsApp.",
+    "addButton": "Tambah",
+    "addedToast": "{{phone}} telah ditambah",
+    "privacyTitle": "Tidak dapat menambah orang ini",
+    "privacyBody": "{{phone}} hanya benarkan orang yang dikenali menambah mereka ke kumpulan. Hantar jemputan peribadi; mereka menyertai jika menerimanya.",
+    "sendInvite": "Hantar jemputan",
+    "invitedTitle": "Jemputan dihantar",
+    "invitedBody": "{{phone}} menerima jemputan WhatsApp untuk menyertai. Sah selama 3 hari.",
+    "linkTitle": "Pautan jemputan",
+    "linkHint": "Sesiapa yang ada pautan ini boleh menyertai kumpulan. Kongsi hanya dengan orang yang anda percayai.",
+    "linkHintApi": "Orang hanya boleh menyertai kumpulan ini dengan pautan ini. Hantar dalam chat bersama mereka.",
+    "linkApproval": "Admin meluluskan setiap orang yang menggunakan pautan.",
+    "copy": "Salin pautan",
+    "copied": "Pautan disalin",
+    "reset": "Set semula pautan",
+    "resetTitle": "Set semula pautan jemputan?",
+    "resetBody": "Pautan lama berhenti berfungsi serta-merta. Orang yang sudah menyertai kekal dalam kumpulan.",
+    "resetConfirm": "Set semula",
+    "resetDone": "Pautan jemputan baharu sedia",
+    "settingsTitle": "Tetapan kumpulan",
+    "settingsHint": "Ini tetapan kumpulan WhatsApp sendiri. Perubahan dipaparkan di telefon setiap ahli.",
+    "settingsApi": "WhatsApp Business API tiada tetapan kumpulan. Kelulusan menyertai dipilih semasa kumpulan dicipta.",
+    "set": {
+      "announce": "Hanya admin hantar mesej",
+      "announceHint": "Ahli boleh membaca tetapi tidak menulis.",
+      "locked": "Hanya admin edit maklumat kumpulan",
+      "lockedHint": "Nama, foto dan keterangan.",
+      "memberAdd": "Siapa boleh tambah ahli",
+      "onlyAdmins": "Hanya admin",
+      "everyone": "Semua",
+      "approval": "Luluskan ahli baharu",
+      "approvalHint": "Admin meluluskan orang yang menyertai melalui pautan."
+    },
+    "history": "Perubahan terkini",
+    "historyNote": "Disimpan dalam Aktiviti. Perubahan di telefon hanya dipaparkan dalam WhatsApp.",
+    "log": {
+      "name": "{{by}} menukar nama kumpulan",
+      "description": "{{by}} menukar keterangan",
+      "added": "{{by}} menambah {{target}}",
+      "invited": "{{by}} menghantar jemputan kepada {{target}}",
+      "removed": "{{by}} mengeluarkan {{target}}",
+      "promoted": "{{by}} menjadikan {{target}} admin",
+      "demoted": "{{by}} membuang {{target}} sebagai admin",
+      "linkReset": "{{by}} menetapkan semula pautan jemputan",
+      "approved": "{{by}} meluluskan {{target}}",
+      "rejected": "{{by}} menolak {{target}}",
+      "setting": {
+        "announce": "{{by}} menukar siapa boleh hantar mesej",
+        "locked": "{{by}} menukar siapa boleh edit maklumat kumpulan",
+        "memberAdd": "{{by}} menukar siapa boleh tambah ahli",
+        "approval": "{{by}} menukar kelulusan menyertai"
+      },
+      "someone": "Bekas rakan sepasukan",
+      "someMember": "seseorang"
+    },
+    "memberActions": "Admin kumpulan",
+    "ownerNote": "Pencipta kumpulan tidak boleh dikeluarkan atau dibuang sebagai admin.",
+    "makeAdmin": "Jadikan admin kumpulan",
+    "removeAdmin": "Buang sebagai admin",
+    "remove": "Keluarkan dari kumpulan",
+    "promoted": "{{name}} kini admin kumpulan",
+    "demoted": "{{name}} bukan lagi admin",
+    "removed": "{{name}} telah dikeluarkan",
+    "removeTitle": "Keluarkan {{name}} dari kumpulan?",
+    "removeBody": "Mereka menerima notis WhatsApp dan tidak lagi nampak mesej baharu. Anda boleh tambah mereka semula kemudian.",
+    "removeBodyApi": "Mereka menerima notis WhatsApp dan tidak boleh menyertai semula dengan pautan jemputan.",
+    "removeConfirm": "Keluarkan",
+    "demoteTitle": "Buang {{name}} sebagai admin?",
+    "demoteBody": "Mereka kekal dalam kumpulan sebagai ahli.",
+    "demoteConfirm": "Buang sebagai admin",
+    "err": {
+      "offline": "WhatsApp di luar talian. Cuba lagi apabila ia bersambung semula.",
+      "notAdmin": "Nombor WhatsApp anda bukan admin kumpulan ini.",
+      "already": "Orang ini sudah dalam kumpulan.",
+      "notOnWhatsApp": "Nombor ini tiada di WhatsApp.",
+      "tooMany": "Terlalu ramai ditambah dalam masa singkat. Tunggu sejam untuk melindungi nombor anda.",
+      "owner": "Pencipta kumpulan tidak boleh diubah.",
+      "notSupported": "Sambungan WhatsApp ini tidak boleh melakukannya.",
+      "notMember": "Orang ini sudah tiada dalam kumpulan.",
+      "full": "Kumpulan ini penuh. Keluarkan seseorang dahulu.",
+      "inviteExpired": "Jemputan ini telah tamat tempoh. Tambah orang itu sekali lagi untuk menghantar jemputan baharu.",
+      "inboxRemoved": "Nombor WhatsApp ini telah dikeluarkan dari EzyChat, jadi kumpulannya tidak boleh diubah.",
+      "failed": "WhatsApp tidak membuat perubahan itu. Cuba lagi sebentar lagi."
+    },
+    "historyEmpty": "Belum ada perubahan dibuat dalam EzyChat.",
+    "settingsNone": "Sambungan WhatsApp ini tiada tetapan kumpulan yang boleh diubah oleh EzyChat.",
+    "linkUnavailable": "Pautan tidak dapat dibaca dari WhatsApp. Cuba lagi kemudian.",
+    "tipTitle": "Apakah admin kumpulan?",
+    "tipBody": "Admin kumpulan WhatsApp boleh mengubah kumpulan serta menambah atau mengeluarkan orang. Ia ditetapkan dalam WhatsApp dan berbeza daripada admin EzyChat."
+  },
+  "newChat": {
+    "button": "Sembang baharu",
+    "title": "Sembang baharu",
+    "description": "Hantar mesej kepada nombor telefon yang belum ada dalam peti masuk anda.",
+    "from": "Hantar daripada",
+    "businessApi": "WhatsApp Business API",
+    "phone": "Nombor telefon",
+    "phonePlaceholder": "012-345 6789 atau +65 9123 4567",
+    "phoneHint": "Nombor Malaysia boleh bermula dengan 0. Untuk negara lain, mulakan dengan + dan kod negara.",
+    "phoneInvalid": "Masukkan nombor telefon, contohnya 012-345 6789 atau +65 9123 4567.",
+    "willMessage": "Anda akan menghantar mesej kepada {{number}}.",
+    "name": "Nama (pilihan)",
+    "nameHint": "Disimpan dalam butiran pelanggan.",
+    "banTitle": "Hanya hantar mesej kepada orang yang menjangkakannya",
+    "banBody": "WhatsApp boleh menyekat nombor yang menghantar mesej kepada orang yang tidak memintanya. Mulakan sembang hanya apabila orang itu bersetuju untuk dihubungi.",
+    "apiTitle": "Bermula dengan templat yang diluluskan",
+    "apiBody": "Di WhatsApp Business API, perniagaan mesti memulakan sembang dengan templat yang diluluskan oleh Meta. Anda boleh menulis dengan bebas sebaik sahaja pelanggan membalas.",
+    "usage": "{{used}} daripada {{limit}} sembang baharu digunakan hari ini di {{inbox}}.",
+    "start": "Mulakan sembang",
+    "checking": "Menyemak WhatsApp…",
+    "next": "Pilih templat",
+    "preparing": "Menyemak…",
+    "existingTitle": "Sudah ada dalam peti masuk anda",
+    "existingBody": "{{number}} sudah mempunyai sembang.",
+    "openChat": "Buka sembang",
+    "back": "Kembali",
+    "templateTitle": "Pilih templat",
+    "templateDescription": "Mesej pertama kepada {{number}}. Sembang bermula apabila ia dihantar.",
+    "paidNote": "Setiap templat memulakan perbualan berbayar dengan Meta. Templat pemasaran lebih mahal daripada templat utiliti.",
+    "sendTemplate": "Hantar templat",
+    "sending": "Menghantar…",
+    "createdToast": "Sembang dimulakan. Tulis mesej pertama anda.",
+    "sentToast": "Templat dihantar. Anda boleh menulis dengan bebas sebaik sahaja mereka membalas.",
+    "problems": {
+      "not_on_whatsapp": {
+        "title": "{{number}} tiada WhatsApp",
+        "body": "Semak nombor dan cuba lagi."
+      },
+      "own_number": {
+        "title": "Ini nombor anda sendiri",
+        "body": "Masukkan nombor pelanggan."
+      },
+      "wa_disconnected": {
+        "title": "WhatsApp tidak bersambung",
+        "body": "{{inbox}} di luar talian, jadi nombor tidak dapat disemak. Cuba lagi apabila ia bersambung."
+      },
+      "new_chat_daily_limit": {
+        "title": "Had harian dicapai",
+        "body": "{{inbox}} telah memulakan {{limit}} sembang baharu hari ini. Cuba lagi esok. Had ini melindungi nombor anda daripada disekat WhatsApp."
+      },
+      "new_chat_hourly_limit": {
+        "title": "Terlalu banyak sembang baharu",
+        "body": "Anda telah memulakan {{hourly}} sembang baharu dalam sejam yang lalu. Cuba lagi kemudian."
+      },
+      "template_failed": {
+        "title": "Templat tidak dihantar",
+        "body": "WhatsApp tidak menerimanya, jadi tiada sembang dimulakan. Cuba lagi atau pilih templat lain."
+      },
+      "new_chat_not_allowed": {
+        "title": "Anda tidak boleh memulakan sembang baharu",
+        "body": "Minta pentadbir membenarkannya dalam Tetapan."
+      },
+      "other": {
+        "title": "Ada masalah",
+        "body": "Cuba lagi."
+      },
+      "invalid_number": {
+        "title": "Bukan nombor telefon",
+        "body": "Masukkan nombor dengan kod negaranya, atau nombor Malaysia yang bermula dengan 0."
+      },
+      "new_chat_unsupported": {
+        "title": "Nombor ini tidak boleh memulakan sembang baharu",
+        "body": "Pilih nombor WhatsApp lain untuk menghantar."
+      }
+    },
+    "usageNoLimit": "{{used}} sembang baharu dimulakan hari ini di {{inbox}} (tiada had harian)."
+  },
+  "forward": {
+    "action": "Majukan",
+    "lockedReason": "Dikunci oleh Keselamatan WhatsApp",
+    "forwarded": "Dimajukan",
+    "forwardedMany": "Dimajukan berkali-kali",
+    "title": "Majukan mesej",
+    "description": "Hantar salinan kepada hingga {{max}} sembang atau kumpulan. Ia dipaparkan sebagai \"Dimajukan\" di WhatsApp.",
+    "manyTimesNote": "Mesej ini telah dimajukan berkali-kali. WhatsApp hanya membenarkan anda memajukannya kepada satu sembang pada satu masa.",
+    "count": "{{count}} daripada {{max}} dipilih",
+    "full": "Anda boleh memajukan kepada {{max}} sembang pada satu masa.",
+    "remove": "Buang {{name}}",
+    "search": "Cari sembang dan kumpulan",
+    "listLabel": "Sembang yang boleh anda majukan",
+    "loading": "Memuatkan sembang…",
+    "emptyTitle": "Tiada sembang ditemui",
+    "emptyQuery": "Cuba nama atau nombor lain. Untuk menghantar mesej ke nombor baharu, gunakan Sembang baharu.",
+    "emptyNone": "Anda belum mempunyai sembang untuk dimajukan.",
+    "windowClosedRow": "Tetingkap balasan ditutup: hantar templat dari sembang itu",
+    "otherInbox": "Setiap sembang menerima mesej daripada nombor WhatsAppnya sendiri.",
+    "cancel": "Batal",
+    "send": "Majukan",
+    "sendCount_other": "Majukan kepada {{count}} sembang",
+    "sending": "Memajukan…",
+    "sentOne": "Dimajukan kepada {{name}}",
+    "sentMany_other": "Dimajukan kepada {{count}} sembang",
+    "openChat": "Buka sembang",
+    "problems": {
+      "wa_disconnected": {
+        "title": "WhatsApp tidak bersambung",
+        "body": "Majukan semula apabila {{inbox}} kembali dalam talian."
+      },
+      "window_closed": {
+        "title": "Tetingkap balasan ditutup",
+        "body": "Sembang yang anda pilih tidak menulis dalam 24 jam lepas. Buang sembang itu, atau hantar templat dari sembang tersebut."
+      },
+      "safety_locked": {
+        "title": "Fail ini dikunci",
+        "body": "Keselamatan WhatsApp mendapati fail ini berbahaya. Ia tidak boleh dimajukan."
+      },
+      "rate_limited": {
+        "title": "Terlalu banyak majukan",
+        "body": "Anda telah memajukan banyak mesej dalam seminit lepas. Tunggu sebentar dan cuba lagi."
+      },
+      "media_unavailable": {
+        "title": "Fail tidak tersedia",
+        "body": "Fail tidak dapat dimuat turun dari WhatsApp, jadi ia tidak boleh dimajukan."
+      },
+      "message_deleted": {
+        "title": "Mesej dipadam",
+        "body": "Mesej ini telah dipadam, jadi ia tidak boleh dimajukan."
+      },
+      "other": {
+        "title": "Tidak dimajukan",
+        "body": "Ada masalah. Tiada apa-apa dihantar. Cuba lagi."
+      },
+      "too_large_as_video": {
+        "title": "Terlalu besar untuk video",
+        "body": "Hantar sebagai fail. Fail mengekalkan kualiti penuh."
+      },
+      "too_large_for_whatsapp": {
+        "title": "Terlalu besar untuk WhatsApp",
+        "body": "Sembang yang anda pilih menggunakan nombor yang tidak boleh menerima fail sebesar ini. Buang sembang itu dan cuba lagi."
+      },
+      "message_not_sent": {
+        "title": "Belum dihantar",
+        "body": "Hanya mesej yang sudah ada di WhatsApp boleh dimajukan. Tunggu sehingga ia dihantar."
+      },
+      "inbox_removed": {
+        "title": "Nombor dibuang",
+        "body": "Sembang yang anda pilih menggunakan nombor WhatsApp yang telah dibuang. Buang sembang itu dan cuba lagi."
+      },
+      "forward_many_times": {
+        "title": "Satu sembang pada satu masa",
+        "body": "Mesej ini telah dimajukan berkali-kali. Pilih satu sembang."
+      }
+    },
+    "largeNote": "Fail besar ({{size}}). Setiap salinan dimuat naik ke WhatsApp semula, jadi ia mungkin mengambil beberapa minit.",
+    "sendAs": "Hantar sebagai",
+    "asVideo": "Video",
+    "asFile": "Fail",
+    "sendAsHint": "Video dimainkan dalam sembang. Fail mengekalkan kualiti penuh; pelanggan memuat turunnya untuk menonton.",
+    "videoTooBig": "Video ini ({{size}}) terlalu besar untuk dihantar sebagai video ke sembang yang anda pilih (hingga {{max}}). Ia dihantar sebagai fail, dalam kualiti penuh.",
+    "tooBigRow": "Terlalu besar untuk nombor ini: fail hingga {{max}}",
+    "sendingLarge": "Menghantar {{size}} ke WhatsApp…",
+    "thisNumber": "nombor WhatsApp ini",
+    "loadFailed": "Sembang tidak dapat dimuatkan. Tutup dan cuba lagi."
   }
 }

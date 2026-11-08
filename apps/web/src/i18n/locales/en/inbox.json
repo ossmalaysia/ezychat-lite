@@ -51,7 +51,11 @@
       "search": "No chats match “{{query}}”.",
       "resolvedTitle": "No resolved chats",
       "resolvedDescription": "No resolved chats here.",
-      "tag": "No chats are tagged “{{tag}}”."
+      "tag": "No chats are tagged “{{tag}}”.",
+      "chosen": {
+        "title": "No chats yet",
+        "description": "An admin has not given you any open chats yet. They show up here as soon as one is added."
+      }
     }
   },
   "chatListItem": {
@@ -183,7 +187,8 @@
       "clean": "No mistakes",
       "unavailable": "Grammar check unavailable",
       "unavailableHint": "The AI connection needs attention. Spelling is still checked, and your message can be sent."
-    }
+    },
+    "sentAsFile": "{{name}} is too big for a video on this number, so it goes as a file in full quality."
   },
   "quickReplies": {
     "title": "Quick replies",
@@ -288,6 +293,7 @@
     "aiToolUsed": "AI looked up {{title}} · {{source}}",
     "internalNote": "Internal note",
     "sheetRowAdded": "AI added a row to {{tab}} · {{source}}",
+    "driveFileSaved": "AI saved a file to Google Drive · {{source}}",
     "calendarChecked": "AI checked free times · {{source}}",
     "calendarBooked": "AI booked {{when}} · {{source}}",
     "calendarBookedNoTime": "AI booked a time · {{source}}",
@@ -318,6 +324,12 @@
     "you": "You",
     "contact": "Contact",
     "quotedMessage": "Quoted message",
+    "quoteJump": {
+      "go": "Go to the quoted message",
+      "unavailable": "The original message isn't available",
+      "tooFar": "The original message is too far back to show here",
+      "failed": "Couldn't open the original message. Try again."
+    },
     "notSent": "Not sent",
     "voiceNote": "Voice note",
     "quote": {
@@ -394,6 +406,13 @@
       "showOriginal": "Show original (admins)",
       "hideOriginal": "Hide original",
       "noText": "No text (media only)"
+    },
+    "scheduled": "Scheduled",
+    "scheduledNamed": "Scheduled · {{name}}",
+    "uploadErrors": {
+      "too_large": "Too large to send.",
+      "too_large_as_video": "Too large to send as a video on this WhatsApp number.",
+      "too_large_for_whatsapp": "Too large for this WhatsApp number."
     }
   },
   "media": {
@@ -620,7 +639,8 @@
     "cancel": "Cancel",
     "start": "Start chat",
     "startFailed": "Couldn’t start the chat",
-    "listLabel": "Group members"
+    "listLabel": "Group members",
+    "chosenChatsOnly": "You can only open the chats an admin chose for you."
   },
   "gettingStarted": {
     "title": "Getting started",
@@ -905,5 +925,292 @@
     "noMatch": "No member matches “@{{query}}”.",
     "admin": "Admin",
     "noName": "No name shared"
+  },
+  "groupAdmin": {
+    "title": "Manage group",
+    "agentOnly": "Only EzyChat admins can change this group.",
+    "notAdminTitle": "Your WhatsApp number is not an admin of this group",
+    "notAdminBody": "Only group admins can change it. Ask a group admin to make your number an admin, then try again.",
+    "offline": "WhatsApp is offline. Changes are paused until it reconnects.",
+    "inviteOnly": "WhatsApp Business API: people join only with the invite link. {{n}} of {{max}} members.",
+    "inviteOnlyNoMax": "WhatsApp Business API: people join only with the invite link.",
+    "edit": "Edit info",
+    "add": "Add member",
+    "link": "Invite link",
+    "invite": "Invite people",
+    "settings": "Settings",
+    "full": "This group is full ({{max}} members). Remove someone before inviting more.",
+    "requests_one": "{{count}} person asked to join",
+    "requests_other": "{{count}} people asked to join",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approved": "{{name}} joined the group",
+    "editTitle": "Group name and description",
+    "editHint": "Everyone in the group sees the change and a WhatsApp notice.",
+    "name": "Group name",
+    "description": "Description",
+    "descriptionPlaceholder": "What this group is for (optional)",
+    "saved": "Group updated",
+    "cancel": "Cancel",
+    "save": "Save",
+    "done": "Done",
+    "addTitle": "Add a member",
+    "addHint": "Add one person by their WhatsApp number. They get a WhatsApp notice that they were added.",
+    "phone": "WhatsApp number",
+    "banRisk": "Add only people who know your business. Adding many strangers can get your number banned by WhatsApp.",
+    "addButton": "Add",
+    "addedToast": "{{phone}} was added",
+    "privacyTitle": "Couldn't add this person",
+    "privacyBody": "{{phone}} only lets people they know add them to groups. Send them a private invite instead; they join if they accept.",
+    "sendInvite": "Send invite",
+    "invitedTitle": "Invite sent",
+    "invitedBody": "{{phone}} got a WhatsApp invite to join. It works for 3 days.",
+    "linkTitle": "Invite link",
+    "linkHint": "Anyone with this link can join the group. Share it only with people you trust.",
+    "linkHintApi": "People join this group only with this link. Send it in a chat with them.",
+    "linkApproval": "An admin approves each person who uses the link.",
+    "copy": "Copy link",
+    "copied": "Link copied",
+    "reset": "Reset link",
+    "resetTitle": "Reset the invite link?",
+    "resetBody": "The old link stops working at once. People who already joined stay in the group.",
+    "resetConfirm": "Reset link",
+    "resetDone": "New invite link ready",
+    "settingsTitle": "Group settings",
+    "settingsHint": "These are WhatsApp's own group settings. Changes show on every member's phone.",
+    "settingsApi": "The WhatsApp Business API has no group settings. Join approval is chosen when the group is created.",
+    "set": {
+      "announce": "Only admins send messages",
+      "announceHint": "Members can read but not write.",
+      "locked": "Only admins edit group info",
+      "lockedHint": "Name, photo and description.",
+      "memberAdd": "Who can add members",
+      "onlyAdmins": "Only admins",
+      "everyone": "Everyone",
+      "approval": "Approve new members",
+      "approvalHint": "An admin approves people who join with the link."
+    },
+    "history": "Recent changes",
+    "historyNote": "Kept in Activity. Changes made on the phone show only in WhatsApp.",
+    "log": {
+      "name": "{{by}} renamed the group",
+      "description": "{{by}} changed the description",
+      "added": "{{by}} added {{target}}",
+      "invited": "{{by}} sent an invite to {{target}}",
+      "removed": "{{by}} removed {{target}}",
+      "promoted": "{{by}} made {{target}} an admin",
+      "demoted": "{{by}} removed {{target}} as admin",
+      "linkReset": "{{by}} reset the invite link",
+      "approved": "{{by}} approved {{target}}",
+      "rejected": "{{by}} rejected {{target}}",
+      "setting": {
+        "announce": "{{by}} changed who can send messages",
+        "locked": "{{by}} changed who can edit group info",
+        "memberAdd": "{{by}} changed who can add members",
+        "approval": "{{by}} changed join approval"
+      },
+      "someone": "A former teammate",
+      "someMember": "someone"
+    },
+    "memberActions": "Group admin",
+    "ownerNote": "The group creator can't be removed or lose admin.",
+    "makeAdmin": "Make group admin",
+    "removeAdmin": "Remove as admin",
+    "remove": "Remove from group",
+    "promoted": "{{name}} is now a group admin",
+    "demoted": "{{name}} is no longer an admin",
+    "removed": "{{name}} was removed",
+    "removeTitle": "Remove {{name}} from the group?",
+    "removeBody": "They get a WhatsApp notice and stop seeing new messages. You can add them back later.",
+    "removeBodyApi": "They get a WhatsApp notice and can't rejoin with the invite link.",
+    "removeConfirm": "Remove",
+    "demoteTitle": "Remove {{name}} as admin?",
+    "demoteBody": "They stay in the group as a member.",
+    "demoteConfirm": "Remove as admin",
+    "err": {
+      "offline": "WhatsApp is offline. Try again when it reconnects.",
+      "notAdmin": "Your WhatsApp number is not an admin of this group.",
+      "already": "This person is already in the group.",
+      "notOnWhatsApp": "This number is not on WhatsApp.",
+      "tooMany": "Too many people added in a short time. Wait an hour to keep your number safe.",
+      "owner": "The group creator can't be changed.",
+      "notSupported": "This WhatsApp connection can't do that.",
+      "notMember": "This person is no longer in the group.",
+      "full": "This group is full. Remove someone first.",
+      "inviteExpired": "This invite has expired. Add the person again to send a new one.",
+      "inboxRemoved": "This WhatsApp number was removed from EzyChat, so its groups can't be changed.",
+      "failed": "WhatsApp didn't make the change. Try again in a moment."
+    },
+    "historyEmpty": "No changes made in EzyChat yet.",
+    "settingsNone": "This WhatsApp connection has no group settings EzyChat can change.",
+    "linkUnavailable": "The link couldn't be read from WhatsApp. Try again later.",
+    "tipTitle": "What is a group admin?",
+    "tipBody": "A WhatsApp group admin can change the group and add or remove people. It is set in WhatsApp and is separate from being an EzyChat admin."
+  },
+  "newChat": {
+    "button": "New chat",
+    "title": "New chat",
+    "description": "Message a phone number that is not in your inbox yet.",
+    "from": "Send from",
+    "businessApi": "WhatsApp Business API",
+    "phone": "Phone number",
+    "phonePlaceholder": "012-345 6789 or +65 9123 4567",
+    "phoneHint": "Malaysian numbers can start with 0. For other countries, start with + and the country code.",
+    "phoneInvalid": "Enter a phone number, for example 012-345 6789 or +65 9123 4567.",
+    "willMessage": "You will message {{number}}.",
+    "name": "Name (optional)",
+    "nameHint": "Saved in the customer's details.",
+    "banTitle": "Only message people who expect it",
+    "banBody": "WhatsApp can ban a number that messages people who did not ask for it. Start a chat only when the person agreed to be contacted.",
+    "apiTitle": "Starts with an approved template",
+    "apiBody": "On the WhatsApp Business API, a business must start a chat with a template Meta approved. You can write freely once the customer replies.",
+    "usage": "{{used}} of {{limit}} new chats used today on {{inbox}}.",
+    "start": "Start chat",
+    "checking": "Checking WhatsApp…",
+    "next": "Choose a template",
+    "preparing": "Checking…",
+    "existingTitle": "Already in your inbox",
+    "existingBody": "{{number}} already has a chat.",
+    "openChat": "Open chat",
+    "back": "Back",
+    "templateTitle": "Choose a template",
+    "templateDescription": "The first message to {{number}}. The chat starts when it is sent.",
+    "paidNote": "Each template starts a paid conversation with Meta. Marketing templates cost more than utility ones.",
+    "sendTemplate": "Send template",
+    "sending": "Sending…",
+    "createdToast": "Chat started. Write your first message.",
+    "sentToast": "Template sent. You can write freely once they reply.",
+    "problems": {
+      "not_on_whatsapp": {
+        "title": "{{number}} is not on WhatsApp",
+        "body": "Check the number and try again."
+      },
+      "own_number": {
+        "title": "This is your own number",
+        "body": "Enter the customer's number."
+      },
+      "wa_disconnected": {
+        "title": "WhatsApp is not connected",
+        "body": "{{inbox}} is offline, so the number cannot be checked. Try again when it is connected."
+      },
+      "new_chat_daily_limit": {
+        "title": "Daily limit reached",
+        "body": "{{inbox}} started {{limit}} new chats today. Try again tomorrow. The limit protects your number from a WhatsApp ban."
+      },
+      "new_chat_hourly_limit": {
+        "title": "Too many new chats",
+        "body": "You started {{hourly}} new chats in the last hour. Try again later."
+      },
+      "template_failed": {
+        "title": "The template was not sent",
+        "body": "WhatsApp did not accept it, so no chat was started. Try again or choose another template."
+      },
+      "new_chat_not_allowed": {
+        "title": "You cannot start new chats",
+        "body": "Ask an admin to allow it in Settings."
+      },
+      "other": {
+        "title": "Something went wrong",
+        "body": "Try again."
+      },
+      "invalid_number": {
+        "title": "Not a phone number",
+        "body": "Enter the number with its country code, or a Malaysian number starting with 0."
+      },
+      "new_chat_unsupported": {
+        "title": "This number cannot start new chats",
+        "body": "Choose another WhatsApp number to send from."
+      }
+    },
+    "usageNoLimit": "{{used}} new chats started today on {{inbox}} (no daily limit)."
+  },
+  "forward": {
+    "action": "Forward",
+    "lockedReason": "Locked by WhatsApp Safety",
+    "forwarded": "Forwarded",
+    "forwardedMany": "Forwarded many times",
+    "title": "Forward message",
+    "description": "Send a copy to up to {{max}} chats or groups. It shows as \"Forwarded\" on WhatsApp.",
+    "manyTimesNote": "This message was forwarded many times. WhatsApp lets you forward it to one chat at a time.",
+    "count": "{{count}} of {{max}} chosen",
+    "full": "You can forward to {{max}} chats at a time.",
+    "remove": "Remove {{name}}",
+    "search": "Search chats and groups",
+    "listLabel": "Chats you can forward to",
+    "loading": "Loading chats…",
+    "emptyTitle": "No chats found",
+    "emptyQuery": "Try another name or number. To message a new number, use New chat.",
+    "emptyNone": "You have no chats to forward to yet.",
+    "windowClosedRow": "Reply window closed: send a template from the chat",
+    "otherInbox": "Each chat gets the message from its own WhatsApp number.",
+    "cancel": "Cancel",
+    "send": "Forward",
+    "sendCount_one": "Forward to {{count}} chat",
+    "sendCount_other": "Forward to {{count}} chats",
+    "sending": "Forwarding…",
+    "sentOne": "Forwarded to {{name}}",
+    "sentMany_one": "Forwarded to {{count}} chat",
+    "sentMany_other": "Forwarded to {{count}} chats",
+    "openChat": "Open chat",
+    "problems": {
+      "wa_disconnected": {
+        "title": "WhatsApp is not connected",
+        "body": "Forward again when {{inbox}} is back online."
+      },
+      "window_closed": {
+        "title": "Reply window closed",
+        "body": "A chat you chose has not written in the last 24 hours. Remove it, or send a template from that chat."
+      },
+      "safety_locked": {
+        "title": "This file is locked",
+        "body": "WhatsApp Safety found this file dangerous. It can't be forwarded."
+      },
+      "rate_limited": {
+        "title": "Too many forwards",
+        "body": "You forwarded a lot in the last minute. Wait a moment and try again."
+      },
+      "media_unavailable": {
+        "title": "File not available",
+        "body": "The file could not be downloaded from WhatsApp, so it can't be forwarded."
+      },
+      "message_deleted": {
+        "title": "Message deleted",
+        "body": "This message was deleted, so it can't be forwarded."
+      },
+      "other": {
+        "title": "Not forwarded",
+        "body": "Something went wrong. Nothing was sent. Try again."
+      },
+      "too_large_as_video": {
+        "title": "Too big for a video",
+        "body": "Send it as a file instead. Files keep full quality."
+      },
+      "too_large_for_whatsapp": {
+        "title": "Too large for WhatsApp",
+        "body": "A chat you chose is on a number that can't take a file this large. Remove it and try again."
+      },
+      "message_not_sent": {
+        "title": "Not sent yet",
+        "body": "Only a message WhatsApp has can be forwarded. Wait until it is sent."
+      },
+      "inbox_removed": {
+        "title": "Number removed",
+        "body": "A chat you chose is on a WhatsApp number that was removed. Remove it and try again."
+      },
+      "forward_many_times": {
+        "title": "One chat at a time",
+        "body": "This message was forwarded many times. Choose one chat."
+      }
+    },
+    "largeNote": "Large file ({{size}}). Each copy is uploaded to WhatsApp again, so it can take a few minutes.",
+    "sendAs": "Send as",
+    "asVideo": "Video",
+    "asFile": "File",
+    "sendAsHint": "A video plays in the chat. A file keeps full quality; the customer downloads it to watch.",
+    "videoTooBig": "This video ({{size}}) is too big to send as a video to the chats you chose (up to {{max}}). It goes as a file, in full quality.",
+    "tooBigRow": "Too large for this number: files up to {{max}}",
+    "sendingLarge": "Sending {{size}} to WhatsApp…",
+    "thisNumber": "this WhatsApp number",
+    "loadFailed": "Chats could not be loaded. Close and try again."
   }
 }

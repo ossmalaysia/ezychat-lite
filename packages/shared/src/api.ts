@@ -93,6 +93,17 @@ export const MessageListResponse = z.object({
 });
 export type MessageListResponse = z.infer<typeof MessageListResponse>;
 
+/**
+ * Where a quoted message sits in its chat (`GET /chats/:jid/messages/:id/locate`): `found` is false
+ * when it is not stored in this chat or is hidden for the team; `newer` counts the visible messages
+ * after it, so the inbox knows how many older pages to load before it can scroll there.
+ */
+export const MessageLocateResponse = z.object({
+  found: z.boolean(),
+  newer: z.number().int().nonnegative(),
+});
+export type MessageLocateResponse = z.infer<typeof MessageLocateResponse>;
+
 /** Most members one message may tag (@mention). */
 export const MAX_MESSAGE_MENTIONS = 50;
 
@@ -115,6 +126,11 @@ export const SendMediaFields = z.object({
   quotedId: z.string().max(256).optional(),
   /** "1": send the Ogg/Opus file as a WhatsApp voice note (never with a caption). */
   voiceNote: z.literal('1').optional(),
+  /**
+   * "1": send a video as a file (a document: full quality, no preview), e.g. above the number's video
+   * limit (`InboxCapabilities.mediaLimits.video`). Ignored for other types.
+   */
+  asFile: z.literal('1').optional(),
 });
 export type SendMediaFields = z.infer<typeof SendMediaFields>;
 
@@ -268,7 +284,10 @@ export const CloudflareCreateBody = z.object({
 });
 export type CloudflareCreateBody = z.infer<typeof CloudflareCreateBody>;
 
-export const SettingsPatchBody = SettingsSchema.omit({ hasTunnelToken: true }).partial();
+// usageStats is re-declared without its default: a patch that leaves it out must not switch it on.
+export const SettingsPatchBody = SettingsSchema.omit({ hasTunnelToken: true })
+  .partial()
+  .extend({ usageStats: z.boolean().optional() });
 export type SettingsPatchBody = z.infer<typeof SettingsPatchBody>;
 
 export const PushSubscribeBody = z.object({
@@ -358,4 +377,4 @@ export const FakeLinkBody = z.object({ inboxId: z.number().int().positive() });
 export type FakeLinkBody = z.infer<typeof FakeLinkBody>;
 
 /** Largest file `POST /chats/:jid/media` accepts; the composer refuses bigger files before uploading. */
-export const MEDIA_UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;
+export const MEDIA_UPLOAD_LIMIT_BYTES = 100 * 1024 * 1024;

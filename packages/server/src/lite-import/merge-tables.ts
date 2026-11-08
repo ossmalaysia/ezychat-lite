@@ -14,6 +14,7 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   users: { merged: true },
   inboxes: { merged: true },
   inbox_members: { merged: true },
+  member_chats: { merged: true },
   ai_agents: { merged: true },
   ai_documents: { merged: true },
   ai_setup_versions: { merged: true },
@@ -23,6 +24,8 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   chats: { merged: true },
   messages: { merged: true },
   message_reactions: { merged: true },
+  media_refs: { merged: true },
+  media_thumbs: { merged: true },
   message_edits: { merged: true },
   message_changes_pending: { merged: true },
   chat_events: { merged: true },
@@ -41,14 +44,29 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   sheets_agent_settings: { merged: true },
   sheets_leads: { merged: true },
   sheets_activity: { merged: true },
+  drive_agent_settings: { merged: true },
+  drive_saved_files: { merged: true },
+  drive_folders: { merged: true },
+  drive_activity: { merged: true },
   connector_connections: { merged: true },
   connector_agent_settings: { merged: true },
   connector_activity: { merged: true },
   connector_calls: { merged: true },
   connector_values: { merged: true },
   safety_items: { merged: true },
+  ai_scheduled_tasks: { merged: true },
+  ai_scheduled_runs: { skip: 'run history: the imported tasks start switched off, with no runs' },
   safety_downloads: { merged: true },
   safety_numbers: { merged: true },
+  sql_account_agent_settings: { merged: true },
+  sql_account_links: { merged: true },
+  sql_account_activity: { merged: true },
+  sql_account_quotes: {
+    skip: 'quotation drafts expire within a day; created quotations stay in SQL Account and Activity',
+  },
+  sql_account_seen_items: {
+    skip: 'a one-day guard of looked-up items: looked up again after import',
+  },
   settings: {
     skip: "install-wide settings stay the target's; only per-agent keys (ai_phrases_state:<id>) are copied",
   },
@@ -56,6 +74,7 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   push_subscriptions: { skip: 'not imported: phones subscribe again' },
   api_tokens: { skip: 'not imported: AI assistants are reconnected (after-import checklist)' },
   oauth_clients: { skip: 'not imported: AI assistants are reconnected (after-import checklist)' },
+  avatars: { skip: 'a photo cache: the target fetches the photos from WhatsApp again' },
   sqlite_sequence: { skip: 'SQLite internal' },
 };
 
@@ -139,7 +158,10 @@ function reseal(blob: unknown, input: MergeInput): string | null {
 function googleAccount(
   db: DB,
   box: SecretBox | null,
-  key: 'google_calendar_tokens' | 'google_sheets_tokens' = 'google_calendar_tokens',
+  key:
+    | 'google_calendar_tokens'
+    | 'google_sheets_tokens'
+    | 'google_drive_tokens' = 'google_calendar_tokens',
 ): string | null {
   if (!box) return null;
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
@@ -339,6 +361,7 @@ export function mergeTables(input: MergeInput): MergeOutcome {
   // ── Connectors: connections (target wins), per-agent settings, Google Calendar settings ────
   let sameGoogle = false;
   let sameSheets = false;
+  let sameDrive = false;
   phase(() => {
     const addConnection = inserter(target, 'connector_connections');
     const has = target.prepare('SELECT 1 FROM connector_connections WHERE connector_id = ?');
@@ -379,6 +402,32 @@ export function mergeTables(input: MergeInput): MergeOutcome {
         const agentId = maps.agent(s.agent_id);
         if (agentId !== null) addSheets({ ...s, agent_id: agentId });
       }
+    }
+    // SQL Account: per-agent object access and chat links (the keys stay the target's setting).
+    const addSql = inserter(target, 'sql_account_agent_settings', { verb: 'INSERT OR IGNORE' });
+    for (const s of rows(lite, 'SELECT * FROM sql_account_agent_settings')) {
+      const agentId = maps.agent(s.agent_id);
+      if (agentId !== null) addSql({ ...s, agent_id: agentId });
+    }
+    const addLink = inserter(target, 'sql_account_links', { verb: 'INSERT OR IGNORE' });
+    for (const l of rows(lite, 'SELECT * FROM sql_account_links')) {
+      const chat = maps.chat(l.chat_jid as string);
+      if (chat) addLink({ ...l, chat_jid: chat, linked_by: maps.user(l.linked_by) });
+    }
+    // Google Drive: the folder, the picked files and EzyChat's sub-folders belong to Lite's Google
+    // account (same rule).
+    const liteDrive = googleAccount(lite, input.liteSecret, 'google_drive_tokens');
+    sameDrive =
+      liteDrive !== null &&
+      liteDrive === googleAccount(target, input.targetSecret, 'google_drive_tokens');
+    if (sameDrive) {
+      const addDrive = inserter(target, 'drive_agent_settings');
+      for (const s of rows(lite, 'SELECT * FROM drive_agent_settings')) {
+        const agentId = maps.agent(s.agent_id);
+        if (agentId !== null) addDrive({ ...s, agent_id: agentId });
+      }
+      const addFolder = inserter(target, 'drive_folders', { verb: 'INSERT OR IGNORE' });
+      for (const f of rows(lite, 'SELECT * FROM drive_folders')) addFolder(f);
     }
   });
 
@@ -425,6 +474,25 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       counts.chats++;
     }
   });
+  // Scheduled tasks: copied switched off (an admin checks and turns each on in the new inbox, so
+  // the same message is never sent from two installs).
+  phase(() => {
+    const addTask = inserter(target, 'ai_scheduled_tasks', { omit: ['id'] });
+    for (const task of rows(lite, 'SELECT * FROM ai_scheduled_tasks ORDER BY id')) {
+      const agentId = maps.agent(task.agent_id);
+      const chat = maps.chat(task.chat_jid as string);
+      if (agentId === null || !chat) continue;
+      const added = addTask({
+        ...task,
+        agent_id: agentId,
+        chat_jid: chat,
+        enabled: 0,
+        created_by: maps.user(task.created_by),
+        updated_at: now,
+      });
+      maps.scheduledTasks.set(Number(task.id), Number(added.lastInsertRowid));
+    }
+  });
   phase(() => {
     const addMessage = inserter(target, 'messages');
     for (const m of rows(lite, 'SELECT * FROM messages')) {
@@ -440,6 +508,10 @@ export function mergeTables(input: MergeInput): MergeOutcome {
         deleted_by_user_id: maps.user(m.deleted_by_user_id),
         hidden_by_user_id: maps.user(m.hidden_by_user_id),
         sent_via_token_id: null,
+        scheduled_task_id:
+          m.scheduled_task_id == null
+            ? null
+            : (maps.scheduledTasks.get(Number(m.scheduled_task_id)) ?? null),
         media_path: mediaPath(m.media_path),
       });
       counts.messages++;
@@ -448,6 +520,14 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     for (const r of rows(lite, 'SELECT * FROM message_reactions')) {
       const id = maps.message(r.message_id as string);
       if (id) addReaction({ ...r, message_id: id, sent_by_user_id: maps.user(r.sent_by_user_id) });
+    }
+    // Files not downloaded yet stay downloadable in the new inbox, and images keep their preview.
+    for (const table of ['media_refs', 'media_thumbs']) {
+      const add = inserter(target, table);
+      for (const row of rows(lite, `SELECT * FROM ${table}`)) {
+        const id = maps.message(row.message_id as string);
+        if (id) add({ ...row, message_id: id });
+      }
     }
     // Earlier versions of edited messages, and edits/deletes still waiting for their message.
     const addEdit = inserter(target, 'message_edits', { omit: ['id'] });
@@ -544,9 +624,42 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     byChatAndAgent('calendar_activity', false);
     if (sameSheets) byChatAndAgent('sheets_leads', true);
     byChatAndAgent('sheets_activity', false);
+    // Saved files: only when the message came across (the duplicate guard keys on it).
+    if (sameDrive) {
+      const addSaved = inserter(target, 'drive_saved_files', {
+        omit: ['id'],
+        verb: 'INSERT OR IGNORE',
+      });
+      for (const r of rows(lite, 'SELECT * FROM drive_saved_files ORDER BY id')) {
+        const chat = maps.chat(r.chat_jid as string);
+        const message = maps.message(r.message_id as string);
+        const agentId = maps.agent(r.agent_id);
+        if (chat && message && agentId !== null)
+          addSaved({ ...r, chat_jid: chat, message_id: message, agent_id: agentId });
+      }
+    }
+    byChatAndAgent('drive_activity', false);
     byChatAndAgent('connector_activity', false);
     byChatAndAgent('connector_calls', false);
     byChatAndAgent('connector_values', false);
+    byChatAndAgent('sql_account_activity', false);
+  });
+
+  // ── Limited chat access (after the chats exist) ──────────────────────────────────────────
+  phase(() => {
+    // Limited chat access: an added agent limited to chosen chats keeps them (a matched user keeps the
+    // target's own choice, so rows are copied only for a user the target also limits).
+    const addMemberChat = inserter(target, 'member_chats', { verb: 'INSERT OR IGNORE' });
+    const scopeOf = target.prepare('SELECT chat_scope FROM users WHERE id = ?');
+    const chatExists = target.prepare('SELECT 1 FROM chats WHERE jid = ?');
+    for (const m of rows(lite, 'SELECT * FROM member_chats')) {
+      const user = maps.user(m.user_id);
+      const chat = maps.chat(m.chat_jid as string);
+      if (user === null || !chat || !chatExists.get(chat)) continue;
+      const scope = scopeOf.get(user) as { chat_scope: string } | undefined;
+      if (scope?.chat_scope !== 'chosen') continue;
+      addMemberChat({ ...m, user_id: user, chat_jid: chat, added_by: maps.user(m.added_by) });
+    }
   });
 
   // ── WhatsApp Safety findings ─────────────────────────────────────────────────────────────

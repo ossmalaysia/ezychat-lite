@@ -314,13 +314,20 @@ describe('mergeLiteInbox', () => {
         agent_id: agentId,
         chat_jid: `${LITE_CHAT}#3`,
       });
-      // Google Sheets likewise: no settings or lead records, activity kept
-      expect(db.prepare('SELECT COUNT(*) AS n FROM sheets_agent_settings').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM sheets_leads').get()).toEqual({ n: 0 });
-      expect(db.prepare('SELECT agent_id, chat_jid FROM sheets_activity').get()).toEqual({
-        agent_id: agentId,
-        chat_jid: `${LITE_CHAT}#3`,
-      });
+      // Google Sheets and Drive likewise: no settings or records, activity kept
+      for (const table of [
+        'sheets_agent_settings',
+        'sheets_leads',
+        'drive_agent_settings',
+        'drive_folders',
+        'drive_saved_files',
+      ])
+        expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get(), table).toEqual({ n: 0 });
+      for (const table of ['sheets_activity', 'drive_activity'])
+        expect(db.prepare(`SELECT agent_id, chat_jid FROM ${table}`).get(), table).toEqual({
+          agent_id: agentId,
+          chat_jid: `${LITE_CHAT}#3`,
+        });
 
       // Safety finding follows its message
       const item = db
@@ -471,6 +478,91 @@ describe('mergeLiteInbox', () => {
       expect(after.prepare('SELECT paused FROM ai_chat_state').get()).toEqual({ paused: 1 });
     } finally {
       after.close();
+    }
+  });
+
+  it('keeps the chosen chats of a Lite agent limited to chosen chats, under the new chat keys', async () => {
+    const t = seedTarget();
+    const lite = seedLite();
+    const ldb = open(lite.dir);
+    const id = (name: string) =>
+      (ldb.prepare('SELECT id FROM users WHERE username = ?').get(name) as { id: number }).id;
+    ldb.prepare("UPDATE users SET chat_scope = 'chosen' WHERE id = ?").run(id('sam'));
+    const add = ldb.prepare(
+      'INSERT INTO member_chats (user_id, chat_jid, added_by, added_at) VALUES (?, ?, ?, ?)',
+    );
+    add.run(id('sam'), LITE_CHAT, id('amy'), NOW);
+    add.run(id('sam'), '60000000@s.whatsapp.net', null, NOW); // no such chat: dropped
+    add.run(id('amy'), LITE_CHAT, null, NOW); // amy sees all chats: a stale row is not copied
+    ldb.close();
+    await merge(t.dir, lite.dir);
+    const db = open(t.dir);
+    try {
+      const rows = db
+        .prepare(
+          `SELECT u.username, u.chat_scope, m.chat_jid FROM member_chats m JOIN users u ON u.id = m.user_id`,
+        )
+        .all();
+      expect(rows).toEqual([{ username: 'sam', chat_scope: 'chosen', chat_jid: `${LITE_CHAT}#3` }]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('imports scheduled tasks switched off, keeps the Scheduled mark and leaves the run history', async () => {
+    const t = seedTarget();
+    const lite = seedLite();
+    const db0 = open(lite.dir);
+    try {
+      const taskId = Number(
+        db0
+          .prepare(
+            `INSERT INTO ai_scheduled_tasks (agent_id, name, enabled, time_minutes, day_rule, days, chat_jid,
+               instruction, created_by, created_at, updated_at) VALUES (?, 'Morning', 1, 510, 'weekdays', 0, ?, 'Say hi', ?, 1, 1)`,
+          )
+          .run(lite.ids.agent, LITE_GROUP, lite.ids.amy).lastInsertRowid,
+      );
+      db0
+        .prepare(
+          "INSERT INTO ai_scheduled_runs (task_id, slot, trigger, state, started_at) VALUES (?, 1, 'schedule', 'sent', 1)",
+        )
+        .run(taskId);
+      db0.prepare("UPDATE messages SET scheduled_task_id = ? WHERE id = 'M1'").run(taskId);
+    } finally {
+      db0.close();
+    }
+    await merge(t.dir, lite.dir);
+    const db = open(t.dir);
+    try {
+      const task = db.prepare('SELECT * FROM ai_scheduled_tasks').get() as Record<string, unknown>;
+      expect(task).toMatchObject({ name: 'Morning', enabled: 0, chat_jid: `${LITE_GROUP}#3` });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM ai_scheduled_runs').get()).toEqual({ n: 0 });
+      expect(db.prepare("SELECT scheduled_task_id FROM messages WHERE id = 'M1#3'").get()).toEqual({
+        scheduled_task_id: task.id,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('brings Google Drive settings, folders and saved files only with the same Google account', async () => {
+    const t = seedTarget({ driveAccount: 'Owner@Example.com' });
+    const lite = seedLite({ driveAccount: 'owner@example.com' });
+    await merge(t.dir, lite.dir);
+    const db = open(t.dir);
+    try {
+      expect(db.prepare('SELECT COUNT(*) AS n FROM drive_agent_settings').get()).toEqual({ n: 1 });
+      expect(db.prepare('SELECT parent_id, name, folder_id FROM drive_folders').get()).toEqual({
+        parent_id: 'folder1',
+        name: 'Jay',
+        folder_id: 'sub1',
+      });
+      // The duplicate guard keeps pointing at the same message under its new key.
+      expect(
+        db.prepare('SELECT chat_jid, message_id, file_id FROM drive_saved_files').all(),
+      ).toEqual([{ chat_jid: `${LITE_CHAT}#3`, message_id: 'M1#3', file_id: 'file1' }]);
+    } finally {
+      db.close();
     }
   });
 
@@ -702,6 +794,35 @@ describe('mergeLiteInbox refusals and rollback', () => {
     expect(existsSync(join(t.dir, WORK_DIR))).toBe(false);
   });
 
+  it('keeps download data and image previews, under the merged message id', async () => {
+    const t = seedTarget();
+    const lite = seedLite();
+    const db = openDb(join(lite.dir, 'app.db'));
+    const { id } = db.prepare('SELECT id FROM messages LIMIT 1').get() as { id: string };
+    db.prepare('INSERT INTO media_refs (message_id, ref) VALUES (?, ?)').run(id, '{"r":1}');
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff]);
+    db.prepare('INSERT INTO media_thumbs (message_id, jpeg) VALUES (?, ?)').run(id, jpeg);
+    db.close();
+    await merge(t.dir, lite.dir);
+    const check = openDb(join(t.dir, 'app.db'));
+    try {
+      const ref = check.prepare('SELECT message_id, ref FROM media_refs').get() as {
+        message_id: string;
+        ref: string;
+      };
+      expect(ref.ref).toBe('{"r":1}');
+      expect(ref.message_id.startsWith(`${id}#`)).toBe(true);
+      const thumb = check.prepare('SELECT message_id, jpeg FROM media_thumbs').get() as {
+        message_id: string;
+        jpeg: Buffer;
+      };
+      expect(thumb.message_id).toBe(ref.message_id);
+      expect(thumb.jpeg.equals(jpeg)).toBe(true);
+    } finally {
+      check.close();
+    }
+  });
+
   it('migrates an older Lite copy before merging, never Lite itself', async () => {
     const t = seedTarget();
     const lite = seedLite();
@@ -727,6 +848,30 @@ describe('mergeLiteInbox refusals and rollback', () => {
     db.exec(
       'ALTER TABLE ai_group_chats DROP COLUMN listen; ALTER TABLE ai_group_chats DROP COLUMN agent_id;',
     );
+    db.exec('DROP TABLE avatars;'); // and 033 (profile photos)
+    // and 034 (Google Drive connector)
+    db.exec(
+      'DROP TABLE drive_agent_settings; DROP TABLE drive_saved_files; DROP TABLE drive_folders; DROP TABLE drive_activity;',
+    );
+    // and 035 (SQL Account connector)
+    db.exec(
+      'DROP TABLE sql_account_agent_settings; DROP TABLE sql_account_links; DROP TABLE sql_account_seen_items; DROP TABLE sql_account_quotes; DROP TABLE sql_account_activity;',
+    );
+    // and 036 (scheduled tasks)
+    db.exec(
+      'DROP TABLE ai_scheduled_runs; DROP TABLE ai_scheduled_tasks; ALTER TABLE messages DROP COLUMN scheduled_task_id;',
+    );
+    // and 037 (limited chat access)
+    db.exec('DROP TABLE member_chats; ALTER TABLE users DROP COLUMN chat_scope;');
+    // and 038 (message forwarding)
+    db.exec(
+      'ALTER TABLE messages DROP COLUMN forwarding_score; ALTER TABLE messages DROP COLUMN media_size;',
+    );
+    // and 039 (media download data) and 040 (image previews)
+    db.exec(
+      'DROP TABLE media_refs; ALTER TABLE messages DROP COLUMN media_width; ALTER TABLE messages DROP COLUMN media_height;',
+    );
+    db.exec('DROP TABLE media_thumbs; ALTER TABLE messages DROP COLUMN media_has_thumb;');
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

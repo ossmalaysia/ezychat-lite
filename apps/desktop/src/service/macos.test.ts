@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   launchdPlist,
+  macControlScript,
   macInstallScript,
+  macCopyLogsScript,
   macUninstallScript,
   parseLaunchctlPrint,
   remapRuntimePaths,
@@ -29,12 +31,15 @@ describe('launchdPlist', () => {
     expect(xml).toContain('<!DOCTYPE plist');
     expect(xml.trim().endsWith('</plist>')).toBe(true);
   });
-  it('has label, RunAtLoad and KeepAlive true', () => {
+  it('has label, RunAtLoad and restarts after a crash only', () => {
     expect(xml).toMatch(
       /<key>Label<\/key>\s*<string>org\.ossmalaysia\.wateaminbox\.server<\/string>/,
     );
     expect(xml).toMatch(/<key>RunAtLoad<\/key>\s*<true\/>/);
-    expect(xml).toMatch(/<key>KeepAlive<\/key>\s*<true\/>/);
+    expect(xml).toMatch(
+      /<key>KeepAlive<\/key>\s*<dict>\s*<key>SuccessfulExit<\/key>\s*<false\/>\s*<\/dict>/,
+    );
+    expect(xml).toMatch(/<key>ThrottleInterval<\/key>\s*<integer>10<\/integer>/);
   });
   it('has ProgramArguments array: program first, then escaped args', () => {
     const m = xml.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/);
@@ -54,9 +59,7 @@ describe('launchdPlist', () => {
       /<key>EnvironmentVariables<\/key>\s*<dict>\s*<key>ELECTRON_RUN_AS_NODE<\/key>\s*<string>1<\/string>/,
     );
     expect(xml).toContain('<key>StandardOutPath</key>');
-    expect(xml).toContain(
-      '<string>/Library/Application Support/wa-team-inbox/logs/service.out.log</string>',
-    );
+    expect(xml).toContain('<key>StandardOutPath</key>\n  <string>/dev/null</string>');
     expect(xml).toContain('<key>StandardErrorPath</key>');
   });
   it('balances dict/array tags', () => {
@@ -186,6 +189,18 @@ describe('macOS root daemon never runs user-writable code', () => {
     // previous copy is removed first
     expect(s.indexOf(`rm -rf '${dest}'`)).toBeLessThan(iDitto);
   });
+  it('clears the quarantine flag of the runtime copy, or Gatekeeper refuses every launchd start', () => {
+    const s = macInstallScript({
+      ...opts,
+      dataDir: '/Library/Application Support/wa-team-inbox',
+      moveFrom: '/Users/me/data',
+      exists: null,
+      runtime: { from: bundle, to: dest },
+    });
+    const strip = s.indexOf(`xattr -dr com.apple.quarantine '${dest}'`);
+    expect(strip).toBeGreaterThan(s.indexOf(`ditto --noacl '${bundle}' '${dest}'`));
+    expect(strip).toBeLessThan(s.indexOf('launchctl bootstrap'));
+  });
   it('uninstall removes the runtime copy', () => {
     const s = macUninstallScript({
       label: opts.label,
@@ -195,5 +210,85 @@ describe('macOS root daemon never runs user-writable code', () => {
       runtimeDir: '/Library/Application Support/wa-team-inbox-runtime',
     });
     expect(s).toContain("rm -rf '/Library/Application Support/wa-team-inbox-runtime'");
+  });
+});
+
+describe('macCopyLogsScript', () => {
+  const s = macCopyLogsScript({
+    logDir: '/Library/Application Support/wa-team-inbox/logs',
+    tempPrefix: 'wa-team-inbox-logs',
+    owner: 'me',
+  });
+  it('copies the root-only logs into a fresh folder the user owns and prints it', () => {
+    expect(s).toContain("out=$(mktemp -d '/private/tmp/wa-team-inbox-logs.XXXXXX')");
+    expect(s).toContain(`ditto --noacl '/Library/Application Support/wa-team-inbox/logs' "$out"`);
+    expect(s).toContain(`chown -R 'me' "$out"`);
+    expect(s.trim().endsWith('echo "$out"')).toBe(true);
+  });
+  it('never writes as root into a folder the user could have prepared', () => {
+    expect(s).not.toMatch(/\$TMPDIR|\/Users\//);
+  });
+});
+
+// launchctl bootout returns while the job is still shutting down: an immediate bootstrap then fails
+// with "5: Input/output error", and the server may still write its data folder.
+describe('waits until launchd has unloaded the service', () => {
+  const wait =
+    'while launchctl print system/org.ossmalaysia.wateaminbox.server >/dev/null 2>&1; do';
+  const data = '/Library/Application Support/wa-team-inbox';
+  it('install stops an old service before it moves data or replaces the runtime copy', () => {
+    const s = macInstallScript({
+      ...opts,
+      dataDir: data,
+      moveFrom: '/Users/me/data',
+      exists: null,
+      runtime: { from: '/Applications/EzyChat Lite.app', to: `${data}-runtime/EzyChat Lite.app` },
+    });
+    const w = s.indexOf(wait);
+    expect(w).toBeGreaterThan(s.indexOf('launchctl bootout'));
+    expect(w).toBeLessThan(s.indexOf(`mkdir -p '${data}'`));
+    expect(w).toBeLessThan(s.indexOf('ditto --noacl'));
+    expect(w).toBeLessThan(s.indexOf('launchctl bootstrap'));
+  });
+  it('uninstall waits before it removes the runtime and moves the data back', () => {
+    const s = macUninstallScript({
+      label: opts.label,
+      dataDir: data,
+      moveTo: '/Users/me/data',
+      owner: 'me',
+      runtimeDir: `${data}-runtime`,
+    });
+    const w = s.indexOf(wait);
+    expect(w).toBeGreaterThan(s.indexOf('launchctl bootout'));
+    expect(w).toBeLessThan(s.indexOf(`rm -rf '${data}-runtime'`));
+    expect(w).toBeLessThan(s.indexOf("chown -R 'me'"));
+  });
+  it('stop returns only once the service is gone, and gives up with an error after a minute', () => {
+    const s = macControlScript({ label: opts.label, action: 'stop' });
+    expect(s).toContain(wait);
+    expect(s).toContain('-ge 120');
+    expect(s).toMatch(/did not stop[^\n]*>&2; exit 5/);
+  });
+});
+
+describe('a refused launchd start names the macOS switch', () => {
+  const hint = 'Login Items & Extensions > Allow in the Background';
+  it('install explains where to allow the background service instead of a bare launchctl error', () => {
+    const s = macInstallScript({
+      ...opts,
+      productName: 'EzyChat Lite',
+      dataDir: '/Library/Application Support/wa-team-inbox',
+      moveFrom: '/Users/me/data',
+      exists: null,
+    });
+    expect(s).toMatch(
+      /if ! launchctl bootstrap system '[^']+'; then echo '[^']*EzyChat Lite[^']*' >&2; exit 6; fi/,
+    );
+    expect(s).toContain(hint);
+  });
+  it('start does too', () => {
+    const s = macControlScript({ label: opts.label, action: 'start', productName: 'EzyChat Lite' });
+    expect(s).toContain(hint);
+    expect(s).toContain('exit 6');
   });
 });

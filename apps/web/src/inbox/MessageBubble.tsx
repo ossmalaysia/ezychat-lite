@@ -6,11 +6,14 @@ import { Link } from 'react-router-dom';
 import {
   AlertCircle,
   Bot,
+  CalendarClock,
   Check,
   CheckCheck,
   Clock,
   Copy,
   FileText,
+  Forward,
+  Loader2,
   Mic,
   Reply,
   RotateCw,
@@ -32,7 +35,8 @@ import { SafetyFile, SafetyNotice, showsSafety } from './SafetyMessage';
 import { ReactionBadges } from './ReactionBadges';
 import { ReactionPicker } from './ReactionPicker';
 import { DeletedBody, EditedLabel, MessageMoreMenu } from './MessageActions';
-import { NO_RIGHTS, type MessageChangeProps } from './message-changes';
+import { NO_RIGHTS, forwardLocked, forwardable, type MessageChangeProps } from './message-changes';
+import { formatBytes } from '../lib/file-transfer';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
 import { SWIPE_TRIGGER_PX, useSwipeReply } from './useSwipeReply';
@@ -57,6 +61,10 @@ export interface MessageBubbleProps {
   directory?: Directory;
   /** Direct chats: the customer's name as the header shows it (used in quotes). */
   contactName?: string;
+  /** Tap the quote to scroll to the original message (loads older pages when needed). */
+  onOpenQuote?(quotedId: string): void;
+  /** Briefly marks the bubble after a jump from a quote. */
+  highlighted?: boolean;
   /** Edit and delete (⋮ menu; under Reply in the press-and-hold bar on touch). */
   changes?: MessageChangeProps;
 }
@@ -186,6 +194,8 @@ export function MessageBubble({
   reactDisabledReason = null,
   contactName,
   changes,
+  onOpenQuote,
+  highlighted = false,
 }: MessageBubbleProps) {
   const { t } = useTranslation(['inbox', 'common']);
   // Deleted for everyone: no reply, reaction or copy (WhatsApp shows only the placeholder).
@@ -224,6 +234,19 @@ export function MessageBubble({
     (m.senderJid ? formatJid(m.senderJid) || t('chatListItem.unknownContact') : null);
   // Group messages: the sender's own customer profile (from their direct chat), when set.
   const profile = !out ? (m.senderProfile ?? null) : null;
+
+  const quoteContent = quoted ? (
+    <>
+      <span className="block font-semibold text-primary">
+        {quotedAuthor(quoted, t, contactName)}
+      </span>
+      <span className="line-clamp-2 block break-words text-muted-foreground">
+        {quotedPreview(quoted, t)}
+      </span>
+    </>
+  ) : (
+    <span className="block italic text-muted-foreground">{t('message.quotedMessage')}</span>
+  );
 
   // Touch screens reply by swipe or long-press, so the button is visually hidden there but stays a
   // real control for screen readers, switch access and keyboards (it shows when focused).
@@ -278,14 +301,20 @@ export function MessageBubble({
       : sentBy === meId
         ? ''
         : (directory?.nameOf(sentBy) ?? t('message.reactions.fromTeammateUnknown'));
+  // Forward: whoever sees the message may forward it (the server checks every chosen chat).
+  const canForward = !!changes?.onForward && forwardable(m);
+  const locked = canForward && forwardLocked(m);
   const moreMenu = changes && (
     <MessageMoreMenu
       rights={rights}
       disabledReason={changeDisabled}
       onEdit={() => changes.onEdit(m)}
       onDelete={() => changes.onDelete(m)}
+      onForward={canForward ? () => changes.onForward!(m) : undefined}
+      forwardLocked={locked}
     />
   );
+  const touchForward = canForward && !locked ? () => changes!.onForward!(m) : undefined;
   // Touch: Edit and Delete under Reply in the press-and-hold bar, only while they are possible.
   const touchEdit =
     changes && rights.canEdit && !rights.editWindowClosed && !changeDisabled
@@ -307,6 +336,7 @@ export function MessageBubble({
       onReact={(emoji) => onReact!(m, emoji)}
       disabledReason={reactDisabledReason}
       onReply={() => onReply!(m)}
+      onForward={touchForward}
       onCopy={copyBody}
       onEdit={touchEdit}
       onDelete={touchDelete}
@@ -316,8 +346,9 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        'group relative flex items-center gap-1.5 px-2 py-0.5 sm:px-4',
+        'group relative flex items-center gap-1.5 px-2 py-0.5 sm:px-4 motion-safe:transition-colors motion-safe:duration-700',
         out ? 'justify-end' : 'justify-start',
+        highlighted && 'bg-primary/10',
         // room for the reaction badge that hangs under the bubble
         reactions.length > 0 && 'mb-4',
       )}
@@ -339,13 +370,16 @@ export function MessageBubble({
         {...swipe.handlers}
         style={swipe.offset ? { transform: `translateX(${swipe.offset}px)` } : undefined}
         className={cn(
-          'relative min-w-0 max-w-[85%] touch-pan-y rounded-2xl px-3 py-1.5 text-foreground shadow-sm sm:max-w-[70%]',
+          'relative min-w-0 max-w-[85%] touch-pan-y rounded-2xl outline-none px-3 py-1.5 text-foreground shadow-sm sm:max-w-[70%]',
           out
             ? 'rounded-br-md border border-primary/15 bg-outbound text-outbound-foreground'
             : 'rounded-bl-md border bg-surface',
           m.status === 'failed' && 'border-danger/50',
         )}
         data-message-id={m.id}
+        data-highlighted={highlighted ? 'true' : undefined}
+        // focus target after a jump from a quote (never a tab stop)
+        tabIndex={-1}
       >
         {!out && showSender && profile ? (
           <Popover>
@@ -374,20 +408,35 @@ export function MessageBubble({
             {outboundLabel}
           </p>
         )}
-        {m.quotedId && (
-          <div className="mb-1 rounded-md border-l-4 border-primary bg-muted/70 px-2 py-1 text-xs">
-            {quoted ? (
-              <>
-                <p className="font-semibold text-primary">{quotedAuthor(quoted, t, contactName)}</p>
-                <p className="line-clamp-2 break-words text-muted-foreground">
-                  {quotedPreview(quoted, t)}
-                </p>
-              </>
-            ) : (
-              <p className="italic text-muted-foreground">{t('message.quotedMessage')}</p>
-            )}
-          </div>
+        {/* "Forwarded" / "Forwarded many times", as WhatsApp shows it. */}
+        {m.forwarded && !deleted && <ForwardedLabel many={m.forwarded.manyTimes} />}
+        {/* A large file still going up to WhatsApp (no progress: Baileys reports none). */}
+        {out && m.status === 'pending' && (m.mediaSize ?? 0) >= LARGE_FILE_BYTES && (
+          <SendingLarge size={m.mediaSize!} />
         )}
+        {/* A message an AI agent's scheduled task sent ("Scheduled · <task>"). */}
+        {out && m.scheduledTask && <ScheduledMark task={m.scheduledTask} />}
+        {m.quotedId &&
+          (onOpenQuote ? (
+            <Button
+              type="button"
+              variant="ghost"
+              data-testid="quote-jump"
+              title={t('message.quoteJump.go')}
+              onClick={() => {
+                // a long press or swipe on touch is not a tap on the quote
+                if (!swipe.wasGesture()) onOpenQuote(m.quotedId!);
+              }}
+              className="mb-1 block h-auto w-full whitespace-normal rounded-md border-l-4 border-primary bg-muted/70 px-2 py-1 text-left text-xs font-normal hover:bg-muted"
+            >
+              <span className="sr-only">{t('message.quoteJump.go')}: </span>
+              {quoteContent}
+            </Button>
+          ) : (
+            <div className="mb-1 rounded-md border-l-4 border-primary bg-muted/70 px-2 py-1 text-xs">
+              {quoteContent}
+            </div>
+          ))}
         {flagged && <SafetyNotice safety={flagged} hasFile={hasMedia} />}
         {hasMedia && (
           <div className="mb-1">
@@ -458,7 +507,7 @@ export function MessageBubble({
         </div>
         {out && m.status === 'failed' && !deleted && (
           <div className="mt-1 flex flex-wrap items-center justify-end gap-2 text-xs text-danger">
-            <span className="min-w-0 truncate">{m.error ?? t('message.notSent')}</span>
+            <span className="min-w-0 truncate">{failedReason(m.error, t)}</span>
             {onRetry && (
               <Button
                 variant="outline"
@@ -488,5 +537,65 @@ export function MessageBubble({
       {!out && copyButton}
       {!out && moreMenu}
     </div>
+  );
+}
+
+/** From this size a file shows that it is still uploading, and Forward warns before sending it. */
+export const LARGE_FILE_BYTES = 20 * 1024 * 1024;
+
+/** Upload refusals the app words itself; any other error is shown as the server wrote it. */
+const UPLOAD_ERRORS = ['too_large', 'too_large_as_video', 'too_large_for_whatsapp'] as const;
+type UploadError = (typeof UPLOAD_ERRORS)[number];
+
+/** Why a message was not sent, in plain words. */
+export function failedReason(error: string | null, t: TFunction<['inbox', 'common']>): string {
+  if (!error) return t('message.notSent');
+  return (UPLOAD_ERRORS as readonly string[]).includes(error)
+    ? t(`message.uploadErrors.${error as UploadError}`)
+    : error;
+}
+
+/** "Forwarded" / "Forwarded many times" at the top of a bubble. */
+function ForwardedLabel({ many }: Readonly<{ many: boolean }>) {
+  const { t } = useTranslation('inbox');
+  return (
+    <p
+      className="mb-0.5 flex items-center gap-1 text-xs italic text-muted-foreground"
+      data-testid="forwarded-label"
+    >
+      <Forward className="size-3.5 shrink-0" aria-hidden="true" />
+      {many ? t('forward.forwardedMany') : t('forward.forwarded')}
+    </p>
+  );
+}
+
+/** A large copy still uploading to WhatsApp (pending in the send queue). */
+function SendingLarge({ size }: Readonly<{ size: number }>) {
+  const { t } = useTranslation('inbox');
+  return (
+    <p
+      className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground"
+      role="status"
+      data-testid="sending-large"
+    >
+      <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+      {t('forward.sendingLarge', { size: formatBytes(size) })}
+    </p>
+  );
+}
+
+/** "Scheduled · <task>" above a message a scheduled task sent; just "Scheduled" once it is deleted. */
+function ScheduledMark({ task }: Readonly<{ task: NonNullable<Message['scheduledTask']> }>) {
+  const { t } = useTranslation('inbox');
+  return (
+    <p
+      className="mb-1 flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary"
+      data-testid="scheduled-mark"
+    >
+      <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="truncate">
+        {task.name ? t('message.scheduledNamed', { name: task.name }) : t('message.scheduled')}
+      </span>
+    </p>
   );
 }

@@ -32,6 +32,8 @@ import {
   useAiMember,
   type AiAgentList,
 } from '../api/ai';
+import { useRefreshTemplates, useTemplateCatalog } from '../api/ai-templates';
+import { useMakeGroupAgent } from '../api/ai-groups';
 import { ApiError, errorMessage } from '../api/client';
 import { useInboxes } from '../api/queries';
 import { Banner, EmptyState, PageHeader, StatusDot } from '@/components/app';
@@ -68,9 +70,10 @@ import { AiTryIt } from './AiTryIt';
 import { AgentConnectorsCard } from './connectors/AgentConnectorsCard';
 import { AgentDirectCard } from './AgentDirectCard';
 import { AgentGroupsCard, LITE_INBOX_NAME } from './AgentGroupsCard';
+import { AgentScheduledTasksCard } from './AgentScheduledTasksCard';
 import { AgentResolutionCard } from './AgentResolutionCard';
 import { BusinessTemplateCard } from './BusinessTemplateCard';
-import { businessTemplate, type BusinessTemplateId } from './business-templates';
+import { businessTemplate, type GalleryTemplate } from './business-templates';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton, Pending, SaveBar } from './adminUi';
 import {
@@ -263,9 +266,15 @@ function AgentEditor({
   const [templateFor, setTemplateFor] = useState<AiAgentPreset | null>(null);
   // A business template asks first when the texts are the admin's own; its Business context item
   // is added by the next successful Save (the agent may not exist yet).
-  const [businessFor, setBusinessFor] = useState<BusinessTemplateId | null>(null);
+  const [businessFor, setBusinessFor] = useState<GalleryTemplate | null>(null);
   const [pendingItem, setPendingItem] = useState<AiContextTextBody | null>(null);
+  // A group-agent template (Claims): a new agent is made group-only on Save, an existing one gets a hint.
+  const [groupSetup, setGroupSetup] = useState(false);
   const addText = useAddAgentText();
+  // The signed template list; the gallery shows the app's own templates until (or unless) it loads.
+  const templateCatalog = useTemplateCatalog();
+  const refreshTemplates = useRefreshTemplates();
+  const makeGroupAgent = useMakeGroupAgent();
   const [deleting, setDeleting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   // The field stays set while the dialog closes so its content doesn't vanish mid-animation.
@@ -304,7 +313,7 @@ function AgentEditor({
     !lite && draft.inboxId !== null && draft.inboxId !== saved.inboxId
       ? list.agents.find((a) => a.inboxId === draft.inboxId && a.id !== id && a.answerDirect)
       : undefined;
-  const busy = action.isPending || addText.isPending;
+  const busy = action.isPending || addText.isPending || makeGroupAgent.isPending;
   const dirty = isNew || changed;
 
   const template = presetDefaults(preset, t);
@@ -372,8 +381,8 @@ function AgentEditor({
     else if (isNew) setTemplateFor(p);
     else setPreset(p);
   };
-  const applyBusiness = (templateId: BusinessTemplateId) => {
-    const tpl = businessTemplate(templateId, t);
+  const applyBusiness = (template: GalleryTemplate) => {
+    const tpl = businessTemplate(template, t);
     setPreset(tpl.preset);
     setDraft((old) => ({
       ...old,
@@ -382,15 +391,14 @@ function AgentEditor({
       handoffRules: tpl.handoffRules,
     }));
     setPendingItem(tpl.contextItem);
-    toast.success(
-      t('ai.businessTemplates.applied', { name: t(`ai.businessTemplates.${templateId}.name`) }),
-    );
+    setGroupSetup(tpl.groupAgent);
+    toast.success(t('ai.businessTemplates.applied', { name: template.texts.name }));
   };
   /** Replaces unedited starting texts at once; the admin's own texts are replaced only after asking. */
-  const chooseBusiness = (templateId: BusinessTemplateId) => {
+  const chooseBusiness = (template: GalleryTemplate) => {
     if (onTemplate || (!draft.instructions.trim() && !draft.handoffRules.trim()))
-      applyBusiness(templateId);
-    else setBusinessFor(templateId);
+      applyBusiness(template);
+    else setBusinessFor(template);
   };
   /** Adds the applied template's Business context item once the agent is saved. */
   const addPendingItem = async (agentId: number) => {
@@ -400,6 +408,17 @@ function AgentEditor({
       setPendingItem(null);
     } catch (error) {
       toast.error(agentErrorMessage(error, t));
+    }
+  };
+  let groupSetupMode: 'new' | 'existing' | null = null;
+  if (groupSetup) groupSetupMode = isNew ? 'new' : 'existing';
+  /** A new agent from a group-agent template: Answer in groups on, Answer direct chats off. */
+  const setUpGroupAgent = async (agentId: number, name: string) => {
+    try {
+      await makeGroupAgent.mutateAsync(agentId);
+      toast.success(t('ai.businessTemplates.groupSetupDone', { name }));
+    } catch {
+      toast.error(t('ai.businessTemplates.groupSetupFailed'));
     }
   };
   const [typeOpen, setTypeOpen] = useState(false);
@@ -464,6 +483,7 @@ function AgentEditor({
       if (isNew) {
         writeStoredDraft(storeKey, null);
         toast.success(t('ai.agents.created', { name }));
+        if (groupSetup) await setUpGroupAgent(result.agent.id, name);
         navigate(`/admin/members/ai/${result.agent.id}`, { replace: true });
         // The new agent page starts at the top: its name, status and Next steps.
         window.scrollTo({ top: 0, left: 0 });
@@ -634,6 +654,9 @@ function AgentEditor({
       <BusinessTemplateCard
         disabled={busy}
         pendingItem={pendingItem?.name ?? null}
+        groupSetup={groupSetupMode}
+        catalog={templateCatalog.data}
+        onBrowse={() => refreshTemplates.mutate()}
         onApply={chooseBusiness}
       />
 
@@ -807,6 +830,12 @@ function AgentEditor({
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
             agentEnabled={agent.agent.enabled}
             inboxName={agentInboxName()}
+          />
+
+          {/* Scheduled tasks: one message at a set time to one chat or group of the inbox. */}
+          <AgentScheduledTasksCard
+            agentId={agent.agent.id}
+            name={agent.settings.displayName || t('ai.page.defaultTitle')}
           />
 
           {/* Every agent is a customer-facing agent for extensions ('sales'). */}
@@ -1020,7 +1049,7 @@ function AgentEditor({
       <ConfirmDialog
         open={businessFor !== null}
         title={t('ai.businessTemplates.confirmTitle', {
-          name: businessFor ? t(`ai.businessTemplates.${businessFor}.name`) : '',
+          name: businessFor?.texts.name ?? '',
         })}
         confirmLabel={t('ai.businessTemplates.apply')}
         onConfirm={() => {

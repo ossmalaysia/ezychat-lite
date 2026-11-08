@@ -217,7 +217,10 @@
       "safetyReport": "Number reported as scam",
       "safetyBlock": "Number blocked",
       "safetyUnblock": "Number unblocked",
-      "safetyAutoBlock": "Number blocked automatically"
+      "safetyAutoBlock": "Number blocked automatically",
+      "chatNewNumber": "Chat started with a new number",
+      "settingsNewChatStaff": "New chats setting changed",
+      "settingsNewChatDailyLimit": "New chats daily limit changed"
     },
     "fields": {
       "chat": "Chat",
@@ -262,7 +265,10 @@
       "members": "Members",
       "agent": "AI agent",
       "preset": "Starting point",
-      "internal": "Internal"
+      "internal": "Internal",
+      "startedBy": "Started by",
+      "before": "Before",
+      "after": "After"
     },
     "reasons": {
       "rateLimited": "Too many attempts",
@@ -529,6 +535,11 @@
       "businessTitle_one": "{{count}} word from your Business context is never marked",
       "businessTitle_other": "{{count}} words from your Business context are never marked",
       "businessHint": "They change with your Business context. Shown: the words the dictionary does not know."
+    },
+    "usageStats": {
+      "title": "Privacy",
+      "label": "Share anonymous usage stats",
+      "hint": "Helps us see where new users get stuck. No names, numbers or messages."
     }
   },
   "resolveAll": {
@@ -1203,7 +1214,8 @@
         "food": "Food",
         "services": "Services",
         "shops": "Shops",
-        "education": "Education"
+        "education": "Education",
+        "operations": "Team and operations"
       },
       "noMatch": "No template matches. Try another word, or start from a type below.",
       "dental": {
@@ -1345,7 +1357,29 @@
         "handoffRules": "- The customer needs a quote after a check\n- The customer asks about the status of their repair\n- The customer asks about a warranty claim\n- The customer asks about data recovery\n- The customer is upset or makes a complaint",
         "contextName": "Repair shop details",
         "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nShop name:\nAddress:\nOpening hours:\nBrands we repair:\nRepairs and prices (screen, battery, charging port):\nTurnaround time:\nWarranty on repairs:\nPayment methods:\nDefault language for replies:"
-      }
+      },
+      "groupAgentTag": "For WhatsApp groups",
+      "groupSetupNew": "Save also makes it a group agent: it answers in WhatsApp groups only, never in direct chats.",
+      "groupSetupExisting": "To finish: on this page turn on Answer in groups and turn off Answer direct chats.",
+      "groupSetupNext": "Then connect Google Sheets with a tab named Claims set to Add rows, and turn on Reads every message in each claims group (Group info).",
+      "groupSetupDone": "{{name}} now answers in WhatsApp groups only. Next: connect Google Sheets and choose its groups.",
+      "groupSetupFailed": "The agent was saved, but its group settings were not. Turn on Answer in groups and turn off Answer direct chats below.",
+      "claims": {
+        "name": "Claims agent",
+        "description": "Records claims posted in your WhatsApp groups to Google Sheets, confirms each one and asks for missing details. Never approves or pays.",
+        "keywords": "claim claims expense reimbursement receipt invoice policy insurance sheet group",
+        "agentName": "Claims assistant",
+        "focus": "CLAIMS\nYou record claims that members post in our WhatsApp groups. You are not a sales or customer service agent.\n- A claim needs: policy or member number, date of the event, what happened, and the amount claimed. The Business context item \"Claim rules\" lists the claim types and any other details needed.\n- When a member posts a claim, save it as a new row in the tab \"Claims\". Fill each column only from what the member wrote or from the receipt, invoice or PDF they sent. Never guess a value.\n- After saving, reply \"Recorded ✅\" to their message and repeat the key values (number, date, amount) so they can check them.\n- If a detail is missing or unclear, do not save yet. Ask only for what is missing, then save when they reply.\n- Read photos and PDFs of receipts and invoices for the date and amount. If a file cannot be read, ask for a clearer copy.\n- If a member corrects a claim, save the corrected claim as a new row and say it replaces the earlier one.\n- Stay quiet on messages that are not a claim (greetings, chat, thanks, messages between members).\n- Never approve or reject a claim, never promise payment or a payment date, and never say whether something is covered.",
+        "handoffRules": "- The member asks whether a claim is approved, rejected or paid, or when it will be paid\n- The member disputes a decision or an amount, or wants to cancel a claim\n- A file still cannot be read after one retry, looks edited, or does not match the details written\n- The message shares medical reports, IC numbers, bank details or other sensitive personal information that the claim does not need\n- The claim is above the limit or after the deadline in Claim rules\n- The member is upset or makes a complaint",
+        "contextName": "Claim rules",
+        "contextText": "Fill in each line after the colon and delete lines that do not apply. The AI treats an empty line as unknown and hands the chat to your team.\n\nClaim types:\nDetails every claim needs:\nDocuments to attach (receipt, invoice, report):\nLimit per claim:\nSubmission deadline:\nWho approves claims:\nWhen approved claims are paid:\nWhere to send the original documents:\nDefault language for replies:"
+      },
+      "source": {
+        "loaded": "Template library updated {{date}}.",
+        "builtin": "Showing the templates in this version of {{product}}.",
+        "offline": "Couldn't check for new templates. Showing the last saved list."
+      },
+      "worksWith": "Works with {{names}}"
     },
     "resolution": {
       "title": "Closing chats",
@@ -1354,6 +1388,123 @@
       "onHint": "After an answer, {{name}} asks whether it answers the question and closes the chat when the customer clearly says yes.",
       "offHint": "{{name}} adds no check-in line and never closes a chat. Your team closes chats.",
       "saveFailed": "Couldn't save. Try again."
+    },
+    "scheduled": {
+      "title": "Scheduled tasks",
+      "description": "{{name}} sends one message by itself at a set time, to one chat or group you choose.",
+      "add": "Add task",
+      "empty": {
+        "title": "No scheduled tasks yet",
+        "body": "For example: every weekday at 8:30 am, {{name}} tells the staff group today's bookings."
+      },
+      "total": "{{total}} of {{max}} tasks",
+      "limitReached": "{{max}} of {{max}} tasks. Delete one to add another.",
+      "showAll": "Show all ({{total}})",
+      "showFewer": "Show fewer",
+      "safety": "Only chats and groups already in this inbox. One message each time, never to new numbers or lists of people.",
+      "noInbox": "Choose an inbox for {{name}} first.",
+      "scheduleLine": "{{days}} · {{time}}",
+      "days": {
+        "daily": "Every day",
+        "weekdays": "Weekdays",
+        "custom": "Chosen days"
+      },
+      "off": "Off",
+      "pausedShort": "Paused",
+      "next": "Next: {{when}}",
+      "chatGone": "The chat is no longer in this inbox. Edit the task to choose another.",
+      "lastRun": "Last run: {{result}}, {{when}}. Open history",
+      "switchLabel": "{{name}} on or off",
+      "actions": "More for {{name}}",
+      "edit": "Edit",
+      "runNow": "Run now",
+      "history": "History",
+      "delete": "Delete",
+      "deleteTitle": "Delete \"{{name}}\"?",
+      "deleteBody": "The task and its history are removed. Messages it already sent stay in the chat.",
+      "added": "Task added",
+      "saved": "Task saved",
+      "saveFailed": "Could not save. Try again.",
+      "result": {
+        "sent": "Sent",
+        "skipped": "Skipped",
+        "failed": "Failed",
+        "running": "Running"
+      },
+      "reason": {
+        "nothing_to_say": "Nothing to tell today, so nothing was sent.",
+        "needs_team": "The agent wanted the team to handle it, so nothing was sent.",
+        "agent_off": "The agent was off.",
+        "ai_disconnected": "The AI was not connected.",
+        "wa_disconnected": "WhatsApp was not connected.",
+        "access_closed": "The app was locked at that time.",
+        "window_closed": "The 24-hour reply window of this chat was closed (WhatsApp Business API).",
+        "missed": "The app was not running at that time. Missed runs are not sent later.",
+        "chat_gone": "The chat is no longer in this inbox.",
+        "confidential_leak": "The message would have shown an Internal item, so it was not sent.",
+        "ai_unavailable": "The AI did not answer in time.",
+        "lookup_failed": "A look-up (for example Google Calendar) did not work.",
+        "send_failed": "WhatsApp did not take the message.",
+        "interrupted": "The app stopped while the task was running."
+      },
+      "paused": {
+        "title": "Scheduled tasks are paused",
+        "agent_off": "{{name}} is off. Turn the agent on to run its tasks.",
+        "ai_disconnected": "The AI is not connected. Connect it in Settings → AI.",
+        "wa_disconnected": "WhatsApp is not connected. Tasks start again when it is.",
+        "access_closed": "The app is locked. Tasks start again when it is unlocked."
+      },
+      "form": {
+        "addTitle": "Add scheduled task",
+        "editTitle": "Edit scheduled task",
+        "description": "{{name}} sends one message at this time. It can also send nothing when there is nothing to tell.",
+        "name": "Name",
+        "namePlaceholder": "Morning bookings",
+        "nameRequired": "Give the task a name.",
+        "chat": "Send to",
+        "chatPlaceholder": "Choose a chat or group",
+        "chatSearch": "Search chats and groups",
+        "chatNone": "No chat found.",
+        "chatLoading": "Loading chats…",
+        "chatHint": "Only chats and groups already in this inbox.",
+        "chatRequired": "Choose where to send it.",
+        "chatNotInInbox": "That chat is not in this agent's inbox. Choose another.",
+        "groups": "Groups",
+        "people": "People",
+        "when": "When",
+        "time": "Time",
+        "timeZone": "Business time zone: {{zone}} (Settings → AI).",
+        "days": "Days",
+        "daysRequired": "Choose at least one day.",
+        "instruction": "What should it say?",
+        "instructionPlaceholder": "Tell the team today's bookings from Google Calendar. Skip if there are none.",
+        "instructionHint": "{{name}} uses its business context and connectors. Add \"skip if nothing\" to send nothing on quiet days.",
+        "instructionRequired": "Write what the message should say.",
+        "preview": "Preview",
+        "save": "Save",
+        "create": "Add task"
+      },
+      "preview": {
+        "title": "Preview",
+        "lookedUp": "{{name}} looked up {{title}} ({{source}}).",
+        "wouldSend": "Would send to {{chat}}:",
+        "wouldSkip": "Would send nothing. {{reason}}",
+        "nothingSent": "Preview only. Nothing is sent.",
+        "failed": "The preview did not work"
+      },
+      "runNowTitle": "Send now to {{chat}}?",
+      "runNowBody": "{{name}} runs the task once now and sends its message, as at the set time.",
+      "runNowLimit": "Run now was used too often in the last hour. Try again later.",
+      "runNowSent": "Sent to {{chat}}",
+      "runNowSkipped": "Nothing sent. {{reason}}",
+      "runNowFailed": "Not sent. {{reason}}",
+      "openChat": "Open chat",
+      "openChatNamed": "Open {{chat}}",
+      "historyTitle": "History: {{name}}",
+      "historyBody": "The last 30 runs. Message text stays in the chat.",
+      "historyEmpty": "This task has not run yet.",
+      "byRunNow": "Run now by {{name}}",
+      "byRunNowUnknown": "Run now"
     }
   },
   "enrichment": {
@@ -1544,7 +1695,13 @@
       "none": "No connector yet.",
       "browse": "Browse connectors",
       "sheetsReads": "Reads {{tabs}}",
-      "sheetsAdds": "Adds rows to {{tabs}}"
+      "sheetsAdds": "Adds rows to {{tabs}}",
+      "driveNoFolder": "No folder chosen",
+      "driveSaves": "Saves files",
+      "driveReads_one": "Reads {{count}} file",
+      "driveReads_other": "Reads {{count}} files",
+      "driveSavesAndReads_one": "Saves files and reads {{count}} file",
+      "driveSavesAndReads_other": "Saves files and reads {{count}} files"
     },
     "settingsPointerTitle": "Connectors",
     "settingsPointer": "Google Calendar and other systems your AI agents use are in Admin → Connectors.",
@@ -1556,7 +1713,13 @@
       "readRows": "Answer questions from the sheet",
       "readRowsHint": "Looks up prices, stock or other facts in your tab before it answers.",
       "addLead": "Save interested customers (leads)",
-      "addLeadHint": "Adds a customer who wants to buy as one row, so your team can follow up."
+      "addLeadHint": "Adds a customer who wants to buy as one row, so your team can follow up.",
+      "save": "Save a file",
+      "saveHint": "Saves a file someone sent in this chat into the agent's folder.",
+      "find": "Find a file",
+      "findHint": "Finds the right file among the files you picked.",
+      "read": "Read a file",
+      "readHint": "Reads a Google Doc, Sheet, PDF, Word or text file you picked and answers from it."
     },
     "items": {
       "google-calendar": {
@@ -1576,6 +1739,20 @@
         "short": "Answer from your price list, and save interested customers as leads.",
         "long": "Keep prices, stock or a FAQ in a Google Sheet and let your AI agent read it. If you allow it, the AI also adds each new lead as a row. Sign in with Google, then choose the sheet.",
         "privacy": "{{product}} can open only the spreadsheets you choose, reads only the tab you pick and writes only the lead rows it adds: date, the customer’s name, WhatsApp number, email and a short line on what they want. No chat history goes to Google. The sign-in is stored encrypted on this computer."
+      },
+      "google-drive": {
+        "name": "Google Drive",
+        "short": "Save files from chats; read files you pick.",
+        "long": "AI agents can save files people send on WhatsApp into a Google Drive folder you choose, and read the Drive files you pick. Each agent's instructions say what to save or read, and when.",
+        "privacy": "{{product}} can open only the folder and files you choose in Google's own window, and the files it saves itself. The rest of your Drive stays private.",
+        "privacy2": "The AI saves only files a customer sent in that chat, never files from other chats, and never a file WhatsApp Safety locked.",
+        "privacy3": "Activity keeps who and when only. File contents and names stay in your Drive."
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "Stock, prices and your customers' own invoices and orders from SQL Account.",
+        "long": "Your AI agent answers from SQL Account: stock and prices for everyone, and each customer's own invoices and orders.",
+        "privacy": "{{product}} sends SQL Account only what one look-up needs (an item name, a customer code, a document number), never the chat text."
       }
     },
     "gc": {
@@ -1926,11 +2103,44 @@
       "newColumn": "new column",
       "columnsOf": "Columns of {{tab}}",
       "emptyFirstRow": "Add column names in the first row of this tab before the AI can use it.",
+      "permissions": {
+        "groupLabel": "What the AI may write in {{tab}}",
+        "aiValues": "Let the AI fill values it looked up or calculated",
+        "aiValuesHint": "Off: the AI writes only what the person wrote or sent. On: it may also write figures from your Read tabs or worked out from the chat, such as a total. It never makes one up.",
+        "formulas": "Allow formulas",
+        "formulasHint": "A value that starts with = becomes a formula, and numbers and dates are saved as numbers and dates.",
+        "formulasTipTitle": "What can a formula do?",
+        "formulasTipBody": "A formula can change your numbers. EzyChat blocks formulas that reach outside your sheet, such as ones with a web address or IMPORTRANGE, and a formula a customer types is always saved as plain text."
+      },
       "goneBadge": "No longer in the sheet",
       "goneHint": "Google no longer lists this tab. Its access is removed when you save.",
       "autoColumns": "Filled in by {{product}} when the tab has these columns: {{columns}}. The AI fills the others from the messages, photos and PDFs it is sent.",
       "rule5": "Text is saved as plain text: a formula someone types is never run.",
-      "rule6": "Try it never writes to the sheet."
+      "rule6": "Try it never writes to the sheet.",
+      "create": {
+        "open": "Create a new sheet",
+        "title": "Create a new sheet",
+        "description": "EzyChat creates it in your Google account and uses it for {{name}}.",
+        "start": "Start from",
+        "blank": "Blank sheet",
+        "fromLayout": "{{template}} layout",
+        "name": "Sheet name",
+        "tabs": "Tabs",
+        "tabsHint": "The column names go in the first row of each tab. EzyChat fills Date, Name, WhatsApp, Group, AI agent and Source itself.",
+        "tabN": "Tab {{n}}",
+        "tabName": "Tab name",
+        "columns": "Column names",
+        "columnsHint": "Separate them with commas, for example: Date, Name, Amount",
+        "access": "What the agent may do with {{tab}}",
+        "removeTab": "Remove {{tab}}",
+        "addTab": "Add a tab",
+        "formulas_one": "{{count}} formula from the layout is added too.",
+        "formulas_other": "{{count}} formulas from the layout are added too.",
+        "invalid": "Give the sheet a name, and each tab its own name and at least one column.",
+        "cancel": "Cancel",
+        "submit": "Create sheet",
+        "done": "Sheet created in your Google account"
+      }
     },
     "sheetsAct": {
       "hint": "What the AI looked up and added. Only who and when: never the values or the chat.",
@@ -1940,6 +2150,310 @@
       "row_added": "{{agent}} added a row to {{tab}} for {{customer}}",
       "row_addedGroup": "{{agent}} added a row to {{tab}} for {{customer}} in {{group}}",
       "looked_upTab": "{{agent}} looked up {{tab}} for {{customer}}"
+    },
+    "gd": {
+      "accountDescription": "The Google account {{product}} uses for Google Drive. One account for the whole team; it can be different from the one for Google Calendar or Sheets.",
+      "what1": "Let AI agents save files people send in chats",
+      "what2": "Let AI agents read Drive files you pick",
+      "what3": "You choose the folder and files; nothing else is shared",
+      "connect": "Connect Google Drive",
+      "connectHint": "Google opens in your browser. Nothing to copy or paste. You can disconnect at any time.",
+      "connectedToast": "Google Drive connected",
+      "expiredBody": "Until you sign in again, the AI does not save or read files; it hands those chats to your team.",
+      "unavailableTitle": "Can't reach Google Drive",
+      "unavailableBody": "{{product}} tries again on its own. Meanwhile the AI hands file chats to your team.",
+      "perAgent": "Choose each AI agent's folder and files in Settings.",
+      "disconnectTitle": "Disconnect Google Drive?",
+      "disconnectBody": "The AI stops saving and reading files at once. Files already saved stay in your Drive. Settings are kept for when you connect again.",
+      "disconnected": "Google Drive disconnected"
+    },
+    "drive": {
+      "notConnected": "Connect Google Drive first",
+      "notConnectedHint": "Then choose a folder for each AI agent.",
+      "paused": {
+        "expired": "Paused: sign in to Google again",
+        "unavailable": "Paused: can't reach Google Drive"
+      },
+      "pausedBody": "{{name}} does not save or read files until it works again and hands file chats to your team.",
+      "folder": {
+        "title": "Folder",
+        "description": "Where {{name}} saves files and where you pick files for it to read.",
+        "none": "No folder chosen yet.",
+        "choose": "Choose a folder",
+        "change": "Choose another folder",
+        "changeHint": "Choosing another folder removes the picked files.",
+        "open": "Open in Google Drive",
+        "onlyChosen": "{{product}} sees only what you choose here."
+      },
+      "needFolder": "Choose a folder first.",
+      "save": {
+        "title": "Save files",
+        "description": "{{name}} may save files people send in a chat into this folder.",
+        "rule1": "Only a file someone sent in that chat, never one from another chat.",
+        "rule2": "Never a file WhatsApp Safety locked.",
+        "rule3": "Up to {{mb}} MB a file. Each file is saved once.",
+        "rule4": "{{product}} names the file by date and time, not by the sender's file name."
+      },
+      "read": {
+        "title": "Read files",
+        "description": "{{name}} answers questions from the files you pick here.",
+        "none": "No files yet. Add the files {{name}} may read.",
+        "add": "Add files",
+        "remove": "Remove {{file}}",
+        "hint": "Google Docs, Sheets, PDF, Word and text files, up to {{max}}. Files saved from chats are never read.",
+        "full": "That is the most: {{max}} files. Remove one to add another.",
+        "cantRead": "The AI can't read this kind of file."
+      },
+      "kind": {
+        "doc": "Google Doc",
+        "sheet": "Google Sheet",
+        "pdf": "PDF",
+        "word": "Word",
+        "text": "Text"
+      },
+      "when": {
+        "note": "What {{name}} saves or reads, and when, comes from its instructions.",
+        "open": "Edit {{name}}'s instructions"
+      },
+      "picking": "Waiting for Google's file picker…",
+      "pickingFolder": "Choose the folder in the window that opened. This page updates by itself.",
+      "pickingFiles": "Choose the files in the window that opened. This page updates by itself.",
+      "pickBlocked": "Your browser blocked the window. Open the file picker to continue.",
+      "openPicker": "Open the file picker",
+      "pickSameComputer": "The file picker works only in a browser on the computer that runs {{product}}.",
+      "pickError": {
+        "cancelled": "Nothing was chosen.",
+        "failed": "{{product}} could not open what you chose. Choose it again.",
+        "expired": "The file picker took too long. Try again."
+      },
+      "discard": "Discard",
+      "saveButton": "Save",
+      "saved": "Google Drive settings saved"
+    },
+    "driveAct": {
+      "hint": "Who and when. File names and contents stay in your Drive.",
+      "emptyHint": "Saves and reads show here.",
+      "saved": "{{agent}} saved a file from {{customer}}",
+      "read": "{{agent}} read a file for {{customer}}",
+      "failed": "{{agent}} could not reach Google Drive for {{customer}} and handed over",
+      "skipped": {
+        "safety": "{{agent}} did not save a locked file from {{customer}}",
+        "size": "{{agent}} did not save a file from {{customer}}: too large",
+        "unavailable": "{{agent}} did not save a file from {{customer}}: it couldn't be downloaded"
+      },
+      "inGroup": "{{line}} in {{group}}"
+    },
+    "sql": {
+      "tabs": {
+        "overview": "Overview",
+        "connection": "Connection",
+        "settings": "Settings",
+        "customers": "Customers",
+        "activity": "Activity"
+      },
+      "settings": {
+        "notConnected": "Connect SQL Account first. You can choose the settings now; the AI uses them once it is connected."
+      },
+      "req": {
+        "title": "Works only with SQL Account's API service (API Link)",
+        "body": "{{product}} talks to SQL Account through its API service. It needs SQL Account's API module (a paid add-on from your SQL dealer). Without it, this connector cannot work, and {{product}} never reads your SQL Account files directly.",
+        "version": "SQL Account 5.2025.1038.875 or newer.",
+        "service": "The API service installed and running on your SQL Account server.",
+        "port": "Port 443 on your router forwarded to that server (a fixed public IP from your internet provider).",
+        "user": "A separate SQL Account user for {{product}}, with its access key and secret key.",
+        "dealer": "Not sure? Ask your SQL Account dealer.",
+        "cloud": "SQL Cloud: ask your dealer whether the API module is available."
+      },
+      "about": "Your AI agent answers from SQL Account: stock and prices for everyone, and each customer's own invoices and orders.",
+      "can": {
+        "stock": "Checks if an item is in stock and its selling price.",
+        "account": "Tells a customer their own invoices and, if you turn it on, what they still owe.",
+        "documents": "Tells a customer the status of their own quotation, sales order or delivery order.",
+        "quotation": "Can prepare a quotation after the customer confirms it (off until you turn it on)."
+      },
+      "ownOnly": "A customer only ever sees their own records. If {{product}} cannot tell which SQL Account customer is writing, the AI hands the chat to your team.",
+      "privacy1": "{{product}} sends SQL Account only what one look-up needs (an item name, a customer code, a document number), never the chat text.",
+      "privacy2": "The keys stay encrypted on this computer. Logs keep only which look-up ran, whether it worked and how long it took, never amounts, names or documents.",
+      "state": {
+        "no_dns": {
+          "title": "API service not set up",
+          "body": "SQL Account has no API service for this key. Turn on the API service in SQL Account (Configure API Service), then try again."
+        },
+        "unreachable": {
+          "title": "Can't reach your SQL server",
+          "body": "The API service is not running, the SQL Account server is off, or port 443 is not forwarded to it. Check in SQL Account with Test Connection."
+        },
+        "private_ip": {
+          "title": "Can't reach your SQL server",
+          "body": "The address points to a private network. {{product}} connects to SQL Account only over the internet, through the API service."
+        },
+        "bad_keys": {
+          "title": "Keys not accepted",
+          "body": "SQL Account did not accept the access key or secret key. Generate new keys in SQL Account (Maintain User → API Secret Key) and connect again."
+        },
+        "old_version": {
+          "title": "SQL Account too old or API not enabled",
+          "body": "This needs SQL Account 5.2025.1038.875 or newer with the API service. Ask your dealer to update it."
+        },
+        "unexpected": {
+          "title": "Can't use SQL Account's answer",
+          "body": "SQL Account answered in a way {{product}} cannot use. Try again later or ask your dealer."
+        }
+      },
+      "conn": {
+        "connect": "Connect SQL Account",
+        "connected": "SQL Account connected",
+        "title": "Connection",
+        "hint": "Paste the access key and secret key you made in SQL Account.",
+        "accessKey": "Access key",
+        "accessHint": "Looks like 13fc…c393.sql.my/APIUSER.",
+        "keyFormat": "This is not a SQL Account access key. It ends with .sql.my/ and the user name.",
+        "secretKey": "Secret key",
+        "host": "Address:",
+        "hostFromKey": "filled in from the access key",
+        "testing": "Testing…",
+        "connectTest": "Test and connect",
+        "okTitle": "Connected",
+        "okBody": "SQL Account answered. Your AI agents can use it with the access you choose in Settings.",
+        "checked": "Last checked",
+        "test": "Test connection",
+        "disconnect": "Disconnect",
+        "disconnectTitle": "Disconnect SQL Account?",
+        "disconnectBody": "The keys are deleted from this computer and the AI stops using SQL Account. Nothing changes in SQL Account.",
+        "testOk": "SQL Account answered."
+      },
+      "access": {
+        "title": "What {{agent}} may use",
+        "hint": "Choose for each kind of record. Read lets the AI look it up; Read + create also lets it add one.",
+        "own": "Customer's own only",
+        "everyone": "All customers",
+        "off": "Off",
+        "read": "Read",
+        "create": "Read + create",
+        "never": "The AI never changes or deletes anything in SQL Account. Records not listed here are never used.",
+        "showPrice": "Show selling price",
+        "stockShown": "Stock shown as",
+        "inStock": "In stock / out of stock",
+        "quantity": "Exact quantity",
+        "save": "Save",
+        "discard": "Discard",
+        "saved": "Saved"
+      },
+      "obj": {
+        "stockitem": {
+          "name": "Stock items",
+          "sees": "Code, description, selling price, in stock. Never cost price."
+        },
+        "customer": {
+          "name": "Customer details",
+          "sees": "Customer code, company name, credit term and total still owed. Never credit limit."
+        },
+        "customerinvoice": {
+          "name": "Customer invoices (amount owed)",
+          "sees": "Number, date, due date, total, paid and still owed. The AI says amounts exactly as SQL Account records them."
+        },
+        "salesinvoice": {
+          "name": "Sales invoices",
+          "sees": "Number, date and total of recent invoices."
+        },
+        "salesquotation": {
+          "name": "Quotations",
+          "sees": "Number, date, total, items."
+        },
+        "salesorder": {
+          "name": "Sales orders",
+          "sees": "Number, date, total, status."
+        },
+        "deliveryorder": {
+          "name": "Delivery orders",
+          "sees": "Number, date, status."
+        },
+        "customerpayment": {
+          "name": "Customer payments",
+          "sees": "Number, date, amount, invoices paid."
+        }
+      },
+      "guard": {
+        "title": "Before the AI creates a quotation",
+        "confirm": "It shows the items, quantities, prices and total, and waits for the customer to confirm in a new message.",
+        "items": "Items come only from a stock look-up in that chat; quantities only from what the customer wrote.",
+        "price": "Prices always come from SQL Account, never from the AI.",
+        "limit": "At most 2 quotations per chat a day and 20 a day for this agent.",
+        "never": "Never in Try it, never in groups, and never an invoice, order or payment."
+      },
+      "match": {
+        "title": "Who is this customer in SQL Account?",
+        "hint": "Before the AI shows invoices or orders, {{product}} must know which SQL Account customer is writing. It checks, in order:",
+        "rule1": "The customer code your team linked to this chat.",
+        "rule2": "The WhatsApp number, if exactly one SQL Account customer has it.",
+        "rule3": "Otherwise no match: the AI hands the chat to your team.",
+        "byPhone": "Match by phone number",
+        "never": "{{product}} never matches by name and never uses a customer code the customer types.",
+        "unavailable": "Your SQL Account does not send phone numbers to {{product}}: link customers by hand.",
+        "building": "Reading phone numbers from SQL Account… Chats are matched as soon as their customer is read."
+      },
+      "cust": {
+        "title": "Customers",
+        "hint": "Each chat and the SQL Account customer it is matched to.",
+        "linked": "Linked",
+        "phone": "Matched by phone",
+        "several": "Several customers",
+        "none": "Not matched",
+        "severalHint": "More than one SQL Account customer has this number. Link one.",
+        "noneHint": "No SQL Account customer has this number. Link one to answer about invoices and orders.",
+        "empty": "No chats yet.",
+        "link": "Link",
+        "change": "Change",
+        "unlink": "Unlink",
+        "linkTitle": "Link {{name}} to a SQL Account customer",
+        "linkHint": "Search by customer code or company name. {{product}} checks the code exists in SQL Account.",
+        "search": "Customer code or company",
+        "pick": "Link",
+        "noDebtor": "No SQL Account customer found.",
+        "linkedToast": "Linked to {{code}}",
+        "unknownCode": "SQL Account has no customer with this code.",
+        "notConnected": "Connect SQL Account first to search its customers.",
+        "searching": "Searching…",
+        "unlinked": "Link removed"
+      },
+      "act": {
+        "hint": "What the AI did with SQL Account. Amounts and documents are never kept here.",
+        "stock": "{{agent}} checked stock for",
+        "account": "{{agent}} checked the invoices of",
+        "document": "{{agent}} checked a document for",
+        "payments": "{{agent}} checked payments of",
+        "quotation": "{{agent}} created a quotation for",
+        "dockey": "SQL Account ID {{dockey}}",
+        "result": {
+          "done": "Done",
+          "refused": "Not allowed",
+          "failed": "Failed"
+        },
+        "reason": {
+          "no_customer": "no matched customer, handed to the team",
+          "unreachable": "SQL server not reachable",
+          "not_own": "not this customer's document",
+          "several": "several SQL Account customers have this number, handed to the team",
+          "object_off": "switched off for this agent",
+          "item_not_looked_up": "an item that was not looked up in this chat",
+          "qty_not_from_customer": "a quantity the customer did not write",
+          "no_price": "an item without a price in SQL Account",
+          "no_draft": "no quotation was shown to the customer first",
+          "draft_expired": "the quotation shown was too old",
+          "limit_chat": "daily limit for this chat reached",
+          "limit_agent": "daily limit for this agent reached",
+          "not_confirmed": "the customer had not confirmed",
+          "no_dns": "API service not set up",
+          "private_ip": "address on a private network",
+          "bad_keys": "keys not accepted",
+          "old_version": "SQL Account too old or API not enabled",
+          "unexpected": "an answer {{product}} cannot use",
+          "other": "something went wrong"
+        },
+        "noChat": "a chat",
+        "someone": "AI agent"
+      },
+      "agentCard": "{{on}} of {{total}} kinds of records on"
     }
   },
   "reports": {
@@ -2461,5 +2975,42 @@
         "ready": "Ready"
       }
     }
+  },
+  "limitedChats": {
+    "label": "Chats this member can see",
+    "all": {
+      "title": "All chats",
+      "hint": "Every chat of the inboxes they can open, as today."
+    },
+    "chosen": {
+      "title": "Only chosen chats",
+      "hint": "Only the direct chats and groups you choose below. Use it for outside or support agents."
+    },
+    "count_one": "{{count}} chat chosen",
+    "count_other": "{{count}} chats chosen",
+    "none": "No chats chosen yet: this member sees no chats until you add some.",
+    "chosenLabel": "Chosen chats",
+    "remove": "Remove {{name}}",
+    "add": "Add {{name}}",
+    "addLabel": "Add chats",
+    "addPlaceholder": "Search chats and groups",
+    "noMatch": "No other chats match.",
+    "note_zero": "No chats chosen",
+    "note_one": "Only {{count}} chosen chat",
+    "note_other": "Only {{count}} chosen chats"
+  },
+  "newChat": {
+    "title": "New chats",
+    "description": "Start a WhatsApp chat with a number that is not in the inbox yet. Admins can always do this.",
+    "staff": "Team members can start new chats",
+    "staffOn": "On: everyone can start new chats from the inbox they belong to.",
+    "staffOff": "Off: only admins see New chat.",
+    "limitLabel": "New chats per day, per WhatsApp number",
+    "limitUnit": "a day",
+    "limitInvalid": "Enter a whole number from 0 to {{max}}.",
+    "limitHint": "Counts new numbers started from each linked phone, by your team and by AI assistants together. 0 = no limit. Business API numbers are limited by Meta instead.",
+    "limitNone": "No limit: your team and AI assistants can message as many new numbers a day as they like.",
+    "limitBanTitle": "A high limit can get your number banned",
+    "limitBanBody": "WhatsApp can ban a number that messages many people who did not ask for it. Keep the limit low unless these people expect your message."
   }
 }

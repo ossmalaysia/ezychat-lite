@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
@@ -8,10 +8,12 @@ import type {
   MessageEditedBy,
   MessageEditsResponse,
   MessageListQuery,
+  MessageLocateResponse,
   MessageReaction,
   MessageStatus,
   MessageTemplate,
   MessageType,
+  ForwardMessageBody,
   SendTemplateBody,
   SendTextBody,
 } from '@ezychat/shared';
@@ -23,8 +25,10 @@ import type {
   WaMessageStatusUpdate,
   WaQuotedRef,
   WaReaction,
+  WaSendFile,
   WaSendOptions,
 } from '@ezychat/wa';
+import { WaUnavailableError } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
@@ -49,6 +53,7 @@ import { TemplateCatalog, fillTemplate, templatesUnsupported } from './templates
 import { WINDOW_CLOSED, replyWindowOpen, windowClosedError } from '../inboxes/reply-window.js';
 import { capabilitiesOf } from '../inboxes/types.js';
 import { DELETE_WINDOW_MS, EDIT_WINDOW_MS, MessageChangeRepo, changeAuthor } from './changes.js';
+import { createForwarder, mediaLimitKind, mediaLimitRefusal, type ForwardUser } from './forward.js';
 
 /** The signed-in user who edits or deletes (permission checks). */
 export interface ChangeUser {
@@ -72,6 +77,11 @@ export const GROUP_DELIVERY_ERROR = 'Some members may not have received this';
 export interface MessageService {
   list(jid: string, q: MessageListQuery): { messages: Message[]; nextBefore: string | null };
   /**
+   * Finds a stored message in this chat for "jump to the quoted message": never another chat's
+   * message and never one hidden for the team (`found: false`).
+   */
+  locate(jid: string, id: string): MessageLocateResponse;
+  /**
    * Stores a message WhatsApp delivered through `inboxId` (default inbox 1): chat key and message
    * id get the inbox suffix (keys.ts), so the same customer or group in two inboxes stays apart.
    */
@@ -85,7 +95,11 @@ export interface MessageService {
     jid: string,
     body: SendTextBody,
     userId: number,
-    opts?: { viaTokenId?: number },
+    /**
+     * `scheduledTaskId`: an AI agent's scheduled task sends it (the "Scheduled" mark); such a send
+     * never claims or assigns the chat.
+     */
+    opts?: { viaTokenId?: number; scheduledTaskId?: number },
   ): Message;
   /**
    * Sends an approved template (also outside the reply window): the stored message is the filled
@@ -94,6 +108,19 @@ export interface MessageService {
    * 503 offline (the template list is read from the connection).
    */
   sendTemplate(jid: string, body: SendTemplateBody, userId: number): Promise<Message>;
+  /**
+   * New chat on a template-first inbox (design docs/features/new-chat/design.md): checks the template
+   * like `sendTemplate`, sends it to `waJid` at once (not queued: no chat exists yet), and only when
+   * WhatsApp accepted it calls `createChat` and stores the message as sent. Any failure creates
+   * nothing: 503 offline, 502 `template_failed` for a refusal.
+   */
+  sendFirstTemplate(
+    inboxId: number,
+    waJid: string,
+    body: Omit<SendTemplateBody, 'clientId'>,
+    userId: number,
+    createChat: () => string,
+  ): Promise<Message>;
   /** `GET /inboxes/:id/templates`: the inbox's approved templates (cached 5 minutes). */
   listTemplates(inboxId: number, refresh?: boolean): Promise<MessageTemplate[]>;
   /** The message sent earlier with this clientId (send idempotency), or null. */
@@ -106,12 +133,25 @@ export interface MessageService {
       caption?: string;
       quotedId?: string;
       voiceNote?: boolean;
+      /** A video goes as a document (full quality, no preview); ignored for other types. */
+      asFile?: boolean;
     },
     userId: number,
     clientId: string,
     opts?: { viaTokenId?: number },
   ): Promise<Message>;
   retry(id: string, userId: number): Message;
+  /**
+   * Forward a stored message to 1–5 existing chats (design docs/features/forward-message/design.md):
+   * every chat checked first (404 outside the user's chats, 409 removed inbox / moved number / closed
+   * window, 503 `wa_disconnected`, 400 `forward_many_times`, 413 media limits), then one copy per chat
+   * through the normal send queue as WhatsApp "Forwarded". Idempotent per user + `clientRequestId`.
+   */
+  forward(
+    id: string,
+    body: ForwardMessageBody,
+    user: ForwardUser,
+  ): Promise<{ messages: Message[]; repeated: boolean }>;
   /** A WhatsApp receipt from `inboxId` (default inbox 1); `u.id` is the WhatsApp message id. */
   applyStatus(u: WaMessageStatusUpdate, inboxId?: number): void;
   /**
@@ -150,6 +190,8 @@ export interface MessageService {
   /** Earlier versions; the original of a deleted message (and its versions) only for admins. */
   messageEdits(id: string, isAdmin: boolean): MessageEditsResponse;
   mediaPath(id: string): MediaFile | null;
+  /** WhatsApp's small preview of an image; null when it has none, or for a deleted or hidden message. */
+  mediaThumb(id: string): Buffer | null;
   redownload(id: string): Promise<Message>;
   /**
    * The one way to turn stored rows into outbound Messages (REST and socket): maps each row and
@@ -239,10 +281,48 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
    * Rows → Messages, with each inbound group sender's customer profile and every message's
    * reactions (one batched lookup each).
    */
+  /** The "Scheduled · <task>" marks of a page: one query for the task names (null once deleted). */
+  const withScheduledTasks = (rows: MessageRow[], list: Message[]): Message[] => {
+    const ids = [
+      ...new Set(rows.flatMap((r) => (r.scheduled_task_id != null ? [r.scheduled_task_id] : []))),
+    ];
+    if (!ids.length) return list;
+    const names = new Map(
+      (
+        ctx.db
+          .prepare(
+            `SELECT id, name FROM ai_scheduled_tasks WHERE id IN (${ids.map(() => '?').join(',')})`,
+          )
+          .all(...ids) as Array<{ id: number; name: string }>
+      ).map((t) => [t.id, t.name]),
+    );
+    return list.map((m, i) => {
+      const id = rows[i]!.scheduled_task_id;
+      return id == null ? m : { ...m, scheduledTask: { id, name: names.get(id) ?? null } };
+    });
+  };
+  /**
+   * `media_size` of a stored file written before it was recorded (038): read once from the file and
+   * kept. A file that is gone stays unknown.
+   */
+  const withMediaSize = (row: MessageRow): MessageRow => {
+    if (row.media_size != null || !row.media_path || row.media_status !== 'ok') return row;
+    if (row.deleted_at != null) return row;
+    try {
+      const size = statSync(media.abs(row.media_path)).size;
+      repo.update(row.id, { media_size: size });
+      return { ...row, media_size: size };
+    } catch {
+      return row;
+    }
+  };
   const presentAll = (rows: MessageRow[]): Message[] => {
-    const list = withMentionNames(
+    const list = withScheduledTasks(
       rows,
-      rows.map((row) => rowToMessage(row)),
+      withMentionNames(
+        rows,
+        rows.map((row) => rowToMessage(withMediaSize(row))),
+      ),
     );
     const presented = reactions.attach(ctx.services.customers?.withSenderProfiles(list) ?? list);
     const edits = changeRepo.editCounts(
@@ -391,7 +471,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       !manualRetries.has(job.localId) &&
       row.sent_by_user_id &&
       ctx.services.auth?.getUser(row.sent_by_user_id)?.kind === 'ai' &&
-      !ctx.services.ai?.canSend(job.chatJid, row.sent_by_user_id, job.quotedId)
+      // A scheduled task's message goes out while its task and agent still may send it.
+      !(row.scheduled_task_id != null
+        ? (ctx.services.scheduled?.canSend(row.scheduled_task_id) ?? false)
+        : ctx.services.ai?.canSend(job.chatJid, row.sent_by_user_id, job.quotedId))
     ) {
       throw new Error('AI reply cancelled because chat ownership changed');
     }
@@ -406,8 +489,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     inflight.set(job.chatJid, guard);
     const p = (async () => {
       const resend = job.resendId ? { messageId: job.resendId } : {};
+      // WhatsApp's "Forwarded" mark only where the connection has one (not the Business API)
+      const forwarded =
+        job.forwardingScore && capabilitiesOf(wa).forwardedMark === true
+          ? { forwarded: { score: job.forwardingScore } }
+          : {};
       const withResend = (o: WaSendOptions | undefined): WaSendOptions | undefined =>
-        job.resendId ? { ...o, ...resend } : o;
+        job.resendId || job.forwardingScore ? { ...o, ...resend, ...forwarded } : o;
       if (job.kind === 'text') {
         const reply = replyOptions(job.quotedId);
         return wa.sendText(
@@ -420,22 +508,26 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         if (!wa.sendTemplate || !job.template) throw new Error('templates_unsupported');
         return wa.sendTemplate(job.targetJid, job.template);
       }
-      const buffer = readFileSync(media.abs(job.mediaPath!));
-      const seconds = job.voiceNote ? voiceNoteSeconds(buffer) : null;
-      return wa.sendMedia(
-        job.targetJid,
-        {
-          buffer,
-          mime: job.mime ?? 'application/octet-stream',
-          fileName: job.fileName ?? 'file',
-          ...(job.caption ? { caption: job.caption } : {}),
-          // Checked on upload; a file that no longer parses goes out as a plain audio file.
-          ...(seconds !== null
-            ? { voiceNote: { seconds, waveform: voiceNoteWaveform(buffer) } }
-            : {}),
+      const path = media.abs(job.mediaPath!);
+      // Read only when an adapter asks for the bytes: one that streams `path` never loads a large file.
+      let bytes: Buffer | null = null;
+      const read = (): Buffer => (bytes ??= readFileSync(path));
+      const seconds = job.voiceNote ? voiceNoteSeconds(read()) : null;
+      const file: WaSendFile = {
+        get buffer() {
+          return read();
         },
-        withResend(replyOptions(job.quotedId)),
-      );
+        path,
+        mime: job.mime ?? 'application/octet-stream',
+        fileName: job.fileName ?? 'file',
+        ...(job.caption ? { caption: job.caption } : {}),
+        ...(job.asDocument ? { asDocument: true } : {}),
+        // Checked on upload; a file that no longer parses goes out as a plain audio file.
+        ...(seconds !== null
+          ? { voiceNote: { seconds, waveform: voiceNoteWaveform(read()) } }
+          : {}),
+      };
+      return wa.sendMedia(job.targetJid, file, withResend(replyOptions(job.quotedId)));
     })();
     try {
       const r = await p;
@@ -600,6 +692,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       createdAt: r.created_at,
       ...(r.quoted_id ? { quotedId: r.quoted_id } : {}),
       ...(r.id.startsWith('local-') ? {} : { resendId: waMessageId(r.id) }),
+      ...(r.forwarding_score != null && r.forwarding_score > 0
+        ? { forwardingScore: r.forwarding_score }
+        : {}),
     };
     if (r.template_name) {
       let params: string[] = [];
@@ -624,6 +719,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         fileName: r.media_name ?? 'file',
         ...(r.body ? { caption: r.body } : {}),
         ...(r.voice_note === 1 ? { voiceNote: true } : {}),
+        // stored as a document although its type says otherwise (a video forwarded as a file)
+        ...(r.type === 'document' && messageTypeForMime(r.media_mime ?? '') !== 'document'
+          ? { asDocument: true }
+          : {}),
       };
     }
     const mentions = sentMentions(r.mentioned_jids);
@@ -717,6 +816,37 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
    * owner, and a teammate replying in a chat the AI owns takes it over (the AI then stops). A human
    * owner is kept when another teammate replies; replies from the linked phone (no user) change nothing.
    */
+  /** The approved, sendable template a body names, with the right number of values (else 400/409). */
+  const approvedTemplate = async (
+    inboxId: number,
+    body: Pick<SendTemplateBody, 'name' | 'language' | 'params'>,
+  ) => {
+    const wa = connections.adapter(inboxId);
+    if (!capabilitiesOf(wa).templates) throw templatesUnsupported();
+    const template = (await templates.list(inboxId, wa)).find(
+      (t) => t.name === body.name && t.language === body.language,
+    );
+    if (!template)
+      throw new HttpError(
+        400,
+        'template_not_found',
+        'This template is not approved for this inbox',
+      );
+    if (!template.sendable)
+      throw new HttpError(
+        400,
+        'template_not_sendable',
+        'Templates with a media header or buttons cannot be sent yet',
+      );
+    if (body.params.length !== template.variables)
+      throw new HttpError(
+        400,
+        'template_params',
+        `This template needs ${template.variables} value(s), got ${body.params.length}`,
+      );
+    return template;
+  };
+
   const claimOnReply = (jid: string, userId: number, t: number) => {
     const chat = requireChat(jid);
     const owner = chat.assigned_to;
@@ -759,9 +889,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     let buf: Buffer | null = null;
     try {
       // the chat's own phone, asked with the WhatsApp id (no inbox suffix)
+      const ref = repo.mediaRef(id);
       buf = await downloads.run(() =>
-        connections.forChatKey(r.chat_jid).downloadMedia(waMessageId(id)),
+        connections.forChatKey(r.chat_jid).downloadMedia(waMessageId(id), ref),
       );
+      if (!buf) log.warn({ id, hasRef: !!ref }, 'media not available for download');
     } catch (err) {
       log.warn({ err, id }, 'media redownload failed');
     }
@@ -774,7 +906,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       (await fileTypeFromBuffer(buf).catch(() => undefined))?.mime ??
       'application/octet-stream';
     const rel = media.save(r.chat_jid, id, buf, extFor(mimeType, r.media_name));
-    repo.update(id, { media_path: rel, media_mime: mimeType, media_status: 'ok' });
+    repo.update(id, {
+      media_path: rel,
+      media_mime: mimeType,
+      media_status: 'ok',
+      media_size: buf.length,
+    });
     return present(repo.get(id)!);
   };
 
@@ -966,6 +1103,24 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     }
   };
 
+  const forward = createForwarder({
+    ctx,
+    repo,
+    media,
+    log,
+    now,
+    present: (row) => present(row),
+    adapterOf,
+    refuseSend,
+    chatNumberMoved,
+    windowOpen: (jid) => replyWindowOpen(ctx, jid, now()),
+    claimOnReply,
+    insertOutgoing,
+    replyTarget,
+    ownJidOf,
+    ensureMedia: (id) => svc.ensureMedia(id),
+  });
+
   const svc: MessageService = {
     queue,
     queueFor,
@@ -986,6 +1141,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         messages: presentAll([...page].reverse()),
         nextBefore: more && oldest ? encodeBefore(oldest.timestamp, oldest.id) : null,
       };
+    },
+
+    locate(jid, id) {
+      const row = repo.get(id);
+      if (!row || row.chat_jid !== jid || row.hidden_at != null) return { found: false, newer: 0 };
+      return { found: true, newer: repo.countNewer(jid, row.timestamp, row.id) };
     },
 
     async ingest(m, source, inboxId = PRIMARY_INBOX_ID) {
@@ -1036,6 +1197,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_mime: m.media?.mime ?? null,
         media_name: m.media?.fileName ?? null,
         media_status: m.media ? 'pending' : 'none',
+        media_width: m.media?.width ?? null,
+        media_height: m.media?.height ?? null,
+        media_has_thumb: m.media?.thumbnail ? 1 : 0,
         quoted_id: m.quotedId ? messageKey(inboxId, m.quotedId) : null,
         status: m.fromMe ? 'sent' : 'delivered',
         error: null,
@@ -1043,8 +1207,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         created_at: t,
         client_id: null,
         wa_remote_jid: m.chatJid,
+        // WhatsApp's "Forwarded" mark (live and history); absent or 0 = not forwarded
+        forwarding_score:
+          m.forwardingScore && m.forwardingScore > 0 ? Math.floor(m.forwardingScore) : null,
       };
       if (!repo.insert(row)) return null; // concurrent duplicate
+      if (m.media?.ref) repo.setMediaRef(id, m.media.ref);
+      if (m.media?.thumbnail) repo.setMediaThumb(id, m.media.thumbnail);
 
       const isNewLiveInbound = source === 'live' && !m.fromMe;
       let reopened = false;
@@ -1099,7 +1268,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         try {
           const buf = await downloads.run(() => dl());
           const rel = media.save(chatJid, id, buf, extFor(m.media.mime, m.media.fileName));
-          repo.update(id, { media_path: rel, media_status: 'ok' });
+          repo.update(id, { media_path: rel, media_status: 'ok', media_size: buf.length });
           mediaBytes = buf;
           mediaRel = rel;
           // Live customer voice notes are transcribed (marked pending before message:new).
@@ -1167,7 +1336,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const quotedId = checkQuote(jid, body.quotedId);
       const mentions = checkMentions(jid, body.text, body.mentions);
       const t = now();
-      claimOnReply(jid, userId, t);
+      if (opts?.scheduledTaskId === undefined) claimOnReply(jid, userId, t);
       return insertOutgoing({
         id: `local-${body.clientId}`,
         chat_jid: jid,
@@ -1189,6 +1358,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         client_id: body.clientId,
         wa_remote_jid: replyTarget(jid),
         sent_via_token_id: opts?.viaTokenId ?? null,
+        scheduled_task_id: opts?.scheduledTaskId ?? null,
         // Kept with the message: the queue sends them, and the bubble names the tagged members.
         mentioned_jids: mentions.length ? JSON.stringify(mentions) : '[]',
       });
@@ -1205,30 +1375,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (existing) return present(existing);
       requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
-      const inboxId = inboxOfKey(jid);
-      const wa = connections.adapter(inboxId);
-      if (!capabilitiesOf(wa).templates) throw templatesUnsupported();
-      const template = (await templates.list(inboxId, wa)).find(
-        (t) => t.name === body.name && t.language === body.language,
-      );
-      if (!template)
-        throw new HttpError(
-          400,
-          'template_not_found',
-          'This template is not approved for this inbox',
-        );
-      if (!template.sendable)
-        throw new HttpError(
-          400,
-          'template_not_sendable',
-          'Templates with a media header or buttons cannot be sent yet',
-        );
-      if (body.params.length !== template.variables)
-        throw new HttpError(
-          400,
-          'template_params',
-          `This template needs ${template.variables} value(s), got ${body.params.length}`,
-        );
+      const template = await approvedTemplate(inboxOfKey(jid), body);
       // the list was read asynchronously: another request may have stored this clientId meanwhile
       const raced = repo.byClientId(body.clientId);
       if (raced) return present(raced);
@@ -1260,6 +1407,61 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       });
     },
 
+    async sendFirstTemplate(inboxId, waJid, body, userId, createChat) {
+      const template = await approvedTemplate(inboxId, body);
+      const wa = connections.adapter(inboxId);
+      if (!wa.sendTemplate) throw templatesUnsupported();
+      let sent: SendResult;
+      try {
+        sent = await wa.sendTemplate(waJid, {
+          name: template.name,
+          language: template.language,
+          params: body.params,
+        });
+      } catch (err) {
+        if (err instanceof WaUnavailableError)
+          throw new HttpError(503, 'wa_disconnected', 'This WhatsApp number is not connected');
+        log.warn({ inboxId, err: (err as Error).message }, 'first template refused');
+        throw new HttpError(502, 'template_failed', 'WhatsApp did not accept the template');
+      }
+      const jid = createChat();
+      const id = messageKey(inboxId, sent.id);
+      const existing = repo.get(id);
+      if (existing) return present(existing);
+      const t = now();
+      claimOnReply(jid, userId, t);
+      const row: MessageRow = {
+        id,
+        chat_jid: jid,
+        sender_jid: ownJidOf(jid),
+        sender_name: null,
+        from_me: 1,
+        sent_by_user_id: userId,
+        type: 'text',
+        body: fillTemplate(template.body, body.params),
+        media_path: null,
+        media_mime: null,
+        media_name: null,
+        media_status: 'none',
+        quoted_id: null,
+        status: 'sent',
+        error: null,
+        timestamp: sent.timestamp || t,
+        created_at: t,
+        client_id: null,
+        wa_remote_jid: waJid,
+        template_name: template.name,
+        template_language: template.language,
+        template_params: JSON.stringify(body.params),
+      };
+      repo.insert(row);
+      touchChat(row, t);
+      const msg = present(repo.get(id)!);
+      ctx.bus.emit('message:new', msg);
+      emitChat(jid);
+      return msg;
+    },
+
     async sendMedia(jid, file, userId, clientId, opts) {
       const existing = repo.byClientId(clientId);
       if (existing) return present(existing);
@@ -1278,6 +1480,17 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         ? 'audio/ogg; codecs=opus'
         : (sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream'));
       const ext = file.voiceNote ? 'ogg' : (sniffed?.ext ?? extFor(mimeType, file.fileName));
+      // WhatsApp's per-message limits of this chat's number (e.g. 16 MB videos on the Business API)
+      const wa = adapterOf(inboxOfKey(jid));
+      const asFile = !!file.asFile && messageTypeForMime(mimeType) === 'video';
+      const tooLarge = wa
+        ? mediaLimitRefusal(
+            capabilitiesOf(wa).mediaLimits,
+            file.buffer.length,
+            mediaLimitKind(messageTypeForMime(mimeType), asFile),
+          )
+        : null;
+      if (tooLarge) throw tooLarge;
       const id = `local-${clientId}`;
       const rel = media.save(jid, id, file.buffer, ext);
       const t = now();
@@ -1289,12 +1502,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         sender_name: null,
         from_me: 1,
         sent_by_user_id: userId,
-        type: messageTypeForMime(mimeType),
+        // a video sent as a file is stored as a document (the queue sends it with asDocument)
+        type: asFile ? 'document' : messageTypeForMime(mimeType),
         body: file.caption?.trim() ? file.caption : null,
         media_path: rel,
         media_mime: mimeType,
         media_name: file.voiceNote ? null : file.fileName.slice(0, 255) || null,
         media_status: 'ok',
+        media_size: file.buffer.length,
         quoted_id: quotedId,
         status: 'pending',
         error: null,
@@ -1330,6 +1545,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       manualRetries.add(id);
       enqueueRow(updated);
       return present(updated);
+    },
+
+    forward(id, body, user) {
+      return forward(id, body, user);
     },
 
     applyStatus(u, inboxId = PRIMARY_INBOX_ID) {
@@ -1542,6 +1761,12 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       }
       if (!existsSync(p)) return null;
       return { path: p, mime: r.media_mime ?? 'application/octet-stream', name: r.media_name };
+    },
+
+    mediaThumb(id) {
+      const r = repo.get(id);
+      if (!r || r.deleted_at != null || r.hidden_at != null) return null;
+      return repo.mediaThumb(id);
     },
 
     redownload(id) {

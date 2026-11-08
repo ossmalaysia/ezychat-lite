@@ -51,7 +51,11 @@
       "search": "没有与“{{query}}”匹配的聊天。",
       "resolvedTitle": "没有已解决的聊天",
       "resolvedDescription": "这里没有已解决的聊天。",
-      "tag": "没有带“{{tag}}”标签的聊天。"
+      "tag": "没有带“{{tag}}”标签的聊天。",
+      "chosen": {
+        "title": "还没有聊天",
+        "description": "管理员尚未为您分配任何未结束的聊天。添加后会立即显示在这里。"
+      }
     }
   },
   "chatListItem": {
@@ -180,7 +184,8 @@
       "clean": "没有错误",
       "unavailable": "语法检查暂不可用",
       "unavailableHint": "AI 连接需要处理。拼写仍会检查，消息也可以正常发送。"
-    }
+    },
+    "sentAsFile": "{{name}} 对这个号码来说太大，无法作为视频发送，将以文件形式发送，保持原始画质。"
   },
   "quickReplies": {
     "title": "快捷回复",
@@ -285,6 +290,7 @@
     "aiToolUsed": "AI 查询了 {{title}} · {{source}}",
     "internalNote": "内部备注",
     "sheetRowAdded": "AI 已在 {{tab}} 中添加一行 · {{source}}",
+    "driveFileSaved": "AI 已将文件保存到 Google Drive · {{source}}",
     "calendarChecked": "AI 查看了空闲时间 · {{source}}",
     "calendarBooked": "AI 预约了 {{when}} · {{source}}",
     "calendarBookedNoTime": "AI 预约了一个时间 · {{source}}",
@@ -315,6 +321,12 @@
     "you": "你",
     "contact": "联系人",
     "quotedMessage": "引用的消息",
+    "quoteJump": {
+      "go": "跳转到引用的消息",
+      "unavailable": "原消息不可用",
+      "tooFar": "原消息太久远，无法在此显示",
+      "failed": "无法打开原消息，请重试。"
+    },
     "notSent": "未发送",
     "voiceNote": "语音消息",
     "quote": {
@@ -391,6 +403,13 @@
       "showOriginal": "显示原文（管理员）",
       "hideOriginal": "隐藏原文",
       "noText": "没有文字（仅媒体）"
+    },
+    "scheduled": "定时",
+    "scheduledNamed": "定时 · {{name}}",
+    "uploadErrors": {
+      "too_large": "文件太大，无法发送。",
+      "too_large_as_video": "文件太大，无法通过这个 WhatsApp 号码以视频形式发送。",
+      "too_large_for_whatsapp": "对这个 WhatsApp 号码来说文件太大。"
     }
   },
   "media": {
@@ -616,7 +635,8 @@
     "cancel": "取消",
     "start": "开始对话",
     "startFailed": "无法开始对话",
-    "listLabel": "群组成员"
+    "listLabel": "群组成员",
+    "chosenChatsOnly": "您只能打开管理员为您选择的聊天。"
   },
   "gettingStarted": {
     "title": "入门",
@@ -901,5 +921,289 @@
     "noMatch": "没有成员匹配“@{{query}}”。",
     "admin": "管理员",
     "noName": "未分享名字"
+  },
+  "groupAdmin": {
+    "title": "管理群组",
+    "agentOnly": "只有 EzyChat 管理员可以更改此群组。",
+    "notAdminTitle": "您的 WhatsApp 号码不是此群组的管理员",
+    "notAdminBody": "只有群管理员可以更改。请群管理员将您的号码设为管理员，然后再试。",
+    "offline": "WhatsApp 已离线。重新连接前更改将暂停。",
+    "inviteOnly": "WhatsApp Business API：成员只能通过邀请链接加入。{{n}} / {{max}} 名成员。",
+    "inviteOnlyNoMax": "WhatsApp Business API：成员只能通过邀请链接加入。",
+    "edit": "编辑信息",
+    "add": "添加成员",
+    "link": "邀请链接",
+    "invite": "邀请成员",
+    "settings": "设置",
+    "full": "此群组已满（{{max}} 名成员）。请先移除成员再邀请。",
+    "requests_other": "{{count}} 人申请加入",
+    "approve": "批准",
+    "reject": "拒绝",
+    "approved": "{{name}} 已加入群组",
+    "editTitle": "群组名称和简介",
+    "editHint": "群内所有人都会看到更改和 WhatsApp 通知。",
+    "name": "群组名称",
+    "description": "简介",
+    "descriptionPlaceholder": "群组用途（可选）",
+    "saved": "群组已更新",
+    "cancel": "取消",
+    "save": "保存",
+    "done": "完成",
+    "addTitle": "添加成员",
+    "addHint": "按 WhatsApp 号码逐一添加。对方会收到被添加的 WhatsApp 通知。",
+    "phone": "WhatsApp 号码",
+    "banRisk": "只添加认识您商家的人。添加大量陌生人可能导致您的号码被 WhatsApp 封禁。",
+    "addButton": "添加",
+    "addedToast": "已添加 {{phone}}",
+    "privacyTitle": "无法添加此人",
+    "privacyBody": "{{phone}} 只允许认识的人将其加入群组。请改为发送私人邀请；对方接受后即可加入。",
+    "sendInvite": "发送邀请",
+    "invitedTitle": "邀请已发送",
+    "invitedBody": "{{phone}} 已收到加入群组的 WhatsApp 邀请，3 天内有效。",
+    "linkTitle": "邀请链接",
+    "linkHint": "任何拥有此链接的人都可以加入群组。只分享给您信任的人。",
+    "linkHintApi": "成员只能通过此链接加入群组。请在与对方的聊天中发送。",
+    "linkApproval": "管理员会审批每位使用链接的人。",
+    "copy": "复制链接",
+    "copied": "链接已复制",
+    "reset": "重置链接",
+    "resetTitle": "重置邀请链接？",
+    "resetBody": "旧链接立即失效。已加入的成员会留在群组中。",
+    "resetConfirm": "重置链接",
+    "resetDone": "新的邀请链接已就绪",
+    "settingsTitle": "群组设置",
+    "settingsHint": "这些是 WhatsApp 自带的群组设置，更改会显示在每位成员的手机上。",
+    "settingsApi": "WhatsApp Business API 没有群组设置。入群审批在创建群组时选择。",
+    "set": {
+      "announce": "仅管理员可发送消息",
+      "announceHint": "成员可以阅读但不能发言。",
+      "locked": "仅管理员可编辑群信息",
+      "lockedHint": "名称、头像和简介。",
+      "memberAdd": "谁可以添加成员",
+      "onlyAdmins": "仅管理员",
+      "everyone": "所有人",
+      "approval": "审批新成员",
+      "approvalHint": "管理员审批通过链接加入的人。"
+    },
+    "history": "最近更改",
+    "historyNote": "记录在“活动”中。在手机上进行的更改只显示在 WhatsApp 中。",
+    "log": {
+      "name": "{{by}} 更改了群名称",
+      "description": "{{by}} 更改了简介",
+      "added": "{{by}} 添加了 {{target}}",
+      "invited": "{{by}} 向 {{target}} 发送了邀请",
+      "removed": "{{by}} 移除了 {{target}}",
+      "promoted": "{{by}} 将 {{target}} 设为管理员",
+      "demoted": "{{by}} 取消了 {{target}} 的管理员身份",
+      "linkReset": "{{by}} 重置了邀请链接",
+      "approved": "{{by}} 批准了 {{target}}",
+      "rejected": "{{by}} 拒绝了 {{target}}",
+      "setting": {
+        "announce": "{{by}} 更改了谁可以发送消息",
+        "locked": "{{by}} 更改了谁可以编辑群信息",
+        "memberAdd": "{{by}} 更改了谁可以添加成员",
+        "approval": "{{by}} 更改了入群审批"
+      },
+      "someone": "一位前同事",
+      "someMember": "某人"
+    },
+    "memberActions": "群管理员",
+    "ownerNote": "群创建者不能被移除或取消管理员身份。",
+    "makeAdmin": "设为群管理员",
+    "removeAdmin": "取消管理员",
+    "remove": "移出群组",
+    "promoted": "{{name}} 现在是群管理员",
+    "demoted": "{{name}} 不再是管理员",
+    "removed": "已移除 {{name}}",
+    "removeTitle": "将 {{name}} 移出群组？",
+    "removeBody": "对方会收到 WhatsApp 通知，并看不到新消息。之后可以再添加回来。",
+    "removeBodyApi": "对方会收到 WhatsApp 通知，且无法再通过邀请链接加入。",
+    "removeConfirm": "移除",
+    "demoteTitle": "取消 {{name}} 的管理员身份？",
+    "demoteBody": "对方仍以成员身份留在群组中。",
+    "demoteConfirm": "取消管理员",
+    "err": {
+      "offline": "WhatsApp 已离线。请在重新连接后再试。",
+      "notAdmin": "您的 WhatsApp 号码不是此群组的管理员。",
+      "already": "此人已在群组中。",
+      "notOnWhatsApp": "此号码未使用 WhatsApp。",
+      "tooMany": "短时间内添加的人太多。为保护您的号码，请等待一小时。",
+      "owner": "无法更改群创建者。",
+      "notSupported": "此 WhatsApp 连接不支持此操作。",
+      "notMember": "此人已不在群组中。",
+      "full": "此群组已满。请先移除成员。",
+      "inviteExpired": "此邀请已过期。请重新添加此人以发送新邀请。",
+      "inboxRemoved": "此 WhatsApp 号码已从 EzyChat 移除，因此无法更改其群组。",
+      "failed": "WhatsApp 未能完成更改。请稍后再试。"
+    },
+    "historyEmpty": "尚未在 EzyChat 中进行任何更改。",
+    "settingsNone": "此 WhatsApp 连接没有 EzyChat 可更改的群组设置。",
+    "linkUnavailable": "无法从 WhatsApp 读取链接。请稍后再试。",
+    "tipTitle": "什么是群管理员？",
+    "tipBody": "WhatsApp 群管理员可以更改群组、添加或移除成员。它在 WhatsApp 中设置，与 EzyChat 管理员不同。"
+  },
+  "newChat": {
+    "button": "新对话",
+    "title": "新对话",
+    "description": "给还不在收件箱里的电话号码发消息。",
+    "from": "发送号码",
+    "businessApi": "WhatsApp Business API",
+    "phone": "电话号码",
+    "phonePlaceholder": "012-345 6789 或 +65 9123 4567",
+    "phoneHint": "马来西亚号码可以 0 开头。其他国家请以 + 和国家代码开头。",
+    "phoneInvalid": "请输入电话号码，例如 012-345 6789 或 +65 9123 4567。",
+    "willMessage": "将发消息给 {{number}}。",
+    "name": "名字（可选）",
+    "nameHint": "保存到客户资料。",
+    "banTitle": "只给愿意接收消息的人发送",
+    "banBody": "如果号码给没有要求联系的人发消息，WhatsApp 可能会封禁该号码。请只在对方同意被联系时发起对话。",
+    "apiTitle": "以已批准的模板开始",
+    "apiBody": "在 WhatsApp Business API 上，商家必须用 Meta 批准的模板发起对话。客户回复后即可自由输入。",
+    "usage": "{{inbox}} 今天已使用 {{used}}/{{limit}} 个新对话。",
+    "start": "开始对话",
+    "checking": "正在检查 WhatsApp…",
+    "next": "选择模板",
+    "preparing": "正在检查…",
+    "existingTitle": "已在收件箱中",
+    "existingBody": "{{number}} 已有对话。",
+    "openChat": "打开对话",
+    "back": "返回",
+    "templateTitle": "选择模板",
+    "templateDescription": "发给 {{number}} 的第一条消息。发送后对话才会开始。",
+    "paidNote": "每个模板都会与 Meta 开始一次付费对话。营销模板比实用模板更贵。",
+    "sendTemplate": "发送模板",
+    "sending": "正在发送…",
+    "createdToast": "对话已开始。请写第一条消息。",
+    "sentToast": "模板已发送。对方回复后即可自由输入。",
+    "problems": {
+      "not_on_whatsapp": {
+        "title": "{{number}} 没有使用 WhatsApp",
+        "body": "请检查号码后重试。"
+      },
+      "own_number": {
+        "title": "这是你自己的号码",
+        "body": "请输入客户的号码。"
+      },
+      "wa_disconnected": {
+        "title": "WhatsApp 未连接",
+        "body": "{{inbox}} 已离线，无法检查号码。连接后再试。"
+      },
+      "new_chat_daily_limit": {
+        "title": "已达每日上限",
+        "body": "{{inbox}} 今天已发起 {{limit}} 个新对话。请明天再试。此上限可保护你的号码不被 WhatsApp 封禁。"
+      },
+      "new_chat_hourly_limit": {
+        "title": "新对话太多",
+        "body": "你在过去一小时内已发起 {{hourly}} 个新对话。请稍后再试。"
+      },
+      "template_failed": {
+        "title": "模板未发送",
+        "body": "WhatsApp 未接受该模板，因此没有开始对话。请重试或选择其他模板。"
+      },
+      "new_chat_not_allowed": {
+        "title": "你不能发起新对话",
+        "body": "请管理员在设置中允许。"
+      },
+      "other": {
+        "title": "出了点问题",
+        "body": "请重试。"
+      },
+      "invalid_number": {
+        "title": "不是电话号码",
+        "body": "请输入带国家代码的号码，或以 0 开头的马来西亚号码。"
+      },
+      "new_chat_unsupported": {
+        "title": "此号码不能发起新对话",
+        "body": "请选择另一个 WhatsApp 号码发送。"
+      }
+    },
+    "usageNoLimit": "{{inbox}} 今天已发起 {{used}} 个新对话（无每日上限）。"
+  },
+  "forward": {
+    "action": "转发",
+    "lockedReason": "已被 WhatsApp 安全功能锁定",
+    "forwarded": "已转发",
+    "forwardedMany": "已多次转发",
+    "title": "转发消息",
+    "description": "最多发送副本到 {{max}} 个聊天或群组。在 WhatsApp 上会显示为“已转发”。",
+    "manyTimesNote": "这条消息已被多次转发。WhatsApp 只允许每次转发到一个聊天。",
+    "count": "已选 {{count}} / {{max}}",
+    "full": "每次最多可转发到 {{max}} 个聊天。",
+    "remove": "移除 {{name}}",
+    "search": "搜索聊天和群组",
+    "listLabel": "可以转发到的聊天",
+    "loading": "正在加载聊天…",
+    "emptyTitle": "找不到聊天",
+    "emptyQuery": "试试其他名字或号码。要给新号码发消息，请使用“新聊天”。",
+    "emptyNone": "你还没有可以转发到的聊天。",
+    "windowClosedRow": "回复窗口已关闭：请在该聊天中发送模板",
+    "otherInbox": "每个聊天会从它自己的 WhatsApp 号码收到这条消息。",
+    "cancel": "取消",
+    "send": "转发",
+    "sendCount_other": "转发到 {{count}} 个聊天",
+    "sending": "正在转发…",
+    "sentOne": "已转发给 {{name}}",
+    "sentMany_other": "已转发到 {{count}} 个聊天",
+    "openChat": "打开聊天",
+    "problems": {
+      "wa_disconnected": {
+        "title": "WhatsApp 未连接",
+        "body": "{{inbox}} 恢复在线后再转发。"
+      },
+      "window_closed": {
+        "title": "回复窗口已关闭",
+        "body": "你选的一个聊天在过去 24 小时内没有发消息。请移除它，或在该聊天中发送模板。"
+      },
+      "safety_locked": {
+        "title": "此文件已被锁定",
+        "body": "WhatsApp 安全功能发现此文件有危险，不能转发。"
+      },
+      "rate_limited": {
+        "title": "转发太多",
+        "body": "你在过去一分钟内转发了很多消息。请稍等再试。"
+      },
+      "media_unavailable": {
+        "title": "文件不可用",
+        "body": "无法从 WhatsApp 下载此文件，所以不能转发。"
+      },
+      "message_deleted": {
+        "title": "消息已删除",
+        "body": "这条消息已被删除，所以不能转发。"
+      },
+      "other": {
+        "title": "未转发",
+        "body": "出了点问题，什么都没有发送。请再试一次。"
+      },
+      "too_large_as_video": {
+        "title": "视频太大",
+        "body": "请改为以文件形式发送。文件保持原始画质。"
+      },
+      "too_large_for_whatsapp": {
+        "title": "超出 WhatsApp 的上限",
+        "body": "你选的一个聊天所在号码不能接收这么大的文件。请移除它后再试。"
+      },
+      "message_not_sent": {
+        "title": "尚未发送",
+        "body": "只有 WhatsApp 已收到的消息才能转发。请等它发送后再试。"
+      },
+      "inbox_removed": {
+        "title": "号码已移除",
+        "body": "你选的一个聊天所在的 WhatsApp 号码已被移除。请移除它后再试。"
+      },
+      "forward_many_times": {
+        "title": "每次一个聊天",
+        "body": "这条消息已被多次转发。请只选一个聊天。"
+      }
+    },
+    "largeNote": "大文件（{{size}}）。每个副本都会重新上传到 WhatsApp，可能需要几分钟。",
+    "sendAs": "发送方式",
+    "asVideo": "视频",
+    "asFile": "文件",
+    "sendAsHint": "视频可在聊天中播放。文件保持原始画质，客户下载后观看。",
+    "videoTooBig": "这个视频（{{size}}）太大，无法以视频形式发送到你选的聊天（上限 {{max}}）。将以文件形式发送，保持原始画质。",
+    "tooBigRow": "对这个号码来说太大：文件上限 {{max}}",
+    "sendingLarge": "正在发送 {{size}} 到 WhatsApp…",
+    "thisNumber": "这个 WhatsApp 号码",
+    "loadFailed": "无法加载聊天。请关闭后再试。"
   }
 }

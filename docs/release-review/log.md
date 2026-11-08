@@ -351,3 +351,41 @@ Decision: **risk:human**
 ## 2026-11-03 · PR #269 · `3b38840` · approved by the owner
 
 > Approve and merge (owner, 2026-11-03, after the three risk items were listed: migration 032 rebuilds ai_agents, inboxes/service.ts changed, no real model/WhatsApp/Google test)
+
+## 2026-11-04 · PR #284 · `8180019` · approved by the owner
+
+> ok merge and release
+
+## 2026-11-04 · PR #286 · `197b966` · approved by the owner
+
+> yes (include PR #286 in this release)
+
+## 2026-11-05 · PR #290 · `fb8080a` · approved by the owner
+
+> ok merge the fix
+
+## 2026-11-07 · PR #326 · `91fdf68` · risk:human (25)
+
+**NOT READY: critical change without a real WhatsApp test; security rule: packages/server/src/inboxes/fake-api.ts, packages/server/src/inboxes/service.ts, AGENTS.md security invariants; score 25 < 70: the owner tests and approves · risk:human (25)**
+
+Tier **critical**, set by: packages/server/src/db/migrations/038_message_forwarding.sql, packages/server/src/messages/forward.ts, packages/server/src/messages/media-store.ts, packages/server/src/messages/repo.ts, packages/server/src/messages/send-queue.ts, packages/server/src/messages/service.ts, packages/shared/src/api.ts, packages/shared/src/index.ts and 5 more
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: critical | -30 | ✓ |
+| Size: 1946 code lines | -35 | ✓ |
+| Changed-lines coverage 98.4 % | +20 | ✓ |
+| e2e covers the change | 0 | ✗ missing |
+| Desktop link check | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review | +5 | ✓ |
+| Real-part test | 0 | ✗ missing |
+| Review comments: 0 open of 0 | 0 | ✓ |
+| **Score** | **25** | |
+
+Hard stops: 1. critical change without a real WhatsApp test; 3. security rule: packages/server/src/inboxes/fake-api.ts, packages/server/src/inboxes/service.ts, AGENTS.md security invariants
+
+Migration: packages/server/src/db/migrations/038_message_forwarding.sql — adds-only
+
+Decision: **risk:human**

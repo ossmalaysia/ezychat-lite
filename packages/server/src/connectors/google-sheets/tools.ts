@@ -13,6 +13,7 @@ import type { AppContext } from '../../context.js';
 import { getChats } from '../../wa-bridge/index.js';
 import { GoogleError } from '../google-calendar/google.js';
 import type { SheetRecordContext } from './record.js';
+import { connectorToolRunner } from '../tool-run.js';
 import { SHEET_VALUE_CHARACTERS, type AddRowResult } from './service.js';
 
 export const READ_SHEET_ROWS = 'read_sheet_rows';
@@ -45,19 +46,56 @@ export function refusal(result: Exclude<AddRowResult, { ok: true }>): string {
       return `Not added: the tab "${result.tab}" has no column ${quoted(result.unknown)}. Its columns are ${quoted(result.columns)}. Call add_sheet_row again with these names.`;
     case 'not_from_person':
       return `Not added: the value for ${quoted(result.columns)} is not in what the person wrote or sent. Ask the person for it, then call add_sheet_row again with their exact words; or leave that column out.`;
+    case 'formula_blocked':
+      return `Not added: the formula for ${quoted(result.columns)} uses a function or web address that reaches outside the sheet, which is not allowed. Call add_sheet_row again with a plain value or a formula that only uses this spreadsheet.`;
   }
 }
 
+/** What an Add rows tab allows beyond the person's own words, for its line in the description. */
+export interface TabAllows {
+  aiValues: readonly string[];
+  formulas: readonly string[];
+}
+
 /** `"Prices" (columns: Item, Price)` lines for a tool description. */
-function tabList(tabs: readonly string[], columns: Map<string, string[]> | null): string {
+function tabList(
+  tabs: readonly string[],
+  columns: Map<string, string[]> | null,
+  allows?: TabAllows,
+): string {
   return tabs
     .map((tab) => {
       const names = columns?.get(tab)?.filter(Boolean);
-      return names?.length
-        ? `"${tab}" (columns: ${names.join(', ')})`
-        : `"${tab}"${columns ? ' (no column names)' : ''}`;
+      const extra = [
+        allows?.aiValues.includes(tab) && 'values you looked up or worked out allowed',
+        allows?.formulas.includes(tab) && 'formulas allowed',
+      ].filter(Boolean);
+      let columnText: string | null = null;
+      if (names?.length) columnText = `columns: ${names.join(', ')}`;
+      else if (columns) columnText = 'no column names';
+      const parts = [columnText, ...extra].filter(Boolean);
+      return parts.length ? `"${tab}" (${parts.join('; ')})` : `"${tab}"`;
     })
     .join('; ');
+}
+
+/** The add tool's rule for values, with the extra rules only when a tab allows them. */
+export function valueRules(addTabs: readonly string[], allows: TabAllows): string {
+  const aiValues = addTabs.some((tab) => allows.aiValues.includes(tab));
+  const formulas = addTabs.some((tab) => allows.formulas.includes(tab));
+  let text = 'Use only values the person wrote or that are in a file they sent.';
+  if (aiValues)
+    text +=
+      ' On a tab marked "values you looked up or worked out allowed" you may also pass a figure you ' +
+      'read with read_sheet_rows or worked out from those rows and the chat (a total, a date); never ' +
+      'invent or estimate one, and leave a column out when you do not have it.';
+  if (formulas)
+    text +=
+      ' On a tab marked "formulas allowed" a value starting with = is entered as a Google Sheets ' +
+      'formula and numbers and dates are entered as numbers and dates; a formula that fetches data ' +
+      'from outside the spreadsheet or uses a web address is refused, and a formula the person wrote ' +
+      'is kept as text.';
+  return text;
 }
 
 /**
@@ -116,57 +154,29 @@ export async function sheetsAgentTools(
   // A tab whose first row is empty cannot take rows.
   const addTabs = usable.addTabs.filter((tab) => !columns || columns.get(tab)?.some(Boolean));
 
-  const run = async <T>(
+  const runner = connectorToolRunner(
+    ctx,
+    log,
+    { ...input, agentId },
+    {
+      source: SOURCE,
+      sourceLabel: SOURCE_LABEL,
+      failEvent: 'google_sheets_tool_failed',
+      calls,
+      onCall: options.onCall,
+      onFailure: options.onFailure,
+      markFailed: () => {
+        failed = true;
+      },
+    },
+  );
+  const run = <T>(
     name: string,
     title: string,
     tab: string,
     body: () => Promise<{ output: T; notRun?: boolean }>,
-  ): Promise<T> => {
-    options.onCall?.(name);
-    const started = Date.now();
-    const finish = (ok: boolean, notRun?: boolean) => {
-      const ms = Date.now() - started;
-      calls.push({
-        tool: name,
-        source: SOURCE,
-        title,
-        sourceLabel: SOURCE_LABEL,
-        ok,
-        ms,
-        ...(notRun ? { notRun } : {}),
-      });
-      log.info(
-        { event: 'ai_tool_call', tool: name, source: SOURCE, tabs: 1, ok, ms },
-        'AI tool call',
-      );
-      ctx.bus.emit('ai:tool_call', {
-        agent: input.agent,
-        agentId,
-        chatJid,
-        tool: name,
-        source: SOURCE,
-        title,
-        ok,
-        ms,
-      });
-    };
-    try {
-      const { output, notRun } = await body();
-      finish(true, notRun);
-      return output;
-    } catch (error) {
-      // A cancelled turn is not a failed look-up.
-      if (input.signal.aborted) throw error;
-      failed = true;
-      log.warn(
-        {
-          event: 'google_sheets_tool_failed',
-          tool: name,
-          kind: error instanceof GoogleError ? error.kind : 'other',
-          status: error instanceof GoogleError ? error.status : null,
-        },
-        'Google Sheets tool failed',
-      );
+  ) =>
+    runner(name, title, body, () => {
       if (chatJid)
         service.addActivity({
           kind: 'failed',
@@ -175,11 +185,7 @@ export async function sheetsAgentTools(
           tab,
           group: service.groupName(chatJid),
         });
-      finish(false);
-      options.onFailure();
-      throw error;
-    }
-  };
+    });
 
   if (usable.readTabs.length) {
     const [first, ...rest] = usable.readTabs;
@@ -232,13 +238,14 @@ export async function sheetsAgentTools(
 
   if (addTabs.length) {
     const [first, ...rest] = addTabs;
+    const allows: TabAllows = { aiValues: usable.aiValueTabs, formulas: usable.formulaTabs };
     tools[ADD_SHEET_ROW] = tool({
       description:
         "Add one new row to a tab of the business's Google Sheet when your instructions say to record " +
-        `something there. Tabs you may add rows to: ${tabList(addTabs, columns)}. ` +
+        `something there. Tabs you may add rows to: ${tabList(addTabs, columns, allows)}. ` +
         'Pass the values by column name. EzyChat fills these columns itself when the tab has them: ' +
         `${SHEETS_AUTO_COLUMNS.join(', ')} (pass one only to change it). ` +
-        'Use only values the person wrote or that are in a file they sent. Rows are only added, never ' +
+        `${valueRules(addTabs, allows)} Rows are only added, never ` +
         'changed. Report recorded only when this tool says it was added.',
       inputSchema: z.object({
         tab: z.enum([first!, ...rest]).describe('The tab to add the row to'),

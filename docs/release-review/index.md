@@ -30,3 +30,7 @@ Every release review run, newest last. Never pruned.
 | 2026-11-02 | #204 | `8565861` | — | — | human-approved | docs/release-review/log.md |
 | 2026-11-02 | #256 | `4483177` | — | — | human-approved | docs/release-review/log.md |
 | 2026-11-03 | #269 | `3b38840` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-04 | #284 | `8180019` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-04 | #286 | `197b966` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-05 | #290 | `fb8080a` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-07 | #326 | `91fdf68` | critical | 25 | risk:human | docs/release-review/log.md |

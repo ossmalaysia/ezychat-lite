@@ -51,12 +51,18 @@ export function launchdPlist(o: LaunchdOptions): string {
     '  </dict>',
     '  <key>RunAtLoad</key>',
     '  <true/>',
+    // Restart after a crash only: server-host turns the exits that a restart cannot fix (bad arguments,
+    // data folder locked, moved to Enterprise) into 0, so launchd does not retry them forever.
     '  <key>KeepAlive</key>',
-    '  <true/>',
+    '  <dict>',
+    '    <key>SuccessfulExit</key>',
+    '    <false/>',
+    '  </dict>',
     '  <key>ThrottleInterval</key>',
-    '  <integer>5</integer>',
+    '  <integer>10</integer>',
+    // stdout repeats the server's own daily-rotated logs/server.log; launchd never rotates this file.
     '  <key>StandardOutPath</key>',
-    `  ${s(posix.join(o.logDir, 'service.out.log'))}`,
+    '  <string>/dev/null</string>',
     '  <key>StandardErrorPath</key>',
     `  ${s(posix.join(o.logDir, 'service.err.log'))}`,
     '</dict>',
@@ -66,6 +72,8 @@ export function launchdPlist(o: LaunchdOptions): string {
 }
 
 export interface MacInstallOptions extends LaunchdOptions {
+  /** Named in the hint when macOS refuses to start the job. */
+  productName?: string;
   dataDir: string;
   moveFrom: string;
   exists?: ((p: string) => boolean) | null;
@@ -104,14 +112,37 @@ function runtimeCopyLines(r: { from: string; to: string }): string[] {
     `chmod -N ${shQuote(parent)}`,
     `chmod 755 ${shQuote(parent)}`,
     `rm -rf ${to}`,
-    // Source ACLs can grant ordinary users write access even after chown/chmod.
-    // Keep extended attributes and quarantine metadata, but never copy those ACLs.
+    // Source ACLs can grant ordinary users write access even after chown/chmod: never copy them.
     `ditto --noacl ${shQuote(r.from)} ${to}`,
+    // A downloaded app carries the quarantine flag; on this unnotarized copy Gatekeeper refuses every
+    // launchd start ("cannot be opened" over and over). The user already opened and approved the app.
+    `xattr -dr com.apple.quarantine ${to} 2>/dev/null || true`,
     `chown -R root:wheel ${to}`,
     `chmod -RN ${to}`,
     `chmod -R go-w ${to}`,
     `if [ "$(stat -f %Su ${to})" != root ]; then echo "runtime copy is not root-owned" >&2; exit 4; fi`,
   ];
+}
+
+/**
+ * Stops the job and waits until launchd has unloaded it. `launchctl bootout` returns while the server is
+ * still shutting down: a bootstrap right after fails with "5: Input/output error", and the server may
+ * still be writing the data folder that is about to move. Gives up after a minute.
+ */
+export function macStopAndWait(label: string): string[] {
+  return [
+    `launchctl bootout system/${label} 2>/dev/null || true`,
+    `n=0; while launchctl print system/${label} >/dev/null 2>&1; do n=$((n + 1)); if [ "$n" -ge 120 ]; then echo 'The background service did not stop within a minute.' >&2; exit 5; fi; sleep 0.5; done`,
+  ];
+}
+
+/**
+ * Starts the job. With "Allow in the Background" switched off in System Settings, macOS refuses it with a bare
+ * "Bootstrap failed: 5: Input/output error"; say where the switch is instead.
+ */
+function macBootstrap(label: string, productName = 'EzyChat'): string {
+  const hint = `macOS did not start the background service. If ${productName} is switched off under System Settings > General > Login Items & Extensions > Allow in the Background, switch it on and try again.`;
+  return `if ! launchctl bootstrap system ${shQuote(plistPath(label))}; then echo ${shQuote(hint)} >&2; exit 6; fi`;
 }
 
 /** sh script (run as root): move data, lock down data dir, write plist, bootstrap the daemon. */
@@ -120,6 +151,8 @@ export function macInstallScript(o: MacInstallOptions): string {
   return [
     '#!/bin/bash',
     'set -euo pipefail',
+    // An old job may still run from the data folder and the runtime copy that are replaced below.
+    ...macStopAndWait(o.label),
     ...dataMoveCommands('darwin', o.moveFrom, o.dataDir, o.exists === undefined ? null : o.exists),
     `mkdir -p ${shQuote(o.dataDir)} ${shQuote(o.logDir)}`,
     `chown -R root:wheel ${shQuote(o.dataDir)}`,
@@ -130,8 +163,7 @@ export function macInstallScript(o: MacInstallOptions): string {
     'WATI_PLIST_EOF',
     `chown root:wheel ${shQuote(plist)}`,
     `chmod 644 ${shQuote(plist)}`,
-    `launchctl bootout system/${o.label} 2>/dev/null || true`,
-    `launchctl bootstrap system ${shQuote(plist)}`,
+    macBootstrap(o.label, o.productName),
     `echo 'Service installed and started.'`,
     '',
   ].join('\n');
@@ -159,7 +191,7 @@ export function macUninstallScript(o: MacUninstallOptions): string {
     `assert_no_link_up() { local p="$1"; while [ "$p" != "/" ] && [ -n "$p" ]; do if [ -L "$p" ]; then echo "Unexpected link: $p" >&2; exit 3; fi; p=$(dirname "$p"); done; }`,
     `assert_no_link_up ${shQuote(o.moveTo)}`,
     `assert_no_link_up ${shQuote(o.dataDir)}`,
-    `launchctl bootout system/${o.label} 2>/dev/null || true`,
+    ...macStopAndWait(o.label),
     `rm -f ${shQuote(plist)}`,
     ...(o.runtimeDir ? [`rm -rf ${shQuote(o.runtimeDir)}`] : []),
     `assert_no_link_up ${shQuote(o.moveTo)}`,
@@ -170,18 +202,43 @@ export function macUninstallScript(o: MacUninstallOptions): string {
   ].join('\n');
 }
 
-export function macControlScript(o: { label: string; action: 'start' | 'stop' }): string {
-  const plist = plistPath(o.label);
+/**
+ * sh script (run as root): the service data folder (with its logs) is root-only, so Finder cannot open it.
+ * Copy the logs into a new mktemp folder, give it to the user and print its path. Root writes only into
+ * the folder mktemp just created, never into one the user could have prepared or linked.
+ */
+export function macCopyLogsScript(o: {
+  logDir: string;
+  tempPrefix: string;
+  owner: string;
+}): string {
+  return [
+    '#!/bin/bash',
+    'set -euo pipefail',
+    `out=$(mktemp -d ${shQuote(`/private/tmp/${o.tempPrefix}.XXXXXX`)})`,
+    `if [ -d ${shQuote(o.logDir)} ]; then ditto --noacl ${shQuote(o.logDir)} "$out"; fi`,
+    `chown -R ${shQuote(o.owner)} "$out"`,
+    'chmod 700 "$out"',
+    'echo "$out"',
+    '',
+  ].join('\n');
+}
+
+export function macControlScript(o: {
+  label: string;
+  action: 'start' | 'stop';
+  productName?: string;
+}): string {
   const body =
     o.action === 'start'
       ? [
           `if launchctl print system/${o.label} >/dev/null 2>&1; then`,
           `  launchctl kickstart -k system/${o.label}`,
           'else',
-          `  launchctl bootstrap system ${shQuote(plist)}`,
+          `  ${macBootstrap(o.label, o.productName)}`,
           'fi',
         ]
-      : [`launchctl bootout system/${o.label} 2>/dev/null || true`];
+      : macStopAndWait(o.label);
   return ['#!/bin/bash', 'set -euo pipefail', ...body, ''].join('\n');
 }
 

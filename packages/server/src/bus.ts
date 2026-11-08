@@ -36,6 +36,8 @@ export interface BusEvents {
   /** One finished extension tool call of the AI (live or Try it); never its input or output. */
   'ai:tool_call': [AiToolCallEvent];
   'chat:updated': [Chat];
+  /** A WhatsApp group changed (here or on WhatsApp): open Group info panels refetch. Chat key. */
+  'group:changed': [{ chatJid: string }];
   'chat:event': [ChatEvent];
   'note:new': [Note];
   /** Connection status of inbox 1 (the number linked before multi-inbox). */
@@ -50,6 +52,8 @@ export interface BusEvents {
   'tunnel:status': [TunnelStatus];
   'user:disabled': [number];
   'user:sessions-revoked': [number];
+  /** An agent's "Chats this member can see" changed (userId): live sockets rebuild their rooms. */
+  'member-chats:changed': [number];
   /** userId, new role (live sockets must join/leave the 'admins' room) */
   'user:role-changed': [number, Role];
   /** for push routing */

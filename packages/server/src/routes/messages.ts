@@ -3,12 +3,15 @@ import { z } from 'zod';
 import {
   DeleteMessageQuery,
   EditMessageBody,
+  ForwardMessageBody,
   MessageListQuery,
   SendMediaFields,
   SendReactionBody,
   SendTextBody,
+  type ForwardMessageResponse,
   type Message,
   type MessageEditsResponse,
+  type MessageLocateResponse,
   type SendReactionResponse,
 } from '@ezychat/shared';
 import { audit } from '../db/audit.js';
@@ -44,6 +47,14 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
     return messages.list(jid, q);
   });
 
+  // "Jump to the quoted message": where the original sits in this chat (inbox access via :jid).
+  app.get('/chats/:jid/messages/:id/locate', async (req): Promise<MessageLocateResponse> => {
+    const jid = chatJidParam(ctx, req);
+    if (!chats.get(jid)) throw errors.notFound('Chat');
+    const { id } = parse(IdParams, req.params);
+    return messages.locate(jid, id);
+  });
+
   app.post('/chats/:jid/messages', async (req, reply) => {
     const jid = chatJidParam(ctx, req);
     const body = parse(SendTextBody, req.body);
@@ -70,6 +81,7 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
     if (!file) throw errors.validation('file is required');
     const f = parse(SendMediaFields, fields);
     if (f.voiceNote && f.caption) throw errors.validation('A voice note has no caption');
+    if (f.voiceNote && f.asFile) throw errors.validation('A voice note cannot be sent as a file');
     const msg = await messages.sendMedia(
       jid,
       {
@@ -78,6 +90,7 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
         ...(f.caption ? { caption: f.caption } : {}),
         ...(f.quotedId ? { quotedId: f.quotedId } : {}),
         ...(f.voiceNote ? { voiceNote: true } : {}),
+        ...(f.asFile ? { asFile: true } : {}),
       },
       req.user!.id,
       f.clientId,
@@ -130,6 +143,28 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
       meta: { messageId: id, chatJid: message.chatJid, scope },
     });
     return message;
+  });
+
+  // Forward one message to 1–5 existing chats the user may open (docs/features/forward-message/design.md).
+  // Audit and logs carry ids only, never text, captions or file names.
+  app.post('/messages/:id/forward', async (req): Promise<ForwardMessageResponse> => {
+    const { id } = parse(IdParams, req.params);
+    requireMessageAccess(ctx, req.user!, id);
+    const body = parse(ForwardMessageBody, req.body ?? {});
+    const { messages: copies, repeated } = await messages.forward(id, body, req.user!);
+    // a repeat of the same request sent nothing new
+    if (!repeated)
+      audit(ctx.db, {
+        userId: req.user!.id,
+        action: 'message.forwarded',
+        ip: req.ip,
+        meta: {
+          messageId: id,
+          chatJids: copies.map((m) => m.chatJid),
+          messageIds: copies.map((m) => m.id),
+        },
+      });
+    return { messages: copies };
   });
 
   app.get('/messages/:id/edits', async (req): Promise<MessageEditsResponse> => {

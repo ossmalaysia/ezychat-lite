@@ -36,6 +36,10 @@ initializers.push(initVoice);
 import { initCustomers } from './customers/service.js';
 initializers.push(initCustomers);
 
+// New chat (docs/features/new-chat/design.md): after messaging and customers.
+import { initNewChat } from './chats/new-chat.js';
+initializers.push(initNewChat);
+
 import { initAi } from './ai/service.js';
 initializers.push(initAi);
 
@@ -45,14 +49,26 @@ initializers.push(initEnrichment);
 import { initPhrases } from './ai/phrases/service.js';
 initializers.push(initPhrases);
 
+// Scheduled tasks of AI agents (docs/features/scheduled-tasks/design.md): after the AI service.
+import { initScheduled } from './scheduled/service.js';
+initializers.push(initScheduled);
+
 import { initGoogleCalendar } from './connectors/google-calendar/service.js';
 initializers.push(initGoogleCalendar);
 
 import { initGoogleSheets } from './connectors/google-sheets/service.js';
 initializers.push(initGoogleSheets);
+import { initSqlAccount } from './connectors/sql-account/service.js';
+initializers.push(initSqlAccount);
+import { initGoogleDrive } from './connectors/google-drive/service.js';
+initializers.push(initGoogleDrive);
 
 import { initConnectorList } from './connectors/list/service.js';
 initializers.push(initConnectorList);
+
+// AI agent templates from the signed template list (docs/features/template-store/design.md).
+import { initTemplateList } from './templates/service.js';
+initializers.push(initTemplateList);
 
 import { initConnectorMcp } from './connectors/mcp/service.js';
 initializers.push(initConnectorMcp);
@@ -60,3 +76,7 @@ initializers.push(initConnectorMcp);
 // Send feedback: forwards reports to the licence portal only when a user presses Send.
 import { initFeedback } from './feedback/service.js';
 initializers.push(initFeedback);
+
+// Anonymous usage stats (on by default, admin switch): the only module that sends usage data.
+import { initUsage } from './usage/service.js';
+initializers.push(initUsage);

@@ -16,12 +16,16 @@ import type {
 } from '../types.js';
 import {
   BaileysAdapter,
+  MEDIA_UPLOAD_TIMEOUT_MS,
   WA_BROWSER,
+  forwardedContext,
   isConnectionError,
+  mediaContent,
   normalizePairingPhone,
   receiptStatus,
 } from './adapter.js';
 import { createAuthStore } from './auth-store.js';
+import { MediaCache } from './media-cache.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 
 const socketFactory = vi.hoisted(() => vi.fn());
@@ -137,11 +141,45 @@ describe('linked account identity', () => {
 });
 
 describe('createBaileysAdapter (offline smoke)', () => {
+  it('uses the public durable auth storage option for connect, credential updates and logout', async () => {
+    const records = new Map<string, string>();
+    const clear = vi.fn(async () => {
+      records.clear();
+    });
+    const ev = new EventEmitter();
+    socketFactory.mockReturnValueOnce({ ev, end: vi.fn(), logout: vi.fn(async () => {}) });
+    const a = createBaileysAdapter({
+      authDir: 'remote-scope',
+      historyDays: 0,
+      authStorage: {
+        get: async (keys) => Object.fromEntries(keys.map((key) => [key, records.get(key) ?? null])),
+        set: async (changes) => {
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === null) records.delete(key);
+            else records.set(key, value);
+          }
+        },
+        clear,
+        backup: async () => 'backup-ref',
+      },
+    });
+    await a.connect();
+    expect(records.has('creds')).toBe(true);
+    const options = socketFactory.mock.calls.at(-1)![0];
+    options.auth.creds.registered = true;
+    ev.emit('creds.update', {});
+    await vi.waitFor(() => expect(JSON.parse(records.get('creds')!).registered).toBe(true));
+    await a.logout();
+    expect(clear).toHaveBeenCalledOnce();
+    expect(records.size).toBe(0);
+  });
+
   it('starts disconnected and refuses to send without connecting', async () => {
     const a = createBaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
     expect(a.status.state).toBe('disconnected');
     await expect(a.sendText('1@s.whatsapp.net', 'hi')).rejects.toBeInstanceOf(WaUnavailableError);
     expect(await a.downloadMedia('nope')).toBeNull();
+    expect(await a.downloadMedia('nope', 'not a ref')).toBeNull();
     await expect(a.getProfilePicture('1@s.whatsapp.net')).rejects.toBeInstanceOf(
       WaUnavailableError,
     );
@@ -600,5 +638,104 @@ describe('contact identity mapping', () => {
     expect(contacts.at(-1)?.savedName).toBe('New name');
     expect(wipe).toHaveBeenCalledOnce();
     expect(sock.signalRepository.lidMapping.getLIDForPN).not.toHaveBeenCalled();
+  });
+});
+
+describe('forwarding and large files', () => {
+  it('marks text as Forwarded with its score and keeps the mentions', async () => {
+    const { a, calls } = openAdapterRecording('F');
+    await a.sendText('1203@g.us', 'Hi @900111', {
+      mentions: ['900111@lid'],
+      forwarded: { score: 3 },
+    });
+    await a.sendText('1@s.whatsapp.net', 'Plain', { forwarded: { score: 0 } });
+    expect(calls.map((c) => c.content)).toEqual([
+      {
+        text: 'Hi @900111',
+        mentions: ['900111@lid'],
+        contextInfo: { isForwarded: true, forwardingScore: 3 },
+      },
+      { text: 'Plain' },
+    ]);
+  });
+
+  it('builds file content from a path, as a document on request, with the Forwarded mark', () => {
+    const file = {
+      buffer: Buffer.from('x'),
+      path: '/data/media/v.mp4',
+      mime: 'video/mp4',
+      fileName: 'v.mp4',
+    };
+    const fwd = { forwarded: { score: 2 } };
+    const ctx = { contextInfo: { isForwarded: true, forwardingScore: 2 } };
+    expect(mediaContent({ ...file, caption: 'hall' }, fwd)).toEqual({
+      video: { url: '/data/media/v.mp4' },
+      mimetype: 'video/mp4',
+      caption: 'hall',
+      ...ctx,
+    });
+    expect(mediaContent({ ...file, asDocument: true }, fwd)).toEqual({
+      document: { url: '/data/media/v.mp4' },
+      mimetype: 'video/mp4',
+      fileName: 'v.mp4',
+      ...ctx,
+    });
+    const buf = Buffer.from('img');
+    expect(mediaContent({ buffer: buf, mime: 'image/png', fileName: 'a.png' })).toEqual({
+      image: buf,
+      mimetype: 'image/png',
+    });
+    expect(mediaContent({ buffer: buf, mime: 'image/webp', fileName: 's.webp' }, fwd)).toEqual({
+      sticker: buf,
+      mimetype: 'image/webp',
+      ...ctx,
+    });
+    const voice = mediaContent(
+      {
+        buffer: buf,
+        path: '/v.ogg',
+        mime: 'audio/ogg; codecs=opus',
+        fileName: 'v.ogg',
+        voiceNote: { seconds: 3, waveform: new Uint8Array([1]) },
+      },
+      fwd,
+    );
+    expect(voice).toMatchObject({ audio: { url: '/v.ogg' }, ptt: true, seconds: 3, ...ctx });
+    expect(mediaContent({ buffer: buf, mime: 'audio/mpeg', fileName: 'a.mp3' })).toEqual({
+      audio: buf,
+      mimetype: 'audio/mpeg',
+    });
+    expect(
+      mediaContent({ buffer: buf, mime: 'application/pdf', fileName: 'm.pdf', caption: 'menu' }),
+    ).toEqual({ document: buf, mimetype: 'application/pdf', fileName: 'm.pdf', caption: 'menu' });
+    expect(forwardedContext({ forwarded: { score: 2.7 } })).toEqual({
+      contextInfo: { isForwarded: true, forwardingScore: 2 },
+    });
+    expect(forwardedContext(undefined)).toEqual({});
+  });
+
+  it('gives media sends a long upload time and the socket a media cache', async () => {
+    const { a, options } = openAdapterWithOptions();
+    await a.sendMedia('1@s.whatsapp.net', {
+      buffer: Buffer.from('x'),
+      mime: 'application/pdf',
+      fileName: 'a.pdf',
+    });
+    expect(options).toEqual([{ mediaUploadTimeoutMs: MEDIA_UPLOAD_TIMEOUT_MS }]);
+
+    const b = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    socketFactory.mockReturnValueOnce({ ev: new EventEmitter(), end: vi.fn() });
+    Object.assign(b, {
+      auth: {
+        load: async () => ({
+          state: { creds: {}, keys: { get: async () => ({}), set: async () => {} } },
+          saveCreds: async () => {},
+        }),
+        wipe: async () => {},
+      },
+    });
+    await b.connect();
+    expect(socketFactory.mock.calls.at(-1)![0].mediaCache).toBeInstanceOf(MediaCache);
+    await b.disconnect();
   });
 });

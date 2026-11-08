@@ -215,7 +215,10 @@
       "safetyReport": "号码已被举报为诈骗",
       "safetyBlock": "号码已被屏蔽",
       "safetyUnblock": "号码已解除屏蔽",
-      "safetyAutoBlock": "号码已被自动屏蔽"
+      "safetyAutoBlock": "号码已被自动屏蔽",
+      "chatNewNumber": "与新号码开始对话",
+      "settingsNewChatStaff": "新对话设置已更改",
+      "settingsNewChatDailyLimit": "新对话每日上限已更改"
     },
     "fields": {
       "chat": "对话",
@@ -260,7 +263,10 @@
       "members": "成员",
       "agent": "AI 客服",
       "preset": "起点",
-      "internal": "内部"
+      "internal": "内部",
+      "startedBy": "发起人",
+      "before": "之前",
+      "after": "之后"
     },
     "reasons": {
       "rateLimited": "尝试次数过多",
@@ -526,6 +532,11 @@
       "businessTitle_one": "业务资料中有 {{count}} 个词永远不会被标出",
       "businessTitle_other": "业务资料中有 {{count}} 个词永远不会被标出",
       "businessHint": "它们随业务资料变化。这里显示词典不认识的词。"
+    },
+    "usageStats": {
+      "title": "隐私",
+      "label": "分享匿名使用统计",
+      "hint": "帮助我们了解新用户在哪一步遇到困难。不含姓名、号码或消息。"
     }
   },
   "resolveAll": {
@@ -1193,7 +1204,8 @@
         "food": "餐饮",
         "services": "服务",
         "shops": "商店",
-        "education": "教育"
+        "education": "教育",
+        "operations": "团队与运营"
       },
       "noMatch": "没有匹配的模板。请换个词，或从下方的类型开始。",
       "dental": {
@@ -1335,7 +1347,29 @@
         "handoffRules": "- 客户需要检查后的报价\n- 客户询问维修进度\n- 客户询问保修理赔\n- 客户询问数据恢复\n- 客户不满或投诉",
         "contextName": "维修店信息",
         "contextText": "请在每行冒号后填写内容，并删除不适用的行。AI 会把空白行视为未知，并把聊天转交给您的团队。\n\n店名：\n地址：\n营业时间：\n我们维修的品牌：\n维修项目和价格（屏幕、电池、充电口）：\n维修所需时间：\n维修保修：\n付款方式：\n回复的默认语言："
-      }
+      },
+      "groupAgentTag": "用于 WhatsApp 群组",
+      "groupSetupNew": "保存时还会把它设为群组代理：它只在 WhatsApp 群组中回答，从不回答私聊。",
+      "groupSetupExisting": "最后一步：在本页打开“在群组中回答”，并关闭“回答私聊”。",
+      "groupSetupNext": "然后连接 Google Sheets，把名为 Claims 的工作表设为“添加行”，并在每个理赔群组的“群组信息”中打开“读取每条消息”。",
+      "groupSetupDone": "{{name}} 现在只在 WhatsApp 群组中回答。下一步：连接 Google Sheets 并选择它的群组。",
+      "groupSetupFailed": "代理已保存，但群组设置没有保存。请在下方打开“在群组中回答”，并关闭“回答私聊”。",
+      "claims": {
+        "name": "理赔代理",
+        "description": "把 WhatsApp 群组中提交的理赔记录到 Google Sheets，逐一确认，并询问缺少的资料。从不批准或付款。",
+        "keywords": "理赔 索赔 报销 收据 发票 保单 保险 表格 群组 claim claims expense reimbursement receipt invoice policy insurance sheet group",
+        "agentName": "理赔助理",
+        "focus": "理赔\n您负责记录成员在我们 WhatsApp 群组中提交的理赔。您不是销售或客服代理。\n- 每项理赔需要：保单号或会员号、事件日期、发生了什么，以及理赔金额。业务背景条目“理赔规则”列出了理赔类型和其他所需资料。\n- 成员提交理赔时，把它作为新的一行保存到工作表“Claims”。每一列只能根据成员所写的内容，或他们发送的收据、发票或 PDF 填写。绝不猜测任何数值。\n- 保存后，回复他们的消息“已记录 ✅”，并重复关键数值（号码、日期、金额），方便他们核对。\n- 如果资料缺少或不清楚，先不要保存。只询问缺少的部分，等他们回复后再保存。\n- 读取收据和发票的照片及 PDF 中的日期和金额。如果文件无法读取，请对方发送更清晰的副本。\n- 如果成员更正理赔，把更正后的理赔保存为新的一行，并说明它取代之前那一行。\n- 对不是理赔的消息保持沉默（问候、闲聊、道谢、成员之间的消息）。\n- 绝不批准或拒绝理赔，绝不承诺付款或付款日期，也绝不说明某项是否在保障范围内。",
+        "handoffRules": "- 成员询问理赔是否已批准、被拒绝或已付款，或何时付款\n- 成员对决定或金额有异议，或想取消理赔\n- 文件重试一次后仍无法读取、看起来被修改过，或与所写资料不符\n- 消息分享了理赔不需要的医疗报告、身份证号码、银行资料或其他敏感个人信息\n- 理赔超过“理赔规则”中的限额或截止日期\n- 成员不满或投诉",
+        "contextName": "理赔规则",
+        "contextText": "请在每行冒号后填写内容，并删除不适用的行。AI 会把空白行视为未知，并把聊天转交给您的团队。\n\n理赔类型：\n每项理赔需要的资料：\n需附上的文件（收据、发票、报告）：\n每项理赔限额：\n提交截止日期：\n谁批准理赔：\n批准后的理赔何时付款：\n原始文件寄往何处：\n回复的默认语言："
+      },
+      "source": {
+        "loaded": "模板库已于 {{date}} 更新。",
+        "builtin": "显示此版本 {{product}} 自带的模板。",
+        "offline": "无法检查新模板，显示上次保存的列表。"
+      },
+      "worksWith": "可搭配 {{names}}"
     },
     "resolution": {
       "title": "关闭对话",
@@ -1344,6 +1378,123 @@
       "onHint": "回答后，{{name}} 会询问是否解答了问题，并在客户明确确认后关闭对话。",
       "offHint": "{{name}} 不会添加确认语句，也不会关闭对话。由您的团队关闭对话。",
       "saveFailed": "无法保存，请重试。"
+    },
+    "scheduled": {
+      "title": "定时任务",
+      "description": "{{name}} 会在设定的时间自动发送一条消息，发到你选择的一个聊天或群组。",
+      "add": "添加任务",
+      "empty": {
+        "title": "还没有定时任务",
+        "body": "例如：每个工作日早上 8:30，{{name}} 把今天的预约发到员工群。"
+      },
+      "total": "{{total}} / {{max}} 个任务",
+      "limitReached": "已达 {{max}} / {{max}} 个任务。删除一个才能再添加。",
+      "showAll": "显示全部（{{total}}）",
+      "showFewer": "收起",
+      "safety": "只能发到此收件箱中已有的聊天和群组。每次只发一条，绝不发给新号码或一组人。",
+      "noInbox": "请先为 {{name}} 选择收件箱。",
+      "scheduleLine": "{{days}} · {{time}}",
+      "days": {
+        "daily": "每天",
+        "weekdays": "工作日",
+        "custom": "指定日期"
+      },
+      "off": "已关闭",
+      "pausedShort": "已暂停",
+      "next": "下次：{{when}}",
+      "chatGone": "此聊天已不在这个收件箱中。请编辑任务，选择其他聊天。",
+      "lastRun": "上次运行：{{result}}，{{when}}。打开记录",
+      "switchLabel": "开启或关闭 {{name}}",
+      "actions": "{{name}} 的更多操作",
+      "edit": "编辑",
+      "runNow": "立即运行",
+      "history": "运行记录",
+      "delete": "删除",
+      "deleteTitle": "删除“{{name}}”？",
+      "deleteBody": "任务及其运行记录将被删除。已发送的消息仍保留在聊天中。",
+      "added": "任务已添加",
+      "saved": "任务已保存",
+      "saveFailed": "无法保存，请重试。",
+      "result": {
+        "sent": "已发送",
+        "skipped": "已跳过",
+        "failed": "失败",
+        "running": "运行中"
+      },
+      "reason": {
+        "nothing_to_say": "今天没有需要通知的内容，所以没有发送。",
+        "needs_team": "智能体希望由团队处理，所以没有发送。",
+        "agent_off": "智能体已关闭。",
+        "ai_disconnected": "AI 未连接。",
+        "wa_disconnected": "WhatsApp 未连接。",
+        "access_closed": "当时应用已被锁定。",
+        "window_closed": "此聊天的 24 小时回复窗口已关闭（WhatsApp Business API）。",
+        "missed": "当时应用没有运行。错过的任务不会补发。",
+        "chat_gone": "此聊天已不在这个收件箱中。",
+        "confidential_leak": "这条消息会透露内部条目，所以没有发送。",
+        "ai_unavailable": "AI 没有及时回答。",
+        "lookup_failed": "查询（例如 Google 日历）没有成功。",
+        "send_failed": "WhatsApp 没有接收这条消息。",
+        "interrupted": "任务运行时应用停止了。"
+      },
+      "paused": {
+        "title": "定时任务已暂停",
+        "agent_off": "{{name}} 已关闭。开启智能体后才会运行它的任务。",
+        "ai_disconnected": "AI 未连接。请在 设置 → AI 中连接。",
+        "wa_disconnected": "WhatsApp 未连接。连接后任务会恢复。",
+        "access_closed": "应用已被锁定。解锁后任务会恢复。"
+      },
+      "form": {
+        "addTitle": "添加定时任务",
+        "editTitle": "编辑定时任务",
+        "description": "{{name}} 会在这个时间发送一条消息。没有内容可说时，也可以不发送。",
+        "name": "名称",
+        "namePlaceholder": "早上的预约",
+        "nameRequired": "请为任务命名。",
+        "chat": "发送到",
+        "chatPlaceholder": "选择聊天或群组",
+        "chatSearch": "搜索聊天和群组",
+        "chatNone": "没有找到聊天。",
+        "chatLoading": "正在加载聊天…",
+        "chatHint": "只能选择此收件箱中已有的聊天和群组。",
+        "chatRequired": "请选择发送到哪里。",
+        "chatNotInInbox": "该聊天不在此智能体的收件箱中。请选择其他聊天。",
+        "groups": "群组",
+        "people": "联系人",
+        "when": "时间安排",
+        "time": "时间",
+        "timeZone": "业务时区：{{zone}}（在 设置 → AI 中设定）。",
+        "days": "日期",
+        "daysRequired": "请至少选择一天。",
+        "instruction": "要说什么？",
+        "instructionPlaceholder": "把 Google 日历里今天的预约告诉团队。没有预约就跳过。",
+        "instructionHint": "{{name}} 会使用它的业务资料和连接器。加上“没有就跳过”，清闲的日子就不会发送。",
+        "instructionRequired": "请写下消息要说的内容。",
+        "preview": "预览",
+        "save": "保存",
+        "create": "添加任务"
+      },
+      "preview": {
+        "title": "预览",
+        "lookedUp": "{{name}} 查询了 {{title}}（{{source}}）。",
+        "wouldSend": "将发送到 {{chat}}：",
+        "wouldSkip": "不会发送。{{reason}}",
+        "nothingSent": "仅预览，不会发送任何内容。",
+        "failed": "预览没有成功"
+      },
+      "runNowTitle": "现在发送到 {{chat}}？",
+      "runNowBody": "{{name}} 会立即运行一次此任务并发送消息，与设定时间时相同。",
+      "runNowLimit": "过去一小时内“立即运行”使用次数太多。请稍后再试。",
+      "runNowSent": "已发送到 {{chat}}",
+      "runNowSkipped": "没有发送。{{reason}}",
+      "runNowFailed": "未发送。{{reason}}",
+      "openChat": "打开聊天",
+      "openChatNamed": "打开 {{chat}}",
+      "historyTitle": "运行记录：{{name}}",
+      "historyBody": "最近 30 次运行。消息内容保留在聊天中。",
+      "historyEmpty": "此任务还没有运行过。",
+      "byRunNow": "由 {{name}} 立即运行",
+      "byRunNowUnknown": "立即运行"
     }
   },
   "enrichment": {
@@ -1534,7 +1685,13 @@
       "none": "尚无连接器。",
       "browse": "浏览连接器",
       "sheetsReads": "读取 {{tabs}}",
-      "sheetsAdds": "向 {{tabs}} 添加行"
+      "sheetsAdds": "向 {{tabs}} 添加行",
+      "driveNoFolder": "未选择文件夹",
+      "driveSaves": "保存文件",
+      "driveReads_one": "读取 {{count}} 个文件",
+      "driveReads_other": "读取 {{count}} 个文件",
+      "driveSavesAndReads_one": "保存文件并读取 {{count}} 个文件",
+      "driveSavesAndReads_other": "保存文件并读取 {{count}} 个文件"
     },
     "settingsPointerTitle": "连接器",
     "settingsPointer": "Google Calendar 及 AI 代理使用的其他系统位于 管理 → 连接器。",
@@ -1546,7 +1703,13 @@
       "readRows": "根据表格回答问题",
       "readRowsHint": "回答前先在您的工作表中查找价格、库存或其他信息。",
       "addLead": "保存有意向的客户（潜在客户）",
-      "addLeadHint": "把想购买的客户添加为一行，方便您的团队跟进。"
+      "addLeadHint": "把想购买的客户添加为一行，方便您的团队跟进。",
+      "save": "保存文件",
+      "saveHint": "把在此聊天中收到的文件保存到助手的文件夹。",
+      "find": "查找文件",
+      "findHint": "在您选择的文件中找到合适的文件。",
+      "read": "读取文件",
+      "readHint": "读取您选择的 Google 文档、表格、PDF、Word 或文本文件并据此回答。"
     },
     "items": {
       "google-calendar": {
@@ -1566,6 +1729,20 @@
         "short": "根据您的价目表回答，并把有意向的客户保存为潜在客户。",
         "long": "把价格、库存或常见问题放在 Google 表格中，让 AI 代理读取。如果您允许，AI 还会把每个新的潜在客户添加为一行。使用 Google 登录，然后选择表格。",
         "privacy": "{{product}} 只能打开您选择的电子表格，只读取您选的工作表，只写入它添加的潜在客户行：日期、客户姓名、WhatsApp 号码、电子邮件，以及一句简短的需求说明。聊天记录不会发送到 Google。登录信息加密保存在这台电脑上。"
+      },
+      "google-drive": {
+        "name": "Google Drive",
+        "short": "保存聊天中的文件；读取您选择的文件。",
+        "long": "AI 助手可以把在 WhatsApp 中收到的文件保存到您选择的 Google Drive 文件夹，并读取您选择的 Drive 文件。保存或读取什么、何时进行，由每个助手的指令决定。",
+        "privacy": "{{product}} 只能打开您在 Google 自己的窗口中选择的文件夹和文件，以及它自己保存的文件。您 Drive 中的其他内容保持私密。",
+        "privacy2": "AI 只保存客户在该聊天中发送的文件，绝不保存其他聊天的文件，也绝不保存被 WhatsApp 安全锁定的文件。",
+        "privacy3": "活动只记录谁和何时。文件内容和名称保留在您的 Drive 中。"
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "从 SQL Account 获取库存、价格，以及客户本人的发票和订单。",
+        "long": "您的 AI 客服根据 SQL Account 回答：所有人可查库存和价格，每位客户只能查自己的发票和订单。",
+        "privacy": "{{product}} 只把一次查询所需的内容（商品名称、客户代码、单据号码）发送给 SQL Account，绝不发送聊天内容。"
       }
     },
     "gc": {
@@ -1907,11 +2084,44 @@
       "newColumn": "新列",
       "columnsOf": "{{tab}} 的列",
       "emptyFirstRow": "请先在此工作表的第一行添加列名，AI 才能使用它。",
+      "permissions": {
+        "groupLabel": "AI 可以在 {{tab}} 中写入的内容",
+        "aiValues": "允许 AI 填写查到或算出的数值",
+        "aiValuesHint": "关闭：AI 只写入对方写下或发送的内容。开启：AI 也可以写入从“读取”工作表查到的数字，或根据聊天算出的数字（例如总额）。AI 绝不会编造数值。",
+        "formulas": "允许公式",
+        "formulasHint": "以 = 开头的值会成为公式，数字和日期会按数字和日期保存。",
+        "formulasTipTitle": "公式能做什么？",
+        "formulasTipBody": "公式可能会改变您的数字。EzyChat 会阻止访问表格以外内容的公式（例如含网址或 IMPORTRANGE 的公式），客户输入的公式一律按普通文本保存。"
+      },
       "goneBadge": "已不在表格中",
       "goneHint": "Google 已不再列出此工作表。保存时会移除其权限。",
       "autoColumns": "工作表有这些列时由 {{product}} 自动填写：{{columns}}。其他列由 AI 根据收到的消息、照片和 PDF 填写。",
       "rule5": "文字以纯文本保存：任何人输入的公式都不会被执行。",
-      "rule6": "“试一试”绝不会写入表格。"
+      "rule6": "“试一试”绝不会写入表格。",
+      "create": {
+        "open": "新建表格",
+        "title": "新建表格",
+        "description": "EzyChat 会在您的 Google 账号中创建它，并供 {{name}} 使用。",
+        "start": "起始方式",
+        "blank": "空白表格",
+        "fromLayout": "{{template}} 布局",
+        "name": "表格名称",
+        "tabs": "工作表",
+        "tabsHint": "列名写在每个工作表的第一行。EzyChat 会自动填写 Date、Name、WhatsApp、Group、AI agent 和 Source。",
+        "tabN": "工作表 {{n}}",
+        "tabName": "工作表名称",
+        "columns": "列名",
+        "columnsHint": "用逗号分隔，例如：Date, Name, Amount",
+        "access": "助手可以对 {{tab}} 做什么",
+        "removeTab": "移除 {{tab}}",
+        "addTab": "添加工作表",
+        "formulas_one": "还会添加布局中的 {{count}} 个公式。",
+        "formulas_other": "还会添加布局中的 {{count}} 个公式。",
+        "invalid": "请为表格命名，并为每个工作表填写各自的名称和至少一个列名。",
+        "cancel": "取消",
+        "submit": "创建表格",
+        "done": "已在您的 Google 账号中创建表格"
+      }
     },
     "sheetsAct": {
       "hint": "AI 查询和添加的内容。只记录谁和何时：绝不记录数值或聊天内容。",
@@ -1921,6 +2131,310 @@
       "row_added": "{{agent}} 为 {{customer}} 向 {{tab}} 添加了一行",
       "row_addedGroup": "{{agent}} 在 {{group}} 中为 {{customer}} 向 {{tab}} 添加了一行",
       "looked_upTab": "{{agent}} 为 {{customer}} 查询了 {{tab}}"
+    },
+    "gd": {
+      "accountDescription": "{{product}} 用于 Google Drive 的 Google 账号。整个团队使用一个账号；它可以与 Google 日历或表格使用的账号不同。",
+      "what1": "让 AI 助手保存聊天中收到的文件",
+      "what2": "让 AI 助手读取您选择的 Drive 文件",
+      "what3": "由您选择文件夹和文件；不会共享其他内容",
+      "connect": "连接 Google Drive",
+      "connectHint": "Google 会在浏览器中打开，无需复制或粘贴。您可以随时断开连接。",
+      "connectedToast": "已连接 Google Drive",
+      "expiredBody": "在您重新登录之前，AI 不会保存或读取文件，并会把这些聊天交给您的团队。",
+      "unavailableTitle": "无法连接 Google Drive",
+      "unavailableBody": "{{product}} 会自动重试。在此期间，AI 会把涉及文件的聊天交给您的团队。",
+      "perAgent": "在“设置”中为每个 AI 助手选择文件夹和文件。",
+      "disconnectTitle": "断开 Google Drive？",
+      "disconnectBody": "AI 会立即停止保存和读取文件。已保存的文件仍保留在您的 Drive 中。设置会保留，以便您再次连接。",
+      "disconnected": "已断开 Google Drive"
+    },
+    "drive": {
+      "notConnected": "请先连接 Google Drive",
+      "notConnectedHint": "然后为每个 AI 助手选择文件夹。",
+      "paused": {
+        "expired": "已暂停：请重新登录 Google",
+        "unavailable": "已暂停：无法连接 Google Drive"
+      },
+      "pausedBody": "在恢复之前，{{name}} 不会保存或读取文件，并会把涉及文件的聊天交给您的团队。",
+      "folder": {
+        "title": "文件夹",
+        "description": "{{name}} 保存文件的位置，也是您为它选择可读文件的位置。",
+        "none": "尚未选择文件夹。",
+        "choose": "选择文件夹",
+        "change": "选择其他文件夹",
+        "changeHint": "选择其他文件夹会移除已选的文件。",
+        "open": "在 Google Drive 中打开",
+        "onlyChosen": "{{product}} 只能看到您在这里选择的内容。"
+      },
+      "needFolder": "请先选择文件夹。",
+      "save": {
+        "title": "保存文件",
+        "description": "{{name}} 可以把聊天中收到的文件保存到此文件夹。",
+        "rule1": "只保存在该聊天中收到的文件，绝不保存其他聊天的文件。",
+        "rule2": "绝不保存被 WhatsApp 安全锁定的文件。",
+        "rule3": "每个文件最大 {{mb}} MB。每个文件只保存一次。",
+        "rule4": "{{product}} 按日期和时间命名文件，而不是用发送者的文件名。"
+      },
+      "read": {
+        "title": "读取文件",
+        "description": "{{name}} 会根据您在这里选择的文件回答问题。",
+        "none": "还没有文件。添加 {{name}} 可以读取的文件。",
+        "add": "添加文件",
+        "remove": "移除 {{file}}",
+        "hint": "Google 文档、表格、PDF、Word 和文本文件，最多 {{max}} 个。绝不读取从聊天中保存的文件。",
+        "full": "已达上限：{{max}} 个文件。移除一个后才能添加。",
+        "cantRead": "AI 无法读取这类文件。"
+      },
+      "kind": {
+        "doc": "Google 文档",
+        "sheet": "Google 表格",
+        "pdf": "PDF",
+        "word": "Word",
+        "text": "文本"
+      },
+      "when": {
+        "note": "{{name}} 保存或读取什么、何时进行，由它的指令决定。",
+        "open": "编辑 {{name}} 的指令"
+      },
+      "picking": "正在等待 Google 文件选择器…",
+      "pickingFolder": "请在打开的窗口中选择文件夹。此页面会自动更新。",
+      "pickingFiles": "请在打开的窗口中选择文件。此页面会自动更新。",
+      "pickBlocked": "浏览器拦截了窗口。请打开文件选择器继续。",
+      "openPicker": "打开文件选择器",
+      "pickSameComputer": "文件选择器只能在运行 {{product}} 的电脑上的浏览器中使用。",
+      "pickError": {
+        "cancelled": "没有选择任何内容。",
+        "failed": "{{product}} 无法打开您选择的内容。请重新选择。",
+        "expired": "文件选择器等待时间过长。请重试。"
+      },
+      "discard": "放弃",
+      "saveButton": "保存",
+      "saved": "Google Drive 设置已保存"
+    },
+    "driveAct": {
+      "hint": "只记录谁和何时。文件名称和内容保留在您的 Drive 中。",
+      "emptyHint": "保存和读取记录会显示在这里。",
+      "saved": "{{agent}} 保存了 {{customer}} 发送的文件",
+      "read": "{{agent}} 为 {{customer}} 读取了文件",
+      "failed": "{{agent}} 无法为 {{customer}} 连接 Google Drive，已转交团队",
+      "skipped": {
+        "safety": "{{agent}} 没有保存 {{customer}} 发送的被锁定文件",
+        "size": "{{agent}} 没有保存 {{customer}} 发送的文件：文件太大",
+        "unavailable": "{{agent}} 没有保存 {{customer}} 发送的文件：无法下载"
+      },
+      "inGroup": "{{line}}（{{group}}）"
+    },
+    "sql": {
+      "tabs": {
+        "overview": "概览",
+        "connection": "连接",
+        "settings": "设置",
+        "customers": "客户",
+        "activity": "活动"
+      },
+      "settings": {
+        "notConnected": "请先连接 SQL Account。您现在就可以选择设置，连接后 AI 才会使用。"
+      },
+      "req": {
+        "title": "仅适用于已开启 SQL Account API 服务（API Link）的公司",
+        "body": "{{product}} 通过 SQL Account 的 API 服务与其通信。需要 SQL Account 的 API 模块（向您的 SQL 经销商购买的付费附加模块）。没有它，此连接器无法使用，{{product}} 也绝不会直接读取您的 SQL Account 文件。",
+        "version": "SQL Account 5.2025.1038.875 或更新版本。",
+        "service": "API 服务已在您的 SQL Account 服务器上安装并运行。",
+        "port": "路由器的 443 端口已转发到该服务器（需要网络供应商提供的固定公网 IP）。",
+        "user": "为 {{product}} 单独建立的 SQL Account 用户，以及它的访问密钥和秘密密钥。",
+        "dealer": "不确定？请咨询您的 SQL Account 经销商。",
+        "cloud": "SQL Cloud：请向经销商确认是否提供 API 模块。"
+      },
+      "about": "您的 AI 客服根据 SQL Account 回答：所有人可查库存和价格，每位客户只能查自己的发票和订单。",
+      "can": {
+        "stock": "查询商品是否有货及售价。",
+        "account": "告诉客户其本人的发票；如您开启，还可告诉客户尚欠金额。",
+        "documents": "告诉客户其本人报价单、销售订单或送货单的状态。",
+        "quotation": "客户确认后可建立报价单（默认关闭，需您开启）。"
+      },
+      "ownOnly": "客户只能看到自己的记录。如果 {{product}} 无法确定是哪位 SQL Account 客户在发消息，AI 会把聊天转交给您的团队。",
+      "privacy1": "{{product}} 只把一次查询所需的内容（商品名称、客户代码、单据号码）发送给 SQL Account，绝不发送聊天内容。",
+      "privacy2": "密钥加密保存在这台电脑上。日志只记录执行了哪项查询、是否成功和耗时，绝不记录金额、姓名或单据内容。",
+      "state": {
+        "no_dns": {
+          "title": "API 服务尚未设置",
+          "body": "SQL Account 没有对应此密钥的 API 服务。请在 SQL Account 开启 API 服务（Configure API Service）后再试。"
+        },
+        "unreachable": {
+          "title": "无法连接您的 SQL 服务器",
+          "body": "API 服务未运行、SQL Account 服务器已关机，或 443 端口未转发到该服务器。请在 SQL Account 中用 Test Connection 检查。"
+        },
+        "private_ip": {
+          "title": "无法连接您的 SQL 服务器",
+          "body": "该地址指向内部网络。{{product}} 只通过互联网、经由 API 服务连接 SQL Account。"
+        },
+        "bad_keys": {
+          "title": "密钥不被接受",
+          "body": "SQL Account 不接受此访问密钥或秘密密钥。请在 SQL Account（Maintain User → API Secret Key）生成新密钥后重新连接。"
+        },
+        "old_version": {
+          "title": "SQL Account 版本太旧或未开启 API",
+          "body": "需要 SQL Account 5.2025.1038.875 或更新版本并开启 API 服务。请联系经销商更新。"
+        },
+        "unexpected": {
+          "title": "无法使用 SQL Account 的回应",
+          "body": "SQL Account 的回应方式 {{product}} 无法使用。请稍后再试或咨询经销商。"
+        }
+      },
+      "conn": {
+        "connect": "连接 SQL Account",
+        "connected": "已连接 SQL Account",
+        "title": "连接",
+        "hint": "粘贴您在 SQL Account 生成的访问密钥和秘密密钥。",
+        "accessKey": "访问密钥",
+        "accessHint": "格式如 13fc…c393.sql.my/APIUSER。",
+        "keyFormat": "这不是 SQL Account 访问密钥。它以 .sql.my/ 加用户名结尾。",
+        "secretKey": "秘密密钥",
+        "host": "地址：",
+        "hostFromKey": "根据访问密钥自动填写",
+        "testing": "测试中…",
+        "connectTest": "测试并连接",
+        "okTitle": "已连接",
+        "okBody": "SQL Account 已响应。您的 AI 客服会按您在设置中选择的权限使用它。",
+        "checked": "上次检查",
+        "test": "测试连接",
+        "disconnect": "断开连接",
+        "disconnectTitle": "断开 SQL Account？",
+        "disconnectBody": "密钥会从这台电脑删除，AI 不再使用 SQL Account。SQL Account 中的资料不会改变。",
+        "testOk": "SQL Account 已响应。"
+      },
+      "access": {
+        "title": "{{agent}} 可以使用的内容",
+        "hint": "按记录类型选择。读取：AI 可以查询；读取 + 新建：AI 还可以新增一条。",
+        "own": "仅限客户本人",
+        "everyone": "所有客户",
+        "off": "关闭",
+        "read": "读取",
+        "create": "读取 + 新建",
+        "never": "AI 绝不会修改或删除 SQL Account 中的任何内容。未列在这里的记录绝不会被使用。",
+        "showPrice": "显示售价",
+        "stockShown": "库存显示为",
+        "inStock": "有货 / 缺货",
+        "quantity": "准确数量",
+        "save": "保存",
+        "discard": "放弃",
+        "saved": "已保存"
+      },
+      "obj": {
+        "stockitem": {
+          "name": "库存商品",
+          "sees": "代码、描述、售价、是否有货。绝不显示成本价。"
+        },
+        "customer": {
+          "name": "客户资料",
+          "sees": "客户代码、公司名称、信用期限和尚欠总额。绝不显示信用额度。"
+        },
+        "customerinvoice": {
+          "name": "客户发票（欠款）",
+          "sees": "号码、日期、到期日、总额、已付和尚欠金额。AI 按 SQL Account 记录的金额原样说明。"
+        },
+        "salesinvoice": {
+          "name": "销售发票",
+          "sees": "近期发票的号码、日期和总额。"
+        },
+        "salesquotation": {
+          "name": "报价单",
+          "sees": "号码、日期、总额、商品。"
+        },
+        "salesorder": {
+          "name": "销售订单",
+          "sees": "号码、日期、总额、状态。"
+        },
+        "deliveryorder": {
+          "name": "送货单",
+          "sees": "号码、日期、状态。"
+        },
+        "customerpayment": {
+          "name": "客户付款",
+          "sees": "号码、日期、金额、已付发票。"
+        }
+      },
+      "guard": {
+        "title": "AI 建立报价单之前",
+        "confirm": "先列出商品、数量、价格和总额，等客户在新消息中确认。",
+        "items": "商品只来自该聊天中的库存查询；数量只来自客户写的内容。",
+        "price": "价格一律来自 SQL Account，绝不由 AI 决定。",
+        "limit": "每个聊天每天最多 2 张报价单，此 AI 客服每天最多 20 张。",
+        "never": "试用中不会、群组中不会，也绝不会建立发票、订单或付款。"
+      },
+      "match": {
+        "title": "这位客户在 SQL Account 中是谁？",
+        "hint": "AI 显示发票或订单之前，{{product}} 必须知道是哪位 SQL Account 客户在发消息。依次检查：",
+        "rule1": "您的团队为此聊天关联的客户代码。",
+        "rule2": "WhatsApp 号码——仅当恰好一位 SQL Account 客户使用此号码时。",
+        "rule3": "否则视为未匹配：AI 把聊天转交给您的团队。",
+        "byPhone": "按电话号码匹配",
+        "never": "{{product}} 绝不按姓名匹配，也绝不使用客户自己输入的客户代码。",
+        "unavailable": "您的 SQL Account 不向 {{product}} 提供电话号码：请手动关联客户。",
+        "building": "正在从 SQL Account 读取电话号码……读到客户后即可匹配聊天。"
+      },
+      "cust": {
+        "title": "客户",
+        "hint": "每个聊天及其匹配的 SQL Account 客户。",
+        "linked": "已关联",
+        "phone": "按电话匹配",
+        "several": "多位客户",
+        "none": "未匹配",
+        "severalHint": "多位 SQL Account 客户使用此号码。请关联其中一位。",
+        "noneHint": "没有 SQL Account 客户使用此号码。关联后 AI 才能回答发票和订单问题。",
+        "empty": "还没有聊天。",
+        "link": "关联",
+        "change": "更改",
+        "unlink": "取消关联",
+        "linkTitle": "将 {{name}} 关联到 SQL Account 客户",
+        "linkHint": "按客户代码或公司名称搜索。{{product}} 会确认该代码在 SQL Account 中存在。",
+        "search": "客户代码或公司",
+        "pick": "关联",
+        "noDebtor": "找不到 SQL Account 客户。",
+        "linkedToast": "已关联到 {{code}}",
+        "unknownCode": "SQL Account 中没有这个客户代码。",
+        "notConnected": "请先连接 SQL Account，才能搜索其客户。",
+        "searching": "搜索中…",
+        "unlinked": "已取消关联"
+      },
+      "act": {
+        "hint": "AI 使用 SQL Account 做了什么。这里绝不保存金额和单据内容。",
+        "stock": "{{agent}} 查询了库存：",
+        "account": "{{agent}} 查询了发票：",
+        "document": "{{agent}} 查询了单据：",
+        "payments": "{{agent}} 查询了付款：",
+        "quotation": "{{agent}} 建立了报价单：",
+        "dockey": "SQL Account ID {{dockey}}",
+        "result": {
+          "done": "完成",
+          "refused": "不允许",
+          "failed": "失败"
+        },
+        "reason": {
+          "no_customer": "未匹配客户，已转交团队",
+          "unreachable": "无法连接 SQL 服务器",
+          "not_own": "不是该客户的单据",
+          "several": "多位 SQL Account 客户使用此号码，已转交团队",
+          "object_off": "此 AI 客服已关闭此项",
+          "item_not_looked_up": "商品未在此聊天中查询过",
+          "qty_not_from_customer": "数量不是客户写的",
+          "no_price": "商品在 SQL Account 中没有价格",
+          "no_draft": "未先向客户展示报价单",
+          "draft_expired": "展示的报价单已过期",
+          "limit_chat": "已达此聊天的每日上限",
+          "limit_agent": "已达此 AI 客服的每日上限",
+          "not_confirmed": "客户尚未确认",
+          "no_dns": "API 服务尚未设置",
+          "private_ip": "地址位于内部网络",
+          "bad_keys": "密钥不被接受",
+          "old_version": "SQL Account 版本太旧或未开启 API",
+          "unexpected": "{{product}} 无法使用的回应",
+          "other": "出现问题"
+        },
+        "noChat": "一个聊天",
+        "someone": "AI 客服"
+      },
+      "agentCard": "已开启 {{on}}/{{total}} 类记录"
     }
   },
   "reports": {
@@ -2428,5 +2942,40 @@
         "ready": "就绪"
       }
     }
+  },
+  "limitedChats": {
+    "label": "此成员可以看到的聊天",
+    "all": {
+      "title": "所有聊天",
+      "hint": "可以看到其可访问收件箱中的所有聊天，与现在相同。"
+    },
+    "chosen": {
+      "title": "仅选定的聊天",
+      "hint": "只能看到您在下方选择的私聊和群组。适用于外部或支持客服。"
+    },
+    "count_other": "已选择 {{count}} 个聊天",
+    "none": "尚未选择聊天：在您添加之前，此成员看不到任何聊天。",
+    "chosenLabel": "已选择的聊天",
+    "remove": "移除 {{name}}",
+    "add": "添加 {{name}}",
+    "addLabel": "添加聊天",
+    "addPlaceholder": "搜索聊天和群组",
+    "noMatch": "没有其他匹配的聊天。",
+    "note_zero": "未选择聊天",
+    "note_other": "仅 {{count}} 个选定聊天"
+  },
+  "newChat": {
+    "title": "新对话",
+    "description": "与还不在收件箱中的号码发起 WhatsApp 对话。管理员始终可以这样做。",
+    "staff": "团队成员可以发起新对话",
+    "staffOn": "开启：每个人都可以从自己所属的收件箱发起新对话。",
+    "staffOff": "关闭：只有管理员能看到“新对话”。",
+    "limitLabel": "每个 WhatsApp 号码每天的新对话数",
+    "limitUnit": "每天",
+    "limitInvalid": "请输入 0 到 {{max}} 之间的整数。",
+    "limitHint": "统计每个已链接手机发起的新号码，包括团队和 AI 助手。0 = 不限制。Business API 号码由 Meta 限制。",
+    "limitNone": "不限制：团队和 AI 助手每天可以给任意数量的新号码发消息。",
+    "limitBanTitle": "上限过高可能导致号码被封禁",
+    "limitBanBody": "如果号码给很多没有要求联系的人发消息，WhatsApp 可能会封禁该号码。除非对方期待你的消息，否则请保持较低的上限。"
   }
 }

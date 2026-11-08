@@ -9,11 +9,13 @@
 // Partner connectors (start it with the env lines of `node e2e/partner-mcp/cli.mjs`): STOCK, INVOICE and
 // QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
-// Fix English: grammar fixes from a fixed list of slips (have/has, ship/shipped, you/your, a/an, i, capitals).
+// Fix English: grammar fixes from a fixed list of slips (have/has, ship/shipped, you/your, a/an, i, capitals),
+// and a full stop after a final "email" every time (even after one), like a model that re-adds a fix.
 // Hand-off rules: consultation, CHECKIN, RESOLVE and HUMAN (see mockDecision); check: e2e/devbuild-handoff-check.mjs.
 // Group agents (--max-agents 2): in a group that reads every message, a message with "Policy no:" and
 // "Amount:" calls add_sheet_row on the tab Claims and repeats what it said; a claim without an amount
 // asks for it; anything else gets no_reply. Check: e2e/devbuild-claims-check.mjs.
+// Scheduled tasks: see mockDecision (SKIP, LEAK); check: e2e/devbuild-scheduled-check.mjs.
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -95,6 +97,21 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
   const situation = (
     input as { currentSituation?: { group?: { newMessages?: unknown; messageToAnswer?: string } } }
   ).currentSituation?.group;
+  // A scheduled task's turn: SKIP → nothing to tell; LEAK → repeats the Internal items (the leak
+  // check must stop it); otherwise one message naming the task and the business words it was given.
+  const scheduled = (
+    input as { currentSituation?: { scheduledTask?: { name: string; instruction: string } } }
+  ).currentSituation?.scheduledTask;
+  if (scheduled) {
+    if (scheduled.instruction.includes('SKIP')) return { reply: '', action: 'no_reply' };
+    if (scheduled.instruction.includes('LEAK'))
+      return { reply: input.internalKnowledge, action: 'answer' };
+    const marks = input.businessKnowledge.match(/MARK-[A-Z0-9]+/g) ?? [];
+    return {
+      reply: `Scheduled "${scheduled.name}": ${scheduled.instruction} business=${marks.join(',') || 'none'}`,
+      action: 'answer',
+    };
+  }
   if (situation?.newMessages !== undefined) {
     const text = String(situation.messageToAnswer ?? '');
     const policy = /Policy no:\s*(\S+)/i.exec(text)?.[1];
@@ -242,6 +259,10 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
         .replace(/\bbeen ship\b/gi, 'been shipped')
         .replace(/\b(check|confirm) you (email|order|address)\b/gi, '$1 your $2')
         .replace(/\ba (update|order|email|invoice)\b/gi, 'an $1')
+        // Like a real model, it checks every draft afresh: "check email" gets "your" and a full
+        // stop, and a draft ending in "email." gets one more (the double append Fix English drops).
+        .replace(/\bcheck email\b/gi, 'check your email')
+        .replace(/(\bemail)(\.*)\s*$/i, '$1$2.')
         .replace(/\bi\b/g, 'I')
         .replace(
           /(^|[.!?]\s+)([a-z])/g,

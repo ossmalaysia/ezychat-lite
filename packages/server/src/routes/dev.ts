@@ -30,6 +30,8 @@ import { getInboxService } from '../inboxes/service.js';
 /** fake WA only: `quotedId` is a stored message id of the same chat (the member replies to it). */
 const FakeIncomingDevBody = FakeIncomingBody.extend({
   quotedId: z.string().min(1).max(512).optional(),
+  /** The message arrives as WhatsApp "Forwarded" with this score (5+ = "Forwarded many times"). */
+  forwardingScore: z.number().int().min(1).max(1000).optional(),
 });
 
 const FakeWindowBody = z.object({
@@ -110,6 +112,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         ...(body.senderJid ? { senderJid: body.senderJid } : {}),
         ...(body.mentionedJids !== undefined ? { mentionedJids: body.mentionedJids } : {}),
         ...(body.quotedId ? { quotedId: waMessageId(body.quotedId) } : {}),
+        ...(body.forwardingScore ? { forwardingScore: body.forwardingScore } : {}),
         type: body.type ?? 'text',
         // A simulated voice note or photo: the fake adapter serves these bytes as the download.
         media: body.media
@@ -209,7 +212,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         phoneJid: me,
         lidJid: null,
         username: null,
-        role: 'superadmin',
+        role: body.meRole,
       });
     const add = (m: {
       phone?: string;
@@ -241,12 +244,21 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     wa.setGroupInfo({
       jid: body.groupJid,
       name: body.name,
-      description: null,
+      description: body.description ?? null,
       createdAt: Date.now() - 200 * 86_400_000,
       ownerJid: participants[1]?.phoneJid ?? participants[1]?.jid ?? null,
       size: participants.length,
       participants,
+      settings: {
+        announce: false,
+        locked: true,
+        memberAdd: 'admins',
+        approval: body.joinRequests.length > 0,
+        ...body.settings,
+      },
     });
+    for (const phone of body.joinRequests) wa.addJoinRequest(body.groupJid, phone);
+    for (const phone of body.privacyRefuses) wa.setPrivacyRefuses(phone);
     getChats(ctx).upsertContacts(contacts);
     getChats(ctx).upsertFromWa({ jid: body.groupJid, type: 'group', name: body.name }, inboxId);
     wa.simulateGroupChanged(body.groupJid);

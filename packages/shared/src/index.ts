@@ -16,7 +16,10 @@ export * from './reply-phrases.js';
 export * from './fix-english.js';
 export * from './connectors.js';
 export * from './google-sheets.js';
+export * from './sql-account.js';
+export * from './google-drive.js';
 export * from './connector-list.js';
+export * from './template-list.js';
 export * from './reports.js';
 export * from './ask-ezy.js';
 export * from './safety.js';
@@ -29,3 +32,7 @@ export type {
 } from './desktop-updates.js';
 export * from './i18n/index.js';
 export * from './feedback.js';
+export * from './usage.js';
+export * from './scheduled-tasks.js';
+export * from './new-chat.js';
+export * from './forward.js';

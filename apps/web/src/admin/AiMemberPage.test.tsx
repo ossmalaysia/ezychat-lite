@@ -10,6 +10,7 @@ import {
   type AiAgentSummary,
   type AiDocument,
   type AiMemberStatus,
+  type AgentTemplateCatalog,
 } from '@ezychat/shared';
 import { AiMemberPage } from './AiMemberPage';
 import {
@@ -42,6 +43,8 @@ interface World {
   inboxes: { id: number; name: string; aiAgentId: number | null }[];
   /** The connection uses a Claude API key instead of an OpenAI one. */
   claude?: boolean;
+  /** The signed template list (GET /api/ai/templates); none answers 404 (the app's own show). */
+  templates?: AgentTemplateCatalog;
 }
 function agentStatus(
   id = 5,
@@ -131,6 +134,8 @@ function setup(
     const id = agentMatch ? Number(agentMatch[1]) : 0;
     const rest = agentMatch?.[2] ?? '';
     if (url === '/api/ai') return json(memberStatus(w));
+    if (url === '/api/ai/templates' || url === '/api/ai/templates/refresh')
+      return w.templates ? json(w.templates) : notFound();
     if (url === '/api/ai/agents' && method === 'GET') return json(list());
     if (url === '/api/ai/agents' && method === 'POST') {
       const body = JSON.parse(String(init!.body)) as AiAgentBody;
@@ -228,8 +233,12 @@ function setup(
   );
   return { fetchMock, world: w };
 }
+/** Requests that change something (the gallery's check for new templates changes nothing). */
 const writes = (fetchMock: ReturnType<typeof vi.fn>) =>
-  fetchMock.mock.calls.filter((call) => call[1]?.method && call[1].method !== 'GET');
+  fetchMock.mock.calls.filter(
+    (call) =>
+      call[1]?.method && call[1].method !== 'GET' && call[0] !== '/api/ai/templates/refresh',
+  );
 const writeLines = (fetchMock: ReturnType<typeof vi.fn>) =>
   writes(fetchMock).map((call) => `${call[1]!.method} ${call[0]}`);
 const lastBody = (fetchMock: ReturnType<typeof vi.fn>) =>
@@ -348,6 +357,7 @@ describe('AI agent page', () => {
       'Connectors',
       'Closing chats',
       'Groups',
+      'Scheduled tasks',
       'Try it',
       'Role',
       'Hand-over rules',
@@ -624,6 +634,185 @@ describe('AI agent page', () => {
         'Only answer in haiku.',
       );
       expect(screen.queryByText(/Save also adds the Business context item/)).toBeNull();
+    });
+
+    /** Answers the two group switches of a new agent; `fail` refuses "Answer in groups". */
+    const groupSwitches =
+      (fail = false): Respond =>
+      (url, init) => {
+        if (init?.method !== 'PUT' || !/^\/api\/ai\/agents\/\d+\/(groups|direct)$/.test(url))
+          return undefined;
+        if (fail) return json({ error: { code: 'internal', message: 'Failed' } }, 500);
+        const enabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
+        const direct = url.endsWith('/direct');
+        return json({
+          enabled: direct ? true : enabled,
+          inboxName: 'Claims line',
+          groups: [],
+          loopGuard: 10,
+          answerDirect: direct ? enabled : true,
+          directAvailable: true,
+          heldDirect: 0,
+        });
+      };
+
+    it('applies a template from the signed list and checks for new ones when the gallery opens', async () => {
+      const text = {
+        agentName: 'Venue assistant',
+        name: 'Event venue',
+        description: 'Answers about halls and packages.',
+        keywords: '',
+        focus: 'BUSINESS\nYou answer for an event venue.',
+        handoffRules: '- The customer wants to book a date',
+        contextName: 'Venue details',
+        contextText: 'Halls:\nPackages:',
+      };
+      const templates: AgentTemplateCatalog = {
+        status: {
+          state: 'loaded',
+          generatedAt: '2026-11-04T10:00:00.000Z',
+          sequence: 2,
+          checkedAt: 1,
+        },
+        categories: [{ id: 'events', name: { en: 'Events' } }],
+        templates: [
+          {
+            entry: {
+              id: 'venue',
+              version: 1,
+              schemaVersion: 1,
+              minAppVersion: '0.1.0',
+              editions: ['lite'],
+              category: 'events',
+              icon: 'party-popper',
+              preset: 'sales',
+              texts: { en: text },
+            },
+            connectors: [],
+          },
+        ],
+      };
+      const w = world({ maxAgents: 2, agents: [agentStatus()], templates });
+      const { fetchMock } = setup(w, '/admin/members/ai/new?preset=sales');
+      const user = userEvent.setup();
+      await applyTemplate(user, 'Event venue');
+      expect(fetchMock.mock.calls.map((call) => `${call[1]?.method ?? 'GET'} ${call[0]}`)).toEqual(
+        expect.arrayContaining(['GET /api/ai/templates', 'POST /api/ai/templates/refresh']),
+      );
+      const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
+      expect(role.startsWith(SALES.instructions)).toBe(true);
+      expect(role.endsWith('You answer for an event venue.')).toBe(true);
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Venue assistant',
+      );
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+      ]);
+      expect(lastBody(fetchMock)).toEqual({ name: 'Venue details', text: 'Halls:\nPackages:' });
+    });
+
+    it('creates a Claims agent as a group-only Custom agent with its Claim rules', async () => {
+      const { fetchMock } = setup(
+        world({ maxAgents: 2, agents: [agentStatus()] }),
+        '/admin/members/ai/new?preset=sales',
+        groupSwitches(),
+      );
+      const user = userEvent.setup();
+      const card = await applyTemplate(user, 'Claims agent');
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Claims assistant',
+      );
+      const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
+      // Its own text only: no sales or FAQ starting text before it.
+      expect(role.startsWith('CLAIMS\n')).toBe(true);
+      expect(role).toContain('save it as a new row in the tab "Claims"');
+      expect(role).not.toContain(SALES.instructions.split('\n')[0]);
+      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toContain(
+        'approved, rejected or paid',
+      );
+      const picker = screen.getByRole('radiogroup', { name: 'Starting point' });
+      expect(
+        (within(picker).getByRole('radio', { name: /Custom/ }) as HTMLButtonElement).dataset.state,
+      ).toBe('checked');
+      expect(within(card).getByTestId('group-setup').textContent).toContain(
+        'Save also makes it a group agent',
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+        'PUT /api/ai/agents/8/groups',
+        'PUT /api/ai/agents/8/direct',
+      ]);
+      const bodies = writes(fetchMock).map((call) => JSON.parse(String(call[1]!.body)));
+      expect(bodies[0]).toMatchObject({ preset: 'custom', instructions: role });
+      expect(bodies[1].name).toBe('Claim rules');
+      expect(bodies[1].text.split('\n')).toContain('Submission deadline:');
+      expect(bodies.slice(2)).toEqual([{ enabled: true }, { enabled: false }]);
+    });
+
+    it('keeps the new Claims agent when its group settings fail', async () => {
+      const { fetchMock } = setup(
+        world({ maxAgents: 2, agents: [agentStatus()] }),
+        '/admin/members/ai/new?preset=sales',
+        groupSwitches(true),
+      );
+      const user = userEvent.setup();
+      await applyTemplate(user, 'Claims agent');
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      // Answer direct chats stays on when Answer in groups could not be turned on.
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+        'PUT /api/ai/agents/8/groups',
+      ]);
+    });
+
+    it('only tells an existing agent which switches to change (its chats stay)', async () => {
+      const { fetchMock } = setup(world(), undefined, groupSwitches());
+      const user = userEvent.setup();
+      const card = await applyTemplate(user, 'Claims agent');
+      // Unedited Sales texts: replaced at once, and the saved name is kept.
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Sales Assistant',
+      );
+      expect(within(card).getByTestId('group-setup').textContent).toContain(
+        'turn on Answer in groups and turn off Answer direct chats',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() =>
+        expect(writeLines(fetchMock)).toEqual([
+          'PUT /api/ai/agents/5',
+          'POST /api/ai/agents/5/documents/text',
+        ]),
+      );
+      // The steps stay in view after Save.
+      expect(within(card).getByTestId('group-setup')).toBeTruthy();
+    });
+
+    it('drops the group note when another template replaces Claims', async () => {
+      setup(world({ maxAgents: 2 }), '/admin/members/ai/new?preset=sales');
+      const user = userEvent.setup();
+      const card = await applyTemplate(user, 'Claims agent');
+      expect(within(card).getByTestId('group-setup')).toBeTruthy();
+      await applyTemplate(user, 'Clinic');
+      // The Claims texts are not a type's starting text, so it asks first.
+      const confirm = await screen.findByRole('alertdialog');
+      await user.click(within(confirm).getByRole('button', { name: 'Apply template' }));
+      await waitFor(() => expect(within(card).queryByTestId('group-setup')).toBeNull());
     });
   });
 

@@ -30,6 +30,7 @@ import { useGroupChatAi } from '../api/ai-groups';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
+import { videoNeedsFile } from '../lib/file-transfer';
 import { Banner, EmptyState } from '@/components/app';
 import { FileDropZone } from '@/components/app/FileDropZone';
 import {
@@ -51,6 +52,7 @@ import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { quotedAuthor, quotedPreview } from './MessageBubble';
+import { useQuoteJump } from './useQuoteJump';
 import { NotesPanel } from './NotesPanel';
 import { GroupPanel } from './GroupPanel';
 import { useNavigationGuardRef } from './navigation-guard';
@@ -69,7 +71,9 @@ import {
   useWindowClosed,
 } from './reply-window';
 import { DeleteMessageDialog, EditMessageDialog } from './MessageActions';
+import { ForwardDialog } from './ForwardDialog';
 import { NO_RIGHTS, messageRights, type MessageChangeProps } from './message-changes';
+import { useChosenChatsOnly } from '../auth/chat-scope';
 
 export interface ConversationProps {
   jid: string;
@@ -89,6 +93,8 @@ const NO_PHRASES: readonly ReplyPhraseListItem[] = [];
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const { t } = useTranslation(['inbox', 'common']);
+  // Ask Ezy reads across chats: not for an agent limited to chosen chats
+  const chosenOnly = useChosenChatsOnly();
   // Phones get the short placeholder (one line); the "/" quick-reply hint fits from sm.
   const wideComposer = useMediaQuery('(min-width: 640px)');
   const qc = useQueryClient();
@@ -289,9 +295,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   );
   const [editing, setEditing] = useState<Message | null>(null);
   const [deleting, setDeleting] = useState<Message | null>(null);
+  // Forward: one dialog per opening (a fresh request id each time).
+  const [forwarding, setForwarding] = useState<{ message: Message; opening: number } | null>(null);
+  const openForward = useCallback(
+    (m: Message) => setForwarding((f) => ({ message: m, opening: (f?.opening ?? 0) + 1 })),
+    [],
+  );
   useEffect(() => {
     setEditing(null);
     setDeleting(null);
+    setForwarding(null);
   }, [jid]);
   // The time windows are read when a bubble renders; the server checks them again.
   const rightsOf = useCallback((m: Message) => messageRights(m, me, caps, Date.now()), [me, caps]);
@@ -300,6 +313,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const loadOlder = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const { target: jumpTarget, open: jumpToQuote } = useQuoteJump(jid, messagesById, {
+    hasNextPage: !!hasNextPage,
+    fetchNextPage: () => fetchNextPage(),
+  });
+  const openQuote = useCallback((id: string) => void jumpToQuote(id), [jumpToQuote]);
 
   if (chatQ.isPending) {
     return (
@@ -353,6 +371,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     disabledReason: blocked || queued ? t('message.change.notConnected') : null,
     onEdit: setEditing,
     onDelete: setDeleting,
+    onForward: openForward,
     isAdmin: me?.role === 'admin',
   };
 
@@ -433,6 +452,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           reactDisabledReason={blocked || queued ? t('message.reactions.notConnected') : null}
           contactName={contactName}
           changes={changes}
+          onOpenQuote={openQuote}
+          jumpTo={jumpTarget}
         />
         <div className="safe-bottom border-t bg-surface">
           <TypingIndicator entries={typing[jid] ?? []} meId={me?.id ?? null} />
@@ -484,7 +505,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                     : null
                 }
                 onCancelReply={() => setReplyTo(null)}
-                askEzy={{ chatJid: chat.jid, name: chatTitle(chat, t) }}
+                askEzy={chosenOnly ? null : { chatJid: chat.jid, name: chatTitle(chat, t) }}
                 aiSuggest={
                   suggestState !== 'off'
                     ? {
@@ -496,6 +517,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                       }
                     : null
                 }
+                mediaLimits={caps.mediaLimits}
                 fixEnglish={{
                   chatJid: chat.jid,
                   chatName: chat.name,
@@ -530,12 +552,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                   // Only the first file of a send quotes the message being replied to.
                   const quotedId = index === 0 ? replyTo?.id : undefined;
                   if (index === 0) setReplyTo(null);
+                  // A video above this number's video limit goes as a file (owner 2026-11-07).
+                  const asFile = videoNeedsFile(file, caps.mediaLimits);
+                  if (asFile) toast.info(t('composer.sentAsFile', { name: file.name }));
                   try {
                     await sendMedia.mutateAsync({
                       file,
                       caption,
                       clientId: newClientId(),
                       quotedId,
+                      ...(asFile ? { asFile: true } : {}),
                     });
                   } catch (e) {
                     onSendError(e);
@@ -586,6 +612,14 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         />
       )}
       <EditMessageDialog message={editing} onClose={() => setEditing(null)} />
+      {forwarding && (
+        <ForwardDialog
+          key={forwarding.opening}
+          message={forwarding.message}
+          sourceInboxId={chat.inboxId}
+          onClose={() => setForwarding(null)}
+        />
+      )}
       <DeleteMessageDialog
         message={deleting}
         rights={deleting ? rightsOf(deleting) : NO_RIGHTS}

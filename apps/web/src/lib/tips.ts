@@ -22,7 +22,12 @@ export const TIP_TOPICS = [
   'safetyAi',
   'autoBlock',
   'lockedFiles',
+  'driveFiles',
   'reportNumber',
+  'sqlApiService',
+  'sqlKeys',
+  'sqlCustomerCode',
+  'usageStats',
 ] as const;
 export type TipTopic = (typeof TIP_TOPICS)[number];
 
@@ -62,14 +67,25 @@ export const TIPS: Readonly<Record<TipTopic, TipShape>> = {
   safetyAi: { steps: 0 },
   autoBlock: { steps: 0 },
   lockedFiles: { steps: 0 },
+  driveFiles: { steps: 0 },
   reportNumber: { steps: 3 },
+  sqlApiService: {
+    steps: 4,
+    action: 'https://docs.sql.com.my/sqlacc/integration/sql-account-api/on-premise-setup',
+  },
+  sqlKeys: {
+    steps: 4,
+    action: 'https://docs.sql.com.my/sqlacc/integration/sql-account-api/setup-configuration',
+  },
+  sqlCustomerCode: { steps: 0 },
+  usageStats: { steps: 3 },
 };
 
 const GUIDE_PREFIX: Partial<Record<string, string>> = { ms: '/ms', 'zh-CN': '/zh' };
 
 /**
  * The guide on ezychat.ai in the app's language. The campaign tags let the website count visits
- * from tips; the app itself sends nothing (no tracking in Lite).
+ * from tips. The app's only usage data is the anonymous usage stats (server `usage/`, switch in Settings).
  */
 export function tipGuideUrl(guide: TipGuide, locale: string, topic: string): string {
   const prefix = GUIDE_PREFIX[locale] ?? '';

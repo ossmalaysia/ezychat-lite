@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MessageScheduledTask } from './scheduled-tasks.js';
 import { MessageSafety } from './safety.js';
 import {
   ChatEventType,
@@ -37,6 +38,13 @@ export const UserSchema = z.object({
   locale: LocaleSchema.nullable(),
   /** Inboxes an agent may open (admin responses only; admins open every inbox). */
   inboxIds: z.array(z.number().int().positive()).optional(),
+  /**
+   * Which chats an agent sees: 'all' (every chat of their inboxes) or 'chosen' (only the chats an
+   * admin chose, `GET /api/users/:id/chats`). Absent = 'all'; admins and AI members are always 'all'.
+   */
+  chatScope: z.enum(['all', 'chosen']).optional(),
+  /** The chosen chats of an agent limited to chosen chats (admin responses only). */
+  chatJids: z.array(z.string()).optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -129,6 +137,20 @@ export const MessageSchema = z.object({
   template: z.object({ name: z.string(), language: z.string() }).nullable().optional(),
   /** Sent by the token owner's AI assistant through MCP (shown as "via AI assistant"). */
   viaAssistant: z.boolean().optional(),
+  /**
+   * Forwarded on WhatsApp (ours or the customer's): "Forwarded", or "Forwarded many times" from
+   * `FORWARD_MANY_TIMES_SCORE`. Absent/null = not forwarded.
+   */
+  forwarded: z.object({ manyTimes: z.boolean() }).nullable().optional(),
+  /** Bytes of the stored file, when known (media `ok`); absent/null otherwise. */
+  mediaSize: z.number().int().nonnegative().nullable().optional(),
+  /** An image's size as WhatsApp reports it, also before the file arrives; absent/null = not known. */
+  mediaWidth: z.number().int().positive().nullable().optional(),
+  mediaHeight: z.number().int().positive().nullable().optional(),
+  /** WhatsApp's small preview of an image, when it has one: the chat shows it, opening shows the real file. */
+  mediaThumbUrl: z.string().nullable().optional(),
+  /** Sent by a scheduled task of an AI agent: shown as "Scheduled · <task>". */
+  scheduledTask: MessageScheduledTask.nullable().optional(),
   /** Voice notes only (inbound audio): the transcript text, when `transcriptStatus` is `ok`. */
   transcript: z.string().nullable().optional(),
   /** Language the transcriber detected (e.g. `en`, `ms`, `zh`), when known. */
@@ -213,6 +235,8 @@ export const SettingsSchema = z.object({
   historyDays: z.number().int().min(0).max(365),
   namedTunnelHostname: z.string().nullable(),
   hasTunnelToken: z.boolean(),
+  /** Share anonymous usage stats (setting `usage_stats`, missing = on; docs/superpowers/specs/2026-11-04-usage-stats-design.md). */
+  usageStats: z.boolean().default(true),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 

@@ -215,7 +215,10 @@
       "safetyReport": "Nombor dilaporkan sebagai penipuan",
       "safetyBlock": "Nombor disekat",
       "safetyUnblock": "Nombor dinyahsekat",
-      "safetyAutoBlock": "Nombor disekat secara automatik"
+      "safetyAutoBlock": "Nombor disekat secara automatik",
+      "chatNewNumber": "Sembang dimulakan dengan nombor baharu",
+      "settingsNewChatStaff": "Tetapan sembang baharu ditukar",
+      "settingsNewChatDailyLimit": "Had harian sembang baharu ditukar"
     },
     "fields": {
       "chat": "Sembang",
@@ -260,7 +263,10 @@
       "members": "Ahli",
       "agent": "Ejen AI",
       "preset": "Titik permulaan",
-      "internal": "Dalaman"
+      "internal": "Dalaman",
+      "startedBy": "Dimulakan oleh",
+      "before": "Sebelum",
+      "after": "Selepas"
     },
     "reasons": {
       "rateLimited": "Terlalu banyak cubaan",
@@ -527,6 +533,11 @@
       "businessTitle_one": "{{count}} perkataan daripada Konteks perniagaan anda tidak pernah ditanda",
       "businessTitle_other": "{{count}} perkataan daripada Konteks perniagaan anda tidak pernah ditanda",
       "businessHint": "Ia berubah mengikut Konteks perniagaan anda. Dipaparkan: perkataan yang tiada dalam kamus."
+    },
+    "usageStats": {
+      "title": "Privasi",
+      "label": "Kongsi statistik penggunaan tanpa nama",
+      "hint": "Membantu kami melihat di mana pengguna baharu tersekat. Tiada nama, nombor atau mesej."
     }
   },
   "resolveAll": {
@@ -1194,7 +1205,8 @@
         "food": "Makanan",
         "services": "Perkhidmatan",
         "shops": "Kedai",
-        "education": "Pendidikan"
+        "education": "Pendidikan",
+        "operations": "Pasukan dan operasi"
       },
       "noMatch": "Tiada templat yang sepadan. Cuba perkataan lain, atau mula daripada jenis di bawah.",
       "dental": {
@@ -1336,7 +1348,29 @@
         "handoffRules": "- Pelanggan memerlukan sebut harga selepas pemeriksaan\n- Pelanggan bertanya tentang status pembaikan mereka\n- Pelanggan bertanya tentang tuntutan waranti\n- Pelanggan bertanya tentang pemulihan data\n- Pelanggan marah atau membuat aduan",
         "contextName": "Butiran kedai baiki",
         "contextText": "Isi setiap baris selepas titik bertindih dan padam baris yang tidak berkaitan. AI menganggap baris kosong sebagai tidak diketahui dan menyerahkan sembang kepada pasukan anda.\n\nNama kedai:\nAlamat:\nWaktu operasi:\nJenama yang kami baiki:\nPembaikan dan harga (skrin, bateri, port pengecasan):\nTempoh siap:\nWaranti pembaikan:\nKaedah pembayaran:\nBahasa lalai untuk balasan:"
-      }
+      },
+      "groupAgentTag": "Untuk kumpulan WhatsApp",
+      "groupSetupNew": "Simpan juga menjadikannya ejen kumpulan: ia menjawab dalam kumpulan WhatsApp sahaja, tidak pernah dalam sembang terus.",
+      "groupSetupExisting": "Untuk selesai: pada halaman ini hidupkan Jawab dalam kumpulan dan matikan Jawab sembang terus.",
+      "groupSetupNext": "Kemudian sambungkan Google Sheets dengan tab bernama Claims yang ditetapkan Tambah baris, dan hidupkan Membaca setiap mesej dalam setiap kumpulan tuntutan (Maklumat kumpulan).",
+      "groupSetupDone": "{{name}} kini menjawab dalam kumpulan WhatsApp sahaja. Seterusnya: sambungkan Google Sheets dan pilih kumpulannya.",
+      "groupSetupFailed": "Ejen telah disimpan, tetapi tetapan kumpulannya tidak. Hidupkan Jawab dalam kumpulan dan matikan Jawab sembang terus di bawah.",
+      "claims": {
+        "name": "Ejen tuntutan",
+        "description": "Merekod tuntutan yang dihantar dalam kumpulan WhatsApp anda ke Google Sheets, mengesahkan setiap satu dan meminta butiran yang tiada. Tidak pernah meluluskan atau membayar.",
+        "keywords": "tuntutan claim klaim perbelanjaan bayaran balik resit invois polisi insurans helaian kumpulan claims expense reimbursement receipt invoice policy insurance sheet group",
+        "agentName": "Pembantu tuntutan",
+        "focus": "TUNTUTAN\nAnda merekod tuntutan yang dihantar oleh ahli dalam kumpulan WhatsApp kami. Anda bukan ejen jualan atau khidmat pelanggan.\n- Setiap tuntutan memerlukan: nombor polisi atau ahli, tarikh kejadian, apa yang berlaku dan jumlah yang dituntut. Item Konteks perniagaan \"Peraturan tuntutan\" menyenaraikan jenis tuntutan dan butiran lain yang diperlukan.\n- Apabila ahli menghantar tuntutan, simpan sebagai baris baharu dalam tab \"Claims\". Isi setiap lajur hanya daripada apa yang ditulis oleh ahli atau daripada resit, invois atau PDF yang dihantarnya. Jangan sekali-kali meneka nilai.\n- Selepas menyimpan, balas \"Direkod ✅\" kepada mesejnya dan ulang nilai utama (nombor, tarikh, jumlah) supaya dia boleh menyemaknya.\n- Jika butiran tiada atau tidak jelas, jangan simpan dahulu. Tanya hanya apa yang tiada, kemudian simpan apabila dia membalas.\n- Baca foto dan PDF resit dan invois untuk tarikh dan jumlah. Jika fail tidak dapat dibaca, minta salinan yang lebih jelas.\n- Jika ahli membetulkan tuntutan, simpan tuntutan yang dibetulkan sebagai baris baharu dan katakan ia menggantikan yang sebelumnya.\n- Diam bagi mesej yang bukan tuntutan (ucapan, sembang, terima kasih, mesej antara ahli).\n- Jangan sekali-kali meluluskan atau menolak tuntutan, menjanjikan bayaran atau tarikh bayaran, atau mengatakan sama ada sesuatu dilindungi.",
+        "handoffRules": "- Ahli bertanya sama ada tuntutan diluluskan, ditolak atau dibayar, atau bila ia akan dibayar\n- Ahli mempertikaikan keputusan atau jumlah, atau mahu membatalkan tuntutan\n- Fail masih tidak dapat dibaca selepas satu cubaan semula, kelihatan diubah, atau tidak sepadan dengan butiran yang ditulis\n- Mesej berkongsi laporan perubatan, nombor IC, butiran bank atau maklumat peribadi sensitif lain yang tidak diperlukan oleh tuntutan\n- Tuntutan melebihi had atau selepas tarikh akhir dalam Peraturan tuntutan\n- Ahli kecewa atau membuat aduan",
+        "contextName": "Peraturan tuntutan",
+        "contextText": "Isi setiap baris selepas titik bertindih dan padamkan baris yang tidak berkenaan. AI menganggap baris kosong sebagai tidak diketahui dan menyerahkan sembang kepada pasukan anda.\n\nJenis tuntutan:\nButiran yang diperlukan setiap tuntutan:\nDokumen untuk dilampirkan (resit, invois, laporan):\nHad setiap tuntutan:\nTarikh akhir penghantaran:\nSiapa yang meluluskan tuntutan:\nBila tuntutan yang diluluskan dibayar:\nKe mana dokumen asal dihantar:\nBahasa lalai untuk balasan:"
+      },
+      "source": {
+        "loaded": "Pustaka templat dikemas kini {{date}}.",
+        "builtin": "Menunjukkan templat dalam versi {{product}} ini.",
+        "offline": "Tidak dapat menyemak templat baharu. Menunjukkan senarai terakhir yang disimpan."
+      },
+      "worksWith": "Berfungsi dengan {{names}}"
     },
     "resolution": {
       "title": "Menutup chat",
@@ -1345,6 +1379,123 @@
       "onHint": "Selepas menjawab, {{name}} bertanya sama ada jawapan itu menjawab soalan dan menutup chat apabila pelanggan jelas berkata ya.",
       "offHint": "{{name}} tidak menambah ayat semakan dan tidak pernah menutup chat. Pasukan anda yang menutup chat.",
       "saveFailed": "Tidak dapat disimpan. Cuba lagi."
+    },
+    "scheduled": {
+      "title": "Tugasan berjadual",
+      "description": "{{name}} menghantar satu mesej sendiri pada masa yang ditetapkan, ke satu chat atau kumpulan pilihan anda.",
+      "add": "Tambah tugasan",
+      "empty": {
+        "title": "Belum ada tugasan berjadual",
+        "body": "Contohnya: setiap hari bekerja pada 8:30 pagi, {{name}} memberitahu kumpulan staf tempahan hari ini."
+      },
+      "total": "{{total}} daripada {{max}} tugasan",
+      "limitReached": "{{max}} daripada {{max}} tugasan. Padam satu untuk menambah yang lain.",
+      "showAll": "Tunjuk semua ({{total}})",
+      "showFewer": "Tunjuk kurang",
+      "safety": "Hanya chat dan kumpulan yang sudah ada dalam peti masuk ini. Satu mesej setiap kali, tidak sekali-kali ke nombor baharu atau senarai orang.",
+      "noInbox": "Pilih peti masuk untuk {{name}} dahulu.",
+      "scheduleLine": "{{days}} · {{time}}",
+      "days": {
+        "daily": "Setiap hari",
+        "weekdays": "Hari bekerja",
+        "custom": "Hari dipilih"
+      },
+      "off": "Mati",
+      "pausedShort": "Dijeda",
+      "next": "Seterusnya: {{when}}",
+      "chatGone": "Chat ini tiada lagi dalam peti masuk ini. Edit tugasan untuk memilih yang lain.",
+      "lastRun": "Larian terakhir: {{result}}, {{when}}. Buka sejarah",
+      "switchLabel": "{{name}} hidup atau mati",
+      "actions": "Lagi untuk {{name}}",
+      "edit": "Edit",
+      "runNow": "Jalankan sekarang",
+      "history": "Sejarah",
+      "delete": "Padam",
+      "deleteTitle": "Padam \"{{name}}\"?",
+      "deleteBody": "Tugasan dan sejarahnya dibuang. Mesej yang sudah dihantar kekal dalam chat.",
+      "added": "Tugasan ditambah",
+      "saved": "Tugasan disimpan",
+      "saveFailed": "Tidak dapat menyimpan. Cuba lagi.",
+      "result": {
+        "sent": "Dihantar",
+        "skipped": "Dilangkau",
+        "failed": "Gagal",
+        "running": "Sedang berjalan"
+      },
+      "reason": {
+        "nothing_to_say": "Tiada apa untuk diberitahu hari ini, jadi tiada yang dihantar.",
+        "needs_team": "Ejen mahu pasukan menguruskannya, jadi tiada yang dihantar.",
+        "agent_off": "Ejen dimatikan.",
+        "ai_disconnected": "AI tidak disambungkan.",
+        "wa_disconnected": "WhatsApp tidak disambungkan.",
+        "access_closed": "Aplikasi dikunci pada masa itu.",
+        "window_closed": "Tetingkap balasan 24 jam chat ini telah ditutup (WhatsApp Business API).",
+        "missed": "Aplikasi tidak berjalan pada masa itu. Larian yang terlepas tidak dihantar kemudian.",
+        "chat_gone": "Chat ini tiada lagi dalam peti masuk ini.",
+        "confidential_leak": "Mesej itu akan menunjukkan item dalaman, jadi ia tidak dihantar.",
+        "ai_unavailable": "AI tidak menjawab tepat pada masanya.",
+        "lookup_failed": "Satu carian (contohnya Google Calendar) tidak berjaya.",
+        "send_failed": "WhatsApp tidak menerima mesej itu.",
+        "interrupted": "Aplikasi berhenti semasa tugasan sedang berjalan."
+      },
+      "paused": {
+        "title": "Tugasan berjadual dijeda",
+        "agent_off": "{{name}} dimatikan. Hidupkan ejen untuk menjalankan tugasannya.",
+        "ai_disconnected": "AI tidak disambungkan. Sambungkannya di Tetapan → AI.",
+        "wa_disconnected": "WhatsApp tidak disambungkan. Tugasan bermula semula apabila ia disambungkan.",
+        "access_closed": "Aplikasi dikunci. Tugasan bermula semula apabila ia dibuka."
+      },
+      "form": {
+        "addTitle": "Tambah tugasan berjadual",
+        "editTitle": "Edit tugasan berjadual",
+        "description": "{{name}} menghantar satu mesej pada masa ini. Ia juga boleh tidak menghantar apa-apa jika tiada perkara untuk diberitahu.",
+        "name": "Nama",
+        "namePlaceholder": "Tempahan pagi",
+        "nameRequired": "Beri nama kepada tugasan.",
+        "chat": "Hantar kepada",
+        "chatPlaceholder": "Pilih chat atau kumpulan",
+        "chatSearch": "Cari chat dan kumpulan",
+        "chatNone": "Tiada chat dijumpai.",
+        "chatLoading": "Memuatkan chat…",
+        "chatHint": "Hanya chat dan kumpulan yang sudah ada dalam peti masuk ini.",
+        "chatRequired": "Pilih tempat untuk menghantarnya.",
+        "chatNotInInbox": "Chat itu tiada dalam peti masuk ejen ini. Pilih yang lain.",
+        "groups": "Kumpulan",
+        "people": "Orang",
+        "when": "Bila",
+        "time": "Masa",
+        "timeZone": "Zon waktu perniagaan: {{zone}} (Tetapan → AI).",
+        "days": "Hari",
+        "daysRequired": "Pilih sekurang-kurangnya satu hari.",
+        "instruction": "Apa yang patut dikatakan?",
+        "instructionPlaceholder": "Beritahu pasukan tempahan hari ini dari Google Calendar. Langkau jika tiada.",
+        "instructionHint": "{{name}} menggunakan konteks perniagaan dan penyambungnya. Tambah \"langkau jika tiada\" untuk tidak menghantar apa-apa pada hari yang lengang.",
+        "instructionRequired": "Tulis apa yang patut dikatakan oleh mesej itu.",
+        "preview": "Pratonton",
+        "save": "Simpan",
+        "create": "Tambah tugasan"
+      },
+      "preview": {
+        "title": "Pratonton",
+        "lookedUp": "{{name}} menyemak {{title}} ({{source}}).",
+        "wouldSend": "Akan dihantar kepada {{chat}}:",
+        "wouldSkip": "Tiada yang akan dihantar. {{reason}}",
+        "nothingSent": "Pratonton sahaja. Tiada yang dihantar.",
+        "failed": "Pratonton tidak berjaya"
+      },
+      "runNowTitle": "Hantar sekarang kepada {{chat}}?",
+      "runNowBody": "{{name}} menjalankan tugasan ini sekali sekarang dan menghantar mesejnya, seperti pada masa yang ditetapkan.",
+      "runNowLimit": "Jalankan sekarang terlalu kerap digunakan dalam sejam yang lalu. Cuba lagi nanti.",
+      "runNowSent": "Dihantar kepada {{chat}}",
+      "runNowSkipped": "Tiada yang dihantar. {{reason}}",
+      "runNowFailed": "Tidak dihantar. {{reason}}",
+      "openChat": "Buka chat",
+      "openChatNamed": "Buka {{chat}}",
+      "historyTitle": "Sejarah: {{name}}",
+      "historyBody": "30 larian terakhir. Teks mesej kekal dalam chat.",
+      "historyEmpty": "Tugasan ini belum pernah dijalankan.",
+      "byRunNow": "Dijalankan sekarang oleh {{name}}",
+      "byRunNowUnknown": "Dijalankan sekarang"
     }
   },
   "enrichment": {
@@ -1535,7 +1686,13 @@
       "none": "Belum ada penyambung.",
       "browse": "Lihat penyambung",
       "sheetsReads": "Membaca {{tabs}}",
-      "sheetsAdds": "Menambah baris ke {{tabs}}"
+      "sheetsAdds": "Menambah baris ke {{tabs}}",
+      "driveNoFolder": "Tiada folder dipilih",
+      "driveSaves": "Menyimpan fail",
+      "driveReads_one": "Membaca {{count}} fail",
+      "driveReads_other": "Membaca {{count}} fail",
+      "driveSavesAndReads_one": "Menyimpan fail dan membaca {{count}} fail",
+      "driveSavesAndReads_other": "Menyimpan fail dan membaca {{count}} fail"
     },
     "settingsPointerTitle": "Penyambung",
     "settingsPointer": "Google Calendar dan sistem lain yang digunakan oleh ejen AI anda ada di Pentadbir → Penyambung.",
@@ -1547,7 +1704,13 @@
       "readRows": "Jawab soalan daripada helaian",
       "readRowsHint": "Mencari harga, stok atau fakta lain dalam tab anda sebelum menjawab.",
       "addLead": "Simpan pelanggan berminat (prospek)",
-      "addLeadHint": "Menambah pelanggan yang mahu membeli sebagai satu baris, supaya pasukan anda boleh membuat susulan."
+      "addLeadHint": "Menambah pelanggan yang mahu membeli sebagai satu baris, supaya pasukan anda boleh membuat susulan.",
+      "save": "Simpan fail",
+      "saveHint": "Menyimpan fail yang dihantar dalam sembang ini ke folder ejen.",
+      "find": "Cari fail",
+      "findHint": "Mencari fail yang betul antara fail yang anda pilih.",
+      "read": "Baca fail",
+      "readHint": "Membaca Google Doc, Sheet, PDF, Word atau fail teks yang anda pilih dan menjawab daripadanya."
     },
     "items": {
       "google-calendar": {
@@ -1567,6 +1730,20 @@
         "short": "Jawab daripada senarai harga anda, dan simpan pelanggan berminat sebagai prospek.",
         "long": "Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan ejen AI anda membacanya. Jika anda benarkan, AI juga menambah setiap prospek baharu sebagai satu baris. Log masuk dengan Google, kemudian pilih helaian itu.",
         "privacy": "{{product}} hanya boleh membuka hamparan yang anda pilih, hanya membaca tab yang anda pilih dan hanya menulis baris prospek yang ditambahnya: tarikh, nama pelanggan, nombor WhatsApp, e-mel dan satu baris ringkas tentang kehendak mereka. Tiada sejarah sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini."
+      },
+      "google-drive": {
+        "name": "Google Drive",
+        "short": "Simpan fail daripada sembang; baca fail pilihan anda.",
+        "long": "Ejen AI boleh menyimpan fail yang dihantar di WhatsApp ke folder Google Drive pilihan anda, dan membaca fail Drive yang anda pilih. Arahan setiap ejen menentukan apa yang disimpan atau dibaca, dan bila.",
+        "privacy": "{{product}} hanya boleh membuka folder dan fail yang anda pilih dalam tetingkap Google sendiri, serta fail yang ia simpan sendiri. Selebihnya Drive anda kekal peribadi.",
+        "privacy2": "AI hanya menyimpan fail yang pelanggan hantar dalam sembang itu, bukan fail daripada sembang lain, dan tidak sekali-kali fail yang dikunci oleh Keselamatan WhatsApp.",
+        "privacy3": "Aktiviti hanya menyimpan siapa dan bila. Kandungan dan nama fail kekal dalam Drive anda."
+      },
+      "sql-account": {
+        "name": "SQL Account",
+        "short": "Stok, harga serta invois dan pesanan milik pelanggan anda daripada SQL Account.",
+        "long": "Ejen AI anda menjawab daripada SQL Account: stok dan harga untuk semua orang, serta invois dan pesanan milik setiap pelanggan.",
+        "privacy": "{{product}} menghantar kepada SQL Account hanya apa yang diperlukan untuk satu semakan (nama barang, kod pelanggan, nombor dokumen), tidak pernah teks chat."
       }
     },
     "gc": {
@@ -1910,11 +2087,44 @@
       "newColumn": "lajur baharu",
       "columnsOf": "Lajur {{tab}}",
       "emptyFirstRow": "Tambah nama lajur dalam baris pertama tab ini sebelum AI boleh menggunakannya.",
+      "permissions": {
+        "groupLabel": "Apa yang boleh ditulis oleh AI dalam {{tab}}",
+        "aiValues": "Benarkan AI mengisi nilai yang dicari atau dikira",
+        "aiValuesHint": "Mati: AI hanya menulis apa yang ditulis atau dihantar oleh orang itu. Hidup: AI juga boleh menulis angka daripada tab Baca anda atau yang dikira daripada sembang, seperti jumlah. AI tidak sesekali mereka-reka nilai.",
+        "formulas": "Benarkan formula",
+        "formulasHint": "Nilai yang bermula dengan = menjadi formula, dan nombor serta tarikh disimpan sebagai nombor dan tarikh.",
+        "formulasTipTitle": "Apakah yang boleh dilakukan oleh formula?",
+        "formulasTipBody": "Formula boleh mengubah nombor anda. EzyChat menyekat formula yang mencapai luar helaian anda, seperti yang mempunyai alamat web atau IMPORTRANGE, dan formula yang ditaip oleh pelanggan sentiasa disimpan sebagai teks biasa."
+      },
       "goneBadge": "Tiada lagi dalam helaian",
       "goneHint": "Google tidak lagi menyenaraikan tab ini. Aksesnya dibuang apabila anda menyimpan.",
       "autoColumns": "Diisi oleh {{product}} apabila tab mempunyai lajur ini: {{columns}}. AI mengisi yang lain daripada mesej, foto dan PDF yang dihantar kepadanya.",
       "rule5": "Teks disimpan sebagai teks biasa: formula yang ditaip seseorang tidak pernah dijalankan.",
-      "rule6": "Cuba tidak pernah menulis ke helaian."
+      "rule6": "Cuba tidak pernah menulis ke helaian.",
+      "create": {
+        "open": "Cipta helaian baharu",
+        "title": "Cipta helaian baharu",
+        "description": "EzyChat menciptanya dalam akaun Google anda dan menggunakannya untuk {{name}}.",
+        "start": "Mula daripada",
+        "blank": "Helaian kosong",
+        "fromLayout": "Susun atur {{template}}",
+        "name": "Nama helaian",
+        "tabs": "Tab",
+        "tabsHint": "Nama lajur diletakkan dalam baris pertama setiap tab. EzyChat mengisi Date, Name, WhatsApp, Group, AI agent dan Source sendiri.",
+        "tabN": "Tab {{n}}",
+        "tabName": "Nama tab",
+        "columns": "Nama lajur",
+        "columnsHint": "Pisahkan dengan koma, contohnya: Date, Name, Amount",
+        "access": "Apa yang boleh dilakukan oleh ejen dengan {{tab}}",
+        "removeTab": "Buang {{tab}}",
+        "addTab": "Tambah tab",
+        "formulas_one": "{{count}} formula daripada susun atur turut ditambah.",
+        "formulas_other": "{{count}} formula daripada susun atur turut ditambah.",
+        "invalid": "Beri helaian satu nama, dan setiap tab namanya sendiri dan sekurang-kurangnya satu lajur.",
+        "cancel": "Batal",
+        "submit": "Cipta helaian",
+        "done": "Helaian dicipta dalam akaun Google anda"
+      }
     },
     "sheetsAct": {
       "hint": "Apa yang AI cari dan tambah. Hanya siapa dan bila: tidak pernah nilai atau sembang.",
@@ -1924,6 +2134,310 @@
       "row_added": "{{agent}} menambah baris ke {{tab}} untuk {{customer}}",
       "row_addedGroup": "{{agent}} menambah baris ke {{tab}} untuk {{customer}} dalam {{group}}",
       "looked_upTab": "{{agent}} menyemak {{tab}} untuk {{customer}}"
+    },
+    "gd": {
+      "accountDescription": "Akaun Google yang {{product}} gunakan untuk Google Drive. Satu akaun untuk seluruh pasukan; ia boleh berbeza daripada akaun untuk Google Calendar atau Sheets.",
+      "what1": "Benarkan ejen AI menyimpan fail yang dihantar dalam sembang",
+      "what2": "Benarkan ejen AI membaca fail Drive pilihan anda",
+      "what3": "Anda pilih folder dan fail; tiada yang lain dikongsi",
+      "connect": "Sambung Google Drive",
+      "connectHint": "Google dibuka dalam pelayar anda. Tiada apa untuk disalin atau ditampal. Anda boleh memutuskan sambungan pada bila-bila masa.",
+      "connectedToast": "Google Drive disambung",
+      "expiredBody": "Sehingga anda log masuk semula, AI tidak menyimpan atau membaca fail; ia menyerahkan sembang itu kepada pasukan anda.",
+      "unavailableTitle": "Tidak dapat menghubungi Google Drive",
+      "unavailableBody": "{{product}} mencuba semula sendiri. Sementara itu AI menyerahkan sembang fail kepada pasukan anda.",
+      "perAgent": "Pilih folder dan fail setiap ejen AI dalam Tetapan.",
+      "disconnectTitle": "Putuskan Google Drive?",
+      "disconnectBody": "AI berhenti menyimpan dan membaca fail serta-merta. Fail yang sudah disimpan kekal dalam Drive anda. Tetapan disimpan untuk apabila anda menyambung semula.",
+      "disconnected": "Google Drive diputuskan"
+    },
+    "drive": {
+      "notConnected": "Sambung Google Drive dahulu",
+      "notConnectedHint": "Kemudian pilih folder untuk setiap ejen AI.",
+      "paused": {
+        "expired": "Dijeda: log masuk ke Google semula",
+        "unavailable": "Dijeda: tidak dapat menghubungi Google Drive"
+      },
+      "pausedBody": "{{name}} tidak menyimpan atau membaca fail sehingga ia berfungsi semula dan menyerahkan sembang fail kepada pasukan anda.",
+      "folder": {
+        "title": "Folder",
+        "description": "Tempat {{name}} menyimpan fail dan tempat anda memilih fail untuk dibacanya.",
+        "none": "Belum ada folder dipilih.",
+        "choose": "Pilih folder",
+        "change": "Pilih folder lain",
+        "changeHint": "Memilih folder lain membuang fail yang dipilih.",
+        "open": "Buka dalam Google Drive",
+        "onlyChosen": "{{product}} hanya melihat apa yang anda pilih di sini."
+      },
+      "needFolder": "Pilih folder dahulu.",
+      "save": {
+        "title": "Simpan fail",
+        "description": "{{name}} boleh menyimpan fail yang dihantar dalam sembang ke folder ini.",
+        "rule1": "Hanya fail yang dihantar dalam sembang itu, bukan daripada sembang lain.",
+        "rule2": "Tidak sekali-kali fail yang dikunci oleh Keselamatan WhatsApp.",
+        "rule3": "Sehingga {{mb}} MB setiap fail. Setiap fail disimpan sekali sahaja.",
+        "rule4": "{{product}} menamakan fail mengikut tarikh dan masa, bukan nama fail pengirim."
+      },
+      "read": {
+        "title": "Baca fail",
+        "description": "{{name}} menjawab soalan daripada fail yang anda pilih di sini.",
+        "none": "Belum ada fail. Tambah fail yang boleh dibaca oleh {{name}}.",
+        "add": "Tambah fail",
+        "remove": "Buang {{file}}",
+        "hint": "Google Docs, Sheets, PDF, Word dan fail teks, sehingga {{max}}. Fail yang disimpan daripada sembang tidak sekali-kali dibaca.",
+        "full": "Itu had maksimum: {{max}} fail. Buang satu untuk menambah yang lain.",
+        "cantRead": "AI tidak dapat membaca jenis fail ini."
+      },
+      "kind": {
+        "doc": "Google Doc",
+        "sheet": "Google Sheet",
+        "pdf": "PDF",
+        "word": "Word",
+        "text": "Teks"
+      },
+      "when": {
+        "note": "Apa yang {{name}} simpan atau baca, dan bila, ditentukan oleh arahannya.",
+        "open": "Edit arahan {{name}}"
+      },
+      "picking": "Menunggu pemilih fail Google…",
+      "pickingFolder": "Pilih folder dalam tetingkap yang dibuka. Halaman ini dikemas kini sendiri.",
+      "pickingFiles": "Pilih fail dalam tetingkap yang dibuka. Halaman ini dikemas kini sendiri.",
+      "pickBlocked": "Pelayar anda menyekat tetingkap itu. Buka pemilih fail untuk meneruskan.",
+      "openPicker": "Buka pemilih fail",
+      "pickSameComputer": "Pemilih fail hanya berfungsi dalam pelayar di komputer yang menjalankan {{product}}.",
+      "pickError": {
+        "cancelled": "Tiada apa yang dipilih.",
+        "failed": "{{product}} tidak dapat membuka pilihan anda. Pilih semula.",
+        "expired": "Pemilih fail mengambil masa terlalu lama. Cuba lagi."
+      },
+      "discard": "Buang perubahan",
+      "saveButton": "Simpan",
+      "saved": "Tetapan Google Drive disimpan"
+    },
+    "driveAct": {
+      "hint": "Siapa dan bila. Nama dan kandungan fail kekal dalam Drive anda.",
+      "emptyHint": "Simpanan dan bacaan dipaparkan di sini.",
+      "saved": "{{agent}} menyimpan fail daripada {{customer}}",
+      "read": "{{agent}} membaca fail untuk {{customer}}",
+      "failed": "{{agent}} tidak dapat menghubungi Google Drive untuk {{customer}} dan menyerahkan",
+      "skipped": {
+        "safety": "{{agent}} tidak menyimpan fail berkunci daripada {{customer}}",
+        "size": "{{agent}} tidak menyimpan fail daripada {{customer}}: terlalu besar",
+        "unavailable": "{{agent}} tidak menyimpan fail daripada {{customer}}: tidak dapat dimuat turun"
+      },
+      "inGroup": "{{line}} dalam {{group}}"
+    },
+    "sql": {
+      "tabs": {
+        "overview": "Gambaran",
+        "connection": "Sambungan",
+        "settings": "Tetapan",
+        "customers": "Pelanggan",
+        "activity": "Aktiviti"
+      },
+      "settings": {
+        "notConnected": "Sambungkan SQL Account dahulu. Anda boleh pilih tetapan sekarang; AI menggunakannya selepas disambungkan."
+      },
+      "req": {
+        "title": "Hanya berfungsi dengan perkhidmatan API SQL Account (API Link)",
+        "body": "{{product}} berhubung dengan SQL Account melalui perkhidmatan API. Ia memerlukan modul API SQL Account (tambahan berbayar daripada pengedar SQL anda). Tanpanya, penyambung ini tidak boleh berfungsi, dan {{product}} tidak pernah membaca fail SQL Account anda secara terus.",
+        "version": "SQL Account 5.2025.1038.875 atau lebih baharu.",
+        "service": "Perkhidmatan API dipasang dan berjalan pada pelayan SQL Account anda.",
+        "port": "Port 443 pada router dimajukan ke pelayan itu (IP awam tetap daripada penyedia internet anda).",
+        "user": "Pengguna SQL Account berasingan untuk {{product}}, dengan kunci akses dan kunci rahsianya.",
+        "dealer": "Tidak pasti? Tanya pengedar SQL Account anda.",
+        "cloud": "SQL Cloud: tanya pengedar anda sama ada modul API tersedia."
+      },
+      "about": "Ejen AI anda menjawab daripada SQL Account: stok dan harga untuk semua orang, serta invois dan pesanan milik setiap pelanggan.",
+      "can": {
+        "stock": "Menyemak sama ada barang ada stok dan harga jualannya.",
+        "account": "Memberitahu pelanggan invois mereka sendiri dan, jika anda hidupkan, jumlah yang masih terhutang.",
+        "documents": "Memberitahu pelanggan status sebut harga, pesanan jualan atau pesanan penghantaran mereka sendiri.",
+        "quotation": "Boleh menyediakan sebut harga selepas pelanggan mengesahkannya (tutup sehingga anda menghidupkannya)."
+      },
+      "ownOnly": "Pelanggan hanya melihat rekod mereka sendiri. Jika {{product}} tidak dapat pastikan pelanggan SQL Account mana yang menulis, AI menyerahkan chat kepada pasukan anda.",
+      "privacy1": "{{product}} menghantar kepada SQL Account hanya apa yang diperlukan untuk satu semakan (nama barang, kod pelanggan, nombor dokumen), tidak pernah teks chat.",
+      "privacy2": "Kunci disimpan secara tersulit pada komputer ini. Log hanya menyimpan semakan mana yang dijalankan, sama ada berjaya dan berapa lama, tidak pernah jumlah, nama atau dokumen.",
+      "state": {
+        "no_dns": {
+          "title": "Perkhidmatan API belum disediakan",
+          "body": "SQL Account tiada perkhidmatan API untuk kunci ini. Hidupkan perkhidmatan API dalam SQL Account (Configure API Service), kemudian cuba lagi."
+        },
+        "unreachable": {
+          "title": "Tidak dapat mencapai pelayan SQL",
+          "body": "Perkhidmatan API tidak berjalan, pelayan SQL Account dimatikan, atau port 443 tidak dimajukan kepadanya. Semak dalam SQL Account dengan Test Connection."
+        },
+        "private_ip": {
+          "title": "Tidak dapat mencapai pelayan SQL",
+          "body": "Alamat ini menghala ke rangkaian peribadi. {{product}} hanya berhubung dengan SQL Account melalui internet, menerusi perkhidmatan API."
+        },
+        "bad_keys": {
+          "title": "Kunci tidak diterima",
+          "body": "SQL Account tidak menerima kunci akses atau kunci rahsia. Jana kunci baharu dalam SQL Account (Maintain User → API Secret Key) dan sambung semula."
+        },
+        "old_version": {
+          "title": "SQL Account terlalu lama atau API tidak dihidupkan",
+          "body": "Ini memerlukan SQL Account 5.2025.1038.875 atau lebih baharu dengan perkhidmatan API. Minta pengedar anda mengemas kininya."
+        },
+        "unexpected": {
+          "title": "Jawapan SQL Account tidak boleh digunakan",
+          "body": "SQL Account menjawab dengan cara yang {{product}} tidak boleh gunakan. Cuba lagi nanti atau tanya pengedar anda."
+        }
+      },
+      "conn": {
+        "connect": "Sambung SQL Account",
+        "connected": "SQL Account disambungkan",
+        "title": "Sambungan",
+        "hint": "Tampal kunci akses dan kunci rahsia yang anda buat dalam SQL Account.",
+        "accessKey": "Kunci akses",
+        "accessHint": "Seperti 13fc…c393.sql.my/APIUSER.",
+        "keyFormat": "Ini bukan kunci akses SQL Account. Ia berakhir dengan .sql.my/ dan nama pengguna.",
+        "secretKey": "Kunci rahsia",
+        "host": "Alamat:",
+        "hostFromKey": "diisi daripada kunci akses",
+        "testing": "Menguji…",
+        "connectTest": "Uji dan sambung",
+        "okTitle": "Disambungkan",
+        "okBody": "SQL Account menjawab. Ejen AI anda boleh menggunakannya mengikut akses yang anda pilih dalam Tetapan.",
+        "checked": "Semakan terakhir",
+        "test": "Uji sambungan",
+        "disconnect": "Putuskan",
+        "disconnectTitle": "Putuskan SQL Account?",
+        "disconnectBody": "Kunci dipadam daripada komputer ini dan AI berhenti menggunakan SQL Account. Tiada apa yang berubah dalam SQL Account.",
+        "testOk": "SQL Account menjawab."
+      },
+      "access": {
+        "title": "Apa yang boleh digunakan oleh {{agent}}",
+        "hint": "Pilih bagi setiap jenis rekod. Baca membenarkan AI menyemaknya; Baca + cipta juga membenarkan AI menambah satu.",
+        "own": "Milik pelanggan sahaja",
+        "everyone": "Semua pelanggan",
+        "off": "Tutup",
+        "read": "Baca",
+        "create": "Baca + cipta",
+        "never": "AI tidak pernah mengubah atau memadam apa-apa dalam SQL Account. Rekod yang tiada di sini tidak pernah digunakan.",
+        "showPrice": "Tunjukkan harga jualan",
+        "stockShown": "Stok ditunjukkan sebagai",
+        "inStock": "Ada stok / habis stok",
+        "quantity": "Kuantiti tepat",
+        "save": "Simpan",
+        "discard": "Buang",
+        "saved": "Disimpan"
+      },
+      "obj": {
+        "stockitem": {
+          "name": "Barang stok",
+          "sees": "Kod, keterangan, harga jualan, ada stok. Tidak pernah harga kos."
+        },
+        "customer": {
+          "name": "Butiran pelanggan",
+          "sees": "Kod pelanggan, nama syarikat, terma kredit dan jumlah masih terhutang. Tidak pernah had kredit."
+        },
+        "customerinvoice": {
+          "name": "Invois pelanggan (amaun terhutang)",
+          "sees": "Nombor, tarikh, tarikh akhir, jumlah, dibayar dan masih terhutang. AI menyebut amaun tepat seperti yang direkodkan dalam SQL Account."
+        },
+        "salesinvoice": {
+          "name": "Invois jualan",
+          "sees": "Nombor, tarikh dan jumlah invois terkini."
+        },
+        "salesquotation": {
+          "name": "Sebut harga",
+          "sees": "Nombor, tarikh, jumlah, barang."
+        },
+        "salesorder": {
+          "name": "Pesanan jualan",
+          "sees": "Nombor, tarikh, jumlah, status."
+        },
+        "deliveryorder": {
+          "name": "Pesanan penghantaran",
+          "sees": "Nombor, tarikh, status."
+        },
+        "customerpayment": {
+          "name": "Bayaran pelanggan",
+          "sees": "Nombor, tarikh, amaun, invois yang dibayar."
+        }
+      },
+      "guard": {
+        "title": "Sebelum AI mencipta sebut harga",
+        "confirm": "Ia menunjukkan barang, kuantiti, harga dan jumlah, dan menunggu pelanggan mengesahkan dalam mesej baharu.",
+        "items": "Barang hanya daripada semakan stok dalam chat itu; kuantiti hanya daripada apa yang ditulis pelanggan.",
+        "price": "Harga sentiasa daripada SQL Account, tidak pernah daripada AI.",
+        "limit": "Paling banyak 2 sebut harga setiap chat sehari dan 20 sehari untuk ejen ini.",
+        "never": "Tidak pernah dalam Cuba, tidak pernah dalam kumpulan, dan tidak pernah invois, pesanan atau bayaran."
+      },
+      "match": {
+        "title": "Siapakah pelanggan ini dalam SQL Account?",
+        "hint": "Sebelum AI menunjukkan invois atau pesanan, {{product}} mesti tahu pelanggan SQL Account mana yang menulis. Ia menyemak mengikut urutan:",
+        "rule1": "Kod pelanggan yang dipautkan oleh pasukan anda pada chat ini.",
+        "rule2": "Nombor WhatsApp, jika tepat seorang pelanggan SQL Account memilikinya.",
+        "rule3": "Jika tidak, tiada padanan: AI menyerahkan chat kepada pasukan anda.",
+        "byPhone": "Padankan dengan nombor telefon",
+        "never": "{{product}} tidak pernah memadankan dengan nama dan tidak pernah menggunakan kod pelanggan yang ditaip oleh pelanggan.",
+        "unavailable": "SQL Account anda tidak menghantar nombor telefon kepada {{product}}: pautkan pelanggan secara manual.",
+        "building": "Sedang membaca nombor telefon daripada SQL Account… Chat dipadankan sebaik sahaja pelanggannya dibaca."
+      },
+      "cust": {
+        "title": "Pelanggan",
+        "hint": "Setiap chat dan pelanggan SQL Account yang dipadankan.",
+        "linked": "Dipautkan",
+        "phone": "Padan melalui telefon",
+        "several": "Beberapa pelanggan",
+        "none": "Tiada padanan",
+        "severalHint": "Lebih daripada seorang pelanggan SQL Account mempunyai nombor ini. Pautkan satu.",
+        "noneHint": "Tiada pelanggan SQL Account dengan nombor ini. Pautkan satu untuk menjawab tentang invois dan pesanan.",
+        "empty": "Belum ada chat.",
+        "link": "Pautkan",
+        "change": "Tukar",
+        "unlink": "Nyahpaut",
+        "linkTitle": "Pautkan {{name}} kepada pelanggan SQL Account",
+        "linkHint": "Cari mengikut kod pelanggan atau nama syarikat. {{product}} menyemak kod itu wujud dalam SQL Account.",
+        "search": "Kod pelanggan atau syarikat",
+        "pick": "Pautkan",
+        "noDebtor": "Tiada pelanggan SQL Account dijumpai.",
+        "linkedToast": "Dipautkan kepada {{code}}",
+        "unknownCode": "SQL Account tiada pelanggan dengan kod ini.",
+        "notConnected": "Sambungkan SQL Account dahulu untuk mencari pelanggannya.",
+        "searching": "Mencari…",
+        "unlinked": "Pautan dibuang"
+      },
+      "act": {
+        "hint": "Apa yang AI lakukan dengan SQL Account. Amaun dan dokumen tidak pernah disimpan di sini.",
+        "stock": "{{agent}} menyemak stok untuk",
+        "account": "{{agent}} menyemak invois",
+        "document": "{{agent}} menyemak dokumen untuk",
+        "payments": "{{agent}} menyemak bayaran",
+        "quotation": "{{agent}} mencipta sebut harga untuk",
+        "dockey": "ID SQL Account {{dockey}}",
+        "result": {
+          "done": "Selesai",
+          "refused": "Tidak dibenarkan",
+          "failed": "Gagal"
+        },
+        "reason": {
+          "no_customer": "tiada pelanggan dipadankan, diserahkan kepada pasukan",
+          "unreachable": "pelayan SQL tidak dapat dicapai",
+          "not_own": "bukan dokumen pelanggan ini",
+          "several": "beberapa pelanggan SQL Account mempunyai nombor ini, diserahkan kepada pasukan",
+          "object_off": "ditutup untuk ejen ini",
+          "item_not_looked_up": "barang yang tidak disemak dalam chat ini",
+          "qty_not_from_customer": "kuantiti yang tidak ditulis oleh pelanggan",
+          "no_price": "barang tanpa harga dalam SQL Account",
+          "no_draft": "sebut harga tidak ditunjukkan kepada pelanggan dahulu",
+          "draft_expired": "sebut harga yang ditunjukkan sudah terlalu lama",
+          "limit_chat": "had harian untuk chat ini dicapai",
+          "limit_agent": "had harian untuk ejen ini dicapai",
+          "not_confirmed": "pelanggan belum mengesahkan",
+          "no_dns": "perkhidmatan API belum disediakan",
+          "private_ip": "alamat pada rangkaian peribadi",
+          "bad_keys": "kunci tidak diterima",
+          "old_version": "SQL Account terlalu lama atau API tidak dihidupkan",
+          "unexpected": "jawapan yang {{product}} tidak boleh gunakan",
+          "other": "berlaku masalah"
+        },
+        "noChat": "satu chat",
+        "someone": "Ejen AI"
+      },
+      "agentCard": "{{on}} daripada {{total}} jenis rekod dihidupkan"
     }
   },
   "reports": {
@@ -2431,5 +2945,42 @@
         "ready": "Sedia"
       }
     }
+  },
+  "limitedChats": {
+    "label": "Sembang yang ahli ini boleh lihat",
+    "all": {
+      "title": "Semua sembang",
+      "hint": "Setiap sembang dalam peti masuk yang boleh mereka buka, seperti sekarang."
+    },
+    "chosen": {
+      "title": "Hanya sembang yang dipilih",
+      "hint": "Hanya sembang terus dan kumpulan yang anda pilih di bawah. Gunakan untuk ejen luar atau ejen sokongan."
+    },
+    "count_one": "{{count}} sembang dipilih",
+    "count_other": "{{count}} sembang dipilih",
+    "none": "Belum ada sembang dipilih: ahli ini tidak melihat sebarang sembang sehingga anda menambahnya.",
+    "chosenLabel": "Sembang dipilih",
+    "remove": "Buang {{name}}",
+    "add": "Tambah {{name}}",
+    "addLabel": "Tambah sembang",
+    "addPlaceholder": "Cari sembang dan kumpulan",
+    "noMatch": "Tiada sembang lain yang sepadan.",
+    "note_zero": "Tiada sembang dipilih",
+    "note_one": "Hanya {{count}} sembang dipilih",
+    "note_other": "Hanya {{count}} sembang dipilih"
+  },
+  "newChat": {
+    "title": "Sembang baharu",
+    "description": "Mulakan sembang WhatsApp dengan nombor yang belum ada dalam peti masuk. Pentadbir sentiasa boleh berbuat demikian.",
+    "staff": "Ahli pasukan boleh memulakan sembang baharu",
+    "staffOn": "Hidup: semua orang boleh memulakan sembang baharu daripada peti masuk mereka.",
+    "staffOff": "Mati: hanya pentadbir melihat Sembang baharu.",
+    "limitLabel": "Sembang baharu sehari, bagi setiap nombor WhatsApp",
+    "limitUnit": "sehari",
+    "limitInvalid": "Masukkan nombor bulat dari 0 hingga {{max}}.",
+    "limitHint": "Mengira nombor baharu yang dimulakan daripada setiap telefon yang dipautkan, oleh pasukan anda dan pembantu AI bersama-sama. 0 = tiada had. Nombor Business API dihadkan oleh Meta.",
+    "limitNone": "Tiada had: pasukan anda dan pembantu AI boleh menghantar mesej kepada seberapa banyak nombor baharu sehari.",
+    "limitBanTitle": "Had yang tinggi boleh menyebabkan nombor anda disekat",
+    "limitBanBody": "WhatsApp boleh menyekat nombor yang menghantar mesej kepada ramai orang yang tidak memintanya. Kekalkan had yang rendah melainkan orang ini menjangkakan mesej anda."
   }
 }

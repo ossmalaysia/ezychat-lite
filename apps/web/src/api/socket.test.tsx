@@ -427,6 +427,14 @@ it('keeps the inbox list current: a status patches it, a change reloads inboxes,
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['inboxes'] });
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users'] });
   await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats'] }));
+  invalidate.mockClear();
+  // the chats this user may open changed (an agent limited to chosen chats)
+  act(() => socket.listeners.get('chats:access')!());
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['me'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users', 'directory'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chat'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['messages'] });
+  await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats'] }));
   qc.clear();
 });
 
@@ -537,5 +545,24 @@ it('refreshes a group AI state on a group line and when a teammate writes during
     }),
   );
   expect(groupCalls()).toHaveLength(2);
+  qc.clear();
+});
+
+it('reloads Group info and its admin view when a group changes', async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const group = '120363000000000001@g.us';
+  const invalidate = vi.spyOn(qc, 'invalidateQueries');
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('group:changed')!({ chatJid: group }));
+  const keys = invalidate.mock.calls.map(([f]) => JSON.stringify(f?.queryKey));
+  expect(keys).toContain(JSON.stringify(['group-admin', group]));
+  expect(keys).toContain(JSON.stringify(['group-members', group]));
   qc.clear();
 });

@@ -27,8 +27,10 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '../lib/format';
 import { encodeJid } from '../lib/jid';
 import { ChatAvatar } from './ChatAvatar';
+import { GroupAdminBar, MemberAdminActions } from './GroupAdmin';
 import { GroupAiRow } from './GroupAiRow';
 import { PanelHeader } from './PanelHeader';
+import { useChosenChatsOnly } from '../auth/chat-scope';
 
 /** Rows rendered at a time; large groups show more on request instead of rendering all at once. */
 export const MEMBER_PAGE = 100;
@@ -159,7 +161,17 @@ function MemberList({
               : t('groupInfo.createdOn', { date: formatDate(group.createdAt) })}
           </p>
         )}
+        {group.description && (
+          <p
+            className="line-clamp-3 pt-1 text-xs whitespace-pre-wrap [overflow-wrap:anywhere]"
+            data-testid="group-description"
+          >
+            {group.description}
+          </p>
+        )}
       </div>
+      {/* Manage the group without switching to the phone (EzyChat admins, what the connection allows). */}
+      <GroupAdminBar data={data} />
       {/* Whether the AI agent answers in this group when tagged or quoted. */}
       <GroupAiRow jid={group.jid} isAdmin={isAdmin} />
       <div className="relative mx-4 mt-2 mb-1.5">
@@ -267,6 +279,8 @@ function MemberDetail({
   const { t } = useTranslation('inbox');
   const about = useMemberAbout(groupJid, member.isMe ? null : (member.lid ?? member.jid));
   const start = useStartMemberChat(groupJid);
+  // an agent limited to chosen chats opens no chat from a group member (the server refuses it)
+  const chosenOnly = useChosenChatsOnly();
   const [confirming, setConfirming] = useState(false);
   const label = memberLabel(member, t);
   const bareId = !member.name && !member.phone && !member.isMe;
@@ -360,7 +374,11 @@ function MemberDetail({
           ))}
         </dl>
       </section>
-      {member.isMe ? null : member.chatJid ? (
+      {chosenOnly && !member.isMe ? (
+        <p className="text-xs text-muted-foreground" data-testid="chosen-only-no-member-chat">
+          {t('groupInfo.chosenChatsOnly')}
+        </p>
+      ) : member.isMe ? null : member.chatJid ? (
         <>
           <Button
             type="button"
@@ -417,6 +435,7 @@ function MemberDetail({
           </AlertDialog>
         </>
       )}
+      <MemberAdminActions groupJid={groupJid} member={member} label={label} onRemoved={onBack} />
     </div>
   );
 }

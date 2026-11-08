@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -221,6 +221,89 @@ describe('MessageBubble quote author', () => {
   });
 });
 
+describe('MessageBubble quote jump', () => {
+  const original: Message = { ...groupMessage, id: 'WA-9', senderName: 'Farah', body: 'Price?' };
+  const reply: Message = {
+    ...groupMessage,
+    id: 'WA-10',
+    fromMe: true,
+    body: 'ok',
+    quotedId: 'WA-9',
+  };
+
+  it('the quote is a named button that asks for its original, loaded or not', async () => {
+    const onOpenQuote = vi.fn();
+    const { rerender } = render(
+      <MessageBubble
+        message={reply}
+        showSender
+        outboundLabel={null}
+        quoted={original}
+        onOpenQuote={onOpenQuote}
+      />,
+    );
+    const quote = screen.getByRole('button', { name: /Go to the quoted message.*Farah.*Price\?/ });
+    await userEvent.click(quote);
+    expect(onOpenQuote).toHaveBeenCalledWith('WA-9');
+    // not loaded yet: still a button (the inbox loads older messages to find it)
+    rerender(
+      <MessageBubble
+        message={reply}
+        showSender
+        outboundLabel={null}
+        quoted={null}
+        onOpenQuote={onOpenQuote}
+      />,
+    );
+    quote.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(onOpenQuote).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: /Quoted message/ })).toBeTruthy();
+  });
+
+  it('without a handler the quote stays plain text; highlighted marks the bubble', () => {
+    const view = render(
+      <MessageBubble
+        message={reply}
+        showSender
+        outboundLabel={null}
+        quoted={original}
+        highlighted
+      />,
+    );
+    expect(screen.queryByTestId('quote-jump')).toBeNull();
+    expect(screen.getByText('Price?')).toBeTruthy();
+    expect(
+      view.container.querySelector('[data-highlighted="true"]')?.getAttribute('data-message-id'),
+    ).toBe('WA-10');
+  });
+
+  it('a long press on the quote (touch) opens the press-and-hold bar, not the original', () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenQuote = vi.fn();
+      render(
+        <MessageBubble
+          message={{ ...reply, fromMe: false }}
+          showSender
+          outboundLabel={null}
+          quoted={original}
+          onOpenQuote={onOpenQuote}
+          onReply={vi.fn()}
+        />,
+      );
+      const quote = screen.getByTestId('quote-jump');
+      fireEvent.pointerDown(quote, { pointerType: 'touch', clientX: 5, clientY: 5, pointerId: 1 });
+      act(() => vi.advanceTimersByTime(600));
+      fireEvent.pointerUp(quote, { pointerType: 'touch', pointerId: 1 });
+      fireEvent.click(quote);
+      expect(onOpenQuote).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('MessageBubble via AI assistant', () => {
   const outbound: Message = {
     ...groupMessage,
@@ -272,5 +355,111 @@ describe('MessageBubble via AI assistant', () => {
       />,
     );
     expect(screen.queryByTestId('via-template')).toBeNull();
+  });
+});
+
+describe('MessageBubble scheduled task mark', () => {
+  const sent: Message = {
+    ...groupMessage,
+    id: 'S-1',
+    fromMe: true,
+    senderJid: null,
+    body: "Good morning team. Today's bookings: 3.",
+  };
+  const bubble = (message: Message) =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <MessageBubble message={message} showSender={false} outboundLabel="Aina" quoted={null} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('marks a message a scheduled task sent with the task name', () => {
+    bubble({ ...sent, scheduledTask: { id: 4, name: 'Morning bookings' } });
+    expect(screen.getByTestId('scheduled-mark').textContent).toBe('Scheduled · Morning bookings');
+  });
+
+  it('says only "Scheduled" once the task is deleted', () => {
+    bubble({ ...sent, scheduledTask: { id: 4, name: null } });
+    expect(screen.getByTestId('scheduled-mark').textContent).toBe('Scheduled');
+  });
+
+  it('marks no other message', () => {
+    bubble(sent);
+    expect(screen.queryByTestId('scheduled-mark')).toBeNull();
+    cleanup();
+    // An incoming message never carries the mark, even with the field set.
+    bubble({ ...groupMessage, scheduledTask: { id: 4, name: 'Morning bookings' } });
+    expect(screen.queryByTestId('scheduled-mark')).toBeNull();
+  });
+});
+
+describe('MessageBubble forwarded and large files', () => {
+  const out: Message = {
+    ...groupMessage,
+    id: 'O-1',
+    fromMe: true,
+    senderJid: null,
+    status: 'sent',
+  };
+  const bubble = (m: Message) =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MessageBubble message={m} showSender={false} outboundLabel={null} quoted={null} />
+      </QueryClientProvider>,
+    );
+
+  it('shows "Forwarded" or "Forwarded many times" at the top of the bubble', () => {
+    bubble({ ...groupMessage, forwarded: { manyTimes: false } });
+    expect(screen.getByTestId('forwarded-label').textContent).toBe('Forwarded');
+    cleanup();
+    bubble({ ...out, forwarded: { manyTimes: true } });
+    expect(screen.getByTestId('forwarded-label').textContent).toBe('Forwarded many times');
+    cleanup();
+    bubble({ ...groupMessage, forwarded: null });
+    expect(screen.queryByTestId('forwarded-label')).toBeNull();
+    bubble({
+      ...groupMessage,
+      forwarded: { manyTimes: false },
+      deletedAt: 1,
+      deletedBy: 'sender',
+    });
+    expect(screen.queryByTestId('forwarded-label')).toBeNull();
+  });
+
+  it('a pending copy of 20 MB or more says it is still going up to WhatsApp', () => {
+    const video: Message = {
+      ...out,
+      type: 'video',
+      body: null,
+      status: 'pending',
+      mediaSize: 70 * 1024 * 1024,
+    };
+    bubble(video);
+    expect(screen.getByTestId('sending-large').textContent).toBe('Sending 70 MB to WhatsApp…');
+    cleanup();
+    bubble({ ...video, status: 'sent' });
+    bubble({ ...video, id: 'O-2', mediaSize: 19 * 1024 * 1024 });
+    bubble({ ...video, id: 'O-3', fromMe: false });
+    expect(screen.queryByTestId('sending-large')).toBeNull();
+  });
+
+  it('a failed upload reads plainly; other errors show as the server wrote them', () => {
+    const failed: Message = { ...out, status: 'failed', error: 'too_large_as_video' };
+    bubble(failed);
+    expect(screen.getByText('Too large to send as a video on this WhatsApp number.')).toBeTruthy();
+    cleanup();
+    bubble({ ...failed, error: 'too_large_for_whatsapp' });
+    expect(screen.getByText('Too large for this WhatsApp number.')).toBeTruthy();
+    cleanup();
+    bubble({ ...failed, error: 'too_large' });
+    expect(screen.getByText('Too large to send.')).toBeTruthy();
+    cleanup();
+    bubble({ ...failed, error: 'Upload to WhatsApp failed' });
+    expect(screen.getByText('Upload to WhatsApp failed')).toBeTruthy();
+    cleanup();
+    bubble({ ...failed, error: null });
+    expect(screen.getByText('Not sent')).toBeTruthy();
   });
 });

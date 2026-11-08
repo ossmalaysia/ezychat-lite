@@ -188,12 +188,45 @@
       "title": "锁定的文件放在哪里？",
       "body": "放在 EzyChat 自己的文件夹，并改名使其无法运行。只有管理员可以解锁或删除。"
     },
+    "driveFiles": {
+      "title": "为什么要选择文件？",
+      "body": "Google 只允许 {{product}} 打开您在 Google 窗口中选择的文件夹和文件，以及它自己保存的文件。您 Drive 中的其他文件保持私密。"
+    },
     "reportNumber": {
       "title": "如何向 WhatsApp 举报",
       "body": "WhatsApp 只接受来自 WhatsApp 应用的举报。",
       "step1": "在已链接的手机上打开此聊天。",
       "step2": "点按顶部的名字。",
       "step3": "点「举报」，再点一次「举报」。"
+    },
+    "sqlApiService": {
+      "title": "什么是 API 服务（API Link）？",
+      "body": "SQL Account 在您的 SQL 服务器上运行的小程序，让 {{product}} 等其他应用安全地读取和新增记录。",
+      "step1": "在 SQL Account 登录界面点击 ⚙。",
+      "step2": "右键点击公司数据库 → Configure API Service… → Install，然后 Start。",
+      "step3": "请管理路由器的人把 443 端口（TCP）转发到 SQL Account 服务器。",
+      "step4": "在 SQL Account 点击 Test Connection：必须显示 OK。",
+      "action": "SQL Account 设置指南"
+    },
+    "sqlKeys": {
+      "title": "在哪里获取密钥？",
+      "body": "SQL Account 为一个用户生成访问密钥和秘密密钥。此后该用户只用于 API。",
+      "step1": "在 SQL Account：Tools → Maintain User → New，命名为 \"APIUser\"。",
+      "step2": "选中新用户 → More → API Secret Key。",
+      "step3": "点击 Generate API Secret Key。",
+      "step4": "立即复制两个密钥（秘密密钥只显示一次），粘贴到这里。",
+      "action": "SQL Account 密钥指南"
+    },
+    "sqlCustomerCode": {
+      "title": "什么是客户代码？",
+      "body": "客户在 SQL Account 中的代码，例如 300-F0001。关联到聊天后，AI 只向该客户显示其本人的记录。"
+    },
+    "usageStats": {
+      "title": "什么是匿名使用统计？",
+      "body": "EzyChat 只统计设置步骤（例如已连接 WhatsApp、已开启 AI）来改进应用，从不发送你是谁或你写了什么。",
+      "step1": "会发送：随机安装代码、应用版本、Windows 或 Mac，以及完成的步骤。",
+      "step2": "从不发送：姓名、电话号码、聊天、消息、电子邮件、IP 地址或密钥。",
+      "step3": "数据发送到 EzyChat 许可证服务器，由它在 Google Analytics 中统计。你可以随时在这里关闭。"
     }
   }
 }

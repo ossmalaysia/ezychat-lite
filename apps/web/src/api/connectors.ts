@@ -3,12 +3,19 @@ import {
   BookingSettings,
   CalendarActivityList,
   CalendarBookingList,
+  DriveActivityList,
+  DriveAgentSettings,
+  DrivePickerProgress,
+  DrivePickerStart,
+  type DrivePickerBody,
   GoogleCalendarConnectProgress,
   GoogleCalendarConnectStart,
   GoogleCalendarStatus,
+  GoogleDriveStatus,
   GoogleSheetsStatus,
   SheetsActivityList,
   SheetsAgentSettings,
+  type SheetLayout,
   SheetsPickerProgress,
   SheetsPickerStart,
   SpreadsheetInfo,
@@ -192,6 +199,23 @@ export function useSaveSheetsSettings(agentId: number) {
 }
 
 /**
+ * Creates a new spreadsheet in the connected Google account from `layout` and saves it as the
+ * agent's (admins). 400 `formula_blocked` when a formula reaches outside the sheet.
+ */
+export function useCreateSheet(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (layout: SheetLayout) =>
+      api(`/connectors/google-sheets/agents/${agentId}/create`, {
+        method: 'POST',
+        body: layout,
+        schema: SheetsAgentSettings,
+      }),
+    onSuccess: (saved) => qc.setQueryData(sheetsSettingsKey(agentId), saved),
+  });
+}
+
+/**
  * Reads the agent's spreadsheet again from Google (tab names and first rows) and clears the AI's
  * column cache. One a 10 s per install (429 `rate_limited`).
  */
@@ -230,6 +254,115 @@ export function useSheetsPickerProgress(requestId: string | null) {
       api(`/connectors/google-sheets/picker/${encodeURIComponent(requestId ?? '')}`, {
         signal,
         schema: SheetsPickerProgress,
+      }),
+    enabled: requestId !== null,
+    refetchInterval: (query) => (query.state.data?.status === 'pending' ? 2000 : false),
+    gcTime: 0,
+  });
+}
+
+/** Admin → Connectors → Google Drive (admins only). Tokens never reach the browser. */
+export const googleDriveKey = ['connectors', 'google-drive'] as const;
+export const driveSettingsKey = (agentId: number) => [...googleDriveKey, 'agent', agentId] as const;
+export const driveActivityKey = [...googleDriveKey, 'activity'] as const;
+
+export function useGoogleDrive(enabled = true) {
+  return useQuery({
+    queryKey: googleDriveKey,
+    queryFn: ({ signal }) => api('/connectors/google-drive', { signal, schema: GoogleDriveStatus }),
+    enabled,
+  });
+}
+
+/** Starts Google's sign-in for Google Drive (its own sign-in, separate from Calendar and Sheets). */
+export function useGoogleDriveConnect() {
+  return useMutation({
+    mutationFn: () =>
+      api('/connectors/google-drive/connect', {
+        method: 'POST',
+        schema: GoogleCalendarConnectStart,
+      }),
+  });
+}
+
+/** Polls a Google Drive sign-in every 2 s until it is done or failed. */
+export function useGoogleDriveProgress(requestId: string | null) {
+  return useQuery({
+    queryKey: [...googleDriveKey, 'connect', requestId] as const,
+    queryFn: ({ signal }) =>
+      api(`/connectors/google-drive/connect/${encodeURIComponent(requestId ?? '')}`, {
+        signal,
+        schema: GoogleCalendarConnectProgress,
+      }),
+    enabled: requestId !== null,
+    refetchInterval: (query) => (query.state.data?.status === 'pending' ? 2000 : false),
+    gcTime: 0,
+  });
+}
+
+export function useGoogleDriveDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api('/connectors/google-drive/disconnect', { method: 'POST' }),
+    onSettled: () => void qc.invalidateQueries({ queryKey: googleDriveKey }),
+  });
+}
+
+/** One AI agent's Google Drive settings (the defaults until an admin saves them). */
+export function useDriveSettings(agentId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: driveSettingsKey(agentId ?? 0),
+    queryFn: ({ signal }) =>
+      api(`/connectors/google-drive/agents/${agentId}`, { signal, schema: DriveAgentSettings }),
+    enabled: enabled && agentId !== null,
+  });
+}
+
+export function useSaveDriveSettings(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DriveAgentSettings) =>
+      api(`/connectors/google-drive/agents/${agentId}`, {
+        method: 'PUT',
+        body,
+        schema: DriveAgentSettings,
+      }),
+    onSuccess: (saved) => qc.setQueryData(driveSettingsKey(agentId), saved),
+  });
+}
+
+export function useDriveActivity(enabled = true) {
+  return useQuery({
+    queryKey: driveActivityKey,
+    queryFn: ({ signal }) =>
+      api('/connectors/google-drive/activity', { signal, schema: DriveActivityList }),
+    enabled,
+  });
+}
+
+/**
+ * Opens Google's file picker (a page on the computer that runs EzyChat): one folder, or files
+ * (opened in the agent's folder).
+ */
+export function useDrivePicker() {
+  return useMutation({
+    mutationFn: (body: DrivePickerBody) =>
+      api('/connectors/google-drive/picker', {
+        method: 'POST',
+        body,
+        schema: DrivePickerStart,
+      }),
+  });
+}
+
+/** Polls the picker every 2 s until the admin picked, cancelled, or it expired. */
+export function useDrivePickerProgress(requestId: string | null) {
+  return useQuery({
+    queryKey: [...googleDriveKey, 'picker', requestId] as const,
+    queryFn: ({ signal }) =>
+      api(`/connectors/google-drive/picker/${encodeURIComponent(requestId ?? '')}`, {
+        signal,
+        schema: DrivePickerProgress,
       }),
     enabled: requestId !== null,
     refetchInterval: (query) => (query.state.data?.status === 'pending' ? 2000 : false),

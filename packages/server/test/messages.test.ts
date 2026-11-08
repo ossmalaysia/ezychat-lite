@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MessageListResponse, MessageSchema } from '@ezychat/shared';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { MessageListResponse, MessageLocateResponse, MessageSchema } from '@ezychat/shared';
 import { FAKE_RUN } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { createMessageService, GROUP_DELIVERY_ERROR } from '../src/messages/service.js';
-import { MessageRepo } from '../src/messages/repo.js';
+import { MessageRepo, rowToMessage } from '../src/messages/repo.js';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -99,6 +99,51 @@ describe('messages routes', () => {
     const p2 = MessageListResponse.parse(r.json());
     expect(p2.messages.map((m) => m.body)).toEqual(['m0', 'm1']);
     expect(p2.nextBefore).toBeNull();
+  });
+
+  it('locates a quoted message in its chat: how many newer messages, never another chat or a hidden one', async () => {
+    const { cookie } = await createUserAndLogin(t);
+    await seed(5);
+    const other = '60188888888@s.whatsapp.net';
+    await getMessages(t.ctx).ingest(
+      {
+        id: 'OTHER-1',
+        chatJid: other,
+        senderJid: other,
+        senderName: 'Other',
+        fromMe: false,
+        type: 'text',
+        body: 'elsewhere',
+        quotedId: null,
+        timestamp: 1_700_000_100_000,
+        media: null,
+      },
+      'live',
+    );
+    const locate = async (jid: string, id: string) => {
+      const r = await t.app.inject({
+        method: 'GET',
+        url: `/api/chats/${enc(jid)}/messages/${enc(id)}/locate`,
+        headers: { cookie },
+      });
+      return r;
+    };
+    let r = await locate(JID, 'IN-1');
+    expect(r.statusCode).toBe(200);
+    expect(MessageLocateResponse.parse(r.json())).toEqual({ found: true, newer: 3 });
+    expect((await locate(JID, 'IN-4')).json()).toEqual({ found: true, newer: 0 });
+    // never stored, or stored in another chat: not available here
+    expect((await locate(JID, 'NOPE')).json()).toEqual({ found: false, newer: 0 });
+    expect((await locate(JID, 'OTHER-1')).json()).toEqual({ found: false, newer: 0 });
+    // hidden for the team ("delete for me"): not available, and not counted for the others
+    t.ctx.db.prepare("UPDATE messages SET hidden_at = 1 WHERE id = 'IN-3'").run();
+    expect((await locate(JID, 'IN-3')).json()).toEqual({ found: false, newer: 0 });
+    expect((await locate(JID, 'IN-1')).json()).toEqual({ found: true, newer: 2 });
+    // an unknown chat answers 404, like every per-chat route
+    r = await locate('60100000000@s.whatsapp.net', 'IN-1');
+    expect(r.statusCode).toBe(404);
+    r = await t.app.inject({ method: 'GET', url: `/api/chats/${enc(JID)}/messages/IN-1/locate` });
+    expect(r.statusCode).toBe(401);
   });
 
   it('send text via FakeWaAdapter ends with status sent and the WA id', async () => {
@@ -553,6 +598,8 @@ describe('messages routes', () => {
     expect(res.headers['content-type']).toBe('image/png');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
     expect(String(res.headers['content-disposition'])).toMatch(/^inline/);
+    // a message's file never changes: the phone may keep it for 30 days
+    expect(res.headers['cache-control']).toBe('private, max-age=2592000, immutable');
     expect(res.rawPayload.equals(PNG)).toBe(true);
 
     res = await t.app.inject({
@@ -643,6 +690,197 @@ describe('messages routes', () => {
     });
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe('media_pending');
+  });
+
+  describe('WhatsApp thumbnail', () => {
+    const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    const ingestWithThumb = (id: string) =>
+      getMessages(t.ctx).ingest(
+        {
+          id,
+          chatJid: JID,
+          senderJid: JID,
+          senderName: 'Gus',
+          fromMe: false,
+          type: 'image',
+          body: null,
+          quotedId: null,
+          timestamp: 1_700_000_000_000,
+          media: {
+            mime: 'image/png',
+            fileName: null,
+            download: async () => PNG,
+            thumbnail: JPEG,
+          },
+        },
+        'history',
+      );
+    const getThumb = (id: string, cookie?: string) =>
+      t.app.inject({
+        method: 'GET',
+        url: `/api/media/${id}/thumb`,
+        headers: cookie ? { cookie } : {},
+      });
+
+    it('serves the preview as a JPEG, and the message links to it', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      const m = await ingestWithThumb('TH-1');
+      expect(m!.mediaThumbUrl).toBe('/api/media/TH-1/thumb');
+      const res = await getThumb('TH-1', cookie);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toBe('image/jpeg');
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.headers['cache-control']).toContain('private');
+      expect(res.rawPayload.equals(JPEG)).toBe(true);
+    });
+
+    it('never downloads the real file', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestWithThumb('TH-2');
+      const download = vi.spyOn(t.wa, 'downloadMedia');
+      expect((await getThumb('TH-2', cookie)).statusCode).toBe(200);
+      expect(download).not.toHaveBeenCalled();
+    });
+
+    it('needs a session', async () => {
+      await ingestWithThumb('TH-3');
+      expect((await getThumb('TH-3')).statusCode).toBe(401);
+    });
+
+    it('answers 404 without a preview', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      const m = await ingestHistoryImage('TH-4');
+      expect(m).not.toHaveProperty('mediaThumbUrl');
+      expect((await getThumb('TH-4', cookie)).statusCode).toBe(404);
+    });
+
+    it('stays away from a deleted or hidden message', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestWithThumb('TH-5');
+      await ingestWithThumb('TH-6');
+      await ingestWithThumb('TH-7');
+      const repo = new MessageRepo(t.ctx.db);
+      repo.update('TH-5', { deleted_at: 1, deleted_by: 'sender' });
+      repo.update('TH-6', { hidden_at: 1 });
+      repo.delete('TH-7');
+      expect((await getThumb('TH-5', cookie)).statusCode).toBe(404);
+      expect((await getThumb('TH-6', cookie)).statusCode).toBe(404);
+      expect(repo.mediaThumb('TH-5')).toBeNull();
+      expect(repo.mediaThumb('TH-7')).toBeNull();
+      expect(rowToMessage(repo.get('TH-5')!)).not.toHaveProperty('mediaThumbUrl');
+    });
+
+    it('shows no preview of an image WhatsApp Safety flagged', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestWithThumb('TH-8');
+      const level = vi.spyOn(t.ctx.services.safety!, 'levelOf').mockReturnValue('high');
+      expect((await getThumb('TH-8', cookie)).statusCode).toBe(404);
+      level.mockRestore();
+    });
+
+    it('stops a phone keeping a preview while the safety check is open', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestWithThumb('TH-9');
+      vi.spyOn(t.ctx.services.safety!, 'cacheable').mockReturnValue(false);
+      const res = await getThumb('TH-9', cookie);
+      expect(res.headers['cache-control']).toBe('no-store');
+    });
+  });
+
+  describe('download data kept across a restart', () => {
+    const REF = '{"opaque":"ref"}';
+    const refOf = (id: string) =>
+      t.ctx.db.prepare('SELECT ref FROM media_refs WHERE message_id = ?').get(id) as
+        { ref: string } | undefined;
+    const ingestWithRef = (id: string, source: 'history' | 'live' = 'history', fail = false) =>
+      getMessages(t.ctx).ingest(
+        {
+          id,
+          chatJid: JID,
+          senderJid: JID,
+          senderName: 'Gus',
+          fromMe: false,
+          type: 'image',
+          body: null,
+          quotedId: null,
+          timestamp: 1_700_000_000_000,
+          media: {
+            mime: 'image/png',
+            fileName: null,
+            download: async () => {
+              if (fail) throw new Error('no network');
+              return PNG;
+            },
+            ref: REF,
+            width: 1600,
+            height: 900,
+          },
+        },
+        source,
+      );
+
+    it('gives the adapter the stored ref, then forgets it once the file is stored', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestWithRef('REF-1');
+      expect(refOf('REF-1')?.ref).toBe(REF);
+      const download = vi.spyOn(t.wa, 'downloadMedia').mockResolvedValue(PNG);
+      const res = await t.app.inject({
+        method: 'GET',
+        url: '/api/media/REF-1',
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(download).toHaveBeenCalledWith('REF-1', REF);
+      expect(refOf('REF-1')).toBeUndefined();
+    });
+
+    it('keeps the ref after a failed download, so Retry can work', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestWithRef('REF-2');
+      const download = vi.spyOn(t.wa, 'downloadMedia').mockResolvedValueOnce(null);
+      const url = '/api/media/REF-2/redownload';
+      const headers = authHeaders(cookie);
+      const failed = await t.app.inject({ method: 'POST', url, headers });
+      expect(failed.statusCode).toBe(409);
+      expect(refOf('REF-2')?.ref).toBe(REF);
+
+      download.mockResolvedValueOnce(PNG);
+      const retried = await t.app.inject({ method: 'POST', url, headers });
+      expect(retried.statusCode).toBe(200);
+      expect(retried.json().mediaStatus).toBe('ok');
+    });
+
+    it('a live file that stored at once keeps no ref; one that failed keeps it for Retry', async () => {
+      await ingestWithRef('REF-LIVE-OK', 'live');
+      expect(refOf('REF-LIVE-OK')).toBeUndefined();
+      await ingestWithRef('REF-LIVE-BAD', 'live', true);
+      expect(refOf('REF-LIVE-BAD')?.ref).toBe(REF);
+    });
+
+    it('forgets the ref when the message is deleted or removed', async () => {
+      await ingestWithRef('REF-3');
+      await ingestWithRef('REF-4');
+      const repo = new MessageRepo(t.ctx.db);
+      repo.update('REF-3', { deleted_at: 1 });
+      repo.delete('REF-4');
+      expect(refOf('REF-3')).toBeUndefined();
+      expect(refOf('REF-4')).toBeUndefined();
+    });
+
+    it('sends the image size to clients, never the ref', async () => {
+      const m = await ingestWithRef('REF-5');
+      expect(m).toMatchObject({ mediaWidth: 1600, mediaHeight: 900 });
+      expect(JSON.stringify(m)).not.toContain('opaque');
+      const repo = new MessageRepo(t.ctx.db);
+      repo.update('REF-5', { deleted_at: 1, deleted_by: 'sender' });
+      expect(rowToMessage(repo.get('REF-5')!)).not.toHaveProperty('mediaWidth');
+    });
+
+    it('a message without a size has none', async () => {
+      const m = await ingestHistoryImage('REF-6');
+      expect(m).not.toHaveProperty('mediaWidth');
+      expect(new MessageRepo(t.ctx.db).mediaRef('REF-6')).toBeNull();
+    });
   });
 
   it('media requires auth and unknown id → 404', async () => {
