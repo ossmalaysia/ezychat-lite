@@ -1,6 +1,21 @@
 import type { Logger } from 'pino';
 import type { MessageType, WaStatus } from '@ezychat/shared';
 
+/** Opt-in bounded media download; feature-detect the optional methods on older adapters. */
+export interface WaMediaDownloadOptions {
+  /** Maximum decrypted bytes retained in memory. Must be a positive safe integer. */
+  maxBytes: number;
+  signal?: AbortSignal;
+}
+
+export class WaMediaDownloadLimitError extends Error {
+  readonly code = 'media_too_large';
+  constructor(readonly maxBytes: number) {
+    super('Media exceeds the requested byte limit');
+    this.name = 'WaMediaDownloadLimitError';
+  }
+}
+
 export interface WaIncomingMessage {
   id: string;
   chatJid: string;
@@ -30,6 +45,8 @@ export interface WaIncomingMessage {
     mime: string;
     fileName: string | null;
     download: () => Promise<Buffer>;
+    /** Counts actual decrypted bytes while streaming; throws on overflow or cancellation. */
+    downloadBounded?: (options: WaMediaDownloadOptions) => Promise<Buffer>;
     /** What `downloadMedia` needs after a restart: opaque, stored by the server until the file is stored. */
     ref?: string;
     /** The image's size as reported with the message, when known. */
@@ -503,6 +520,11 @@ export interface WaAdapter {
   sendPresence(chatJid: string, presence: 'composing' | 'paused'): Promise<void>;
   /** re-download by id if still cached, else with the message's stored `media.ref` */
   downloadMedia(messageId: string, ref?: string | null): Promise<Buffer | null>;
+  /**
+   * Bounded re-download by cached id. Null means not cached; download, overflow and abort errors
+   * reject. Optional for compatibility: callers requiring a bound must refuse when absent.
+   */
+  downloadMediaBounded?(messageId: string, options: WaMediaDownloadOptions): Promise<Buffer | null>;
   /** Photo URL; null when there is none or it is private. Throws when it cannot be read. */
   getProfilePicture(jid: string): Promise<string | null>;
   /** Members and details of a group this number belongs to. Throws WaUnavailableError when offline. */
@@ -557,9 +579,21 @@ export interface WaAdapter {
 
 export interface WaAdapterOptions {
   authDir: string;
+  /** Optional durable auth backend. The caller supplies one isolated store per inbox. */
+  authStorage?: WaAuthStorage;
   /** days of history to import; a getter is re-read on every (re)connect / history batch */
   historyDays: number | (() => number);
   logger?: Logger;
+}
+
+/** Serialized auth records; implementations must encrypt them and commit each set atomically. */
+export interface WaAuthStorage {
+  get(keys: readonly string[]): Promise<Readonly<Record<string, string | null>>>;
+  /** Null deletes a record. Resolve only after the complete batch is durable. */
+  set(changes: Readonly<Record<string, string | null>>): Promise<void>;
+  clear(): Promise<void>;
+  /** Keep a durable backup and return its opaque reference, never its contents. */
+  backup(): Promise<string>;
 }
 
 export class WaUnavailableError extends Error {

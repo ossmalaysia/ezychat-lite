@@ -300,6 +300,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
+  push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
+  (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
 - Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables; conflicts in `chats/merge.ts` (each feature's `chat_jid` table) and `CHANGELOG.md` keep both sides. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
 
 - A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
@@ -1179,6 +1182,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Opening a chat sends read receipts for its newest 20 customer messages while the number is connected, also in a Dev Build
   (`chats/service.ts#markRead`). To drive a screen on real data, copy `app.db`, `secret.key` and `media/` without `wa-auth/`
   to a temp folder and start it with `--fake-wa`: nothing can reach WhatsApp.
+- A bounded-media API is an explicit optional hook, counts decrypted bytes before retention, and tests cancellation through a real local HTTP stream: Baileys getHttpStream drops AbortSignal, and destroying its decrypting Transform alone does not cancel the upstream request.
+
 - `WaAdapterEvents` has no "profile photo changed" event: a cache of WhatsApp photos (`avatars/store.ts`) refreshes
   by age (24 h) and keeps the last good photo when a refresh fails. Serve the bytes yourself with a version in the
   URL (`?v=<hash>`, immutable) instead of a 302 to WhatsApp's CDN: over a slow tunnel each redirect was a ~0.7 s
@@ -1915,6 +1920,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   that page is live on the website; installed apps cannot be re-pointed.
 
 ## Cloudflare and sharing
+
+- A container auth backend must persist every credential and Signal-key batch before resolving, keep each inbox isolated, and fail closed on storage errors; filesystem snapshots cannot preserve writes made after the snapshot.
 
 - Slow remote access through the tunnel: measure before changing code. In the browser on the tunnel host, read
   `performance.getEntriesByType('resource')` (count, `transferSize`, duration per kind) and `/cdn-cgi/trace`
