@@ -86,7 +86,10 @@ rejected in service mode.
 `Browsers.ubuntu('Chrome')` (`WA_BROWSER`) — "Desktop" identities are rejected by WhatsApp (428 before any QR).
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
-3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`).
+3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`), with the
+adapter's opaque data in `media_refs` so it survives a restart. An image with WhatsApp's `jpegThumbnail` (`media_thumbs`,
+`GET /api/media/:id/thumb`) shows it in the chat; its real file loads only when the image is opened. A new table needs an
+entry in the Lite merge's `TABLE_PLAN`.
 PDFs (and photos sent as files) open in the app: `inbox/PdfViewer.tsx` draws them with pdf.js from fetched bytes
 (`lib/pdf.ts`, lazy chunk + worker, 50 MB cap, `%PDF-` check); the media route still serves them as attachments.
 Voice notes: the composer records Ogg/Opus in the browser (`lib/voice-recorder.ts`, opus-recorder's
@@ -709,7 +712,18 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 
 ## UI rules (apps/web)
 
-See `docs/design-system.md` ("Calm Desk"). Primitives are shadcn/ui in
+**One design system for all design work** (owner rule): `docs/design-system.md` ("Calm Desk") is the single
+source of design truth for EzyChat Lite and EzyChat Enterprise. It covers production screens (web, desktop
+shell, status page), feature HTML mocks, extension screens, screenshots and generated images of the app.
+
+- Read it before any design work. A screen review checks against it.
+- A new token, component, variant or pattern is added to it in the same PR that first uses it, with a do/don't
+  and a link to the mock screen that shows it. Never invent a one-off style in feature code or a mock.
+- A change that contradicts it updates it first, and needs the owner's confirmation like any mock.
+- Enterprise does not keep its own design system. It follows this file through the published `@ezychat/web`
+  components, and asks for a missing pattern with a Lite PR here first.
+
+Primitives are shadcn/ui in
 `apps/web/src/components/ui`; app composites in `components/app`. Feature code must not use raw
 `<button>`/`<dialog>`/`<select>` or Tailwind palette/hex colours (ESLint enforces); use token classes
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.
