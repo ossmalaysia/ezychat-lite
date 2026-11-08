@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.81] - 2026-11-08
+
 ### Added
+
+- WhatsApp adapters accept an isolated durable authentication storage backend, so hosted connections can restore credentials and Signal keys without a local auth directory. The default desktop filesystem backend is unchanged.
+
+## [0.1.80] - 2026-11-08
+
+### Added
+
+- Public WhatsApp adapters can opt into bounded media downloads with a decrypted-byte limit and cancellation signal; existing unbounded methods keep their behavior.
 
 - **Forward a message.** **⋮ → Forward** on a message (press and hold on a phone) sends a copy to up to 5 chats or groups
   you can open, shown as "Forwarded" on WhatsApp. It works across your WhatsApp numbers, re-uses the stored file (no
@@ -17,18 +27,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Files up to **100 MB** can be sent from the composer (was 64 MB), within what each WhatsApp number allows.
+- New images load much faster, also through remote access: the chat shows WhatsApp's small, blurred preview, and the real
+  photo loads when you open the image. An image with no preview, such as an older imported one, still shows the real photo.
+- A chat with many older images now downloads each image when you reach it, not all at once, and keeps the right space
+  for it, so the chat does not jump while images load.
+- The AI's check for leaked internal notes is about ten times faster on each reply.
+
+### Fixed
+
+- Older images, videos and files imported from your phone could show "could not load" after the app restarted or
+  updated, and Retry did not help. Messages imported from this version on stay available after a restart.
 
 ## [0.1.79] - 2026-11-06
 
 ### Added
 
-- **Start a chat with a new number.** **New** next to the Inbox title starts a WhatsApp chat with a number that is not
-  in your inbox yet, one number at a time (Malaysian numbers can start with 0). On a linked phone, EzyChat checks the
-  number is on WhatsApp, warns about the ban risk and opens the chat assigned to you; on the WhatsApp Business API the
-  first message is an approved template, and the chat starts once it is sent. A number that already has a chat opens
-  that chat. Admins can always do it; **Settings → General → New chats** lets team members do it too (off by default)
-  and sets **New chats per day, per WhatsApp number** (20 by default, 0 = no limit, shared with AI assistants).
-  Agents limited to chosen chats cannot start new chats.
+- **Start a chat with a new number.** The **New chat** icon next to the Inbox title starts a WhatsApp chat with a number
+  that is not in your inbox yet, one number at a time (Malaysian numbers can start with 0). On a linked phone, EzyChat
+  checks the number is on WhatsApp, warns about the ban risk and opens the chat assigned to you; on the WhatsApp
+  Business API the first message is an approved template, and the chat starts once it is sent. A number that already has
+  a chat opens that chat. Admins can always do it; **Settings → General → New chats** lets team members do it too (off
+  by default) and sets **New chats per day, per WhatsApp number** (20 by default, 0 = no limit, shared with AI
+  assistants). Agents limited to chosen chats cannot start new chats.
 - **Give an agent only the chats you choose.** In Members → Edit, an agent's new setting **Chats this member can see**
   is All chats (as before) or **Only chosen chats**, with a list you add direct chats and groups to. Use it for an
   outside or support agent: they work as usual in those chats, and every other chat stays invisible to them, with no
