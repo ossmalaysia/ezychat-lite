@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AI assistant access: an AI assistant or script can upload a file of up to 100 MB to `/mcp/uploads` (as the raw file or as a form upload) and send it with `send_image`, `send_file` or the new `send_video` (MP4, sent as a file when it is too large to play as a video). Links now take files up to 100 MB too; base64 stays for small files up to 5 MB.
+
 ## [0.1.81] - 2026-11-08
 
 ### Added

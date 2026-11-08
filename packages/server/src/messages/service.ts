@@ -1474,7 +1474,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       requireWindow(jid);
       if (!file.buffer === !file.path) throw new Error('sendMedia needs a buffer or a path');
-      if (file.path && file.voiceNote) throw errors.validation('A voice note is sent from its bytes');
+      if (file.path && file.voiceNote)
+        throw errors.validation('A voice note is sent from its bytes');
       const size = file.buffer ? file.buffer.length : statSync(file.path!).size;
       if (!size) throw errors.validation('Empty file');
       const quotedId = checkQuote(jid, file.quotedId);

@@ -53,6 +53,9 @@ export const UPLOAD_LIMITS: Readonly<UploadLimits> = {
   minFreeBytes: 1024 * 1024 * 1024,
 };
 
+/** An upload or link download stops after this long without data, or this long in total. */
+export const UPLOAD_TIMEOUTS = { idleMs: 60_000, totalMs: 30 * 60_000 };
+
 export interface McpUpload {
   id: string;
   tokenId: number;
@@ -91,10 +94,14 @@ export function cleanUploadName(raw: string | undefined | null): string {
 /** Counts bytes through a stream and fails it once more than `max` arrive. */
 class ByteCounter extends Transform {
   bytes = 0;
-  constructor(private readonly max: number) {
+  constructor(
+    private readonly max: number,
+    private readonly onChunk?: () => void,
+  ) {
     super();
   }
   override _transform(chunk: Buffer, _enc: BufferEncoding, done: TransformCallback) {
+    this.onChunk?.();
     this.bytes += chunk.length;
     if (this.bytes > this.max) return done(new TooLargeError());
     done(null, chunk);
@@ -150,11 +157,13 @@ export function createMcpUploadStore(
     /** Tests: smaller limits than the real ones. */
     limits?: Partial<UploadLimits>;
     maxBytes?: number;
+    timeouts?: Partial<typeof UPLOAD_TIMEOUTS>;
   },
 ): McpUploadStore {
   const now = deps.now ?? Date.now;
   const limits = { ...UPLOAD_LIMITS, ...deps.limits };
   const maxUpload = deps.maxBytes ?? MCP_UPLOAD_MAX_BYTES;
+  const timeouts = { ...UPLOAD_TIMEOUTS, ...deps.timeouts };
   const log = deps.log;
   const freeBytes =
     deps.freeBytes ??
@@ -208,14 +217,24 @@ export function createMcpUploadStore(
     onBytes?: (bytes: number) => void,
   ): Promise<{ path: string; size: number }> {
     const path = join(dir, `${randomBytes(16).toString('hex')}.bin`);
-    const counter = new ByteCounter(max);
+    // Fastify has no request timeout: a sender that stalls or trickles never holds a slot for long.
+    const abort = new AbortController();
+    const idle = setTimeout(() => abort.abort(), timeouts.idleMs);
+    const counter = new ByteCounter(max, () => idle.refresh());
+    const total = setTimeout(() => abort.abort(), timeouts.totalMs);
     try {
-      await pipeline(body, counter, createWriteStream(path, { flags: 'wx', mode: 0o600 }));
+      await pipeline(body, counter, createWriteStream(path, { flags: 'wx', mode: 0o600 }), {
+        signal: abort.signal,
+      });
     } catch (err) {
       remove(path);
       if (counter.bytes > max) throw new TooLargeError();
+      if (abort.signal.aborted)
+        throw new HttpError(408, 'upload_timeout', 'The upload was too slow and was stopped.');
       throw err;
     } finally {
+      clearTimeout(idle);
+      clearTimeout(total);
       // the caller counts what arrived, also for a failed upload
       onBytes?.(counter.bytes);
     }

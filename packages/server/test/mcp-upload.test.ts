@@ -496,6 +496,22 @@ describe('upload store limits', () => {
     await expect(store.receive(1, body(PDF), { name: 'c.pdf' })).resolves.toBeTruthy();
   });
 
+  it('stops a sender that stalls (408) and deletes what arrived', async () => {
+    const dir = testUploadStore().dir + '-slow';
+    const store = createMcpUploadStore(dir, {
+      log: pino({ level: 'silent' }),
+      freeBytes: () => 1e12,
+      timeouts: { idleMs: 30 },
+    });
+    const stalled = new Readable({ read() {} });
+    stalled.push(PDF.subarray(0, 10));
+    await expect(store.receive(1, stalled, { name: 'a.pdf' })).rejects.toMatchObject({
+      status: 408,
+      code: 'upload_timeout',
+    });
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
   it('starts empty: files left from before a restart are deleted', () => {
     const { store, dir } = make();
     writeFileSync(join(dir, 'left.bin'), 'x');

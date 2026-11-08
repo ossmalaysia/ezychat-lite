@@ -662,11 +662,19 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   the scope: text into an **existing** chat, as the token owner, through the
   normal message service; idempotent per token + `requestId`; 10 a minute and 100 a day per token;
   audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_image` (same scope and limits)
-  sends a JPEG/PNG/WebP (type read from the bytes, ≤ 5 MB) given as base64 or a public https link
-  downloaded only through `guardedFetch` (SSRF guard, 10 s, no loopback/private address); a retry with
-  the same `requestId` downloads nothing; audit adds `type: 'image'`, never the caption or link. `send_file` does the
-  same for a PDF or Word .docx (≤ 5 MB, type read from the bytes, sent as a document named `fileName`; audit
-  `type: 'document'`). `/mcp`
+  sends a JPEG/PNG/WebP (type read from the bytes) given as base64, an upload or a public https link
+  downloaded only through `guardedFetch` (SSRF guard, 2 min, no loopback/private address); a retry with
+  the same `requestId` downloads nothing; audit adds `type` and `size`, never the caption, name or link. `send_file` does
+  the same for a PDF or Word .docx (sent as a document named `fileName` or the upload's name) and `send_video` for an
+  MP4 (`sendAs` video/file; omitted, a video above the number's video limit goes as a file). Each takes exactly one of
+  a link, base64 (≤ 5 MB, `MCP_SEND_MAX_BASE64_BYTES`: it rides in the 8 MB JSON) or `uploadId`; links and uploads take
+  up to 100 MB (`MCP_UPLOAD_MAX_BYTES`), streamed to disk and sent by path, then each inbox's `mediaLimits` (Forward's
+  413 codes). `POST /mcp/uploads` (design `docs/features/mcp-file-upload/design.md`): the `/mcp` `onRequest` checks
+  first, then `inbox:send` and a declared size, all before the body is read; raw body (`X-File-Name`) or multipart
+  (one `file` part), never parsed or buffered, streamed to `<data>/mcp-uploads/` (0700/0600, random names, emptied on
+  start), typed from the bytes (JPEG/PNG/WebP/PDF/.docx/MP4, else 415); an upload belongs to its token, is sent once
+  and expires after 1 hour; per token 30 an hour, 2 GB a day, 10 waiting, 2 at once; 4 at once and 1 GB waiting in
+  total; 1 GB free disk kept (507); 60 s idle / 30 min total (408); logs ids, type and size only. `/mcp`
   accepts bodies up to 8 MB (`MCP_BODY_LIMIT`), only after the token check in `onRequest`. `send_to_new_number` (scope
   `inbox:send_new`, ticked at creation under "Can send", default off) may start a chat with a number not
   in the inbox only after `WaAdapter.checkNumber` confirms it, through the New chat service (20 checks a day per

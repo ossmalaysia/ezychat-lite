@@ -1168,6 +1168,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - An MCP tool that takes a link (e.g. `send_image` `imageUrl`) downloads it only through `guardedFetch` (https,
   public address checked at connect, size and time cap) and checks the file type on the bytes; a large-body tool
   raises `bodyLimit` on its own route only, after the token check in `onRequest`, never the app-wide 1 MB.
+- A file larger than a few MB never travels as base64 or a buffered body: stream it to a private file (a child scope
+  with a pass-through content-type parser, or multipart `req.file()`), count bytes in the pipe, and send it by path
+  (`MessageService.sendMedia({ path })`). Fastify sets no request timeout, so a streamed upload needs its own idle and
+  total timeout, plus per-token concurrency and a free-disk check, or one slow sender holds a slot forever.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
