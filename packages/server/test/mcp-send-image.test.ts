@@ -17,6 +17,8 @@ import {
   listedTools,
   principalOf,
   sentRow,
+  bytesOf,
+  testUploadStore,
 } from './mcp-send-media-helpers.js';
 
 const LID = '9101@lid';
@@ -129,10 +131,10 @@ describe('send_image over /mcp', () => {
 
   it('needs exactly one image source, valid base64 and an existing chat', async () => {
     const cases: Array<[Record<string, unknown>, RegExp]> = [
-      [{ jid: LID }, /imageUrl or imageBase64/],
+      [{ jid: LID }, /imageUrl, imageBase64 or uploadId/],
       [
         { jid: LID, imageBase64: PNG_B64, imageUrl: 'https://example.com/a.png' },
-        /imageUrl or imageBase64/,
+        /imageUrl, imageBase64 or uploadId/,
       ],
       [{ jid: LID, imageBase64: '***not base64***' }, /not valid base64/],
       [{ jid: '60999999999@s.whatsapp.net', imageBase64: PNG_B64 }, /Only existing chats/],
@@ -209,6 +211,7 @@ describe('decodeImageBase64', () => {
 });
 
 describe('guardedImageFetcher', () => {
+  const { store } = testUploadStore();
   let site: Awaited<ReturnType<typeof httpsFixture>>;
   let origin: string;
   let ca: string;
@@ -220,14 +223,14 @@ describe('guardedImageFetcher', () => {
   afterAll(() => site.close());
 
   it('downloads an image (loopback only allowed in tests)', async () => {
-    const get = guardedImageFetcher({ allowLoopback: true, ca });
-    expect(await get(`${origin}/photo.png`)).toEqual(PNG);
+    const get = guardedImageFetcher(store, { allowLoopback: true, ca }, 5 * 1024 * 1024);
+    expect(bytesOf(await get(`${origin}/photo.png`))).toEqual(PNG);
     await expect(get(`${origin}/missing`)).rejects.toThrow(/answered 404/);
     await expect(get(`${origin}/big`)).rejects.toThrow(/larger than 5 MB/);
   });
 
   it('never reaches this computer, a private network or plain http', async () => {
-    const get = guardedImageFetcher();
+    const get = guardedImageFetcher(store);
     await expect(get(`${origin}/photo.png`)).rejects.toThrow(/public internet address/);
     await expect(get('https://10.0.0.5/a.png')).rejects.toThrow(/public internet address/);
     await expect(get('http://example.com/a.png')).rejects.toThrow(/https:\/\//);

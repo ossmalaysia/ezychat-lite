@@ -14,6 +14,8 @@ import { BlockList, isIP, type LookupFunction } from 'node:net';
 
 export const REQUEST_TIMEOUT_MS = 10_000;
 export const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+/** Longest a file download may take (`longTransfer`): 100 MB needs about 1 MB/s. */
+export const LONG_TRANSFER_TIMEOUT_MS = 120_000;
 const MAX_REDIRECTS = 3;
 
 export type UrlProblem = 'url_invalid' | 'url_not_https' | 'url_private';
@@ -33,6 +35,11 @@ export interface NetPolicy {
   resolve?: ResolveFn;
   timeoutMs?: number;
   maxResponseBytes?: number;
+  /**
+   * A file download (MCP send links): `timeoutMs` may go up to LONG_TRANSFER_TIMEOUT_MS instead of
+   * REQUEST_TIMEOUT_MS. Connector calls never set it.
+   */
+  longTransfer?: boolean;
 }
 
 /** What the last request of one client saw; used to tell "needs sign-in" from "can't reach". */
@@ -234,7 +241,8 @@ function toHeaders(res: IncomingMessage): Headers {
  * `probe` records what happened (status, blocked, network error), never headers or bodies.
  */
 export function guardedFetch(policy: NetPolicy, probe = new NetProbe()): typeof fetch {
-  const timeoutMs = Math.min(policy.timeoutMs ?? REQUEST_TIMEOUT_MS, REQUEST_TIMEOUT_MS);
+  const cap = policy.longTransfer ? LONG_TRANSFER_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  const timeoutMs = Math.min(policy.timeoutMs ?? REQUEST_TIMEOUT_MS, cap);
   const maxBytes = policy.maxResponseBytes ?? MAX_RESPONSE_BYTES;
 
   const once = (url: URL, init: RequestInit, hops: number): Promise<Response> => {

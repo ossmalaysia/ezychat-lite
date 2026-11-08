@@ -1,6 +1,6 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileTypeFromBuffer } from 'file-type';
+import { fileTypeFromBuffer, fileTypeFromFile } from 'file-type';
 import mime from 'mime-types';
 import type {
   Message,
@@ -128,7 +128,12 @@ export interface MessageService {
   sendMedia(
     jid: string,
     file: {
-      buffer: Buffer;
+      /**
+       * The bytes, or `path`: a private file (an MCP upload or link download) that is moved into the
+       * media store without being read into memory. Exactly one of them; a voice note needs `buffer`.
+       */
+      buffer?: Buffer;
+      path?: string;
       fileName: string;
       caption?: string;
       quotedId?: string;
@@ -1468,11 +1473,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       requireWindow(jid);
-      if (!file.buffer.length) throw errors.validation('Empty file');
+      if (!file.buffer === !file.path) throw new Error('sendMedia needs a buffer or a path');
+      if (file.path && file.voiceNote) throw errors.validation('A voice note is sent from its bytes');
+      const size = file.buffer ? file.buffer.length : statSync(file.path!).size;
+      if (!size) throw errors.validation('Empty file');
       const quotedId = checkQuote(jid, file.quotedId);
-      const sniffed = await fileTypeFromBuffer(file.buffer).catch(() => undefined);
+      const sniffed = await (
+        file.buffer ? fileTypeFromBuffer(file.buffer) : fileTypeFromFile(file.path!)
+      ).catch(() => undefined);
       // A voice note must really be Ogg/Opus within the recorder's length: never trust the label.
-      if (file.voiceNote && voiceNoteSeconds(file.buffer) === null)
+      if (file.voiceNote && voiceNoteSeconds(file.buffer!) === null)
         throw errors.validation(
           `A voice note must be Ogg/Opus audio of at most ${VOICE_NOTE_MAX_SECONDS / 60} minutes`,
         );
@@ -1486,13 +1496,15 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const tooLarge = wa
         ? mediaLimitRefusal(
             capabilitiesOf(wa).mediaLimits,
-            file.buffer.length,
+            size,
             mediaLimitKind(messageTypeForMime(mimeType), asFile),
           )
         : null;
       if (tooLarge) throw tooLarge;
       const id = `local-${clientId}`;
-      const rel = media.save(jid, id, file.buffer, ext);
+      const rel = file.buffer
+        ? media.save(jid, id, file.buffer, ext)
+        : media.adopt(jid, id, file.path!, ext);
       const t = now();
       claimOnReply(jid, userId, t);
       return insertOutgoing({
@@ -1509,7 +1521,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         media_mime: mimeType,
         media_name: file.voiceNote ? null : file.fileName.slice(0, 255) || null,
         media_status: 'ok',
-        media_size: file.buffer.length,
+        media_size: size,
         quoted_id: quotedId,
         status: 'pending',
         error: null,
