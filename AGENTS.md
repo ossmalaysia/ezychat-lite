@@ -86,7 +86,10 @@ rejected in service mode.
 `Browsers.ubuntu('Chrome')` (`WA_BROWSER`) — "Desktop" identities are rejected by WhatsApp (428 before any QR).
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
-3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`).
+3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`), with the
+adapter's opaque data in `media_refs` so it survives a restart. An image with WhatsApp's `jpegThumbnail` (`media_thumbs`,
+`GET /api/media/:id/thumb`) shows it in the chat; its real file loads only when the image is opened. A new table needs an
+entry in the Lite merge's `TABLE_PLAN`.
 PDFs (and photos sent as files) open in the app: `inbox/PdfViewer.tsx` draws them with pdf.js from fetched bytes
 (`lib/pdf.ts`, lazy chunk + worker, 50 MB cap, `%PDF-` check); the media route still serves them as attachments.
 Voice notes: the composer records Ogg/Opus in the browser (`lib/voice-recorder.ts`, opus-recorder's
@@ -504,6 +507,24 @@ in memory, counted before WhatsApp is asked: `new_chat_daily_limit` per linked-p
 audit `settings.new_chat_daily_limit`; shared with MCP, which keeps its 20 per token on top) and 5 an hour per user.
 Audit `chat.new_number` {inboxId, chatJid, userId, via, tokenId?}; logs ids only.
 
+**Forward** (design `docs/features/forward-message/design.md`, mock `docs/features/forward-message/mock`).
+`messages/forward.ts`, `POST /api/messages/:id/forward` {to (1–5 existing chat keys), clientRequestId, sendAs} sends one
+stored message to existing chats or groups the user may open (never a new number), as the user, through the normal
+send queue of each target chat's own inbox (across inboxes when the user can open both; Lite has one); a forward claims
+the chat like a reply. Every chosen chat is checked before anything is sent; offline → 503 (never queued); a "Forwarded
+many times" source (shared `FORWARD_MANY_TIMES_SCORE`) goes to one chat. WhatsApp's mark: `messages.forwarding_score`
+(migration 038; inbound from Baileys `contextInfo.isForwarded/forwardingScore`, outbound = source + 1) gives
+`Message.forwarded`; the adapter adds `contextInfo` only with `WaCapabilities.forwardedMark` (linked phone; never the
+Business API), and the AI conversation shows inbound ones as `[forwarded] …`. Large files: the stored file goes to the
+adapter by `path` (Baileys `{ url }` + socket `mediaCache`: one upload per number for several chats), each copy gets its
+own media file, `messages.media_size` gives `Message.mediaSize`; limits come only from `WaCapabilities.mediaLimits`
+(linked phone `LINKED_PHONE_MEDIA_LIMITS`: video 64 MB until measured, documents 2 GB; Business API
+`BUSINESS_API_MEDIA_LIMITS`: video 16 MB, document 100 MB): a video above a chat's video limit goes `sendAs: 'file'`
+(document), 413 `too_large_as_video` / `too_large_for_whatsapp`. The composer accepts uploads up to
+`MEDIA_UPLOAD_LIMIT_BYTES` (100 MB) and checks the same per-inbox limits. 30 forwards a minute per user; audit
+`message.forwarded` {messageId, chatJids, messageIds}; logs ids and counts only. Web: `inbox/ForwardDialog.tsx`,
+⋮ menu and touch bar **Forward**, the Forwarded line and "Sending … to WhatsApp" in `MessageBubble`.
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links
@@ -681,11 +702,28 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   daily limit per linked phone, shared with MCP; 5 an hour per user); a template-first inbox creates the chat only after
   WhatsApp accepted the template. Audit `chat.new_number` and logs carry ids only, never the number's name or message
   text. The core decides the flow from `WaCapabilities`, never from an inbox type name.
+- Forward (`messages/forward.ts`, `POST /api/messages/:id/forward`): only a signed-in person (never the AI user, MCP or
+  Ask Ezy), only from a message they may open to 1–5 **existing** chats they may open (`canOpenChat` per chat, else 404,
+  limited agents included); never a new number. Every chat is checked before anything is sent. A file Safety rated
+  High, or one still awaiting its AI check, is never forwarded (fail closed, admins too). Copies go through the normal
+  send queue as the user, from the target chat's own inbox, with the reply window, removed-inbox and per-inbox media
+  limit refusals; 30 forwards a minute per user. Audit `message.forwarded` and logs carry ids and counts only.
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
 ## UI rules (apps/web)
 
-See `docs/design-system.md` ("Calm Desk"). Primitives are shadcn/ui in
+**One design system for all design work** (owner rule): `docs/design-system.md` ("Calm Desk") is the single
+source of design truth for EzyChat Lite and EzyChat Enterprise. It covers production screens (web, desktop
+shell, status page), feature HTML mocks, extension screens, screenshots and generated images of the app.
+
+- Read it before any design work. A screen review checks against it.
+- A new token, component, variant or pattern is added to it in the same PR that first uses it, with a do/don't
+  and a link to the mock screen that shows it. Never invent a one-off style in feature code or a mock.
+- A change that contradicts it updates it first, and needs the owner's confirmation like any mock.
+- Enterprise does not keep its own design system. It follows this file through the published `@ezychat/web`
+  components, and asks for a missing pattern with a Lite PR here first.
+
+Primitives are shadcn/ui in
 `apps/web/src/components/ui`; app composites in `components/app`. Feature code must not use raw
 `<button>`/`<dialog>`/`<select>` or Tailwind palette/hex colours (ESLint enforces); use token classes
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.

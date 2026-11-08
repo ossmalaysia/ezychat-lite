@@ -10,6 +10,9 @@ into AGENTS.md.
 
 ## Working method
 
+- A change that touches many places (8+ files or 400+ lines, docs and lockfiles excluded; the `review-nudge` hook
+  says so) gets `/code-review` before its PR, its findings fixed or reported in the PR; merging still waits for the
+  owner's explicit request.
 - Do not edit, rename or check out files while a full `npm test` / `test:coverage` run is in progress: tests that
   migrate a data dir mid-run see two schema versions ("duplicate column") and the result proves nothing. Run it again
   on the final tree before reporting it.
@@ -203,16 +206,24 @@ into AGENTS.md.
 - Bringing a parallel confirmed mock into a new clone: per differing file run `git merge-file <latest> <shared
   baseline> <parallel>` (the shared baseline folder is still in the tree), merge catalogs by key, then
   `snapshot.mjs --check`. A confirmed baseline may already fail its own `--check`: record that drift as inherited
-  (copied unchanged) instead of re-hashing it away.
+  (copied unchanged) instead of re-hashing it away. When the shared baseline folder is already pruned, read it from
+  its recorded revision (`git fetch --depth=1 origin <sha>` in a shallow cloud clone, then `git show <sha>:<path>`).
 - Before pruning a feature folder for retention, `git grep` for imports of it outside `docs/features` and run the
   `scripts/*.test.mjs` suite: `template-store/publisher/` is live tooling (`scripts/template-store.test.mjs` imports
   it), so prune the next oldest mock instead.
+- Mock state keyed by a message id the team sends (marks, labels) must follow the id change: a queued send is stored
+  as `local-<clientId>` and renamed to WhatsApp's id when sent (`message:status` with `newId`), so key it by
+  `clientId` until then, or the mark vanishes from the sent bubble.
 - Shot scripts that create server-side records (chats, audit rows) need a fresh runner per run, or the second run
   meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run.
 - A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
   nothing unless the `*_LIST_URL` env is set, so set it to the production URL (assert it equals the built-in constant)
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
+
+- A new server-side refusal (a size limit, a window) needs a way through in every UI path that can hit it, not only
+  in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
+  failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
 
 ## Multi-agent process
 
@@ -289,6 +300,9 @@ into AGENTS.md.
 
 ## Git, GitHub and CI
 
+- Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
+  push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
+  (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
 - Parallel feature PRs that add a migration must agree on numbers up front: `migrate.test.ts` rejects a gap or duplicate, so the PR that merges second renumbers, stays red on that test until the first lands, then merges `main` and extends the lite-import "older Lite" drop list with the first PR's tables; conflicts in `chats/merge.ts` (each feature's `chat_jid` table) and `CHANGELOG.md` keep both sides. Two mocks cloned from one baseline merge as a two-way rename (AU/UA/DD for every file): restore each folder from its own branch, then apply the five-folder retention.
 
 - A PR whose CI never starts (no workflow run for the branch) usually has a merge conflict (`mergeable_state: dirty`):
@@ -729,7 +743,17 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   cloud session `launchBrowser` needs `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`. A script's
   fetch sends `content-type: application/json` only with a body: the server answers 400 to a bodiless DELETE with it.
   Its API calls go through `cookieSession` (`devbuild-client.mjs`): a raw `fetch(base + path)` fails SonarCloud's
-  security rating (S7044/S8476, request forgery from argv input).
+  security rating (S7044/S8476, request forgery from argv input). A check that needs its own fetch (multipart upload)
+  repeats that guard (port range, path pattern, `new URL(...).origin === base`), and builds its test files in code
+  instead of reading a path from argv (S8707 counts reads too, not only writes). A script that sends a file's fields to
+  an outside service reads that file from a fixed path, with no argument to name another, and checks a version as x.y.z
+  before it reaches a URL or folder name, also when a release feed supplies it.
+- Report installers to McAfee only with the `submit-installers` skill (`scripts/mcafee-submit.mjs`), never with a
+  one-off script: it checks every file before the first report goes out, and it never sends the same file twice. A
+  report states only what was checked: no "McAfee blocks" for a file nobody saw blocked, no signature claim for a Mac file.
+- A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
+  its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
+  shell that its instructions name, not only from Bash.
 - An antivirus "threat blocked" report on our installer: first compare the file's SHA-256 with the release digest
   (`gh api …/releases/tags/<tag>` asset `digest`; Enterprise `latest.json`) and check `Get-AuthenticodeSignature`
   (signer Anchor Sprint Pte. Ltd.). Genuine and signed means a reputation false positive (each release is a new,
@@ -834,6 +858,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   sessions and test agents stay, so nobody registers again.
 - On macOS a full menu bar (notch) hides tray icons: every tray-only action (Status & Service, updates) is also
   in the Dock menu (`app.dock.setMenu`, `tray.ts`). macOS adds Quit there itself.
+- Measure before porting to Rust (or rewriting for speed): the 2026-11-07 review found only one measurable
+  hot spot (the AI leak check), fixed in TypeScript. See `docs/DEBT.md` (Open) for the numbers and the
+  ranked Rust candidates.
 - Changed-lines coverage counts an untested entry `main()`: put new start-up logic in an exported function
   with injectable I/O (`startArgs` in `server-host.cts`) so `main()` gains one call line, and leave
   unrelated log text alone (each touched line counts).
@@ -1148,6 +1175,15 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
+  live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
+  app must make its own. The adapter's `raw` cache is memory only, so a later download goes
+  through the stored `media_refs` row: restart the server when you test on-demand media.
+- Opening a chat sends read receipts for its newest 20 customer messages while the number is connected, also in a Dev Build
+  (`chats/service.ts#markRead`). To drive a screen on real data, copy `app.db`, `secret.key` and `media/` without `wa-auth/`
+  to a temp folder and start it with `--fake-wa`: nothing can reach WhatsApp.
+- A bounded-media API is an explicit optional hook, counts decrypted bytes before retention, and tests cancellation through a real local HTTP stream: Baileys getHttpStream drops AbortSignal, and destroying its decrypting Transform alone does not cancel the upstream request.
+
 - `WaAdapterEvents` has no "profile photo changed" event: a cache of WhatsApp photos (`avatars/store.ts`) refreshes
   by age (24 h) and keeps the last good photo when a refresh fails. Serve the bytes yourself with a version in the
   URL (`?v=<hash>`, immutable) instead of a 302 to WhatsApp's CDN: over a slow tunnel each redirect was a ~0.7 s
@@ -1244,6 +1280,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `aliases.group`) carry the push and saved names: a screen that names a person must fall back to those
   facts, never only to `chat.whatsappName` (the customer panel showed "No name set" above its own
   "Name on WhatsApp" row).
+
+- Sending one stored file to several chats: pass it to Baileys by path (`{ url: path }`, streamed) and set the
+  socket's `mediaCache`; the cache key is media type + url (`Utils/messages.js`), so a Buffer never hits it and every
+  copy uploads again. WhatsApp publishes size limits only for the Business API (video 16 MB, document 100 MB); a linked
+  phone's video limit is unpublished: measure it in a Dev Build before coding a value.
 
 ## AI sales agent
 
@@ -1877,6 +1918,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   that page is live on the website; installed apps cannot be re-pointed.
 
 ## Cloudflare and sharing
+
+- A container auth backend must persist every credential and Signal-key batch before resolving, keep each inbox isolated, and fail closed on storage errors; filesystem snapshots cannot preserve writes made after the snapshot.
 
 - Slow remote access through the tunnel: measure before changing code. In the browser on the tunnel host, read
   `performance.getEntriesByType('resource')` (count, `transferSize`, duration per kind) and `/cdn-cgi/trace`

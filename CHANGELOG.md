@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.81] - 2026-11-08
+
+### Added
+
+- WhatsApp adapters accept an isolated durable authentication storage backend, so hosted connections can restore credentials and Signal keys without a local auth directory. The default desktop filesystem backend is unchanged.
+
+## [0.1.80] - 2026-11-08
+
+### Added
+
+- Public WhatsApp adapters can opt into bounded media downloads with a decrypted-byte limit and cancellation signal; existing unbounded methods keep their behavior.
+
+- **Forward a message.** **⋮ → Forward** on a message (press and hold on a phone) sends a copy to up to 5 chats or groups
+  you can open, shown as "Forwarded" on WhatsApp. It works across your WhatsApp numbers, re-uses the stored file (no
+  re-upload from your computer) and shows "Forwarded" / "Forwarded many times" in the chat, also on forwarded messages
+  customers send you. A video too big to send as a video goes as a file in full quality.
+
+### Changed
+
+- Files up to **100 MB** can be sent from the composer (was 64 MB), within what each WhatsApp number allows.
+- New images load much faster, also through remote access: the chat shows WhatsApp's small, blurred preview, and the real
+  photo loads when you open the image. An image with no preview, such as an older imported one, still shows the real photo.
+- A chat with many older images now downloads each image when you reach it, not all at once, and keeps the right space
+  for it, so the chat does not jump while images load.
+- The AI's check for leaked internal notes is about ten times faster on each reply.
+
+### Fixed
+
+- Older images, videos and files imported from your phone could show "could not load" after the app restarted or
+  updated, and Retry did not help. Messages imported from this version on stay available after a restart.
+
 ## [0.1.79] - 2026-11-06
 
 ### Added

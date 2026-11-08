@@ -1,10 +1,13 @@
+import { boundedMediaBuffer, validateMediaDownloadOptions } from '../media-download.js';
 import { EventEmitter } from 'node:events';
+import { readFileSync } from 'node:fs';
 import type { WaStatus } from '@ezychat/shared';
 import {
   WaUnavailableError,
   type SendResult,
   type WaAdapter,
   type WaAdapterEvents,
+  type WaMediaDownloadOptions,
   type WaCapabilities,
   type WaContactAlias,
   type WaGroupInfo,
@@ -35,6 +38,8 @@ export interface FakeSentRecord {
   reply?: WaSendOptions;
   /** Text sends: the members tagged (WhatsApp mentions). */
   mentions?: string[];
+  /** Sent as WhatsApp "Forwarded" with this score (`WaSendOptions.forwarded`). */
+  forwarded?: { score: number };
 }
 
 /**
@@ -210,15 +215,33 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
       id,
       ...(opts?.quotedId ? { reply: opts } : {}),
       ...(opts?.mentions?.length ? { mentions: [...opts.mentions] } : {}),
+      ...(opts?.forwarded ? { forwarded: { ...opts.forwarded } } : {}),
     });
     return this.afterSend(chatJid, id);
   }
 
+  /** A file given by `path` is read from disk, as the real adapter streams it (its `buffer` untouched). */
   async sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
     const id = opts?.messageId ?? `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
-    this.sent.push({ chatJid, file, id, ...(opts?.quotedId ? { reply: opts } : {}) });
-    this.media.set(id, file.buffer);
+    const buffer = file.path ? readFileSync(file.path) : file.buffer;
+    const recorded: WaSendFile = {
+      buffer,
+      mime: file.mime,
+      fileName: file.fileName,
+      ...(file.caption !== undefined ? { caption: file.caption } : {}),
+      ...(file.voiceNote ? { voiceNote: file.voiceNote } : {}),
+      ...(file.path ? { path: file.path } : {}),
+      ...(file.asDocument ? { asDocument: true } : {}),
+    };
+    this.sent.push({
+      chatJid,
+      file: recorded,
+      id,
+      ...(opts?.quotedId ? { reply: opts } : {}),
+      ...(opts?.forwarded ? { forwarded: { ...opts.forwarded } } : {}),
+    });
+    this.media.set(id, buffer);
     return this.afterSend(chatJid, id);
   }
 
@@ -267,6 +290,15 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   async downloadMedia(messageId: string): Promise<Buffer | null> {
     return this.media.get(messageId) ?? null;
+  }
+
+  async downloadMediaBounded(
+    messageId: string,
+    options: WaMediaDownloadOptions,
+  ): Promise<Buffer | null> {
+    validateMediaDownloadOptions(options);
+    const buffer = this.media.get(messageId);
+    return buffer ? boundedMediaBuffer(buffer, options) : null;
   }
 
   async getProfilePicture(_jid: string): Promise<string | null> {
@@ -534,8 +566,20 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
       body: p.body,
       ...(p.mentionedJids !== undefined ? { mentionedJids: [...p.mentionedJids] } : {}),
       quotedId: p.quotedId ?? null,
+      ...(p.forwardingScore ? { forwardingScore: p.forwardingScore } : {}),
       timestamp: p.timestamp ?? Date.now(),
-      media: p.media ?? null,
+      media: p.media
+        ? {
+            ...p.media,
+            // Fake downloads are already-allocated fixtures, never untrusted network streams.
+            downloadBounded:
+              p.media.downloadBounded ??
+              (async (options: WaMediaDownloadOptions) => {
+                validateMediaDownloadOptions(options);
+                return boundedMediaBuffer(await p.media!.download(), options);
+              }),
+          }
+        : null,
     };
     this.emitTyped('message', msg, { source: 'live' });
     return msg;
