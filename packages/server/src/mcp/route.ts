@@ -1,4 +1,3 @@
-import type { Readable } from 'node:stream';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { getApiTokens, parseBearer, type ApiPrincipal } from '../api-tokens/index.js';
@@ -8,23 +7,24 @@ import { rateLimitKey } from '../http/rate-limit-key.js';
 import { HttpError, errors } from '../http/errors.js';
 import { originHost } from '../http/origin.js';
 import { WindowLimiter } from '../http/window-limiter.js';
-import { ErrorCode, MCP_UPLOAD_MAX_BYTES } from '@ezychat/shared';
+import { ErrorCode, MCP_BODY_LIMIT_BYTES } from '@ezychat/shared';
 import { createInboxReadPort } from './inbox.js';
 import { createAiSetupPort } from './ai-setup.js';
 import { createInboxSendPort } from './send.js';
 import { createMessageFilePort } from './file.js';
 import { createMcpServer } from './server.js';
 import { resourceMetadataUrl } from './oauth-routes.js';
-import { MCP_PATH, MCP_UPLOADS_PATH, isMcpEnabled } from './settings.js';
-import { mcpUploadStore } from './uploads.js';
+import { MCP_PATH, isMcpEnabled } from './settings.js';
+import { registerUploadRoute } from './upload-route.js';
+import { uploadStore } from '../uploads/store.js';
 import { handleMcpRequest } from './transport.js';
 import { clearMcpNotice } from '../lite-import/notice.js';
 
 /**
- * Largest /mcp request body: a 5 MB file as base64 plus the JSON-RPC envelope. Larger files go through
- * POST /mcp/uploads (streamed to disk) or a link.
+ * Largest /mcp request body: a base64 file of up to about 6 MB plus the JSON-RPC envelope. Larger
+ * files go through POST /mcp/uploads (streamed to disk) or a link.
  */
-export const MCP_BODY_LIMIT = 8 * 1024 * 1024;
+export const MCP_BODY_LIMIT = MCP_BODY_LIMIT_BYTES;
 
 // resource_metadata tells an MCP client where to find the sign-in (RFC 9728, MCP authorization).
 const unauthorized = (req: FastifyRequest) =>
@@ -44,7 +44,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
     const inbox = createInboxReadPort(ctx);
     const aiSetup = createAiSetupPort(ctx);
     // One per server: uploads waiting to be sent, and their per-token limits.
-    const uploads = mcpUploadStore(ctx);
+    const uploads = uploadStore(ctx);
     // One per server: its per-token send limits must outlive each stateless request.
     const send = createInboxSendPort(ctx, { uploads });
     // Also one per server, for its per-token read limit.
@@ -105,7 +105,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
       principals.set(req, authenticate(req));
     });
 
-    // The send tools take up to 5 MB as base64 (about 6.7 MB of JSON). The token is checked
+    // The send tools take up to about 6 MB as base64 (8 MB of JSON). The token is checked
     // in onRequest, before the body is read, so only a valid token can send a large body.
     scope.post(MCP_PATH, { bodyLimit: MCP_BODY_LIMIT }, async (req, reply) => {
       const principal = principals.get(req)!;
@@ -131,65 +131,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
         .send(res.body);
     });
 
-    // POST /mcp/uploads: a file for send_image / send_file / send_video (design
-    // docs/features/mcp-file-upload/design.md). Same reach and token check as /mcp (onRequest above,
-    // before any byte of the body is read), then only a token that may send. The body is a raw file
-    // (any Content-Type, name in X-File-Name) or multipart/form-data with one `file` part; it is
-    // streamed to a private file, never parsed or held in memory.
-    await scope.register(async (up) => {
-      up.removeContentTypeParser(['application/json', 'text/plain']);
-      up.addContentTypeParser('*', (_req, payload, done) => done(null, payload));
-      // A refused upload may not have been read: close the connection rather than drain the rest.
-      up.addHook('onSend', async (_req, reply) => {
-        if (reply.statusCode >= 400) reply.header('connection', 'close');
-      });
-      up.post(
-        MCP_UPLOADS_PATH,
-        {
-          onRequest: async (req) => {
-            const principal = principals.get(req)!;
-            if (!principal.scopes.has('inbox:send'))
-              throw errors.forbidden('This access token cannot send messages, so it cannot upload');
-            // A declared body that can never fit is refused before it is read (multipart adds a
-            // little framing around the file).
-            const declared = Number(req.headers['content-length']);
-            if (Number.isFinite(declared) && declared > MCP_UPLOAD_MAX_BYTES + 64 * 1024)
-              throw new HttpError(
-                413,
-                'upload_too_large',
-                `The file is larger than ${MCP_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
-              );
-          },
-        },
-        async (req, reply) => {
-          const principal = principals.get(req)!;
-          let body: Readable;
-          let name: string | undefined;
-          let declaredLength: number | undefined;
-          if (req.isMultipart()) {
-            const part = await req.file({
-              limits: { fileSize: MCP_UPLOAD_MAX_BYTES + 1, files: 1, fields: 4, parts: 5 },
-            });
-            if (!part || part.fieldname !== 'file') {
-              part?.file.resume();
-              throw errors.validation('Send the file as the multipart part named "file".');
-            }
-            body = part.file;
-            name = part.filename;
-          } else {
-            if (!req.body || typeof (req.body as Readable).pipe !== 'function')
-              throw errors.validation('The file is empty.');
-            body = req.body as Readable;
-            const header = req.headers['x-file-name'];
-            name = Array.isArray(header) ? header[0] : header;
-            const length = Number(req.headers['content-length']);
-            declaredLength = Number.isFinite(length) ? length : undefined;
-          }
-          const uploaded = await uploads.receive(principal.tokenId, body, { name, declaredLength });
-          return reply.status(201).header('cache-control', 'no-store').send(uploaded);
-        },
-      );
-    });
+    await registerUploadRoute(scope, ctx, (req) => principals.get(req)!, uploads);
 
     // Stateless JSON mode has no SSE stream or session to open or delete.
     scope.route({

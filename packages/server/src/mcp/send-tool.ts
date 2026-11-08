@@ -13,15 +13,17 @@ import type { ToolDef } from './tools.js';
  * inside the JSON of one MCP request (8 MB limit); an upload streams the file to disk.
  */
 export const UPLOAD_HELP =
-  'Three ways to pass the file (exactly one): (1) uploadId, for any file up to 100 MB: the user or a ' +
+  'Three ways to pass the file (exactly one): (1) uploadId, for a file of any size: the user or a ' +
   'script first POSTs the file to this MCP server address with /uploads added (for example ' +
   'https://<host>/mcp/uploads), with the same access token, either as the raw body ' +
   "(curl -H 'Authorization: Bearer <token>' -H 'X-File-Name: quote.pdf' --data-binary @quote.pdf " +
   "<address>/uploads) or as multipart form data with one part named file (curl -H 'Authorization: " +
   "Bearer <token>' -F file=@quote.pdf <address>/uploads); the answer has uploadId, name, type, size " +
-  'and expiresAt; an upload is kept 1 hour and can be sent once. (2) A public https link (up to ' +
-  '100 MB), which EzyChat downloads. (3) base64, only for small files up to 5 MB, because base64 ' +
-  'travels inside this MCP request. Each WhatsApp number has its own size limits on top. ';
+  'and expiresAt; an upload is kept 1 hour and can be sent once. (2) A public https link, which ' +
+  'EzyChat downloads. (3) base64, only for small files up to about 6 MB, because base64 travels ' +
+  "inside this MCP request. The only size limits are WhatsApp's, per WhatsApp number (for example " +
+  '2 GB documents on a linked phone, 100 MB documents and 16 MB videos on the Business API); a ' +
+  'file above them is refused with too_large_for_whatsapp. ';
 
 const sendMessage: ToolDef<typeof McpSendMessageInput> = {
   name: 'send_message',

@@ -28,7 +28,7 @@ import type {
   WaSendFile,
   WaSendOptions,
 } from '@ezychat/wa';
-import { WaUnavailableError } from '@ezychat/wa';
+import { WaUnavailableError, type WaMediaLimits } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
@@ -59,6 +59,53 @@ import { createForwarder, mediaLimitKind, mediaLimitRefusal, type ForwardUser } 
 export interface ChangeUser {
   id: number;
   role: 'admin' | 'agent';
+}
+
+/** A file for `sendMedia`: its bytes, or a private file on disk that is moved in. */
+interface OutgoingFile {
+  buffer?: Buffer;
+  path?: string;
+  fileName: string;
+  voiceNote?: boolean;
+}
+
+/**
+ * Size, type and extension of a file to send, read from its bytes (never the name or label, except as
+ * a fallback); a voice note must really be Ogg/Opus within the recorder's length.
+ */
+async function mediaFacts(
+  file: OutgoingFile,
+): Promise<{ size: number; mimeType: string; ext: string }> {
+  const { buffer, path } = file;
+  if (buffer === undefined && path === undefined) throw new Error('sendMedia needs a file');
+  if (buffer && path) throw new Error('sendMedia takes a buffer or a path, not both');
+  if (path && file.voiceNote) throw errors.validation('A voice note is sent from its bytes');
+  const size = buffer ? buffer.length : statSync(path!).size;
+  if (!size) throw errors.validation('Empty file');
+  if (file.voiceNote) {
+    if (voiceNoteSeconds(buffer!) === null)
+      throw errors.validation(
+        `A voice note must be Ogg/Opus audio of at most ${VOICE_NOTE_MAX_SECONDS / 60} minutes`,
+      );
+    return { size, mimeType: 'audio/ogg; codecs=opus', ext: 'ogg' };
+  }
+  const sniffed = await (buffer ? fileTypeFromBuffer(buffer) : fileTypeFromFile(path!)).catch(
+    () => undefined,
+  );
+  const mimeType = sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream');
+  return { size, mimeType, ext: sniffed?.ext ?? extFor(mimeType, file.fileName) };
+}
+
+/** A video goes as a file when asked, or (`auto`) when it is above the number's video limit. */
+function sendsAsFile(
+  asFile: boolean | 'auto' | undefined,
+  mimeType: string,
+  size: number,
+  limits: WaMediaLimits | undefined,
+): boolean {
+  if (messageTypeForMime(mimeType) !== 'video') return false;
+  if (asFile !== 'auto') return asFile === true;
+  return limits?.video !== undefined && size > limits.video;
 }
 
 export interface MediaFile {
@@ -1476,39 +1523,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       requireSendable(jid);
       if (chatNumberMoved(jid)) throw errors.conflict(MOVED_NUMBER_MESSAGE);
       requireWindow(jid);
-      if (!file.buffer === !file.path) throw new Error('sendMedia needs a buffer or a path');
-      if (file.path && file.voiceNote)
-        throw errors.validation('A voice note is sent from its bytes');
-      const size = file.buffer ? file.buffer.length : statSync(file.path!).size;
-      if (!size) throw errors.validation('Empty file');
       const quotedId = checkQuote(jid, file.quotedId);
-      const sniffed = await (
-        file.buffer ? fileTypeFromBuffer(file.buffer) : fileTypeFromFile(file.path!)
-      ).catch(() => undefined);
-      // A voice note must really be Ogg/Opus within the recorder's length: never trust the label.
-      if (file.voiceNote && voiceNoteSeconds(file.buffer!) === null)
-        throw errors.validation(
-          `A voice note must be Ogg/Opus audio of at most ${VOICE_NOTE_MAX_SECONDS / 60} minutes`,
-        );
-      const mimeType = file.voiceNote
-        ? 'audio/ogg; codecs=opus'
-        : (sniffed?.mime ?? (mime.lookup(file.fileName) || 'application/octet-stream'));
-      const ext = file.voiceNote ? 'ogg' : (sniffed?.ext ?? extFor(mimeType, file.fileName));
+      const { size, mimeType, ext } = await mediaFacts(file);
       // WhatsApp's per-message limits of this chat's number (e.g. 16 MB videos on the Business API)
       const wa = adapterOf(inboxOfKey(jid));
-      const isVideo = messageTypeForMime(mimeType) === 'video';
-      const videoLimit = wa ? capabilitiesOf(wa).mediaLimits?.video : undefined;
-      const asFile =
-        isVideo &&
-        (file.asFile === 'auto'
-          ? videoLimit !== undefined && size > videoLimit
-          : file.asFile === true);
+      const limits = wa ? capabilitiesOf(wa).mediaLimits : undefined;
+      const asFile = sendsAsFile(file.asFile, mimeType, size, limits);
       const tooLarge = wa
-        ? mediaLimitRefusal(
-            capabilitiesOf(wa).mediaLimits,
-            size,
-            mediaLimitKind(messageTypeForMime(mimeType), asFile),
-          )
+        ? mediaLimitRefusal(limits, size, mediaLimitKind(messageTypeForMime(mimeType), asFile))
         : null;
       if (tooLarge) throw tooLarge;
       const id = `local-${clientId}`;

@@ -17,19 +17,32 @@ interface QuickReplyRow {
   updated_at: number;
 }
 
-const toQuickReply = (r: QuickReplyRow): QuickReply => ({ id: r.id, shortcut: r.shortcut, body: r.body, updatedAt: r.updated_at });
+const toQuickReply = (r: QuickReplyRow): QuickReply => ({
+  id: r.id,
+  shortcut: r.shortcut,
+  body: r.body,
+  updatedAt: r.updated_at,
+});
 
 function isUniqueViolation(err: unknown): boolean {
-  return !!err && typeof err === 'object' && String((err as { code?: unknown }).code).startsWith('SQLITE_CONSTRAINT');
+  return (
+    !!err &&
+    typeof err === 'object' &&
+    String((err as { code?: unknown }).code).startsWith('SQLITE_CONSTRAINT')
+  );
 }
 
 export default async function quickRepliesRoutes(app: FastifyInstance, ctx: AppContext) {
   const { db } = ctx;
-  const get = (id: number) => (db.prepare('SELECT * FROM quick_replies WHERE id = ?').get(id) as QuickReplyRow | undefined) ?? null;
+  const get = (id: number) =>
+    (db.prepare('SELECT * FROM quick_replies WHERE id = ?').get(id) as QuickReplyRow | undefined) ??
+    null;
   const admin = { preHandler: requireAdmin(ctx) };
 
   app.get('/quick-replies', { preHandler: requireUser(ctx) }, async () => {
-    const rows = db.prepare('SELECT * FROM quick_replies ORDER BY shortcut ASC').all() as QuickReplyRow[];
+    const rows = db
+      .prepare('SELECT * FROM quick_replies ORDER BY shortcut ASC')
+      .all() as QuickReplyRow[];
     return { quickReplies: rows.map(toQuickReply) };
   });
 
@@ -39,14 +52,22 @@ export default async function quickRepliesRoutes(app: FastifyInstance, ctx: AppC
     try {
       id = Number(
         db
-          .prepare('INSERT INTO quick_replies (shortcut, body, created_by, updated_at) VALUES (?, ?, ?, ?)')
+          .prepare(
+            'INSERT INTO quick_replies (shortcut, body, created_by, updated_at) VALUES (?, ?, ?, ?)',
+          )
           .run(body.shortcut, body.body, req.user!.id, Date.now()).lastInsertRowid,
       );
     } catch (err) {
-      if (isUniqueViolation(err)) throw errors.conflict(`Shortcut "${body.shortcut}" already exists`);
+      if (isUniqueViolation(err))
+        throw errors.conflict(`Shortcut "${body.shortcut}" already exists`);
       throw err;
     }
-    audit(db, { userId: req.user!.id, action: 'quick_reply.create', ip: clientIp(req), meta: { id, shortcut: body.shortcut } });
+    audit(db, {
+      userId: req.user!.id,
+      action: 'quick_reply.create',
+      ip: clientIp(req),
+      meta: { id, shortcut: body.shortcut },
+    });
     return reply.status(201).send(toQuickReply(get(id)!));
   });
 
@@ -56,17 +77,20 @@ export default async function quickRepliesRoutes(app: FastifyInstance, ctx: AppC
     const cur = get(id);
     if (!cur) throw errors.notFound('Quick reply');
     try {
-      db.prepare('UPDATE quick_replies SET shortcut = ?, body = ?, updated_at = ? WHERE id = ?').run(
-        patch.shortcut ?? cur.shortcut,
-        patch.body ?? cur.body,
-        Date.now(),
-        id,
-      );
+      db.prepare(
+        'UPDATE quick_replies SET shortcut = ?, body = ?, updated_at = ? WHERE id = ?',
+      ).run(patch.shortcut ?? cur.shortcut, patch.body ?? cur.body, Date.now(), id);
     } catch (err) {
-      if (isUniqueViolation(err)) throw errors.conflict(`Shortcut "${patch.shortcut}" already exists`);
+      if (isUniqueViolation(err))
+        throw errors.conflict(`Shortcut "${patch.shortcut}" already exists`);
       throw err;
     }
-    audit(db, { userId: req.user!.id, action: 'quick_reply.update', ip: clientIp(req), meta: { id } });
+    audit(db, {
+      userId: req.user!.id,
+      action: 'quick_reply.update',
+      ip: clientIp(req),
+      meta: { id },
+    });
     return toQuickReply(get(id)!);
   });
 
@@ -74,7 +98,12 @@ export default async function quickRepliesRoutes(app: FastifyInstance, ctx: AppC
     const { id } = parse(IdParams, req.params);
     const info = db.prepare('DELETE FROM quick_replies WHERE id = ?').run(id);
     if (!info.changes) throw errors.notFound('Quick reply');
-    audit(db, { userId: req.user!.id, action: 'quick_reply.delete', ip: clientIp(req), meta: { id } });
+    audit(db, {
+      userId: req.user!.id,
+      action: 'quick_reply.delete',
+      ip: clientIp(req),
+      meta: { id },
+    });
     return { ok: true };
   });
 }

@@ -14,8 +14,11 @@ import { BlockList, isIP, type LookupFunction } from 'node:net';
 
 export const REQUEST_TIMEOUT_MS = 10_000;
 export const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-/** Longest a file download may take (`longTransfer`): 100 MB needs about 1 MB/s. */
-export const LONG_TRANSFER_TIMEOUT_MS = 120_000;
+/**
+ * Longest a file download may take (`longTransfer`): a file as large as WhatsApp takes (2 GB on a
+ * linked phone) at about 1 MB/s. The upload store also stops one that sends nothing for 60 s.
+ */
+export const LONG_TRANSFER_TIMEOUT_MS = 60 * 60_000;
 const MAX_REDIRECTS = 3;
 
 export type UrlProblem = 'url_invalid' | 'url_not_https' | 'url_private';

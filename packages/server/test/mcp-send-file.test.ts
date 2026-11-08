@@ -220,7 +220,7 @@ describe('decodeFileBase64', () => {
     expect(decodeFileBase64(`data:application/pdf;base64,${PDF_B64}`)).toEqual(PDF);
     expect(() => decodeFileBase64('')).toThrow(SendError);
     const tooBig = Buffer.alloc(MCP_SEND_MAX_FILE_BYTES + 3).toString('base64');
-    expect(() => decodeFileBase64(tooBig)).toThrow(/file is larger than 5 MB/);
+    expect(() => decodeFileBase64(tooBig)).toThrow(/file is larger than 5.9 MB/);
   });
 });
 
@@ -233,10 +233,12 @@ describe('guardedFileFetcher', () => {
   afterAll(() => site.close());
 
   it('downloads a file, with file wording in its refusals', async () => {
-    const get = guardedFileFetcher(store, { allowLoopback: true, ca: site.ca }, 5 * 1024 * 1024);
+    const get = guardedFileFetcher(store, { allowLoopback: true, ca: site.ca });
     expect(bytesOf(await get(`${site.origin}/q.pdf`, 1))).toEqual(PDF);
     await expect(get(`${site.origin}/missing`, 1)).rejects.toThrow(/file link answered 404/);
-    await expect(get(`${site.origin}/big`, 1)).rejects.toThrow(/file is larger than 5 MB/);
+    await expect(get(`${site.origin}/big`, 1, 5 * 1024 * 1024)).rejects.toThrow(
+      /too_large_for_whatsapp: .*up to 5 MB/,
+    );
     await expect(guardedFileFetcher(store)(`${site.origin}/q.pdf`, 1)).rejects.toThrow(
       /file link must be a public internet address/,
     );

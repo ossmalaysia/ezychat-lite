@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { AI_HANDOFF_RULES_CHARACTERS, AI_INSTRUCTIONS_CHARACTERS } from './ai.js';
-import { MEDIA_UPLOAD_LIMIT_BYTES } from './api.js';
 import { ChatStatus } from './enums.js';
 
 // AI assistant (MCP) access: admin-created personal access tokens and the read-only tool inputs.
@@ -215,21 +214,18 @@ export const McpSendMessageInput = z.strictObject({
 });
 export type McpSendMessageInput = z.infer<typeof McpSendMessageInput>;
 
+/** Largest /mcp request body: the JSON-RPC envelope with a base64 file inside. */
+export const MCP_BODY_LIMIT_BYTES = 8 * 1024 * 1024;
 /**
- * Largest image or file the send tools take as base64 (decoded bytes). Base64 travels inside the JSON
- * of one /mcp request (limit 8 MB, a third larger than the bytes), so bigger files go through an
- * upload (`uploadId`) or a link.
+ * Largest file the send tools take as base64 (decoded bytes): what fits in one /mcp request body
+ * (base64 is a third larger than the bytes, plus the JSON around it). A larger file goes through an
+ * upload (`uploadId`) or a link, where only the WhatsApp number's own limits apply.
  */
-export const MCP_SEND_MAX_BASE64_BYTES = 5 * 1024 * 1024;
+export const MCP_SEND_MAX_BASE64_BYTES = Math.floor((MCP_BODY_LIMIT_BYTES - 64 * 1024) / 4) * 3;
 /** The base64 limit of send_image (kept for existing imports); uploads and links take more. */
 export const MCP_SEND_MAX_IMAGE_BYTES = MCP_SEND_MAX_BASE64_BYTES;
 /** The base64 limit of send_file (kept for existing imports); uploads and links take more. */
 export const MCP_SEND_MAX_FILE_BYTES = MCP_SEND_MAX_BASE64_BYTES;
-/**
- * Largest file an MCP client uploads (`POST /mcp/uploads`) or the server downloads from a link: the
- * composer's limit (MEDIA_UPLOAD_LIMIT_BYTES). Each WhatsApp number's own limits apply on top.
- */
-export const MCP_UPLOAD_MAX_BYTES = MEDIA_UPLOAD_LIMIT_BYTES;
 /** How long an upload waits to be sent before it is deleted. */
 export const MCP_UPLOAD_TTL_MS = 60 * 60_000;
 /** Longest caption of an image (WhatsApp shows up to 1024 characters under a photo). */
@@ -242,7 +238,7 @@ export const McpUploadId = z
   .string()
   .regex(/^upl_[a-f0-9]{32}$/)
   .describe(
-    'uploadId from POST <this MCP server address>/uploads (the file uploaded by the user or a script, up to 100 MB, kept 1 hour). Pass exactly one of the link, base64 or uploadId',
+    'uploadId from POST <this MCP server address>/uploads (the file uploaded by the user or a script, kept 1 hour; only the WhatsApp number’s own size limits apply). Pass exactly one of the link, base64 or uploadId',
   );
 
 /** The answer of POST /mcp/uploads. */
@@ -266,14 +262,14 @@ export const McpSendImageInput = z.strictObject({
     .max(2048)
     .optional()
     .describe(
-      'A public https link to the image (JPEG, PNG or WebP, up to 100 MB). Pass exactly one of imageUrl, imageBase64 or uploadId',
+      'A public https link to the image (JPEG, PNG or WebP, as large as the WhatsApp number takes). Pass exactly one of imageUrl, imageBase64 or uploadId',
     ),
   imageBase64: z
     .string()
     .max(BASE64_MAX_LENGTH)
     .optional()
     .describe(
-      'The image file as base64 (JPEG, PNG or WebP, up to 5 MB; a data: URL prefix is allowed). For a larger image use uploadId. Pass exactly one of imageUrl, imageBase64 or uploadId',
+      'The image file as base64 (JPEG, PNG or WebP, up to about 6 MB; a data: URL prefix is allowed). For a larger image use uploadId. Pass exactly one of imageUrl, imageBase64 or uploadId',
     ),
   uploadId: McpUploadId.optional(),
   caption: z
@@ -302,14 +298,14 @@ export const McpSendFileInput = z.strictObject({
     .max(2048)
     .optional()
     .describe(
-      'A public https link to the file (PDF or Word .docx, up to 100 MB). Pass exactly one of fileUrl, fileBase64 or uploadId',
+      'A public https link to the file (PDF or Word .docx, as large as the WhatsApp number takes). Pass exactly one of fileUrl, fileBase64 or uploadId',
     ),
   fileBase64: z
     .string()
     .max(BASE64_MAX_LENGTH)
     .optional()
     .describe(
-      'The file as base64 (PDF or Word .docx, up to 5 MB; a data: URL prefix is allowed). For a larger file use uploadId. Pass exactly one of fileUrl, fileBase64 or uploadId',
+      'The file as base64 (PDF or Word .docx, up to about 6 MB; a data: URL prefix is allowed). For a larger file use uploadId. Pass exactly one of fileUrl, fileBase64 or uploadId',
     ),
   uploadId: McpUploadId.optional(),
   fileName: z
@@ -340,14 +336,14 @@ export const McpSendVideoInput = z.strictObject({
     .max(2048)
     .optional()
     .describe(
-      'A public https link to the video (MP4, up to 100 MB). Pass exactly one of videoUrl, videoBase64 or uploadId',
+      'A public https link to the video (MP4, as large as the WhatsApp number takes). Pass exactly one of videoUrl, videoBase64 or uploadId',
     ),
   videoBase64: z
     .string()
     .max(BASE64_MAX_LENGTH)
     .optional()
     .describe(
-      'The video as base64 (MP4, up to 5 MB). For a larger video use uploadId. Pass exactly one of videoUrl, videoBase64 or uploadId',
+      'The video as base64 (MP4, up to about 6 MB). For a larger video use uploadId. Pass exactly one of videoUrl, videoBase64 or uploadId',
     ),
   uploadId: McpUploadId.optional(),
   sendAs: z

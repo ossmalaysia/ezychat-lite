@@ -9,7 +9,7 @@ import type { AddressInfo } from 'node:net';
 import { generateSelfSignedCert } from '../../../e2e/partner-mcp/cert.mjs';
 import { getApiTokens, type ApiPrincipal } from '../src/api-tokens/index.js';
 import { sendClientId, type MediaSource } from '../src/mcp/send.js';
-import { createMcpUploadStore, type McpUploadStore } from '../src/mcp/uploads.js';
+import { createUploadStore, type UploadStore } from '../src/uploads/store.js';
 import type { TestApp } from './helpers.js';
 import { rpc } from './mcp-helpers.js';
 
@@ -71,9 +71,16 @@ export function lastSendAudit(t: TestApp): { raw: string; meta: Record<string, u
 /** An upload store in a new temporary folder (link downloads land there). */
 export function testUploadStore(
   deps: { now?: () => number; freeBytes?: (dir: string) => number } = {},
-): { store: McpUploadStore; dir: string } {
+): { store: UploadStore; dir: string } {
   const dir = join(mkdtempSync(join(tmpdir(), 'mcp-uploads-')), 'uploads');
-  return { store: createMcpUploadStore(dir, { log: pino({ level: 'silent' }), ...deps }), dir };
+  return {
+    store: createUploadStore(dir, {
+      log: pino({ level: 'silent' }),
+      freeBytes: () => 1e12,
+      ...deps,
+    }),
+    dir,
+  };
 }
 
 /** The bytes of a downloaded file (a path on disk) or of a buffer. */

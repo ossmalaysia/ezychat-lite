@@ -12,11 +12,11 @@ import { setMcpEnabled } from '../src/mcp/settings.js';
 import { createInboxSendPort, guardedVideoFetcher } from '../src/mcp/send.js';
 import {
   cleanUploadName,
-  createMcpUploadStore,
+  createUploadStore,
   UPLOAD_LIMITS,
-  type McpUploadStore,
+  type UploadStore,
   type UploadLimits,
-} from '../src/mcp/uploads.js';
+} from '../src/uploads/store.js';
 import { MediaStore } from '../src/messages/media-store.js';
 import { pdfFixture } from './ai-fixtures.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -48,6 +48,8 @@ const mp4 = (size: number) => {
   return Buffer.concat([head, Buffer.alloc(Math.max(0, size - head.length))]);
 };
 const VIDEO_LIMIT = 4096;
+/** The test number's largest file (its document limit): a file above it never leaves this computer. */
+const DOCUMENT_LIMIT = 200_000;
 
 let t: TestApp;
 let sender: string;
@@ -121,17 +123,18 @@ beforeAll(async () => {
   const wa = new FakeWaAdapter({
     capabilities: {
       ...LINKED_PHONE_CAPABILITIES,
-      mediaLimits: { video: VIDEO_LIMIT, image: 64 * 1024 * 1024, document: 64 * 1024 * 1024 },
+      mediaLimits: { video: VIDEO_LIMIT, image: DOCUMENT_LIMIT, document: DOCUMENT_LIMIT },
     },
   });
   t = await makeTestApp({
     listen: true,
     wa,
     beforeBuild: (ctx) => {
-      uploadDir = join(ctx.config.dataDir, 'mcp-uploads');
-      ctx.services.mcpUploads = createMcpUploadStore(uploadDir, {
+      uploadDir = join(ctx.config.dataDir, 'uploads');
+      ctx.services.uploads = createUploadStore(uploadDir, {
         log: pino({ level: 'silent' }),
         now: () => clock,
+        freeBytes: () => 1e12,
       });
     },
   });
@@ -163,15 +166,17 @@ describe('POST /mcp/uploads: reach and token', () => {
     expect(uploadFiles()).toEqual([]);
   });
 
-  it('refuses a token that cannot send, and a declared body above 100 MB, before reading it', async () => {
+  it("refuses a token that cannot send, and a declared body above the number's limit, before reading it", async () => {
     const r = await uploadRaw(PDF, { token: readOnly });
     expect(r.statusCode).toBe(403);
     expect(r.json().error.message).toMatch(/cannot send/);
-    const big = await uploadRaw(PDF, { headers: { 'content-length': String(200 * 1024 * 1024) } });
+    const big = await uploadRaw(PDF, {
+      headers: { 'content-length': String(DOCUMENT_LIMIT + 1) },
+    });
     expect(big.statusCode).toBe(413);
+    expect(big.json().error.code).toBe('too_large_for_whatsapp');
     // the rest of a refused body is not drained: the connection closes
     expect(big.headers.connection).toBe('close');
-    expect(big.json().error.code).toBe('upload_too_large');
     expect(uploadFiles()).toEqual([]);
   });
 });
@@ -199,7 +204,7 @@ describe('POST /mcp/uploads: bodies', () => {
       expect(statSync(join(uploadDir, files[0]!)).mode & 0o777).toBe(0o600);
       expect(statSync(uploadDir).mode & 0o777).toBe(0o700);
     }
-    const store = t.ctx.services.mcpUploads!;
+    const store = t.ctx.services.uploads!;
     store.discard(store.take(senderId, body.uploadId)!.path);
     expect(uploadFiles()).toEqual([]);
   });
@@ -208,7 +213,7 @@ describe('POST /mcp/uploads: bodies', () => {
     const r = await uploadMultipart(PNG, 'photo.png');
     expect(r.statusCode).toBe(201);
     expect(r.json()).toMatchObject({ name: 'photo.png', type: 'image/png', size: PNG.length });
-    const store = t.ctx.services.mcpUploads!;
+    const store = t.ctx.services.uploads!;
     store.discard(store.take(senderId, r.json().uploadId)!.path);
     const wrong = await uploadMultipart(PNG, 'photo.png', 'image');
     expect(wrong.statusCode).toBe(400);
@@ -287,13 +292,13 @@ describe('send tools with uploadId', () => {
     const expired = await call('send_image', { jid: LID, uploadId: old, requestId: requestId() });
     expect(expired.content[0]!.text).toMatch(/No upload/);
     // the other token's upload expired too: the sweep removes it
-    t.ctx.services.mcpUploads!.sweep();
+    t.ctx.services.uploads!.sweep();
     expect(uploadFiles()).toEqual([]);
-    expect(t.ctx.services.mcpUploads!.get(principalOf(t, otherSender).tokenId, theirs)).toBeNull();
+    expect(t.ctx.services.uploads!.get(principalOf(t, otherSender).tokenId, theirs)).toBeNull();
   });
 
   it('lends an upload to one send at a time, and gives a refused one back', async () => {
-    const store = t.ctx.services.mcpUploads!;
+    const store = t.ctx.services.uploads!;
     const uploadId = await upload(PDF, 'one.pdf');
     const taken = store.take(senderId, uploadId)!;
     // while one send has it, another send and the sweep cannot use or delete it
@@ -430,29 +435,24 @@ describe('send port: link downloads stream to a temporary file', () => {
     const site = await httpsFixture({ '/v.mp4': video }, 8192);
     try {
       const { store, dir } = testUploadStore();
-      const get = guardedVideoFetcher(store, { allowLoopback: true, ca: site.ca }, 4096);
-      const got = await get(`${site.origin}/v.mp4`, 1);
+      const get = guardedVideoFetcher(store, { allowLoopback: true, ca: site.ca });
+      const got = await get(`${site.origin}/v.mp4`, 1, 4096);
       expect(Buffer.isBuffer(got)).toBe(false);
       expect(bytesOf(got)).toEqual(video);
-      await expect(get(`${site.origin}/big`, 1)).rejects.toThrow(/video is larger than/);
-      await expect(get(`${site.origin}/missing`, 1)).rejects.toThrow(/answered 404/);
-      expect(readdirSync(dir)).toHaveLength(1);
-      // a download counts against the token's daily bytes, like an upload
-      const tight = testUploadStore();
-      const capped = createMcpUploadStore(tight.dir + '-cap', {
-        log: pino({ level: 'silent' }),
-        freeBytes: () => 1e12,
-        limits: { bytesPerDay: 3000 },
-      });
-      const small = guardedVideoFetcher(capped, { allowLoopback: true, ca: site.ca }, 4096);
-      await expect(small(`${site.origin}/v.mp4`, 7)).resolves.toBeTruthy();
-      await expect(small(`${site.origin}/v.mp4`, 7)).rejects.toThrow(/daily amount/);
-      const full = createMcpUploadStore(tight.dir + '-full', {
+      // above the chat's number's limit (declared by the server, so nothing is read)
+      await expect(get(`${site.origin}/big`, 1, 4096)).rejects.toThrow(
+        /too_large_for_whatsapp: .*up to 1 MB/,
+      );
+      // no limit known: only the disk bounds it
+      await expect(get(`${site.origin}/big`, 1)).resolves.toBeTruthy();
+      await expect(get(`${site.origin}/missing`, 1, 4096)).rejects.toThrow(/answered 404/);
+      expect(readdirSync(dir)).toHaveLength(2);
+      const full = createUploadStore(testUploadStore().dir + '-full', {
         log: pino({ level: 'silent' }),
         freeBytes: () => 0,
       });
-      const none = guardedVideoFetcher(full, { allowLoopback: true, ca: site.ca }, 4096);
-      await expect(none(`${site.origin}/v.mp4`, 7)).rejects.toThrow(/free disk space/);
+      const none = guardedVideoFetcher(full, { allowLoopback: true, ca: site.ca });
+      await expect(none(`${site.origin}/v.mp4`, 7, 4096)).rejects.toThrow(/free disk space/);
     } finally {
       await site.close();
     }
@@ -461,19 +461,18 @@ describe('send port: link downloads stream to a temporary file', () => {
 
 describe('upload store limits', () => {
   const body = (bytes: Buffer) => Readable.from([bytes]);
-  let time = 1_000_000;
+  const time = 1_000_000;
   const make = (limits: Partial<UploadLimits> = {}, free = 1e12) => testStore(limits, free);
-  function testStore(limits: Partial<UploadLimits>, free: number, maxBytes?: number) {
+  function testStore(limits: Partial<UploadLimits>, free: number) {
     const dir = testUploadStore().dir + '-limits';
     return {
       dir,
-      store: createMcpUploadStore(dir, {
+      store: createUploadStore(dir, {
         log: pino({ level: 'silent' }),
         now: () => time,
         freeBytes: () => free,
         limits,
-        ...(maxBytes ? { maxBytes } : {}),
-      }) as McpUploadStore,
+      }) as UploadStore,
     };
   }
 
@@ -487,51 +486,44 @@ describe('upload store limits', () => {
     await expect(store.receive(2, body(PDF), { name: 'c.pdf' })).resolves.toBeTruthy();
   });
 
-  it('keeps a daily byte budget per token, failed uploads included', async () => {
-    const { store } = make({ bytesPerDay: PDF.length * 2 + 10 });
-    await store.receive(1, body(PDF), { name: 'a.pdf' });
-    await expect(store.receive(1, body(Buffer.alloc(50)), { name: 'x' })).rejects.toMatchObject({
-      status: 415,
-    });
+  it("refuses a file above the WhatsApp number's limit while it streams, and deletes it", async () => {
+    const { store, dir } = make();
     await expect(
-      store.receive(1, body(PDF), { name: 'b.pdf', declaredLength: PDF.length }),
-    ).rejects.toMatchObject({ status: 429, code: 'upload_daily_limit' });
-    await store.receive(1, body(Buffer.alloc(5, 1)), { name: 'y' }).catch(() => undefined);
-    await expect(store.receive(1, body(PDF), { name: 'c.pdf' })).rejects.toMatchObject({
-      code: 'upload_daily_limit',
+      store.receive(1, body(Buffer.alloc(101)), { name: 'big', maxBytes: 100 }),
+    ).rejects.toMatchObject({ status: 413, code: 'too_large_for_whatsapp' });
+    await expect(
+      store.receive(1, body(PDF), { name: 'big', declaredLength: 500, maxBytes: 100 }),
+    ).rejects.toMatchObject({ status: 413 });
+    expect(readdirSync(dir)).toEqual([]);
+    // no limit of our own: a file without a WhatsApp limit is bounded by the disk only
+    const big = Buffer.concat([PDF, Buffer.alloc(300_000)]);
+    await expect(store.receive(1, body(big), { name: 'big.pdf' })).resolves.toMatchObject({
+      size: big.length,
     });
-    time += 24 * 60 * 60_000 + 1;
-    await expect(store.receive(1, body(PDF), { name: 'd.pdf' })).resolves.toBeTruthy();
   });
 
-  it('refuses a file above the size limit while it streams, and deletes it', async () => {
-    const { store, dir } = testStore({}, 1e12, 100);
-    await expect(store.receive(1, body(Buffer.alloc(101)), { name: 'big' })).rejects.toMatchObject({
-      status: 413,
-      code: 'upload_too_large',
+  it('stops a file when the disk would get too full, while it streams', async () => {
+    const { store, dir } = make({}, UPLOAD_LIMITS.minFreeBytes + 50);
+    await expect(store.receive(1, body(Buffer.alloc(51)), { name: 'x' })).rejects.toMatchObject({
+      status: 507,
+      code: 'upload_storage_full',
     });
-    await expect(
-      store.receive(1, body(PDF), { name: 'big', declaredLength: 500 }),
-    ).rejects.toMatchObject({ status: 413 });
     expect(readdirSync(dir)).toEqual([]);
   });
 
-  it('limits waiting uploads per token and in total, and keeps free disk space', async () => {
+  it('limits waiting uploads per token, and keeps free disk space', async () => {
     const pending = make({ pendingPerToken: 1 });
     await pending.store.receive(1, body(PDF), { name: 'a.pdf' });
     await expect(pending.store.receive(1, body(PDF), { name: 'b.pdf' })).rejects.toMatchObject({
       code: 'upload_pending_limit',
     });
-    const total = make({ pendingBytes: PDF.length + 5 });
-    await total.store.receive(1, body(PDF), { name: 'a.pdf', declaredLength: PDF.length });
-    await expect(
-      total.store.receive(2, body(PDF), { name: 'b.pdf', declaredLength: PDF.length }),
-    ).rejects.toMatchObject({ status: 507 });
     const full = make({}, UPLOAD_LIMITS.minFreeBytes + 10);
     await expect(
       full.store.receive(1, body(PDF), { name: 'a.pdf', declaredLength: PDF.length }),
     ).rejects.toMatchObject({ status: 507, code: 'upload_storage_full' });
-    await expect(full.store.writeTemp(1, body(PDF), 1000)).rejects.toMatchObject({ status: 507 });
+    await expect(
+      full.store.writeTemp('user:1', body(PDF), { maxBytes: 1000 }),
+    ).rejects.toMatchObject({ status: 507 });
   });
 
   it('receives at most two uploads of a token at the same time', async () => {
@@ -554,7 +546,7 @@ describe('upload store limits', () => {
 
   it('stops a sender that stalls (408) and deletes what arrived', async () => {
     const dir = testUploadStore().dir + '-slow';
-    const store = createMcpUploadStore(dir, {
+    const store = createUploadStore(dir, {
       log: pino({ level: 'silent' }),
       freeBytes: () => 1e12,
       timeouts: { idleMs: 30 },
@@ -572,7 +564,7 @@ describe('upload store limits', () => {
     const { store, dir } = make();
     writeFileSync(join(dir, 'left.bin'), 'x');
     store.shutdown();
-    createMcpUploadStore(dir, { log: pino({ level: 'silent' }) }).shutdown();
+    createUploadStore(dir, { log: pino({ level: 'silent' }) }).shutdown();
     expect(existsSync(join(dir, 'left.bin'))).toBe(false);
   });
 });

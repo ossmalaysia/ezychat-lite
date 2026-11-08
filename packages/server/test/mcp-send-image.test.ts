@@ -206,7 +206,9 @@ describe('decodeImageBase64', () => {
     ).toEqual(PNG);
     expect(() => decodeImageBase64('')).toThrow(SendError);
     const tooBig = Buffer.alloc(MCP_SEND_MAX_IMAGE_BYTES + 3).toString('base64');
-    expect(() => decodeImageBase64(tooBig)).toThrow(/larger than 5 MB/);
+    expect(() => decodeImageBase64(tooBig)).toThrow(
+      /larger than 5.9 MB\. Send a larger image with uploadId/,
+    );
   });
 });
 
@@ -223,10 +225,12 @@ describe('guardedImageFetcher', () => {
   afterAll(() => site.close());
 
   it('downloads an image (loopback only allowed in tests)', async () => {
-    const get = guardedImageFetcher(store, { allowLoopback: true, ca }, 5 * 1024 * 1024);
+    const get = guardedImageFetcher(store, { allowLoopback: true, ca });
     expect(bytesOf(await get(`${origin}/photo.png`, 1))).toEqual(PNG);
     await expect(get(`${origin}/missing`, 1)).rejects.toThrow(/answered 404/);
-    await expect(get(`${origin}/big`, 1)).rejects.toThrow(/larger than 5 MB/);
+    await expect(get(`${origin}/big`, 1, 5 * 1024 * 1024)).rejects.toThrow(
+      /too_large_for_whatsapp: .*up to 5 MB/,
+    );
   });
 
   it('never reaches this computer, a private network or plain http', async () => {
