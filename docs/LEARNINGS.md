@@ -1177,6 +1177,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - File size limits come from WhatsApp only (owner): check the target number's `WaCapabilities.mediaLimits` (an upload
   for several numbers: the largest) and the free disk; never add an app cap. Through the Cloudflare tunnel the edge caps
   bodies at 100 MB, so the web refuses larger files there before uploading and says where they work.
+- Before a Dev Build re-run, stop every server you started (`pkill -f packages/server/src/cli.ts`) and give the new one a
+  fresh `--data` and port: a server left running keeps answering on its port after its data folder is deleted, and the
+  check silently measures the old one.
 - To screenshot the app "through the tunnel" locally: set the `named_tunnel_hostname` setting, launch Chromium with
   `--host-resolver-rules=MAP <host> 127.0.0.1` and `--unsafely-treat-insecure-origin-as-secure=http://<host>:<port>`
   (the session cookie is Secure off loopback), as `docs/features/mcp-file-upload/screens/shots.mjs` does.
