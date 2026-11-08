@@ -22,7 +22,8 @@ features that require UI).
 `POST /mcp/uploads` answers `201 { uploadId, name, type, size, expiresAt }` (shared `McpUploadResponse`). An upload
 belongs to the token that made it, is kept 1 hour (`MCP_UPLOAD_TTL_MS`) and can be sent once; a send moves its file
 into the message (Forward's path-based send: Baileys `{ url }`, no buffer). A refused send (wrong type for the tool,
-closed reply window, size above the number's limit) keeps the upload for another try.
+closed reply window, size above the number's limit) keeps the upload for another try. While a send uses an upload it
+is taken out of the store, so a second send of the same id or the expiry sweep cannot touch the file.
 
 ```bash
 # raw body
@@ -34,7 +35,8 @@ curl -H "Authorization: Bearer $TOKEN" -F file=@demo.mp4 https://<host>/mcp/uplo
 Sizes: the composer's 100 MB (`MCP_UPLOAD_MAX_BYTES = MEDIA_UPLOAD_LIMIT_BYTES`), then each target inbox's
 `WaCapabilities.mediaLimits` in `sendMedia` with Forward's codes (`too_large_as_video`, `too_large_for_whatsapp`).
 `send_video` without `sendAs` sends a video above the number's video limit as a file (linked phone: 64 MB; Business
-API: 16 MB); `sendAs: 'video'` is refused with `too_large_as_video` instead.
+API: 16 MB); `sendAs: 'video'` is refused with `too_large_as_video` instead. The message service decides this
+(`sendMedia({ asFile: 'auto' })`) from the chat's own connection, so the tool never reads a removed inbox's adapter.
 
 Accepted types (read from the bytes, never the label, header or name): JPEG, PNG, WebP, PDF, Word .docx, MP4. Audio
 is left out (backlog: an MCP voice note would need the Ogg/Opus checks of `voice-note.ts`).
@@ -80,7 +82,9 @@ characters) and is only ever used as the WhatsApp document name; the stored path
 **DoS and disk exhaustion.** Per token: 30 uploads an hour (failed ones count), 2 GB received a day (failed and
 refused bytes count), 10 uploads waiting, 2 receiving at once. In total: 4 receiving at once, 1 GB waiting, and an
 upload or link download is refused (507 `upload_storage_full`) when it would leave less than 1 GB free on the data
-disk (`statfs`). Fastify sets no request timeout, so the upload stream itself stops a sender after 60 s without data
+disk (`statfs`), counting the bytes every transfer in progress may still write. Link downloads share the upload
+slots, the daily byte budget and the disk check. A refused upload closes the connection (`Connection: close`) instead
+of draining up to 100 MB; a client that goes away mid-upload gets 400 `upload_incomplete`, not a server error. Fastify sets no request timeout, so the upload stream itself stops a sender after 60 s without data
 or 30 minutes in total (408 `upload_timeout`, partial file deleted). A link download
 is bounded by 100 MB, 2 minutes, the free-disk check and the send limits (10 a minute, 100 a day).
 
