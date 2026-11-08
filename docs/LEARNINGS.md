@@ -163,7 +163,9 @@ into AGENTS.md.
   fail while CI is green. Check `node -v` before calling such a failure the branch's or the machine's. `npm run e2e`
   in the cloud container also needs the Playwright build it expects: link `/opt/pw-browsers/chromium-<wanted>` (and
   `chromium_headless_shell-<wanted>`) to the installed one. To stop a mock runner, find its PID in
-  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it.
+  `/proc/*/cmdline`; `pkill -f <its path>` also matches the shell running the command and kills it. So does a `/proc` loop whose
+  pattern appears literally in the same command (a heredoc that writes the restart script counts): split the pattern
+  (`PAT="mobile-redes""ign/mock/run"`) and run the restart script in its own call.
 - Bootstrap replicas from actual frontend source and check frozen hashes; allowlist enhancement
   deltas so redesigned existing screens cannot silently become the next reference. Normalize text
   hashes to LF so Git checkout line endings do not look like UI drift.
@@ -215,11 +217,25 @@ into AGENTS.md.
   as `local-<clientId>` and renamed to WhatsApp's id when sent (`message:status` with `newId`), so key it by
   `clientId` until then, or the mark vanishes from the sent bubble.
 - Shot scripts that create server-side records (chats, audit rows) need a fresh runner per run, or the second run
-  meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run.
+  meets its own earlier data (a "new" number is already a chat). Restart the runner before each full run. Within one run, a step that "creates" a value must use one no seed has (a seeded
+  tag turned "Add “Wholesale”" into a plain pick), and steps reset persisted list filters (session storage) before the next.
 - A "real" Dev Build check of a signed remote list (connectors, templates) with `--fake-wa`: the server downloads
   nothing unless the `*_LIST_URL` env is set, so set it to the production URL (assert it equals the built-in constant)
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
+
+- Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
+  that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
+  so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
+- Before designing storage for "X on a new kind of record" (tags on groups), read the table's key and the read
+  model: `customer_tags` is keyed by `chat_jid` with no type check, so groups needed no table or migration, only
+  `rowToChat` stopped hiding them. A mock stand-in that writes the real table then proves filter, search and
+  suggestions without new server code.
+- Check `docs/design-system.md` token values against `apps/web/src/index.css` before quoting them in a mock or a
+  review: the file named 16 px `--radius-lg` while the CSS maps `--radius-lg` to 10 px; a reference page that reads
+  the tokens from the loaded stylesheets (mock `/design-system`) keeps the two honest.
+- A phone-only redesign renders the phone parts through one `usePhone()` (`max-width: 767px`, the inbox's `md` split)
+  and keeps the desktop render path byte-for-byte; the mock's shot script asserts the phone header is absent at 1280 px.
 
 - A new server-side refusal (a size limit, a window) needs a way through in every UI path that can hit it, not only
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
@@ -627,6 +643,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   shell without a terminal `gh run watch` can also return at once: poll `gh run view <id> --json status`, or
   `gh pr checks <pr> --json bucket` until no `pending` is left (never parse the text table: names have spaces).
   Filter with gh's own `--jq`: the owner's PC has no `jq`, and a watcher that pipes to it stays silent.
+  Right after a push, `gh pr checks` still lists the old commit's results (a stale fail or cancel): wait
+  on `gh run list --branch <b> --json headSha,status` for the new head SHA, then read the checks.
 - `gh pr checks --watch` and `gh run watch` can also return while a check is still pending or a job is
   still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
   `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
@@ -1416,8 +1434,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   ok/thanks" with no silent action made the model send an empty reply, which failed validation and handed
   the chat over as `ai_unavailable` (~2 % of turns). Never wrap a failure without keeping its kind, original
   class and status for the log, or every cause looks like the same plain `Error`.
-- Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`) is
-  admin-only. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
+- Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`, Enterprise
+  `C:\ProgramData\ezychat-enterprise`) is admin-only; the owner's downloads land in `D:\Downloads` (read the
+  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). An `AI decision` with `toolCalls: []` where a
+  connector tool was expected means the agent was not offered it: check that agent's own connector settings. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
   Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
   line (errName, status, finishReason; no message text). Never hand the owner admin-shell commands for it:
