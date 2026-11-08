@@ -43,10 +43,7 @@ export default async function settingsRoutes(app: FastifyInstance, ctx: AppConte
     zip.on('error', (err) => ctx.log.warn({ err }, 'logs zip failed'));
     return reply
       .header('content-type', 'application/zip')
-      .header(
-        'content-disposition',
-        `attachment; filename="wa-team-inbox-logs-${backupStamp(new Date())}.zip"`,
-      )
+      .header('content-disposition', `attachment; filename="wa-team-inbox-logs-${backupStamp(new Date())}.zip"`)
       .header('cache-control', 'no-store')
       .send(zip);
   });
