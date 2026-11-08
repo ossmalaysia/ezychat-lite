@@ -7,9 +7,9 @@ Branch: `feat/mcp-file-upload` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | docs/features/mcp-file-upload/design.md with security review; no UI, no mock | 537c6b9 | 2026-11-08 |
 | Dev | done | uploads store, POST /mcp/uploads, uploadId in send_image/send_file, send_video, sendMedia by path, link downloads to disk | 537c6b9 | 2026-11-08 |
-| Unit tests | done | mcp-upload.test.ts (20) + MCP/messages/forward suites; changed-lines coverage 98 % | 537c6b9 | 2026-11-08 |
+| Unit tests | done | mcp-upload.test.ts (23) + MCP/messages/forward suites (260); changed-lines coverage 98.3 % | bfecdc8 | 2026-11-08 |
 | E2E | skip | server-only route, no screen or web/desktop contract change (unit + Dev Build) | 537c6b9 | 2026-11-08 |
-| Dev Build | done | curl against --fake-wa: 50 MB PDF raw, 70 MB MP4 multipart, 100 MB streamed (~10 MB RSS) | 537c6b9 | 2026-11-08 |
+| Dev Build | done | curl against --fake-wa on bfecdc8: 50 MB PDF raw, 70 MB MP4 multipart (sent as a file), retry/reuse, 100 MB streamed | bfecdc8 | 2026-11-08 |
 | Screen review | skip | no screen changes | 537c6b9 | 2026-11-08 |
 
 ## Log
@@ -20,3 +20,5 @@ Branch: `feat/mcp-file-upload` · Every agent updates its stage with
 - 2026-11-08 E2E: skip — server-only route, no screen or web/desktop contract change (unit + Dev Build) (537c6b9)
 - 2026-11-08 Unit tests: done — mcp-upload.test.ts (20) + MCP/messages/forward suites; changed-lines coverage 98 % (537c6b9)
 - 2026-11-08 Dev Build: done — curl against --fake-wa: 50 MB PDF raw, 70 MB MP4 multipart, 100 MB streamed (~10 MB RSS) (537c6b9)
+- 2026-11-08 Dev Build: done — curl against --fake-wa on bfecdc8: 50 MB PDF raw, 70 MB MP4 multipart (sent as a file), retry/reuse, 100 MB streamed (bfecdc8)
+- 2026-11-08 Unit tests: done — mcp-upload.test.ts (23) + MCP/messages/forward suites (260); changed-lines coverage 98.3 % (bfecdc8)
