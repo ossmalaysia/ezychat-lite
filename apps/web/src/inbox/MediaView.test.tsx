@@ -167,7 +167,7 @@ describe('MediaView with WhatsApp thumbnail', () => {
     const photo = dialog.querySelector('img')!;
     fireEvent.load(photo);
     fireEvent.click(photo);
-    expect(screen.queryByRole('dialog')).not.toBeNull();
+    expect(screen.getByRole('dialog')).toBe(dialog);
 
     fireEvent.click(photo.parentElement!);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

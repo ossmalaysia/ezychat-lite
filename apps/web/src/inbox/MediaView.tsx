@@ -84,6 +84,7 @@ function Lightbox({
   const { t } = useTranslation(['inbox', 'common']);
   const [copyable] = useState(canCopyImage);
   const [loaded, setLoaded] = useState(false);
+  const backdrop = useRef<HTMLDivElement>(null);
   async function copyImage() {
     try {
       await copyImageFromUrl(src);
@@ -97,6 +98,11 @@ function Lightbox({
       <DialogContent
         showCloseButton={false}
         aria-label={t('media.preview')}
+        // A click on the empty space around the photo closes it, as on WhatsApp; keyboard users
+        // have Esc and the Close button. One handler on the dialog, none on plain elements.
+        onClick={(e) => {
+          if (e.target === backdrop.current) onOpenChange(false);
+        }}
         className="safe-top safe-bottom safe-x flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 sm:max-w-none translate-y-0 flex-col gap-0 rounded-none border-0 bg-background/95 p-0 top-0 left-0"
       >
         <DialogTitle className="sr-only">{t('media.preview')}</DialogTitle>
@@ -120,14 +126,7 @@ function Lightbox({
             </Button>
           </DialogClose>
         </div>
-        {/* A click beside the photo closes it, as on WhatsApp; keyboard users have Esc and the Close button. */}
-        <div
-          role="presentation"
-          className="flex min-h-0 flex-1 items-center justify-center p-2"
-          onClick={(e) => {
-            if (!(e.target instanceof HTMLImageElement)) onOpenChange(false);
-          }}
-        >
+        <div ref={backdrop} className="flex min-h-0 flex-1 items-center justify-center p-2">
           {!loaded && (
             <Loader2
               className="size-6 shrink-0 animate-spin text-muted-foreground"

@@ -1939,9 +1939,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   user exactly that text before Send (`GET …/defaults`); never trust the browser for diagnostics, and strip ids and
   numbers from a screen path before it leaves.
 
-- A click-to-close backdrop (lightbox) takes `role="presentation"` and closes unless `e.target` is the content, instead
-  of a second `onClick` with `stopPropagation` on the content: SonarCloud counts each handler on a non-interactive
-  element without a key handler as a bug (S1082), and Esc plus the Close button already serve keyboard users.
+- A click-to-close backdrop (lightbox) puts one `onClick` on the dialog component and closes when `e.target` is the
+  backdrop (a ref), not handlers on plain `<div>`/`<img>` with `stopPropagation`: SonarCloud counts each click handler
+  on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
+  button already serve keyboard users.
 
 ## Internationalization
 
