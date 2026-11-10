@@ -120,9 +120,13 @@ function Lightbox({
             </Button>
           </DialogClose>
         </div>
+        {/* A click beside the photo closes it, as on WhatsApp; keyboard users have Esc and the Close button. */}
         <div
+          role="presentation"
           className="flex min-h-0 flex-1 items-center justify-center p-2"
-          onClick={() => onOpenChange(false)}
+          onClick={(e) => {
+            if (!(e.target instanceof HTMLImageElement)) onOpenChange(false);
+          }}
         >
           {!loaded && (
             <Loader2
@@ -137,7 +141,6 @@ function Lightbox({
             onLoad={() => setLoaded(true)}
             onError={() => setLoaded(true)}
             className={loaded ? 'max-h-full max-w-full object-contain' : 'sr-only'}
-            onClick={(e) => e.stopPropagation()}
           />
         </div>
       </DialogContent>
