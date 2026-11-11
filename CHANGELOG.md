@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A reaction (or an edited message) that arrived while the chat was still loading could vanish until the chat was opened again; it now stays.
+- Opened on another computer over the local network (plain `http://` address), Send feedback and Forward no longer fail to open, and New chat no longer refuses the number.
 
 ## [0.1.83] - 2026-11-09
 
