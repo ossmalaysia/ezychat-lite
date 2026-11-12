@@ -115,7 +115,7 @@ const SCENARIOS = {
     answers: [[/kopi|sales|existing|use/i], [/aisyah|…7733/i]],
     expect: { newAgent: false, chatEnding: '7733', time: '10:00', dayRule: 'custom', days: [1] },
     mustAsk: false, // one Aisyah, time and day given: proposing at once is right
-    questionsNeeded: 0,
+    questionsNeeded: ROOM ? 1 : 0, // with room for a new agent, asking which agent once is right
   },
   ambiguous: {
     open: 'Send Jee Fong a good morning message on weekdays at 8:30 with a new agent',
@@ -160,7 +160,7 @@ async function runScenario(name, s) {
     questionsAsked++;
     if (qs.length > 1) oneQuestionEach = false;
     const q = qs[0];
-    if (COMPOUND.test(q.text)) oneQuestionEach = false;
+    if (COMPOUND.test(q.text) || q.choices.length < 2) oneQuestionEach = false; // two things at once, or a one-choice question
     if (/which|chat|jee fong/i.test(q.text) && q.choices.some((c) => /…\d{4}/.test(c)))
       askedChat = true;
     const patterns = s.answers.flat();
