@@ -1355,7 +1355,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Ask Ezy unit tests mock the model and often `scheduledTurn` too, so only a Dev Build runs the real tool path: a new
   Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
   their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
-  `Ask Ezy tool failed` {tool, errName}: read it before guessing why a tool "failed".
+  `Ask Ezy tool failed` {tool, errName}: read it before guessing why a tool "failed". To change how Ezy behaves (e.g.
+  no one-choice question), fix the prompt rules or return a tool error and measure it with the eval; do not tighten an
+  `AskEzyBlock` schema for it: a block that fails its schema is dropped without a trace.
 - A real-model eval (`e2e/ask-ezy-eval.mjs`) reads the environment before it expects anything (agent count against
   `maxAgents` from `GET /api/ai`), and each scenario states whether a question is needed: without that it scored correct
   refusals and correct direct proposals as failures. Read the saved turns (`--out`) before calling a check a model fault.
