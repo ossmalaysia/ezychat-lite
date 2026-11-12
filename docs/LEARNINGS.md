@@ -10,6 +10,11 @@ into AGENTS.md.
 
 ## Working method
 
+- The owner's test environment `start.ps1` serves the main folder's branch only. To hand over a branch that lives in
+  a worktree, run the same server command from the worktree (`--data D:\dev\test-env\lite\data --port 7491 --fake-wa
+--mode dev`, plus `--max-agents 2` for a multi-agent path) after checking the branch adds no migration to that kept
+  data. Point the owner to `claude-test-login.txt` for the login; never repeat it in chat.
+
 - A change that touches many places (8+ files or 400+ lines, docs and lockfiles excluded; the `review-nudge` hook
   says so) gets `/code-review` before its PR, its findings fixed or reported in the PR; merging still waits for the
   owner's explicit request.
