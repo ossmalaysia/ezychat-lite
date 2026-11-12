@@ -144,6 +144,21 @@ describe('Ask Ezy setup', () => {
     ).toBe(true);
   });
 
+  it('prints a question once when the answer text repeats it', async () => {
+    const text = 'Should a new agent send it, or your Sales Agent?';
+    replies.push({
+      events: [
+        answer({
+          text,
+          blocks: [{ type: 'question', text, choices: ['New agent', 'Sales Agent'] }],
+        }),
+      ],
+    });
+    await start();
+    await screen.findByTestId('ask-block-question');
+    expect(screen.getAllByText(text)).toHaveLength(1);
+  });
+
   it('shows the Lite note and an error note above the question', async () => {
     replies.push({
       events: [

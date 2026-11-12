@@ -241,6 +241,8 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
         signal,
         onCall: (call) => {
           calls.push(call);
+          if (call.errName)
+            log.warn({ tool: call.tool, errName: call.errName }, 'Ask Ezy tool failed');
           if (call.ok) emit({ type: 'step', key: call.tool, count: call.count });
         },
       });

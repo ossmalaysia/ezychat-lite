@@ -778,12 +778,18 @@ function AnswerView({
       toast.error(t('askEzy.copyFailed'));
     }
   };
+  // A question card already shows the question: do not print the same words above it again.
+  const repeated = answer.blocks.some(
+    (b) => b.type === 'question' && b.text.trim() === answer.text.trim(),
+  );
   return (
     <div className="flex min-w-0 flex-col gap-2" data-testid="ask-ezy-answer">
-      <p className="flex gap-2 text-sm">
-        <BotMessageSquare className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-        <span>{answer.text}</span>
-      </p>
+      {!repeated && (
+        <p className="flex gap-2 text-sm">
+          <BotMessageSquare className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <span>{answer.text}</span>
+        </p>
+      )}
       {answer.blocks.map((b, i) => (
         <AskEzyBlock
           key={i}

@@ -1,3 +1,4 @@
+import { errorNameOf } from '../ai/agent/models.js';
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import {
@@ -158,7 +159,14 @@ export interface AskEzyToolDeps {
   /** The Ask Ezy request's signal: a proposal preview stops with it. */
   signal?: AbortSignal;
   /** One line per call for the log and the live steps: tool name, rows, ok. Never inputs or outputs. */
-  onCall: (call: { tool: string; count: number; ok: boolean; ms: number }) => void;
+  /** `errName`: an unexpected failure's error class (never its message, which can hold chat text). */
+  onCall: (call: {
+    tool: string;
+    count: number;
+    ok: boolean;
+    ms: number;
+    errName?: string;
+  }) => void;
 }
 
 const neverSend: InboxSendPort = new Proxy({} as InboxSendPort, {
@@ -166,6 +174,8 @@ const neverSend: InboxSendPort = new Proxy({} as InboxSendPort, {
     throw new ToolError('Ask Ezy never sends messages');
   },
 });
+
+const UNEXPECTED_FAILURE = 'The tool failed. Try another way or answer with what you have.';
 
 /** Expected failures go back to the model as text; anything else is a short fixed message. */
 function failure(err: unknown): string {
@@ -177,7 +187,7 @@ function failure(err: unknown): string {
     err instanceof HttpError
   )
     return err.message;
-  return 'The tool failed. Try another way or answer with what you have.';
+  return UNEXPECTED_FAILURE;
 }
 
 export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
@@ -201,8 +211,15 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
       deps.onCall({ tool: name, count, ok: true, ms: Math.round(performance.now() - started) });
       return result;
     } catch (err) {
-      deps.onCall({ tool: name, count: 0, ok: false, ms: Math.round(performance.now() - started) });
-      return { error: failure(err) };
+      const message = failure(err);
+      deps.onCall({
+        tool: name,
+        count: 0,
+        ok: false,
+        ms: Math.round(performance.now() - started),
+        ...(message === UNEXPECTED_FAILURE ? { errName: errorNameOf(err) ?? 'Error' } : {}),
+      });
+      return { error: message };
     }
   };
   /** Chat ids the look-ups of this answer returned: the only ones a task proposal may name. */

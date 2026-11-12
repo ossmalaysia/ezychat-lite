@@ -191,6 +191,23 @@ describe('Ask Ezy question block', () => {
 });
 
 describe('Ask Ezy sets up scheduled tasks (Lite)', () => {
+  it('logs an unexpected tool failure by its error class only, and tells the model a fixed text', async () => {
+    const s = await setup();
+    let result: Record<string, unknown> = {};
+    s.setScript(async (tools) => {
+      // A model that skipped the input check: no taskId (a ZodError inside the tool).
+      result = await exec(tools, 'propose_scheduled_task_edit', { time: '08:30' });
+      return { text: 'Could not change it.', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie, 'Move it to 8:30');
+    expect(result.error).toBe('The tool failed. Try another way or answer with what you have.');
+    const line = s.logLines
+      .map((l) => JSON.parse(l) as Record<string, unknown>)
+      .find((l) => l.msg === 'Ask Ezy tool failed');
+    expect(line).toMatchObject({ tool: 'propose_scheduled_task_edit', errName: 'ZodError' });
+    expect(JSON.stringify(line)).not.toContain('08:30');
+  });
+
   it('gives team members none of the setup tools and no setup cards', async () => {
     const s = await setup();
     let names: string[] = [];
