@@ -118,6 +118,13 @@ A hidden chat behaves like a chat that does not exist, for everyone (admins, the
 - A screen to see or delete hidden / archived chats (they stay invisible).
 - Deleting the chat on the WhatsApp phone too.
 
+## Owner answers during the build (2026-11-12)
+
+- Admin → Inboxes **Link the phone again** logs the number out, so it hides every chat: it asks for confirmation
+  first (not in the quick mock; kept).
+- New chat or a group member's **Message** for a customer whose chat is hidden (same number) shows the old chat
+  again with its history. Archived chats of another number never come back.
+
 ## Review
 
 Owner choice 2026-11-12: screenshots of a quick mock (`mock/index.html`: Log out dialog, Delete chat menu item and
