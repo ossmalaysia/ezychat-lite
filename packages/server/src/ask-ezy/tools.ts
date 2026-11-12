@@ -3,7 +3,6 @@ import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import {
   AI_INSTRUCTIONS_CHARACTERS,
-  AiAgentPreset,
   AskEzyChangeTarget,
   ScheduledDayRule,
   type User,
@@ -38,6 +37,12 @@ export const ASK_EZY_ADMIN_TOOLS: readonly string[] = [
   'get_ai_setup_version',
   'try_ai_reply',
   'propose_ai_setup_change',
+];
+/**
+ * The setup turn (after `start_setup`, on the main model) adds these; a normal admin turn has only
+ * `start_setup` instead.
+ */
+export const ASK_EZY_SETUP_TOOLS: readonly string[] = [
   'list_scheduled_tasks',
   'propose_agent',
   'propose_scheduled_task',
@@ -61,8 +66,14 @@ const chatJid = z
   );
 
 export const ProposeAgentInput = z.strictObject({
-  name: z.string().trim().min(1).max(60).describe('The agent name, e.g. "Morning greeter"'),
-  preset: AiAgentPreset.describe('sales = sells; faq = answers questions; custom = anything else'),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(60)
+    .describe(
+      'A name from what it does, e.g. "Morning greeter"; never generic ("New AI agent", "Assistant") nor an existing agent\'s name',
+    ),
   inboxId: z
     .number()
     .int()
@@ -73,13 +84,17 @@ export const ProposeAgentInput = z.strictObject({
     .string()
     .max(AI_INSTRUCTIONS_CHARACTERS)
     .optional()
-    .describe('Its AI instructions; omit to start from the preset text'),
+    .describe(
+      'Optional extra detail for its instructions (tone, what to mention); the server writes its role from purpose',
+    ),
   purpose: z
     .string()
     .trim()
     .min(3)
     .max(300)
-    .describe("What it will do, one short sentence in the person's language, for the card"),
+    .describe(
+      'What it sends, to whom and when, one sentence in the person\'s language (e.g. "Sends Jee Fong a warm good-morning greeting every day at 9am"); its instructions are written from it',
+    ),
 });
 
 export const ProposeTaskInput = z.strictObject({
@@ -158,6 +173,12 @@ export interface AskEzyToolDeps {
   setup: SetupStore;
   /** The Ask Ezy request's signal: a proposal preview stops with it. */
   signal?: AbortSignal;
+  /**
+   * Admins: `normal` offers `start_setup` (calls `onStartSetup`), `setup` offers the setup tools instead
+   * (the main-model turn after `start_setup`). Default `normal`.
+   */
+  mode?: 'normal' | 'setup';
+  onStartSetup?: () => void;
   /** One line per call for the log and the live steps: tool name, rows, ok. Never inputs or outputs. */
   /** `errName`: an unexpected failure's error class (never its message, which can hold chat text). */
   onCall: (call: {
@@ -243,7 +264,18 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
         }),
     });
   }
-  if (isAdmin) {
+  if (isAdmin && deps.mode !== 'setup')
+    tools.start_setup = tool({
+      description:
+        'Call this (and nothing else) when the admin wants to create or change an AI agent or a scheduled task (a message an agent sends at set times), e.g. "a new agent that greets Jee Fong at 9am" or "move the morning greeting to 8:30". A setup assistant then takes over this question.',
+      inputSchema: z.strictObject({}),
+      execute: () =>
+        run('start_setup', () => {
+          deps.onStartSetup?.();
+          return { result: { started: true }, count: 0 };
+        }),
+    });
+  if (isAdmin && deps.mode === 'setup') {
     tools.list_scheduled_tasks = tool({
       description:
         "Lists the AI agents' scheduled tasks (taskId, agent, name, time, days, chat, instruction, on/off) in the business time zone. Read it before changing a task.",
@@ -257,7 +289,7 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
     });
     tools.propose_agent = tool({
       description:
-        'Proposes a new AI agent. Nothing is created: the admin sees a card and decides with Apply, and the agent starts switched off. Refused when the edition allows no more agents (then offer an existing agent). Returns proposalId: add a block {type: \'agent_proposal\', json: \'{"id":"<proposalId>"}\'}, and pass it as agentProposalId to propose_scheduled_task when the task is for this agent.',
+        "Proposes a new AI agent that sends scheduled messages (it never answers chats; the server writes its instructions from purpose). Always propose its scheduled task in the same answer: call propose_scheduled_task with agentProposalId, then add both blocks; a new agent without its task is left out. Nothing is created: the admin applies both with one button, and the agent starts switched off. Refused at the edition's agent limit (then offer an existing agent) and for a generic name. Returns proposalId: add a block {type: 'agent_proposal', json: '{\"id\":\"<proposalId>\"}'}.",
       inputSchema: ProposeAgentInput,
       execute: (args) =>
         run('propose_agent', () => {

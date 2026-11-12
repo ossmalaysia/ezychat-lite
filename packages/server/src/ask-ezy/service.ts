@@ -69,7 +69,21 @@ export interface AskEzyService {
   ): Promise<void>;
 }
 
-export function createAskEzyService(ctx: AppContext): AskEzyService {
+/**
+ * Each Ask Ezy turn's total time: the fast turn, and the main-model setup turn after `start_setup` (it may
+ * run a preview inside a tool). After it the turn stops and the person gets `ai_timeout`.
+ */
+export const ASK_EZY_FAST_BUDGET_MS = 90_000;
+export const ASK_EZY_SETUP_BUDGET_MS = 150_000;
+
+export function createAskEzyService(
+  ctx: AppContext,
+  opts: { fastBudgetMs?: number; setupBudgetMs?: number } = {},
+): AskEzyService {
+  const budgets = {
+    fastMs: opts.fastBudgetMs ?? ASK_EZY_FAST_BUDGET_MS,
+    mainMs: opts.setupBudgetMs ?? ASK_EZY_SETUP_BUDGET_MS,
+  };
   const log = ctx.log.child({ mod: 'ask-ezy' });
   const changes = createChangeStore(ctx);
   const setup = createSetupStore(ctx);
@@ -180,11 +194,40 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
       instruction: p.spec.instruction,
       timeZone: p.timeZone,
       preview: p.preview === null ? null : clip(p.preview, 4000),
+      ...(p.previewTimedOut ? { previewTimedOut: true } : {}),
       before: p.edit ? p.edit.before : null,
       ...(p.taskId ? { taskId: p.taskId } : p.edit ? { taskId: p.edit.taskId } : {}),
       status: p.status,
     });
     return parsed.success ? parsed.data : null;
+  }
+
+  /**
+   * A new agent comes only with its scheduled task (owner decision 2026-11-12): an agent card without a task
+   * card that needs it is left out, with a note that asks what it should send; a task card of a pending new
+   * agent brings that agent's card when the model left it out.
+   */
+  function withSetupRules(user: User, blocks: AskEzyBlock[]): AskEzyBlock[] {
+    const needed = new Set(
+      blocks.flatMap((b) => (b.type === 'task_proposal' && b.dependsOn ? [b.dependsOn] : [])),
+    );
+    const shown = new Set(blocks.flatMap((b) => (b.type === 'agent_proposal' ? [b.id] : [])));
+    const out: AskEzyBlock[] = [];
+    let noted = false;
+    for (const b of blocks) {
+      if (b.type === 'agent_proposal' && !needed.has(b.id) && b.status !== 'applied') {
+        if (!noted) out.push({ type: 'setup_note', code: 'agent_needs_task' });
+        noted = true;
+        continue;
+      }
+      if (b.type === 'task_proposal' && b.dependsOn && !shown.has(b.dependsOn)) {
+        const agent = setupBlock(user, 'agent_proposal', { id: b.dependsOn });
+        if (agent) out.push(agent);
+        shown.add(b.dependsOn);
+      }
+      out.push(b);
+    }
+    return out;
   }
 
   /** Tool calls in order, repeated calls of one tool merged (their row counts added). */
@@ -232,20 +275,30 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
       }
       const started = Date.now();
       const calls: Array<{ tool: string; count: number; ok: boolean; ms: number }> = [];
-      const tools = askEzyTools({
-        user,
-        inbox,
-        aiSetup,
-        changes,
-        setup,
-        signal,
-        onCall: (call) => {
-          calls.push(call);
-          if (call.errName)
-            log.warn({ tool: call.tool, errName: call.errName }, 'Ask Ezy tool failed');
-          if (call.ok) emit({ type: 'step', key: call.tool, count: call.count });
-        },
-      });
+      // `start_setup` ends the fast turn: the same request then runs on the main model with the setup tools.
+      const setupStart = new AbortController();
+      let setupRequested = false;
+      const toolsFor = (mode: 'normal' | 'setup', turnSignal: AbortSignal) =>
+        askEzyTools({
+          user,
+          inbox,
+          aiSetup,
+          changes,
+          setup,
+          signal: turnSignal,
+          mode,
+          onStartSetup: () => {
+            setupRequested = true;
+            setupStart.abort();
+          },
+          onCall: (call) => {
+            if (call.tool === 'start_setup') return;
+            calls.push(call);
+            if (call.errName)
+              log.warn({ tool: call.tool, errName: call.errName }, 'Ask Ezy tool failed');
+            if (call.ok) emit({ type: 'step', key: call.tool, count: call.count });
+          },
+        });
       const messages: ModelMessage[] = [
         ...request.history.map((turn): ModelMessage =>
           turn.role === 'user'
@@ -254,18 +307,85 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
         ),
         { role: 'user', content: request.question },
       ];
-      const instructions = askEzyInstructions({
-        isAdmin: user.role === 'admin',
-        userName: user.displayName,
-        timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
-        now: new Date(),
-        chat,
-        maxAgents: ai.maxAgents(),
-      });
+      const instructionsFor = (setupTurn: boolean) =>
+        askEzyInstructions({
+          isAdmin: user.role === 'admin',
+          userName: user.displayName,
+          timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
+          now: new Date(),
+          chat,
+          maxAgents: ai.maxAgents(),
+          setup: setupTurn,
+        });
+      let setupTurn = false;
+      let budgetHit = false;
+      /**
+       * One model turn inside its total budget: the model call and its tools stop with it, and the turn ends
+       * even when a provider never answers (the person never waits without an answer or an error).
+       */
+      const turn = async (
+        mode: 'normal' | 'setup',
+        outer: AbortSignal,
+        ms: number,
+      ): Promise<Awaited<ReturnType<typeof ai.assist>>> => {
+        const budget = new AbortController();
+        const timer = setTimeout(() => {
+          budgetHit = true;
+          budget.abort();
+        }, ms);
+        const turnSignal = AbortSignal.any([outer, budget.signal]);
+        const stopped = new Promise<never>((_resolve, reject) =>
+          turnSignal.addEventListener('abort', () => reject(new Error('turn stopped')), {
+            once: true,
+          }),
+        );
+        const work = ai.assist(
+          {
+            instructions: instructionsFor(mode === 'setup'),
+            messages,
+            tools: toolsFor(mode, turnSignal),
+            ...(mode === 'setup' ? { main: true } : {}),
+          },
+          turnSignal,
+        );
+        work.catch(() => {});
+        stopped.catch(() => {});
+        try {
+          return await Promise.race([work, stopped]);
+        } finally {
+          clearTimeout(timer);
+          budget.abort();
+        }
+      };
       try {
-        const result = await ai.assist({ instructions, messages, tools }, signal);
+        let result: Awaited<ReturnType<typeof ai.assist>> | null = null;
+        try {
+          result = await turn(
+            'normal',
+            AbortSignal.any([signal, setupStart.signal]),
+            budgets.fastMs,
+          );
+        } catch (error) {
+          if (!setupRequested || signal.aborted || budgetHit) throw error;
+        }
+        if (setupRequested) {
+          setupTurn = true;
+          log.info(
+            {
+              event: 'ask_ezy_setup_start',
+              fastModel: result?.model ?? null,
+              ms: Date.now() - started,
+            },
+            'Ask Ezy setup turn on the main model',
+          );
+          result = await turn('setup', signal, budgets.mainMs);
+        }
+        if (!result) throw new Error('no answer');
         const all = result.output.blocks.slice(0, MAX_BLOCKS * 2).map((raw) => block(user, raw));
-        const blocks = all.filter((b): b is AskEzyBlock => b !== null).slice(0, MAX_BLOCKS);
+        const blocks = withSetupRules(
+          user,
+          all.filter((b): b is AskEzyBlock => b !== null),
+        ).slice(0, MAX_BLOCKS);
         const answer = AskEzyAnswer.parse({
           text: clip(result.output.text, 4000) || '…',
           blocks,
@@ -286,6 +406,7 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
             dropped: all.length - blocks.length,
             ms: Date.now() - started,
             model: result.model,
+            ...(setupTurn ? { setup: true } : {}),
           },
           'Ask Ezy answered',
         );
@@ -295,6 +416,24 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
             { event: 'ask_ezy', stopped: true, ms: Date.now() - started },
             'Ask Ezy stopped',
           );
+          return;
+        }
+        if (budgetHit) {
+          // The turn's total budget ran out: counts and names only, never text.
+          log.warn(
+            {
+              event: 'ask_ezy',
+              code: 'ai_timeout',
+              kind: 'budget',
+              setup: setupTurn,
+              budgetMs: setupTurn ? budgets.mainMs : budgets.fastMs,
+              toolCalls: calls.length,
+              tools: calls.map((c) => c.tool),
+              ms: Date.now() - started,
+            },
+            'Ask Ezy took too long',
+          );
+          emit({ type: 'error', code: 'ai_timeout' });
           return;
         }
         const failure = error instanceof AgentTurnFailure ? error : null;

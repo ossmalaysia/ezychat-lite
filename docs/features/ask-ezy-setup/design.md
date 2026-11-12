@@ -90,6 +90,28 @@ agentProposalId …]`) to the assistant's text, so a tapped choice answers that 
   with its new agent, the agent card has no Undo of its own: the task's Undo removes both.
 - "Open scheduled tasks" goes to `/admin/members/ai/:agentId#scheduled-tasks`; the card scrolls into view.
 
+### After the owner's real-model test (2026-11-12)
+
+The owner tested with `gpt-6-luna` (the fast model) and got an unusable "New AI agent" with the FAQ help-desk text
+and no task. Owner-chosen fixes:
+
+- **Setup runs on the main model.** A normal admin turn (fast model) offers only `start_setup`; calling it reruns the
+  same request (same history) on the connection's saved model with the setup rules and tools. Normal questions stay
+  fast. Team members never get it.
+- **A new agent is written by the server**: always preset `custom`, "Answer direct chats" off, its role text from the
+  required `purpose` (what it sends, to whom, when; that it does not answer chats; the presets' language rules);
+  `instructions` only adds detail. Generic names ("New AI agent", "Assistant", "Agent 2") and an existing agent's
+  name are refused with a hint ("Morning greeter").
+- **A new agent comes only with its task** (chosen over "refuse propose_agent", because the server can check the whole
+  answer): an agent card without a task card that needs it is dropped and a note asks what it should send; the route
+  refuses Apply of an agent proposal (409 `agent_needs_task`); the panel shows no Apply on an agent card.
+- **The agent-limit sentence uses the real limit**: Lite with one agent keeps the mock's text; otherwise "This EzyChat
+  allows N AI agents and all are in use, so I can't add a new one."
+- **Time limits:** a preview gets 20 s (then the card comes without it: "The preview took too long…"); a whole turn
+  gets 90 s (fast) or 150 s (setup), then `ai_timeout` (a turn once hung for over 5 minutes with no log line).
+- **Prompt:** before any proposal the agent, the chat and the time/days must be explicit; one question = one unknown,
+  agent first, then chat, then time; never a choice like "I'll clarify".
+
 ## Screens (quick mock)
 
 Ask Ezy panel, desktop 1280 and phone 360, light and dark: (1) the question with choices (new or existing agent);

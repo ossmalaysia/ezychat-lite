@@ -346,12 +346,17 @@ async function mockAssist(call: AiAssistCall) {
     output: { text: t, blocks, followUps: [] },
     toolCalls: [],
     steps: 1,
-    model: 'mock-model',
+    model: call.main ? 'mock-main' : 'mock-fast',
   });
   const question = (t: string, choices: string[]) =>
     answer(t, [{ type: 'question', json: JSON.stringify({ text: t, choices }) }]);
   const jeeFongs = async () =>
     ((await runAssistTool(call, 'list_chats', { query: 'Jee Fong' })).chats as FoundChat[]) ?? [];
+  // Like a real model on the fast turn: a setup request hands over to the main-model setup turn.
+  if (!call.main && call.tools.start_setup) {
+    await runAssistTool(call, 'start_setup', {});
+    return { ...answer('Setting up…'), model: 'mock-fast' };
+  }
   if (/greets? Jee Fong/i.test(text))
     return question('Should a new agent send it, or your Sales Agent?', [
       'New agent',
@@ -370,8 +375,7 @@ async function mockAssist(call: AiAssistCall) {
     if (!chat) return answer('chat=not-found');
     const agent = await runAssistTool(call, 'propose_agent', {
       name: 'Morning greeter',
-      preset: 'custom',
-      purpose: 'Sends the morning greeting.',
+      purpose: 'Sends Jee Fong a warm good-morning greeting every day at 9am.',
     });
     if (!agent.proposalId) return answer(`agent=${String(agent.error ?? 'failed')}`);
     const task = await runAssistTool(call, 'propose_scheduled_task', {

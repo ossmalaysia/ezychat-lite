@@ -10,7 +10,8 @@ import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { HttpError } from '../src/http/errors.js';
 import { ASK_EZY_PREVIEWS_PER_MINUTE, chatEnding, createSetupStore } from '../src/ask-ezy/setup.js';
 import { ProposeError } from '../src/ask-ezy/changes.js';
-import { ScheduledTaskBody, presetTexts } from '@ezychat/shared';
+import { AskEzyRequest, ScheduledTaskBody, presetTexts } from '@ezychat/shared';
+import { createAskEzyService } from '../src/ask-ezy/service.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
 
@@ -38,15 +39,30 @@ const exec = async (tools: ToolSet, name: string, args: object) => {
   })) as Record<string, unknown>;
 };
 
-/** Lite: one inbox, one agent ("Aina"). `several`: 3 inboxes allowed (so 3 agents), 2 exist. */
-async function setup(opts: { several?: boolean; noAgent?: boolean } = {}) {
+/**
+ * Lite: one inbox, one agent ("Aina"). `several`: 3 inboxes allowed (so 3 agents), 2 exist. The fake model's
+ * fast turn calls `start_setup` when it is offered (as a real model does for a setup request), so `script`
+ * runs on the main-model setup turn; `fastOnly` keeps every script on the fast turn.
+ */
+async function setup(opts: { several?: boolean; noAgent?: boolean; fastOnly?: boolean } = {}) {
   let script: Script = async () => ({ text: 'Hello', blocks: [], followUps: [] });
   const logLines: string[] = [];
+  const calls: AiAssistCall[] = [];
   const provider: AiProvider = {
     generate: vi.fn(),
     assist: vi.fn(async (_settings, _key, call: AiAssistCall) => {
+      calls.push(call);
+      if (!opts.fastOnly && !call.main && call.tools.start_setup) {
+        await exec(call.tools, 'start_setup', {});
+        return {
+          output: { text: 'Setting up…', blocks: [], followUps: [] },
+          toolCalls: ['start_setup'],
+          steps: 1,
+          model: 'gpt-fast',
+        };
+      }
       const output = await script(call.tools);
-      return { output, toolCalls: [], steps: 1, model: 'gpt-test' };
+      return { output, toolCalls: [], steps: 1, model: call.main ? 'gpt-main' : 'gpt-fast' };
     }),
     connection: () => ({ state: 'connected', loginUrl: null, error: null }),
     login: vi.fn(),
@@ -104,6 +120,7 @@ async function setup(opts: { several?: boolean; noAgent?: boolean } = {}) {
     actor,
     agentId,
     logLines,
+    calls,
     provider,
     scheduledTurn,
     adminCookie: cookie(admin.id),
@@ -238,7 +255,6 @@ describe('Ask Ezy sets up scheduled tasks (Lite)', () => {
     s.setScript(async (tools) => {
       result = await exec(tools, 'propose_agent', {
         name: 'Morning greeter',
-        preset: 'custom',
         purpose: 'Sends the morning greeting.',
       });
       return { text: 'Lite has one agent.', blocks: [], followUps: [] };
@@ -467,26 +483,12 @@ describe('Ask Ezy sets up scheduled tasks (Lite)', () => {
 
   it('refuses a new agent on Apply once the Lite limit is reached (409 agent_limit)', async () => {
     const s = await setup({ noAgent: true });
-    let id = '';
-    s.setScript(async (tools) => {
-      const r = await exec(tools, 'propose_agent', {
-        name: 'Morning greeter',
-        preset: 'custom',
-        purpose: 'Sends the morning greeting.',
-      });
-      id = String(r.proposalId);
-      return {
-        text: 'Here is the plan.',
-        blocks: [{ type: 'agent_proposal', json: json({ id }) }],
-        followUps: [],
-      };
-    });
-    const answer = await ask(s.t, s.adminCookie);
+    const { answer, taskPid } = await bothProposed(s, null);
     expect(blockOf(answer, 'agent_proposal')).toMatchObject({
       name: 'Morning greeter',
       preset: 'custom',
       inboxName: expect.any(String),
-      note: 'Sends the morning greeting.',
+      note: 'Sends scheduled messages only.',
       status: 'proposed',
     });
     // Meanwhile the one agent Lite allows was made on the agent page.
@@ -494,10 +496,11 @@ describe('Ask Ezy sets up scheduled tasks (Lite)', () => {
       { displayName: 'Aina', enabled: false, instructions: '' },
       s.actor,
     );
-    const res = await act(s.t, s.adminCookie, id, 'apply');
+    const res = await act(s.t, s.adminCookie, taskPid, 'apply');
     expect(res.statusCode).toBe(409);
     expect(res.json().error.code).toBe('agent_limit');
     expect(listAgents(s.t.ctx.db)).toHaveLength(1);
+    expect(taskCount(s.t)).toBe(0);
   });
 });
 
@@ -508,7 +511,6 @@ async function bothProposed(s: Awaited<ReturnType<typeof setup>>, inboxId: numbe
   s.setScript(async (tools) => {
     const agent = await exec(tools, 'propose_agent', {
       name: 'Morning greeter',
-      preset: 'custom',
       ...(inboxId ? { inboxId } : {}),
       purpose: 'Sends scheduled messages only.',
     });
@@ -544,7 +546,11 @@ describe('Ask Ezy sets up agents (several numbers)', { timeout: 30_000 }, () => 
         agentId: null,
         chatJid: JEE,
         preview: true,
-        draft: { name: 'Morning greeter', preset: 'custom', instructions: null },
+        draft: {
+          name: 'Morning greeter',
+          preset: 'custom',
+          instructions: expect.stringContaining('Sends scheduled messages only.'),
+        },
       }),
       expect.any(AbortSignal),
     );
@@ -607,7 +613,7 @@ describe('Ask Ezy sets up agents (several numbers)', { timeout: 30_000 }, () => 
     expect(listAgents(s.t.ctx.db)).toHaveLength(2);
   });
 
-  it('never applies a task whose new agent was discarded; the agent alone undoes cleanly', async () => {
+  it('never applies a task whose new agent was discarded, nor a new agent without its task', async () => {
     const s = await setup({ several: true });
     const { agentPid, taskPid } = await bothProposed(s);
     expect((await act(s.t, s.adminCookie, agentPid, 'discard')).json()).toMatchObject({
@@ -616,14 +622,14 @@ describe('Ask Ezy sets up agents (several numbers)', { timeout: 30_000 }, () => 
     const refused = await act(s.t, s.adminCookie, taskPid, 'apply');
     expect(refused.statusCode).toBe(409);
     expect(refused.json().error.code).toBe('agent_discarded');
-    // Show it again, apply the agent alone, then undo it (off, no chats, no tasks).
+    // Shown again, the agent still applies only with its task.
     expect((await act(s.t, s.adminCookie, agentPid, 'undo')).json().status).toBe('proposed');
-    const applied = await act(s.t, s.adminCookie, agentPid, 'apply');
-    expect(applied.json()).toMatchObject({ status: 'applied', agentOn: false });
-    expect(listAgents(s.t.ctx.db)).toHaveLength(2);
-    expect((await act(s.t, s.adminCookie, agentPid, 'discard')).statusCode).toBe(409);
-    expect((await act(s.t, s.adminCookie, agentPid, 'undo')).json().status).toBe('proposed');
+    const alone = await act(s.t, s.adminCookie, agentPid, 'apply');
+    expect(alone.statusCode).toBe(409);
+    expect(alone.json().error.code).toBe('agent_needs_task');
     expect(listAgents(s.t.ctx.db)).toHaveLength(1);
+    expect((await act(s.t, s.adminCookie, taskPid, 'apply')).json().status).toBe('applied');
+    expect((await act(s.t, s.adminCookie, agentPid, 'discard')).statusCode).toBe(409);
     expect((await act(s.t, s.adminCookie, 'gone', 'apply')).statusCode).toBe(404);
   });
 
@@ -645,14 +651,12 @@ describe('Ask Ezy sets up agents (several numbers)', { timeout: 30_000 }, () => 
       results.push(
         await exec(tools, 'propose_agent', {
           name: 'Greeter',
-          preset: 'custom',
           purpose: 'Greets.',
         }),
       );
       results.push(
         await exec(tools, 'propose_agent', {
           name: 'Greeter',
-          preset: 'custom',
           inboxId: 9,
           purpose: 'Greets.',
         }),
@@ -722,13 +726,18 @@ describe('Ask Ezy setup: review fixes', { timeout: 30_000 }, () => {
 
   it('never removes a new agent the admin filled in since Apply', async () => {
     const s = await setup({ several: true });
-    const { agentPid } = await bothProposed(s);
-    const applied = (await act(s.t, s.adminCookie, agentPid, 'apply')).json();
+    const { agentPid, taskPid } = await bothProposed(s);
+    const applied = (await act(s.t, s.adminCookie, taskPid, 'apply')).json();
     s.t.ctx.services.ai!.addText(
       applied.agentId,
       { name: 'Opening hours', text: 'We open at 9.' },
       s.actor,
     );
+    // The task's Undo removes the task; the filled-in agent stays.
+    expect((await act(s.t, s.adminCookie, taskPid, 'undo')).json()).toMatchObject({
+      status: 'proposed',
+      related: [{ id: agentPid, status: 'applied' }],
+    });
     const res = await act(s.t, s.adminCookie, agentPid, 'undo');
     expect(res.statusCode).toBe(409);
     expect(res.json().error.code).toBe('setup_changed');
@@ -778,12 +787,19 @@ describe('Ask Ezy setup: review fixes', { timeout: 30_000 }, () => {
       dayRule: 'daily' as const,
       instruction: INSTRUCTION,
     };
+    // A preview that waits: stopping the Ask Ezy request stops it (no budget hit, no preview).
+    s.scheduledTurn.mockImplementationOnce(
+      (_input, signal: AbortSignal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('aborted'))),
+        ) as never,
+    );
     const stop = new AbortController();
-    await store.proposeTask(s.admin, input, new Set([JEE]), stop.signal);
-    const signal = s.scheduledTurn.mock.calls.at(-1)![1];
-    expect(signal.aborted).toBe(false);
+    const pending = store.proposeTask(s.admin, input, new Set([JEE]), stop.signal);
+    await vi.waitFor(() => expect(s.scheduledTurn).toHaveBeenCalledTimes(1));
     stop.abort();
-    expect(signal.aborted).toBe(true);
+    expect(await pending).toMatchObject({ preview: null });
+    expect((await pending).previewTimedOut).toBeUndefined();
     for (let i = 1; i < ASK_EZY_PREVIEWS_PER_MINUTE; i++)
       await store.proposeTask(s.admin, input, new Set([JEE]));
     const over = await store.proposeTask(s.admin, input, new Set([JEE]));
@@ -850,8 +866,8 @@ describe('Ask Ezy setup: review fixes', { timeout: 30_000 }, () => {
 
   it('reports whether a new agent is on, also on a repeated Apply', async () => {
     const s = await setup({ noAgent: true });
-    const { agentPid } = await bothProposed(s, null);
-    const first = (await act(s.t, s.adminCookie, agentPid, 'apply')).json();
+    const { agentPid, taskPid } = await bothProposed(s, null);
+    const first = (await act(s.t, s.adminCookie, taskPid, 'apply')).json();
     expect(first.agentOn).toBe(false);
     const agent = agentById(s.t.ctx.db, first.agentId)!;
     s.t.ctx.db.prepare('UPDATE users SET disabled_at = NULL WHERE id = ?').run(agent.userId);
@@ -881,9 +897,9 @@ describe('Ask Ezy setup: review fixes', { timeout: 30_000 }, () => {
     const s = await setup({ several: true });
     const store = createSetupStore(s.t.ctx);
     const agent = (name: string) =>
-      store.proposeAgent(s.admin, { name, preset: 'custom', inboxId: 1, purpose: 'Greets.' });
-    const first = agent('First');
-    for (let i = 0; i < 19; i++) agent(`Agent ${i}`);
+      store.proposeAgent(s.admin, { name, inboxId: 1, purpose: 'Greets.' });
+    const first = agent('First greeter');
+    for (let i = 0; i < 19; i++) agent(`Greeter ${i}`);
     const task = await store.proposeTask(
       s.admin,
       {
@@ -899,7 +915,7 @@ describe('Ask Ezy setup: review fixes', { timeout: 30_000 }, () => {
     expect(store.get(first.id, s.admin)).not.toBeNull();
     expect(store.get(task.id, s.admin)).not.toBeNull();
     // Pushed out later, the pair goes together.
-    for (let i = 0; i < 20; i++) agent(`More ${i}`);
+    for (let i = 0; i < 20; i++) agent(`Reminder ${i}`);
     expect(store.get(first.id, s.admin)).toBeNull();
     expect(store.get(task.id, s.admin)).toBeNull();
   });
@@ -952,5 +968,246 @@ describe('Ask Ezy setup: review fixes', { timeout: 30_000 }, () => {
       new AbortController().signal,
     );
     expect(refused).toMatchObject({ outcome: 'skip', reason: 'agent_off' });
+  });
+});
+
+describe('Ask Ezy setup: usable new agents (owner test)', { timeout: 30_000 }, () => {
+  it('A: writes the new agent from its purpose: custom, no direct chats, never a model preset', async () => {
+    const s = await setup({ several: true });
+    let withPreset: Record<string, unknown> = {};
+    let agentPid = '';
+    let taskPid = '';
+    s.setScript(async (tools) => {
+      withPreset = await exec(tools, 'propose_agent', {
+        name: 'Morning greeter',
+        preset: 'faq',
+        inboxId: 1,
+        purpose: 'Sends Jee Fong a short good-morning greeting every day.',
+      });
+      const agent = await exec(tools, 'propose_agent', {
+        name: 'Morning greeter',
+        inboxId: 1,
+        purpose: 'Sends Jee Fong a short good-morning greeting every day.',
+        instructions: 'Mention the weather only when the chat talked about it.',
+      });
+      agentPid = String(agent.proposalId);
+      taskPid = String((await proposeTask(tools, { agentProposalId: agentPid })).proposalId);
+      return {
+        text: 'Plan.',
+        blocks: [
+          { type: 'agent_proposal', json: json({ id: agentPid }) },
+          { type: 'task_proposal', json: json({ id: taskPid }) },
+        ],
+        followUps: [],
+      };
+    });
+    const answer = await ask(s.t, s.adminCookie);
+    expect(withPreset.error).toBeDefined();
+    expect(blockOf(answer, 'agent_proposal')).toMatchObject({
+      preset: 'custom',
+      note: 'Sends Jee Fong a short good-morning greeting every day.',
+    });
+    const applied = (await act(s.t, s.adminCookie, taskPid, 'apply')).json();
+    const agent = agentById(s.t.ctx.db, applied.agentId)!;
+    expect(agent).toMatchObject({ preset: 'custom', answerDirect: false, enabled: false });
+    const instructions = s.t.ctx.services.ai!.agentStatus(agent.id).settings.instructions;
+    expect(instructions).toContain('Sends Jee Fong a short good-morning greeting every day.');
+    expect(instructions).toContain('do not answer');
+    expect(instructions).toContain('Mention the weather only when the chat talked about it.');
+    expect(instructions).not.toContain(presetTexts('faq').instructions.slice(0, 60));
+  });
+
+  it('B: refuses a generic name or the name of an existing agent', async () => {
+    const s = await setup({ several: true });
+    const errors: string[] = [];
+    s.setScript(async (tools) => {
+      for (const name of ['New AI agent', 'AI agent', 'Agent', 'Assistant', 'agent 2', 'aina'])
+        errors.push(
+          String(
+            (
+              await exec(tools, 'propose_agent', {
+                name,
+                inboxId: 1,
+                purpose: 'Sends the morning greeting.',
+              })
+            ).error,
+          ),
+        );
+      return { text: 'Names.', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie);
+    for (const error of errors) expect(error).toContain('Morning greeter');
+  });
+
+  it('C: drops a new agent proposed without its task, and asks what it should send', async () => {
+    const s = await setup({ several: true });
+    let agentPid = '';
+    s.setScript(async (tools) => {
+      agentPid = String(
+        (
+          await exec(tools, 'propose_agent', {
+            name: 'Morning greeter',
+            inboxId: 1,
+            purpose: 'Sends the morning greeting.',
+          })
+        ).proposalId,
+      );
+      return {
+        text: 'Here is your new agent.',
+        blocks: [{ type: 'agent_proposal', json: json({ id: agentPid }) }],
+        followUps: [],
+      };
+    });
+    const answer = await ask(s.t, s.adminCookie);
+    expect(blockOf(answer, 'agent_proposal')).toBeUndefined();
+    expect(blockOf(answer, 'setup_note')).toEqual({ type: 'setup_note', code: 'agent_needs_task' });
+    const res = await act(s.t, s.adminCookie, agentPid, 'apply');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('agent_needs_task');
+    expect(listAgents(s.t.ctx.db)).toHaveLength(1);
+  });
+
+  it('D: a setup request reruns on the main model with the same history and the setup tools', async () => {
+    const s = await setup({ several: true });
+    s.setScript(async () => ({ text: 'Which chat?', blocks: [], followUps: [] }));
+    const history = [
+      { role: 'user', text: 'Earlier question' },
+      { role: 'assistant', text: 'Earlier answer' },
+    ];
+    const res = await s.t.app.inject({
+      method: 'POST',
+      url: '/api/ask-ezy',
+      headers: authHeaders(s.adminCookie),
+      payload: { question: 'Make a new agent that greets Jee Fong at 9am', history },
+    });
+    const events = res.payload
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as AskEzyEvent);
+    const last = events.at(-1);
+    expect(last?.type === 'answer' && last.answer.text).toBe('Which chat?');
+    expect(s.calls).toHaveLength(2);
+    const [fast, main] = s.calls as [AiAssistCall, AiAssistCall];
+    expect(fast.main).toBeFalsy();
+    expect(Object.keys(fast.tools)).toContain('start_setup');
+    expect(Object.keys(fast.tools)).not.toContain('propose_agent');
+    expect(main.main).toBe(true);
+    expect(main.messages).toEqual(fast.messages);
+    expect(main.messages).toHaveLength(3);
+    expect(Object.keys(main.tools)).toEqual(
+      expect.arrayContaining(['propose_agent', 'propose_scheduled_task', 'list_scheduled_tasks']),
+    );
+    expect(Object.keys(main.tools)).not.toContain('start_setup');
+    expect(main.instructions).toContain('Setting up agents and scheduled tasks');
+    expect(fast.instructions).not.toContain('Setting up agents and scheduled tasks');
+    // "Ezy read" never lists the switch itself.
+    expect(last?.type === 'answer' && last.answer.steps.map((st) => st.key)).not.toContain(
+      'start_setup',
+    );
+    const logs = s.logLines.join('\n');
+    expect(logs).toContain('ask_ezy_setup_start');
+    expect(logs).toContain('gpt-main');
+    expect(logs).not.toContain('greets Jee Fong');
+    expect(logs).not.toContain('Which chat?');
+  });
+
+  it('D: a normal question stays on the fast model with no setup tools', async () => {
+    const s = await setup({ several: true, fastOnly: true });
+    await ask(s.t, s.adminCookie, 'How is my week?');
+    expect(s.calls).toHaveLength(1);
+    expect(s.calls[0]!.main).toBeFalsy();
+    expect(Object.keys(s.calls[0]!.tools)).not.toContain('propose_scheduled_task');
+    expect(s.logLines.join('\n')).not.toContain('ask_ezy_setup_start');
+  });
+
+  it('E: names the real agent limit outside Lite', async () => {
+    const s = await setup({ several: true });
+    const ai = s.t.ctx.services.ai!;
+    for (const [name, inboxId] of [
+      ['Helpdesk', 2],
+      ['Night desk', 2],
+    ] as const)
+      ai.createAgent({ displayName: name, enabled: false, instructions: '', inboxId }, s.actor);
+    let result: Record<string, unknown> = {};
+    s.setScript(async (tools) => {
+      result = await exec(tools, 'propose_agent', {
+        name: 'Morning greeter',
+        inboxId: 1,
+        purpose: 'Sends the morning greeting.',
+      });
+      return { text: 'Full.', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie);
+    expect(String(result.error)).toContain(
+      "This EzyChat allows 3 AI agents and all are in use, so I can't add a new one.",
+    );
+    expect(String(result.error)).not.toContain('Lite');
+  });
+
+  it('F: a slow preview never takes the turn down: the card comes without it', async () => {
+    const s = await setup();
+    s.scheduledTurn.mockImplementation(
+      (_input, signal: AbortSignal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('aborted'))),
+        ) as never,
+    );
+    const store = createSetupStore(s.t.ctx, Date.now, { previewTimeoutMs: 50 });
+    const started = Date.now();
+    const p = await store.proposeTask(
+      s.admin,
+      {
+        agentId: s.agentId,
+        chatJid: JEE,
+        name: 'Greeting',
+        time: '08:30',
+        dayRule: 'weekdays',
+        instruction: INSTRUCTION,
+      },
+      new Set([JEE]),
+    );
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(p.preview).toBeNull();
+    expect(p.previewTimedOut).toBe(true);
+  });
+
+  it('H: a turn whose model never answers ends with ai_timeout inside its budget, and logs no text', async () => {
+    for (const setupTurn of [false, true]) {
+      const s = await setup({ fastOnly: !setupTurn });
+      vi.mocked(s.provider.assist!).mockImplementation(async (_s, _k, call: AiAssistCall) => {
+        if (setupTurn && !call.main) {
+          await exec(call.tools, 'start_setup', {});
+          return {
+            output: { text: 'x', blocks: [], followUps: [] },
+            toolCalls: [],
+            steps: 1,
+            model: 'f',
+          };
+        }
+        return new Promise(() => {}); // never answers, ignores the signal
+      });
+      const service = createAskEzyService(s.t.ctx, { fastBudgetMs: 60, setupBudgetMs: 80 });
+      const events: AskEzyEvent[] = [];
+      const started = Date.now();
+      await service.ask(
+        s.admin,
+        AskEzyRequest.parse({ question: 'Greet Jee Fong every morning please' }),
+        (e) => events.push(e),
+        new AbortController().signal,
+      );
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(events.at(-1)).toEqual({ type: 'error', code: 'ai_timeout' });
+      const logs = s.logLines.join('\n');
+      expect(logs).toContain('"kind":"budget"');
+      expect(logs).toContain(`"setup":${setupTurn}`);
+      expect(logs).not.toContain('Greet Jee Fong');
+    }
+  });
+
+  it('D: a team member gets no start_setup', async () => {
+    const s = await setup({ several: true });
+    await ask(s.t, s.memberCookie, 'How is my week?');
+    expect(s.calls).toHaveLength(1);
+    expect(Object.keys(s.calls[0]!.tools)).not.toContain('start_setup');
   });
 });

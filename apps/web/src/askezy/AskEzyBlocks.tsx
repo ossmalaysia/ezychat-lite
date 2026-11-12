@@ -19,7 +19,12 @@ import { cn } from '@/lib/utils';
 import { RankedBars } from '../admin/ReportCharts';
 import { encodeJid } from '../lib/jid';
 import type { AskEzyBlock as AskBlock, AskEzyTest as AskTest } from '@ezychat/shared';
-import { AgentProposalBlock, QuestionBlock, TaskProposalBlock } from './AskEzySetupBlocks';
+import {
+  AgentProposalBlock,
+  QuestionBlock,
+  SetupNoteBlock,
+  TaskProposalBlock,
+} from './AskEzySetupBlocks';
 
 /** Where the change card stands; kept by the panel so "Apply both" updates every card. */
 export interface ChangeState {
@@ -566,6 +571,8 @@ export function AskEzyBlock({ block, ctx }: { block: AskBlock; ctx: BlockContext
       return <AgentProposalBlock block={block} ctx={ctx} />;
     case 'task_proposal':
       return <TaskProposalBlock block={block} ctx={ctx} />;
+    case 'setup_note':
+      return <SetupNoteBlock />;
   }
 }
 

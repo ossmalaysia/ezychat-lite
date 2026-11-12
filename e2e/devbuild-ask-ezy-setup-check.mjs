@@ -102,6 +102,15 @@ check(
   'the new agent exists, switched off',
   JSON.stringify(greeter),
 );
+const greeterSetup = greeter ? (await api('GET', `/ai/agents/${greeter.id}`)).json : null;
+check(
+  greeter?.preset === 'custom' &&
+    greeter?.answerDirect === false &&
+    /good-morning greeting/.test(greeterSetup?.settings?.instructions ?? '') &&
+    /do not answer chats/.test(greeterSetup?.settings?.instructions ?? ''),
+  'the new agent is custom, never answers direct chats, and its instructions come from its purpose',
+  JSON.stringify({ greeter, instructions: greeterSetup?.settings?.instructions?.slice(0, 200) }),
+);
 const tasks = greeter
   ? ((await api('GET', `/ai/agents/${greeter.id}/scheduled-tasks`)).json?.tasks ?? [])
   : [];

@@ -903,7 +903,9 @@
       "openTasks": "Buka tugasan berjadual",
       "chatUnnamed": "Sembang …{{ending}}",
       "chatNoName": "Sembang",
-      "agentStays": "Dicipta. Ejen ini kekal, dimatikan: ubah di halamannya."
+      "agentStays": "Dicipta. Ejen ini kekal, dimatikan: ubah di halamannya.",
+      "agentNeedsTask": "Apakah yang perlu dihantar oleh ejen baharu, kepada sembang mana, dan bila? Ejen baharu disediakan bersama tugasan berjadualnya.",
+      "previewNotReady": "Pratonton mengambil masa terlalu lama, jadi ia tidak ditunjukkan. Tugasan tetap berfungsi."
     }
   },
   "safety": {

@@ -18,6 +18,7 @@ import type { AppContext } from '../context.js';
 import { HttpError } from '../http/errors.js';
 import { agentById, listAgents, type AgentRow } from '../ai/agents.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
+import { setAgentDirect } from '../ai/groups.js';
 import { canOpenChat } from '../inboxes/access.js';
 import { replyWindowOpen } from '../inboxes/reply-window.js';
 import { ScheduledRepo, type TaskRow } from '../scheduled/repo.js';
@@ -79,6 +80,8 @@ export interface TaskProposal extends Base {
   chat: ChatInfo;
   timeZone: string;
   preview: string | null;
+  /** The preview took longer than its budget: left out, the card still shows. */
+  previewTimedOut?: boolean;
   /** An edit of an existing task: the fields it changes, their saved values and the saved row's time. */
   edit: {
     taskId: number;
@@ -98,10 +101,41 @@ export type SetupProposal = AgentProposal | TaskProposal;
 
 export interface ProposeAgentInput {
   name: string;
-  preset: AiAgentPreset;
   inboxId?: number;
+  /** Extra detail added after the role text (never replaces it). */
   instructions?: string;
-  purpose?: string;
+  /** What it sends, to whom and when: the server writes the agent's role text from it. */
+  purpose: string;
+}
+
+/** Names that say nothing about the agent ("New AI agent", "Assistant 2"): Ezy names it from its purpose. */
+const GENERIC_NAME =
+  /^(?:(?:my|the|a|new|another)\s+)*(?:ai\s+|whatsapp\s+)?(?:agent|assistant|bot|helper|ai|member)(?:\s*\d+)?$/i;
+
+/**
+ * A new agent's role text, written by the server from its purpose (owner decision 2026-11-12): it sends the
+ * scheduled messages its tasks ask for and never answers chats. The same LANGUAGE and STYLE rules as the presets.
+ */
+export function scheduledAgentInstructions(purpose: string, extra?: string): string {
+  const lines = [
+    'ROLE',
+    `You send this business's scheduled WhatsApp messages. ${purpose.trim()}`,
+    'You send only what your scheduled tasks ask for, at their times. You do not answer chats: our team does.',
+    '',
+    'CONTENT',
+    "- Follow the task's instruction. Use only facts from the business context, the chat and the task.",
+    '- Never invent prices, dates, offers or promises. When the task needs a fact you do not have, send nothing.',
+    '',
+    'LANGUAGE',
+    "- Write in the language of the chat. If the chat has no messages yet, use the task's language.",
+    '- If you cannot write in that language, use the default language named in the business context, otherwise English.',
+    '',
+    'STYLE',
+    '- Warm, natural and short: one or two sentences unless the task asks for more. At most one emoji, only where it fits.',
+    '- WhatsApp formatting only: *bold* for key details and plain line breaks. No headings, tables or links you were not given.',
+  ];
+  if (extra?.trim()) lines.push('', 'MORE', extra.trim());
+  return lines.join('\n');
 }
 
 export interface ProposeTaskInput {
@@ -138,7 +172,8 @@ const FIELDS = ['name', 'time', 'dayRule', 'days', 'chatJid', 'instruction'] as 
 const NO_NUMBER = 'This agent serves no WhatsApp number, so it cannot send scheduled messages';
 /** Ask Ezy's own proposal previews per admin per minute (the agent page's preview limit is separate). */
 export const ASK_EZY_PREVIEWS_PER_MINUTE = 10;
-const PREVIEW_TIMEOUT_MS = 60_000;
+/** A proposal's preview gets this long; then the card comes without it (the Ask Ezy turn must not time out). */
+export const ASK_EZY_PREVIEW_TIMEOUT_MS = 20_000;
 
 /** A name that is only a phone number ("60123456789", "+60 12-345 6789") is no name. */
 const isNumber = (text: string) =>
@@ -152,7 +187,12 @@ const firstIssue = (error: { issues: Array<{ path: PropertyKey[]; message: strin
     .map((i) => (i.path.length ? `${i.path.map(String).join('.')}: ${i.message}` : i.message))
     .join('; ');
 
-export function createSetupStore(ctx: AppContext, now: () => number = Date.now) {
+export function createSetupStore(
+  ctx: AppContext,
+  now: () => number = Date.now,
+  opts: { previewTimeoutMs?: number } = {},
+) {
+  const previewTimeoutMs = opts.previewTimeoutMs ?? ASK_EZY_PREVIEW_TIMEOUT_MS;
   const proposals = new Map<string, SetupProposal>();
   const repo = new ScheduledRepo(ctx.db);
   const chats = getChats(ctx);
@@ -296,44 +336,72 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
     agent: { agentId: number } | { draft: AgentProposal },
     chat: { jid: string; taskName: string; instruction: string },
     signal?: AbortSignal,
-  ) => {
+  ): Promise<{ text: string | null; timedOut: boolean }> => {
+    const none = { text: null, timedOut: false };
     const at = now();
     const recent = (previewTimes.get(user.id) ?? []).filter((t) => at - t < 60_000);
-    if (recent.length >= ASK_EZY_PREVIEWS_PER_MINUTE) return null;
+    if (recent.length >= ASK_EZY_PREVIEWS_PER_MINUTE) return none;
     previewTimes.set(user.id, [...recent, at]);
     const service = ai();
-    if (!service.answerReady() || !replyWindowOpen(ctx, chat.jid, at)) return null;
+    if (!service.answerReady() || !replyWindowOpen(ctx, chat.jid, at)) return none;
+    // Its own short budget: a slow preview leaves the card without one, never the turn without a card.
+    const budget = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      budget.abort();
+    }, previewTimeoutMs);
+    const stopped = new Promise<null>((resolve) =>
+      budget.signal.addEventListener('abort', () => resolve(null), { once: true }),
+    );
     try {
-      const turn = await service.scheduledTurn(
-        {
-          agentId: 'agentId' in agent ? agent.agentId : null,
-          chatJid: chat.jid,
-          task: { name: chat.taskName, instruction: chat.instruction },
-          preview: true,
-          ...('draft' in agent
-            ? {
-                draft: {
-                  name: agent.draft.name,
-                  preset: agent.draft.preset,
-                  instructions: agent.draft.instructions,
-                },
-              }
-            : {}),
-        },
-        AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(PREVIEW_TIMEOUT_MS)]),
-      );
-      return turn.outcome === 'send' && turn.text ? turn.text : null;
+      const turn = await Promise.race([
+        stopped,
+        service.scheduledTurn(
+          {
+            agentId: 'agentId' in agent ? agent.agentId : null,
+            chatJid: chat.jid,
+            task: { name: chat.taskName, instruction: chat.instruction },
+            preview: true,
+            ...('draft' in agent
+              ? {
+                  draft: {
+                    name: agent.draft.name,
+                    preset: agent.draft.preset,
+                    instructions: agent.draft.instructions,
+                  },
+                }
+              : {}),
+          },
+          AbortSignal.any([...(signal ? [signal] : []), budget.signal]),
+        ),
+      ]);
+      if (!turn) return { text: null, timedOut };
+      return { text: turn.outcome === 'send' && turn.text ? turn.text : null, timedOut: false };
     } catch {
-      return null;
+      return { text: null, timedOut };
+    } finally {
+      clearTimeout(timer);
+      budget.abort();
     }
   };
 
-  const limitText = (max: number) =>
-    `agent_limit: this app allows ${max} AI agent${max === 1 ? '' : 's'} and has no room for a new one. ` +
-    (ctx.edition === 'lite'
-      ? 'Tell the person: "EzyChat Lite has one AI agent, so I can\'t add a new one." (in their language) '
-      : 'Tell the person that no more AI agents can be added in this edition ') +
-    'in a question block note (tone "warning"), and offer the existing agent instead.';
+  const previewFields = async (...args: Parameters<typeof preview>) => {
+    const { text, timedOut } = await preview(...args);
+    return { preview: text, ...(timedOut ? { previewTimedOut: true } : {}) };
+  };
+
+  /** What to tell the person at the agent limit: Lite's own sentence, else the real limit. */
+  const limitText = (max: number) => {
+    const sentence =
+      ctx.edition === 'lite' && max === 1
+        ? "EzyChat Lite has one AI agent, so I can't add a new one."
+        : `This EzyChat allows ${max} AI agent${max === 1 ? '' : 's'} and all are in use, so I can't add a new one.`;
+    return (
+      `agent_limit: no room for a new AI agent. Tell the person, in their language: "${sentence}" ` +
+      'Say it in a question block note (tone "warning") and offer an existing agent instead.'
+    );
+  };
 
   const agentRow = (p: AgentProposal) => (p.agentId ? agentById(ctx.db, p.agentId) : null);
   const agentInUse = (agent: AgentRow) =>
@@ -385,6 +453,7 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       return p.agentId;
     }
     try {
+      const who = actor(user, ip, 'new agent');
       const status = ai().createAgent(
         {
           displayName: p.name,
@@ -393,8 +462,10 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
           instructions: p.instructions ?? presetTexts(p.preset).instructions,
           inboxId: p.inboxId,
         },
-        actor(user, ip, 'new agent'),
+        who,
       );
+      // It sends scheduled messages only: it never answers direct chats.
+      if (status.agent.answerDirect) setAgentDirect(ctx, status.agent.id, false, who);
       p.agentId = status.agent.id;
       p.status = 'applied';
       p.snapshot = fingerprint(p.agentId);
@@ -584,11 +655,19 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       const max = service.maxAgents();
       if (listAgents(ctx.db).length >= max) throw new ProposeError(limitText(max));
       const name = AiAgentBody.shape.displayName.safeParse(input.name);
-      if (!name.success) throw new ProposeError(`name: ${firstIssue(name.error)}`);
-      if (
-        input.instructions !== undefined &&
-        [...input.instructions].length > AI_INSTRUCTIONS_CHARACTERS
-      )
+      const nameHelp =
+        'Name it from what it does, e.g. "Morning greeter" for a morning greeting: never a generic name like "New AI agent" or "Assistant", nor the name of an existing agent.';
+      if (!name.success) throw new ProposeError(`name: ${firstIssue(name.error)}. ${nameHelp}`);
+      const taken = listAgents(ctx.db).some(
+        (a) => displayName(a).trim().toLowerCase() === name.data.trim().toLowerCase(),
+      );
+      if (GENERIC_NAME.test(name.data.trim()) || taken)
+        throw new ProposeError(`name: ${JSON.stringify(name.data)} says nothing. ${nameHelp}`);
+      const purpose = (input.purpose ?? '').trim();
+      if (purpose.length < 3)
+        throw new ProposeError('purpose: say what it sends, to whom and when, in one sentence');
+      const instructions = scheduledAgentInstructions(purpose, input.instructions);
+      if ([...instructions].length > AI_INSTRUCTIONS_CHARACTERS)
         throw new ProposeError(
           `The instructions can be at most ${AI_INSTRUCTIONS_CHARACTERS.toLocaleString('en')} characters`,
         );
@@ -611,11 +690,12 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
         status: 'proposed',
         createdAt: now(),
         name: name.data,
-        preset: input.preset,
+        // Always custom: its role text comes from its purpose, never a preset's help-desk or sales text.
+        preset: 'custom',
         inboxId,
         inboxName: inboxName(inboxId),
-        instructions: input.instructions?.trim() ? input.instructions : null,
-        note: input.purpose?.trim() ? input.purpose.trim().slice(0, 300) : null,
+        instructions,
+        note: purpose.slice(0, 300),
       });
     },
 
@@ -651,12 +731,12 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
         agentName: agent.name,
         spec,
         chat: infoOf(chat),
-        preview: await preview(
+        ...(await previewFields(
           user,
           agent.draft ? { draft: agent.draft } : { agentId: agent.agentId! },
           { jid: chat.jid, taskName: spec.name, instruction: spec.instruction },
           signal,
-        ),
+        )),
         edit: null,
       });
     },
@@ -722,14 +802,14 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
         agentName: displayName(agent),
         spec: next,
         chat: chat ? infoOf(chat) : { name: null, ending: null, type: 'dm' },
-        preview: changesText
-          ? await preview(
+        ...(changesText
+          ? await previewFields(
               user,
               { agentId: agent.id },
               { jid: next.chatJid, taskName: next.name, instruction: next.instruction },
               signal,
             )
-          : null,
+          : { preview: null }),
         edit: { taskId: task.id, updatedAt: task.updatedAt, patch, original, before },
       });
     },
@@ -776,7 +856,13 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
     apply(id: string, user: User, ip: string | null): AskEzyChangeResult {
       const p = own(id, user);
       if (p.kind === 'task') return applyTask(p, user, ip);
-      // The agent service checks the edition's limit again (409 agent_limit).
+      // A new agent is created only with its scheduled task ("Apply both" applies the task).
+      if (p.status !== 'applied' || !p.agentId)
+        throw new HttpError(
+          409,
+          'agent_needs_task',
+          'A new agent is created together with its scheduled task: apply the task',
+        );
       const agentId = applyAgent(p, user, ip);
       return {
         status: 'applied',

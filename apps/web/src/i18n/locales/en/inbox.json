@@ -907,7 +907,9 @@
       "openTasks": "Open scheduled tasks",
       "chatUnnamed": "Chat …{{ending}}",
       "chatNoName": "Chat",
-      "agentStays": "Created. It stays, switched off: change it on its page."
+      "agentStays": "Created. It stays, switched off: change it on its page.",
+      "agentNeedsTask": "What should the new agent send, to which chat, and when? A new agent is set up together with its scheduled task.",
+      "previewNotReady": "The preview took too long, so it is not shown. The task works the same."
     }
   },
   "safety": {

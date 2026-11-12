@@ -19,6 +19,18 @@ type TaskCard = Extract<AskBlock, { type: 'task_proposal' }>;
  * with choices, the New agent card and the Scheduled task card. Nothing is saved until Apply.
  */
 
+/** A note the server adds: a new agent came without its scheduled task, so Ezy asks what it should send. */
+export function SetupNoteBlock() {
+  const { t } = useTranslation('inbox');
+  return (
+    <div data-testid="ask-block-setup-note">
+      <Banner tone="info">
+        <p>{t('askEzy.setup.agentNeedsTask')}</p>
+      </Banner>
+    </div>
+  );
+}
+
 /** One question with tappable choices; a tap sends the choice as the person's next message. */
 export function QuestionBlock({ block, ctx }: { block: Question; ctx: BlockContext }) {
   const answered = ctx.answered;
@@ -109,12 +121,15 @@ function CardActions({
   appliedNote,
   links,
   undo = true,
+  canApply = true,
 }: {
   id: string;
   state: ChangeState;
   ctx: BlockContext;
   /** "Apply both" under the cards decides for this card. */
   paired: boolean;
+  /** A new agent is applied only with its task ("Apply both"): its card has no Apply of its own. */
+  canApply?: boolean;
   appliedNote: React.ReactNode;
   links?: React.ReactNode;
   undo?: boolean;
@@ -156,15 +171,17 @@ function CardActions({
       )}
       {status === 'proposed' && !error && !paired && (
         <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            className="pointer-coarse:min-h-11"
-            disabled={busy}
-            onClick={() => ctx.onChange(id, 'apply')}
-          >
-            <Check aria-hidden />
-            {t('askEzy.change.apply')}
-          </Button>
+          {canApply && (
+            <Button
+              size="sm"
+              className="pointer-coarse:min-h-11"
+              disabled={busy}
+              onClick={() => ctx.onChange(id, 'apply')}
+            >
+              <Check aria-hidden />
+              {t('askEzy.change.apply')}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -256,6 +273,7 @@ export function AgentProposalBlock({ block, ctx }: { block: AgentCard; ctx: Bloc
         state={state}
         ctx={ctx}
         paired={ctx.paired.has(block.id)}
+        canApply={false}
         // Its task card's Undo removes both; an edition with one agent keeps it (no Undo).
         undo={!ctx.linked.has(block.id) && block.removable !== false}
         appliedNote={
@@ -355,6 +373,9 @@ export function TaskProposalBlock({ block, ctx }: { block: TaskCard; ctx: BlockC
             {block.preview}
           </p>
         </div>
+      )}
+      {!block.preview && block.previewTimedOut && !applied && (
+        <p className="text-xs text-muted-foreground">{t('askEzy.setup.previewNotReady')}</p>
       )}
       <CardActions
         id={block.id}

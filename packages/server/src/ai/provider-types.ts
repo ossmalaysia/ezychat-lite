@@ -49,6 +49,11 @@ export interface AiAssistCall {
   messages: ModelMessage[];
   tools: ToolSet;
   cacheId?: string;
+  /**
+   * A setup turn (Ask Ezy after `start_setup`): the connection's main model with its default reasoning,
+   * not the fast one.
+   */
+  main?: boolean;
   /** Tool names of each finished step, for the live "Read …" lines. */
   onStep?: (toolNames: string[]) => void;
 }

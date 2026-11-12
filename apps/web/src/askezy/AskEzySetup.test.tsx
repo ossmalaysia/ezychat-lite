@@ -355,4 +355,37 @@ describe('Ask Ezy setup', () => {
     await within(task).findByText('Saved.');
     expect(sent.at(-1)!.url).toBe('/api/ask-ezy/changes/task-1/apply');
   });
+
+  it('asks what a new agent should send when it came without its task, and never applies it alone', async () => {
+    replies.push({
+      events: [
+        answer({
+          text: 'Plan.',
+          blocks: [{ type: 'setup_note', code: 'agent_needs_task' }, agentCard],
+        }),
+      ],
+    });
+    await start();
+    const note = await screen.findByTestId('ask-block-setup-note');
+    expect(note.textContent).toContain('What should the new agent send');
+    const agent = screen.getByTestId('ask-block-agent-agent-1');
+    expect(within(agent).queryByRole('button', { name: /^apply$/i })).toBeNull();
+  });
+
+  it('says the preview was not ready, and the card still applies', async () => {
+    replies.push({
+      events: [
+        answer({
+          text: 'Plan.',
+          blocks: [
+            { ...taskCard, dependsOn: null, agentId: 4, preview: null, previewTimedOut: true },
+          ],
+        }),
+      ],
+    });
+    await start();
+    const task = await screen.findByTestId('ask-block-task-task-1');
+    expect(task.textContent).toContain('The preview took too long');
+    expect(within(task).getByRole('button', { name: /^apply$/i })).toBeTruthy();
+  });
 });

@@ -122,6 +122,8 @@ export const AskEzyBlock = z.discriminatedUnion('type', [
     timeZone: short,
     /** One message the agent would send now (nothing sent or stored); null when there is none. */
     preview: z.string().max(4000).nullable(),
+    /** The preview took too long and was left out (the task works the same). */
+    previewTimedOut: z.boolean().optional(),
     /** An edit: the saved values of the fields it changes. */
     before: AskEzyTaskBefore.nullable(),
     /** The task (an edit, or applied). */
@@ -207,6 +209,11 @@ export const AskEzyBlock = z.discriminatedUnion('type', [
     version: z.number().int().positive().optional(),
   }),
   z.object({ type: z.literal('test'), ...AskEzyTest.shape }),
+  /**
+   * A note the server adds (never the model): `agent_needs_task` = a new agent was proposed without the
+   * scheduled task it is for, so it was left out; the page asks what the agent should send.
+   */
+  z.object({ type: z.literal('setup_note'), code: z.enum(['agent_needs_task']) }),
 ]);
 export type AskEzyBlock = z.infer<typeof AskEzyBlock>;
 

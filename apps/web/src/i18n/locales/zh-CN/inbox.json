@@ -903,7 +903,9 @@
       "openTasks": "打开定时任务",
       "chatUnnamed": "聊天 …{{ending}}",
       "chatNoName": "聊天",
-      "agentStays": "已创建。它会保留并处于关闭状态：请在它的页面中修改。"
+      "agentStays": "已创建。它会保留并处于关闭状态：请在它的页面中修改。",
+      "agentNeedsTask": "新代理要发送什么、发给哪个聊天、什么时候发？新代理会和它的定时任务一起设置。",
+      "previewNotReady": "预览耗时太长，所以没有显示。任务照常运行。"
     }
   },
   "safety": {

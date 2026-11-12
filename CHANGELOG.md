@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Ask Ezy can now set up a scheduled task (and, where your edition allows more than one AI agent, a new agent) as a short conversation. Ask "greet Jee Fong at 9am every day": Ezy asks what it needs, one question at a time, with choices you tap, then shows a card with a preview of the message. Nothing changes until you press Apply (a new agent starts switched off), and Undo takes it back. Ezy can also move or change an existing scheduled task the same way.
+- Ask Ezy can now set up a scheduled task (and, where your edition allows more than one AI agent, a new agent) as a short conversation. Ask "greet Jee Fong at 9am every day": Ezy asks what it needs, one question at a time, with choices you tap, then shows a card with a preview of the message. A new agent always comes with its scheduled task, is named after what it does, only sends its scheduled messages (it does not answer chats) and starts switched off. Ezy uses your main AI model for this, so it takes a little longer than a normal question. Nothing changes until you press Apply, and Undo takes it back. Ezy can also move or change an existing scheduled task the same way.
 - When the AI agent reads a customer's message in a direct chat and decides not to reply, the chat now shows a small line for your team only: "Sales Agent did not reply" (or "… it saw the chat as finished"). A silent AI turn is no longer invisible, so you can reply yourself or adjust the agent's instructions. The customer sees nothing.
 
 ### Fixed

@@ -292,14 +292,25 @@ chat and customer blocks filtered by inbox access. A proposed change is held in 
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
 Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
 optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
-question and card back into the assistant's history line. Admins also get `list_scheduled_tasks`, `propose_agent`,
-`propose_scheduled_task`, `propose_scheduled_task_edit` (`ask-ezy/setup.ts`, a sibling store with the same 30 min /
-20 per admin rules, server-made ids): blocks `agent_proposal` and `task_proposal` are filled from the held proposal.
-`propose_agent` is refused at `maxAgents` (Lite text in the tool error); Apply creates the agent **switched off** through
-`AiService.createAgent` (409 `agent_limit` again). A task names only a chat id a `list_chats`/`get_chat` look-up returned
+question and card back into the assistant's history line. Setup runs on the **main model**: an admin's normal (fast)
+turn offers only `start_setup` (no arguments); calling it ends the fast turn and the same request (same history) reruns
+with `AiAssistCall.main` (the connection's saved model, its own reasoning), the setup prompt rules (one question = one
+unknown, agent → chat → time, propose a new agent and its task together) and the setup tools `list_scheduled_tasks`,
+`propose_agent`, `propose_scheduled_task`, `propose_scheduled_task_edit` (`ask-ezy/setup.ts`, a sibling store with the
+same 30 min / 20 per admin rules, server-made ids); log `ask_ezy_setup_start`, then the answer line with `setup: true`
+and the model. Every turn has a total budget (fast 90 s, setup 150 s): then the model call and its tools stop and the
+stream ends with `error ai_timeout` (log `kind: 'budget'`, tool names and counts only). Blocks `agent_proposal` and
+`task_proposal` are filled from the held proposal. `propose_agent` {name, purpose, inboxId?, instructions?} is refused
+at `maxAgents` (the tool error gives the sentence: Lite with 1 keeps its own, else "This EzyChat allows N AI agents…")
+and for a generic name or an existing agent's name; the agent is always preset `custom`, the server writes its role
+text from `purpose` (`scheduledAgentInstructions`; `instructions` only adds detail) and Apply turns "Answer direct
+chats" off. A new agent comes only with its task: an answer drops an `agent_proposal` without a `task_proposal` that
+`dependsOn` it (block `setup_note` `agent_needs_task` instead), adds a missing agent card for a task that needs it, and
+the route refuses Apply of an agent proposal (409 `agent_needs_task`; the task's Apply creates both). Apply creates
+the agent **switched off** through `AiService.createAgent` (409 `agent_limit` again). A task names only a chat id a `list_chats`/`get_chat` look-up returned
 in the same answer, that `canOpenChat` allows and that is on the agent's inbox (else `chat_not_in_inbox` in the tool
-error). Its preview is one `AiService.scheduledTurn` (preview, the Ask Ezy request's signal, 60 s, own limit 10 a
-minute per admin, not the agent page's); a pending new agent previews as a `draft` (name, preset, instructions, no
+error). Its preview is one `AiService.scheduledTurn` (preview, the turn's signal, its own 20 s budget: after that the
+card comes with `preview: null`, `previewTimedOut`; own limit 10 a minute per admin, not the agent page's); a pending new agent previews as a `draft` (name, preset, instructions, no
 business context, no look-ups, nothing stored). A chat without a name is never shown by its number: `chatName` null,
 "Chat …6789". Apply runs the scheduled-task create/update service (same limits); a task whose `dependsOn` agent is
 pending applies the agent first in the same request (`related`); when the task then fails the answer is 200

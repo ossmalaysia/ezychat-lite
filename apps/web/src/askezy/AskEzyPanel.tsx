@@ -64,6 +64,10 @@ function answerForHistory(answer: AskAnswer, changes: Record<string, ChangeState
   for (const b of answer.blocks) {
     const status = 'id' in b ? (changes[b.id]?.status ?? ('status' in b ? b.status : '')) : '';
     if (b.type === 'question') lines.push(`[Asked: ${b.text} Choices: ${b.choices.join(' | ')}]`);
+    if (b.type === 'setup_note')
+      lines.push(
+        '[The new agent was left out: it needs its scheduled task (what, to which chat, when)]',
+      );
     if (b.type === 'agent_proposal')
       lines.push(`[New agent card "${b.name}", agentProposalId ${b.id}, ${status}]`);
     if (b.type === 'task_proposal')
