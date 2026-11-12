@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- When the AI agent reads a customer's message in a direct chat and decides not to reply, the chat now shows a small line for your team only: "Sales Agent did not reply" (or "… it saw the chat as finished"). A silent AI turn is no longer invisible, so you can reply yourself or adjust the agent's instructions. The customer sees nothing.
+
 ### Fixed
 
 - A reaction (or an edited message) that arrived while the chat was still loading could vanish until the chat was opened again; it now stays.

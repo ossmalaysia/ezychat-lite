@@ -16,6 +16,16 @@
   },
   "proposals": [
     {
+      "feature": "ai-silent-line",
+      "creationOrder": 41,
+      "createdAt": "2026-11-12",
+      "design": "docs/workbooks/feat__ai-silent-line.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock (one team-only chat line in the existing event chip style; the owner chose design notes + screenshots on 2026-11-12): the design section of the workbook and Dev Build screenshots at 1280/360, light and dark.",
+      "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
+    },
+    {
       "feature": "mcp-file-upload",
       "creationOrder": 40,
       "createdAt": "2026-11-08",

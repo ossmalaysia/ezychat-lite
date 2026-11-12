@@ -1878,6 +1878,18 @@ export function createAiService(
         // The 👍 goes out first: the send guard lets an AI reply out only while the message is unanswered.
         if (resolvedByAgentSinceThen(jid, user.id))
           await closeAfterThanks(jid, user.id, customerId, agent.id, controller.signal, owned);
+        // Team-only line, so a silent turn is never invisible (the closed chat shows its own line).
+        else if (owned())
+          chats.addAiToolUsed(jid, user.id, [
+            {
+              title: agent.displayName.trim().slice(0, 120) || 'AI',
+              sourceLabel: 'WhatsApp',
+              silent: {
+                kind:
+                  proposed === 'resolve' || proposed === 'ask_resolution' ? 'finished' : 'no_reply',
+              },
+            },
+          ]);
         ctx.db
           .prepare(
             'UPDATE ai_chat_state SET last_replied_message_id = ?, due_at = NULL WHERE chat_jid = ? AND last_customer_message_id = ?',

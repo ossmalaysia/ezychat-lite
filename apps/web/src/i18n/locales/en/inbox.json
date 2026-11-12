@@ -303,6 +303,8 @@
     "aiGroupHandover": "{{actor}} handed {{member}}’s question to the team: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} handed {{member}}’s question to the team",
     "aiGroupPaused": "AI paused: many answers in a row",
+    "aiSilent": "{{actor}} did not reply",
+    "aiSilentFinished": "{{actor}} did not reply: it saw the chat as finished",
     "aiGroupMember": "a member"
   },
   "messageList": {
