@@ -720,6 +720,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- Point a custom installer output (`-- --config.directories.output=<folder>`) outside the checkout: inside it, eslint
+  scans `win-unpacked/` (8,000+ errors in Enterprise) and hides the real result. If it is already inside, lint with
+  `--ignore-pattern "<folder>/**"`.
+
 - Run `prettier --write` only on the files you changed (`git diff --name-only origin/main`), never on a folder glob:
   many files on `main` are not Prettier-clean, and a glob drags unrelated reformatting into the PR.
 - PowerShell does not wait for a GUI-subsystem program (Electron, also with `ELECTRON_RUN_AS_NODE=1`) called with
