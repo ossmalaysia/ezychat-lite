@@ -157,6 +157,9 @@ into AGENTS.md.
   the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
   first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
   once per fresh server and vary viewport and colour scheme on that one page.
+- On the owner's PC the nvm default can be Node 20 (vitest then dies with exit 3221225477). Put a 22+ install first
+  in `PATH` for that one command (`$env:PATH = "D:\nvm\v24.13.0;" + $env:PATH`); never `nvm use`, which switches
+  Node for every session and the live apps.
 - Run tests on the Node version CI uses (`setup-node` 22 = the newest 22.x; 22.23.4 on 2026-10-30). On Node 22.22.0
   a worker's `execArgv: ['--import', 'tsx']` does not apply tsx's hooks, so the document parser worker
   (`ai/knowledge-worker.ts`) answers "Cannot read this document": 4 server tests and the `ai-member.spec` file upload
@@ -1336,6 +1339,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Every AI path that ends with nothing sent (`no_reply`, a guard that silences `resolve`) must leave a team-only
+  trace in the chat; a silent turn while the AI holds the chat leaves the customer waiting where nobody looks. For
+  "why no reply", read the `AI decision` log line (`action` + `proposed`) before blaming the code or the rules: an
+  agent's own "do not reply to yes" rule also swallows a "ya" that answers the AI's question.
 - A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
   `currentSituation` field) before a Dev Build check can show it. A timer feature's Dev Build check waits for one real
   due time (the next slot a couple of minutes away, in the business zone): fake-clock unit tests never prove the timer
