@@ -265,6 +265,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               ...(lookup.group ? { group: lookup.group } : {}),
               ...(lookup.sheet ? { sheet: lookup.sheet } : {}),
               ...(lookup.drive ? { drive: lookup.drive } : {}),
+              ...(lookup.silent ? { silent: lookup.silent } : {}),
             },
             at,
           }),

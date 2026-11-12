@@ -300,6 +300,8 @@
     "aiGroupHandover": "{{actor}} 将 {{member}} 的问题转交给团队：{{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} 将 {{member}} 的问题转交给团队",
     "aiGroupPaused": "AI 已暂停：连续回答过多",
+    "aiSilent": "{{actor}} 未回复",
+    "aiSilentFinished": "{{actor}} 未回复：认为对话已结束",
     "aiGroupMember": "一位成员"
   },
   "messageList": {

@@ -54,6 +54,12 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       // Title and source come from the extension; anything else in the payload is ignored.
       const used = AiToolUsedPayload.safeParse(e.payload);
       if (!used.success) return '';
+      // A direct chat: the agent read the message and chose to send nothing.
+      const silent = used.data.silent;
+      if (silent)
+        return silent.kind === 'finished'
+          ? i18n.t('inbox:events.aiSilentFinished', { actor })
+          : i18n.t('inbox:events.aiSilent', { actor });
       // A WhatsApp group: the AI answered a tag or a quote, handed it over, or the loop guard paused it.
       const group = used.data.group;
       if (group) {

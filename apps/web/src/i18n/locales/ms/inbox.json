@@ -300,6 +300,8 @@
     "aiGroupHandover": "{{actor}} menyerahkan soalan {{member}} kepada pasukan: {{reason}}",
     "aiGroupHandoverNoReason": "{{actor}} menyerahkan soalan {{member}} kepada pasukan",
     "aiGroupPaused": "AI dijeda: terlalu banyak jawapan berturut-turut",
+    "aiSilent": "{{actor}} tidak membalas",
+    "aiSilentFinished": "{{actor}} tidak membalas: ia menganggap perbualan sudah selesai",
     "aiGroupMember": "seorang ahli"
   },
   "messageList": {
