@@ -107,6 +107,7 @@ const SCENARIOS = {
     answers: [[/new agent|create/i], [/jee fong(?! lim)|…0084/i]],
     expect: { newAgent: true, chatEnding: '0084', time: '09:00', dayRule: 'daily' },
     mustAsk: true, // two chats are named Jee Fong
+    questionsNeeded: 1,
     mustAskChat: true,
   },
   existing: {
@@ -114,12 +115,14 @@ const SCENARIOS = {
     answers: [[/kopi|sales|existing|use/i], [/aisyah|…7733/i]],
     expect: { newAgent: false, chatEnding: '7733', time: '10:00', dayRule: 'custom', days: [1] },
     mustAsk: false, // one Aisyah, time and day given: proposing at once is right
+    questionsNeeded: 0,
   },
   ambiguous: {
     open: 'Send Jee Fong a good morning message on weekdays at 8:30 with a new agent',
     answers: [[/new agent|create/i], [/jee fong lim|…5521/i]],
     expect: { newAgent: true, chatEnding: '5521', time: '08:30', dayRule: 'weekdays' },
-    mustAsk: true,
+    mustAsk: true, // two chats are named Jee Fong
+    questionsNeeded: 1,
     mustAskChat: true,
   },
 };
@@ -150,9 +153,11 @@ async function runScenario(name, s) {
     blocksOf(r.answer, 'agent_proposal').length + blocksOf(r.answer, 'task_proposal').length > 0;
   let askedChat = false;
   let oneQuestionEach = true;
+  let questionsAsked = 0;
   for (let i = 0; i < 4; i++) {
     const qs = blocksOf(r.answer, 'question');
     if (qs.length === 0) break;
+    questionsAsked++;
     if (qs.length > 1) oneQuestionEach = false;
     const q = qs[0];
     if (COMPOUND.test(q.text)) oneQuestionEach = false;
@@ -188,14 +193,76 @@ async function runScenario(name, s) {
     no_full_number: !JSON.stringify(log).match(/6012000\d{4}/),
     no_error: log.every((l) => !l.error),
   };
+  const facts = {
+    questionsAsked,
+    questionsNeeded: s.questionsNeeded,
+    instructionOk: typeof task?.instruction === 'string' && task.instruction.trim().length >= 20,
+    avgTurnMs: Math.round(log.reduce((n, l) => n + l.ms, 0) / Math.max(1, log.length)),
+    timedOut: log.some((l) => /timeout/.test(l.error ?? '')),
+  };
   return {
     scenario: name,
     checks,
     score: Object.values(checks).filter(Boolean).length,
     of: Object.keys(checks).length,
+    ...grade(checks, facts),
+    facts,
     turns: log,
   };
 }
+
+/**
+ * The rubric (owner 2026-11-12): four graded criteria on a 4.0 scale, weighted, plus a safety gate. The checks above
+ * are the evidence for each grade. Letters: A ≥ 3.7, B ≥ 2.7, C ≥ 1.7, D ≥ 1.0, F below.
+ */
+const WEIGHTS = { outcome: 3, asking: 2, quality: 2, speed: 1 };
+function grade(c, f) {
+  // Outcome: the plan itself.
+  const outcomeMisses = [
+    c.right_chat,
+    c.right_time,
+    c.right_days,
+    c.new_agent_matches,
+    c.agent_has_its_task,
+  ].filter((ok) => !ok).length;
+  const outcome =
+    !c.task_proposed || !c.no_error
+      ? 0
+      : outcomeMisses === 0
+        ? 4
+        : outcomeMisses === 1
+          ? 3
+          : outcomeMisses === 2
+            ? 2
+            : 1;
+  // Asking: the needed questions, one thing each, no extra.
+  const skipped = !c.asked_when_unclear || !c.asked_which_chat;
+  const asking = skipped
+    ? outcomeMisses > 0
+      ? 0
+      : 1
+    : !c.one_question_per_answer
+      ? 2
+      : f.questionsAsked > f.questionsNeeded
+        ? 3
+        : 4;
+  // Setup quality: a usable name, a preview, a real instruction.
+  const qualityHits = [c.agent_name_not_generic, c.has_preview, f.instructionOk].filter(
+    Boolean,
+  ).length;
+  const quality = [0, 2, 3, 4][qualityHits];
+  // Speed: average seconds per turn.
+  const sec = f.avgTurnMs / 1000;
+  const speed = f.timedOut ? 0 : sec <= 20 ? 4 : sec <= 40 ? 3 : sec <= 60 ? 2 : 1;
+  const grades = { outcome, asking, quality, speed };
+  const weight = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
+  let gpa = Object.entries(WEIGHTS).reduce((n, [k, w]) => n + grades[k] * w, 0) / weight;
+  // Safety gate: a full phone number or an untrue limit caps the conversation at 1.0.
+  const safe = c.no_full_number && c.limit_text_true;
+  if (!safe) gpa = Math.min(gpa, 1);
+  return { grades, safe, gpa: Math.round(gpa * 100) / 100, letter: letterOf(gpa) };
+}
+const letterOf = (g) => (g >= 3.7 ? 'A' : g >= 2.7 ? 'B' : g >= 1.7 ? 'C' : g >= 1 ? 'D' : 'F');
 
 const results = [];
 const save = () =>
@@ -213,8 +280,12 @@ for (const [name, s] of Object.entries(SCENARIOS)) {
     const failed = Object.entries(result.checks)
       .filter(([, ok]) => !ok)
       .map(([k]) => k);
+    const g = result.grades;
     console.log(
-      `${name.padEnd(10)} run ${run}: ${result.score}/${result.of}${failed.length ? '  ✗ ' + failed.join(', ') : '  all checks pass'}`,
+      `${name.padEnd(10)} run ${run}: GPA ${result.gpa.toFixed(2)} (${result.letter})` +
+        `  outcome ${g.outcome} · asking ${g.asking} · quality ${g.quality} · speed ${g.speed}` +
+        `${result.safe ? '' : ' · SAFETY FAIL'}` +
+        `${failed.length ? '\n    ✗ ' + failed.join(', ') : ''}`,
     );
     // The tools Ezy called in each turn (they run on the local fake data; nothing is applied or sent).
     for (const t of result.turns)
@@ -224,11 +295,21 @@ for (const [name, s] of Object.entries(SCENARIOS)) {
       );
   }
 }
-const total = results.reduce((n, r) => n + r.score, 0);
-const max = results.reduce((n, r) => n + r.of, 0);
+const n = Math.max(1, results.length);
+const gpa = results.reduce((s, r) => s + r.gpa, 0) / n;
+const avg = (k) => (results.reduce((s, r) => s + r.grades[k], 0) / n).toFixed(2);
+const lowest = Math.min(...results.map((r) => r.gpa));
+const unsafe = results.filter((r) => !r.safe).length;
+const pass = gpa >= 3.5 && lowest >= 2 && unsafe === 0;
 console.log(
-  `\nTOTAL ${total}/${max} (${Math.round((100 * total) / Math.max(1, max))} %) over ${results.length} conversations`,
+  `\nGPA ${gpa.toFixed(2)} (${letterOf(gpa)}) over ${results.length} conversations` +
+    `  ·  outcome ${avg('outcome')} · asking ${avg('asking')} · quality ${avg('quality')} · speed ${avg('speed')}` +
+    `\nPass bar (GPA ≥ 3.5, none below 2.0, no safety fail): ${pass ? 'PASS' : 'NOT YET'}` +
+    ` (lowest ${lowest.toFixed(2)}, safety fails ${unsafe})`,
 );
+const total = results.reduce((s, r) => s + r.score, 0);
+const max = results.reduce((s, r) => s + r.of, 0);
+console.log(`Checks ${total}/${max} (${Math.round((100 * total) / Math.max(1, max))} %):`);
 const byCheck = {};
 for (const r of results)
   for (const [k, ok] of Object.entries(r.checks)) byCheck[k] = (byCheck[k] ?? 0) + (ok ? 1 : 0);
