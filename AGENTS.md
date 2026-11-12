@@ -846,7 +846,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   (real WhatsApp, the real installer, actions that need approval), and list exactly what is left.
 - **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
-  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Ask Ezy setup with a
+  real model: `node e2e/ask-ezy-eval.mjs <port> --runs 3 --out <file>` on the owner's test build (GPA rubric in the
+  script; pass = overall GPA ≥ 3.5, no conversation below 2.0, no safety fail); it never applies anything. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
 - **Owner test environments** (owner rule): Dev Builds that the owner tests by hand (real AI sign-in or
   key, Enterprise licence trial) run on the permanent folders outside the repos, `D:\dev\test-env\lite`
