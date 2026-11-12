@@ -59,21 +59,41 @@ console.log(
   `agents ${status.agents?.length ?? '?'} of ${status.maxAgents ?? '?'}: a new agent is ${ROOM ? 'possible' : 'not possible'}\n`,
 );
 
-/** One Ask Ezy turn through the real route. */
+/** A turn that has not answered after this long is recorded as `client_timeout` (one hang never ends the run). */
+const TURN_LIMIT_MS = 240_000;
+
+/** One Ask Ezy turn through the real route; `tools` = the tools Ezy called (from the streamed `step` events). */
 async function turn(question, history) {
   const started = Date.now();
-  const res = await fetch(BASE + '/api/ask-ezy', {
-    method: 'POST',
-    headers: { ...api.headers(), 'content-type': 'application/json' },
-    body: JSON.stringify({ question, history }),
-  });
-  const events = (await res.text())
-    .split('\n')
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
-  const last = events.at(-1);
-  const answer = last?.type === 'answer' ? last.answer : null;
-  return { answer, error: last?.type === 'error' ? last.code : null, ms: Date.now() - started };
+  try {
+    const res = await fetch(BASE + '/api/ask-ezy', {
+      method: 'POST',
+      headers: { ...api.headers(), 'content-type': 'application/json' },
+      body: JSON.stringify({ question, history }),
+      signal: AbortSignal.timeout(TURN_LIMIT_MS),
+    });
+    const events = (await res.text())
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l));
+    const last = events.at(-1);
+    const answer = last?.type === 'answer' ? last.answer : null;
+    const tools = events.filter((e) => e.type === 'step').map((e) => e.key);
+    return {
+      answer,
+      tools,
+      error: last?.type === 'error' ? last.code : null,
+      ms: Date.now() - started,
+    };
+  } catch (err) {
+    const timedOut = err?.name === 'TimeoutError' || err?.cause?.code === 'UND_ERR_BODY_TIMEOUT';
+    return {
+      answer: null,
+      tools: [],
+      error: timedOut ? 'client_timeout' : 'client_error',
+      ms: Date.now() - started,
+    };
+  }
 }
 const blocksOf = (a, type) => (a?.blocks ?? []).filter((b) => b.type === type);
 
@@ -114,6 +134,7 @@ async function runScenario(name, s) {
       question,
       ms: r.ms,
       error: r.error,
+      tools: r.tools,
       text: r.answer?.text ?? null,
       blocks: (r.answer?.blocks ?? []).map((b) => ({
         ...b,
@@ -177,17 +198,30 @@ async function runScenario(name, s) {
 }
 
 const results = [];
+const save = () =>
+  OUT &&
+  writeFileSync(
+    OUT,
+    JSON.stringify({ at: new Date().toISOString(), port: PORT, results }, null, 2),
+  );
 for (const [name, s] of Object.entries(SCENARIOS)) {
   if (ONLY.length && !ONLY.includes(name)) continue;
   for (let run = 1; run <= RUNS; run++) {
     const result = await runScenario(name, s);
     results.push({ run, ...result });
+    save(); // after every conversation, so a later failure keeps what ran
     const failed = Object.entries(result.checks)
       .filter(([, ok]) => !ok)
       .map(([k]) => k);
     console.log(
       `${name.padEnd(10)} run ${run}: ${result.score}/${result.of}${failed.length ? '  ✗ ' + failed.join(', ') : '  all checks pass'}`,
     );
+    // The tools Ezy called in each turn (they run on the local fake data; nothing is applied or sent).
+    for (const t of result.turns)
+      console.log(
+        `    ${t.error ? `[${t.error} after ${Math.round(t.ms / 1000)} s]` : `${Math.round(t.ms / 1000)} s`} ` +
+          `tools: ${t.tools.join(', ') || '(none)'}`,
+      );
   }
 }
 const total = results.reduce((n, r) => n + r.score, 0);
@@ -200,8 +234,4 @@ for (const r of results)
   for (const [k, ok] of Object.entries(r.checks)) byCheck[k] = (byCheck[k] ?? 0) + (ok ? 1 : 0);
 for (const [k, n] of Object.entries(byCheck))
   console.log(`  ${k.padEnd(24)} ${n}/${results.length}`);
-if (OUT)
-  writeFileSync(
-    OUT,
-    JSON.stringify({ at: new Date().toISOString(), port: PORT, results }, null, 2),
-  );
+save();

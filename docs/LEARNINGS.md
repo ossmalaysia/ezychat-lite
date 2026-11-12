@@ -1359,6 +1359,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A real-model eval (`e2e/ask-ezy-eval.mjs`) reads the environment before it expects anything (agent count against
   `maxAgents` from `GET /api/ai`), and each scenario states whether a question is needed: without that it scored correct
   refusals and correct direct proposals as failures. Read the saved turns (`--out`) before calling a check a model fault.
+  Give each turn its own client limit and save after every conversation: one hung request otherwise ends the whole run
+  (Node's fetch gives up only after 300 s) and loses the results already gathered.
 
 - Every AI path that ends with nothing sent (`no_reply`, a guard that silences `resolve`) must leave a team-only
   trace in the chat; a silent turn while the AI holds the chat leaves the customer waiting where nobody looks. For
