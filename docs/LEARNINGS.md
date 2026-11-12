@@ -725,6 +725,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
+  replacement silently turned `/…\d{4}/` into `/…d{4}/`. After any `sed` on code, read the changed line back.
+
 - Point a custom installer output (`-- --config.directories.output=<folder>`) outside the checkout: inside it, eslint
   scans `win-unpacked/` (8,000+ errors in Enterprise) and hides the real result. If it is already inside, lint with
   `--ignore-pattern "<folder>/**"`.
@@ -1362,7 +1365,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `maxAgents` from `GET /api/ai`), and each scenario states whether a question is needed: without that it scored correct
   refusals and correct direct proposals as failures. Read the saved turns (`--out`) before calling a check a model fault.
   Give each turn its own client limit and save after every conversation: one hung request otherwise ends the whole run
-  (Node's fetch gives up only after 300 s) and loses the results already gathered.
+  (Node's fetch gives up only after 300 s) and loses the results already gathered. Judge an answer by its structure
+  (a question whose choices are chats "Name · …1234"), never by its wording ("which" vs "who should receive"): a
+  wording test scored a correct run as a skipped question.
 
 - Every AI path that ends with nothing sent (`no_reply`, a guard that silences `resolve`) must leave a team-only
   trace in the chat; a silent turn while the AI holds the chat leaves the customer waiting where nobody looks. For
