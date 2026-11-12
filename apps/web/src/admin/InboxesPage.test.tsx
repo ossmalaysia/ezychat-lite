@@ -428,7 +428,7 @@ describe('InboxesPage', () => {
     const confirm = await screen.findByRole('alertdialog');
     expect(
       await within(confirm).findByText(
-        'The 12 chats of this number are hidden. Link the same number again to show the chats that are still on the phone.',
+        'Its 12 chats will be hidden. Link the same number again to show the chats that are still on the phone.',
       ),
     ).toBeTruthy();
     expect(calls('POST', '/api/inboxes/1/wa/relink')).toHaveLength(0);

@@ -481,3 +481,88 @@ describe('a different number links', { timeout: 30_000 }, () => {
     expect(usersWhoCanOpenChat(t.ctx, `${A}~old1#2`)).toEqual([]);
   });
 });
+
+describe('events of a new link before it opens', { timeout: 30_000 }, () => {
+  it('a different number: chat list and messages sent before `open` start new chats, never the old ones', async () => {
+    await setUp();
+    await incoming(A, 'secret old order');
+    expect((await post('/api/wa/logout')).statusCode).toBe(200);
+    // the new phone's sync starts while the connection still says `connecting` (number unknown)
+    t.wa.simulateStatus({ state: 'connecting', me: null });
+    t.wa.emit('chats', [{ jid: A, type: 'dm', name: null }]);
+    t.wa.emit('message', historyMessage(A, 'NEW-H1', 'hello new shop'), { source: 'history' });
+    expect(hiddenAt(A)).not.toBeNull();
+    link(t.wa, OTHER_OWN);
+    await waitFor(
+      () =>
+        (
+          t.ctx.db.prepare('SELECT COUNT(*) AS n FROM messages WHERE chat_jid = ?').get(A) as {
+            n: number;
+          }
+        ).n === 1,
+    );
+    expect(
+      getMessages(t.ctx)
+        .list(A, { limit: 10 })
+        .messages.map((m) => m.body),
+    ).toEqual(['hello new shop']);
+    expect(hiddenAt(A)).toBeNull();
+    expect(
+      getMessages(t.ctx)
+        .list(`${A}~old1`, { limit: 10 })
+        .messages.map((m) => m.body),
+    ).toEqual(['secret old order']);
+  });
+
+  it('a different number known before `open` decides at the first event', async () => {
+    await setUp();
+    await incoming(A, 'old');
+    expect((await post('/api/wa/logout')).statusCode).toBe(200);
+    t.wa.simulateStatus({ state: 'connecting', me: { jid: OTHER_OWN, name: 'New' } });
+    await incoming(A, 'new');
+    expect(hiddenAt(A)).toBeNull();
+    expect(hiddenAt(`${A}~old1`)).not.toBeNull();
+  });
+
+  it('the same number: events before `open` wait, then show their chats', async () => {
+    await setUp();
+    await incoming(A, 'a1');
+    await incoming(B, 'b1');
+    expect((await post('/api/wa/logout')).statusCode).toBe(200);
+    t.wa.simulateStatus({ state: 'connecting', me: null });
+    t.wa.emit('chats', [{ jid: A, type: 'dm', name: null }]);
+    expect(hiddenAt(A)).not.toBeNull();
+    link(t.wa, OWN);
+    expect(hiddenAt(A)).toBeNull();
+    expect(hiddenAt(B)).not.toBeNull();
+  });
+});
+
+describe('the number is not known at Log out', { timeout: 30_000 }, () => {
+  it("takes the number from the connection's last status", async () => {
+    await setUp();
+    await incoming(A, 'a1');
+    t.ctx.db.prepare('UPDATE inboxes SET own_jid = NULL').run();
+    t.wa.simulateStatus({ state: 'logged_out', me: null });
+    expect(t.ctx.db.prepare('SELECT hidden_number AS n FROM chats WHERE jid = ?').get(A)).toEqual({
+      n: '60000000000',
+    });
+  });
+
+  it('never archives chats hidden with an unknown number; WhatsApp still shows them', async () => {
+    await setUp();
+    await incoming(A, 'a1');
+    t.ctx.db.prepare('UPDATE inboxes SET own_jid = NULL').run();
+    t.wa.simulateStatus({ state: 'disconnected', me: null });
+    t.wa.simulateStatus({ state: 'logged_out', me: null });
+    expect(t.ctx.db.prepare('SELECT hidden_number AS n FROM chats WHERE jid = ?').get(A)).toEqual({
+      n: null,
+    });
+    expect(await info()).toEqual({ visible: 0, hidden: 0, number: null });
+    link(t.wa, OWN);
+    expect(audits('chats.archived_on_relink')).toEqual([]);
+    expect(await info()).toEqual({ visible: 0, hidden: 1, number: '60000000000' });
+    t.wa.emit('chats', [{ jid: A, type: 'dm', name: null }]);
+    expect(hiddenAt(A)).toBeNull();
+  });
+});

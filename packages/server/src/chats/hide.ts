@@ -31,13 +31,22 @@ export interface ChatHideService {
   markAdminLogout(inboxId: number): () => void;
   /**
    * The inbox's linked phone logged out: hides every chat of the inbox (one transaction), fails its
-   * queued sends and stops AI work for them. Returns how many chats were hidden.
+   * queued sends and stops AI work for them. `lastJid`: the number the connection last reported, used
+   * when the inbox has none saved (else the chats keep an unknown number: never archived). Returns
+   * how many chats were hidden.
    */
-  hideInbox(inboxId: number): number;
+  hideInbox(inboxId: number, lastJid?: string | null): number;
+  /**
+   * May an event of the inbox's current link be handled now? False while chats are hidden and the
+   * new link's number is not known yet (its events must not land in the old number's chats). With
+   * `ownJid` (the connection's number, even before `open`) it decides first, as onLinked.
+   */
+  linkDecided(inboxId: number, ownJid: string | null | undefined): boolean;
   /**
    * A phone linked to the inbox (`ownJid` = its own WhatsApp JID), before the bridge saves the number.
    * The same number: hidden chats come back one by one as WhatsApp reports them (`showIfHidden`). A
-   * different number: every hidden chat is archived and stays hidden for good.
+   * different number: every hidden chat is archived and stays hidden for good. Chats hidden while
+   * the number was unknown are never archived (they stay showable).
    */
   onLinked(inboxId: number, ownJid: string): void;
   /**
@@ -71,6 +80,11 @@ export function createChatHideService(
   const adminLogouts = new Set<number>();
   /** inboxId → chats shown since the last audit row, and its timer. */
   const shown = new Map<number, { count: number; timer: ReturnType<typeof setTimeout> }>();
+  /**
+   * inboxId → keys of its hidden, not archived chats (read once, then kept in step), so the many
+   * messages of a history sync are matched in memory and only a hidden chat costs a query.
+   */
+  const hiddenKeys = new Map<number, Set<string>>();
 
   const ownNumber = (inboxId: number) => numberOfJid(ctx.inboxes.repo.get(inboxId)?.own_jid);
 
@@ -109,6 +123,36 @@ export function createChatHideService(
       .all(inboxId) as Array<
       Pick<ChatColumns, 'jid' | 'wa_jid'> & { hidden_number: string | null }
     >;
+
+  const keysOf = (inboxId: number): Set<string> => {
+    let set = hiddenKeys.get(inboxId);
+    if (!set) {
+      set = new Set(hiddenRows(inboxId).map((r) => r.jid));
+      hiddenKeys.set(inboxId, set);
+    }
+    return set;
+  };
+
+  /** The chat keys `waJid` can have in the inbox: itself, its LID and the LID's phone numbers. */
+  const candidateKeys = (inboxId: number, waJid: string): string[] => {
+    const aliases = getAliases(ctx);
+    const jids = new Set<string>([waJid]);
+    if (!waJid.endsWith('@g.us')) {
+      const lid = aliases.resolve(waJid);
+      jids.add(lid);
+      if (lid.endsWith('@lid'))
+        for (const p of aliases.aliasesOf(lid)) if (!aliases.movedAway(p)) jids.add(p);
+    }
+    const out: string[] = [];
+    for (const j of jids) {
+      try {
+        out.push(chatKey(inboxId, j));
+      } catch {
+        // a JID that is no chat key (e.g. contains '#') names no chat
+      }
+    }
+    return out;
+  };
 
   const keyTaken = db.prepare('SELECT 1 FROM chats WHERE jid = ?');
   const moves = CHAT_TABLES.map((table) =>
@@ -150,10 +194,11 @@ export function createChatHideService(
       return () => adminLogouts.delete(inboxId);
     },
 
-    hideInbox(inboxId) {
+    hideInbox(inboxId, lastJid) {
       const via = adminLogouts.has(inboxId) ? 'admin' : 'phone';
       armed.delete(inboxId);
-      const number = ownNumber(inboxId);
+      hiddenKeys.delete(inboxId);
+      const number = ownNumber(inboxId) ?? numberOfJid(lastJid);
       const at = now();
       const keys = db.transaction(() => {
         const keys = (
@@ -203,7 +248,8 @@ export function createChatHideService(
         armed.delete(inboxId);
         return;
       }
-      const other = rows.filter((r) => r.hidden_number !== number);
+      // a chat hidden while the number was unknown is never archived
+      const other = rows.filter((r) => r.hidden_number !== null && r.hidden_number !== number);
       if (other.length) {
         db.transaction(() => {
           for (const r of other) archiveOne(inboxId, r);
@@ -215,31 +261,32 @@ export function createChatHideService(
           });
         })();
         log.info({ inboxId, count: other.length }, 'hidden chats archived: another number linked');
+        hiddenKeys.delete(inboxId);
       }
       if (other.length < rows.length) armed.set(inboxId, number);
       else armed.delete(inboxId);
     },
 
+    linkDecided(inboxId, ownJid) {
+      if (armed.has(inboxId) || keysOf(inboxId).size === 0) return true;
+      if (ownJid) svc.onLinked(inboxId, ownJid);
+      return armed.has(inboxId) || keysOf(inboxId).size === 0;
+    },
+
     showIfHidden(inboxId, waJids) {
       const number = armed.get(inboxId);
       if (!number) return [];
-      const aliases = getAliases(ctx);
+      const hiddenSet = keysOf(inboxId);
       const keys = new Set<string>();
-      for (const j of waJids) {
-        if (!j) continue;
-        try {
-          keys.add(j.endsWith('@g.us') ? chatKey(inboxId, j) : aliases.route(inboxId, j));
-        } catch {
-          // a JID that is no chat key (e.g. contains '#') reports no chat
-        }
-      }
+      for (const j of waJids)
+        if (j) for (const k of candidateKeys(inboxId, j)) if (hiddenSet.has(k)) keys.add(k);
       if (!keys.size) return [];
       const list = JSON.stringify([...keys]);
       const out = db.transaction(() => {
         const rows = db
           .prepare(
-            `SELECT jid FROM chats WHERE inbox_id = ? AND hidden_number = ? AND hidden_at IS NOT NULL
-               AND ${NOT_ARCHIVED} AND jid IN (SELECT value FROM json_each(?))`,
+            `SELECT jid FROM chats WHERE inbox_id = ? AND (hidden_number = ? OR hidden_number IS NULL)
+               AND hidden_at IS NOT NULL AND ${NOT_ARCHIVED} AND jid IN (SELECT value FROM json_each(?))`,
           )
           .all(inboxId, number, list) as Array<{ jid: string }>;
         if (!rows.length) return [];
@@ -250,14 +297,15 @@ export function createChatHideService(
         ).run(JSON.stringify(jids));
         return jids;
       })();
+      for (const jid of out) hiddenSet.delete(jid);
       if (!out.length) return out;
       countShown(inboxId, out.length);
       for (const jid of out) {
         const chat = ctx.services.chats?.get(jid);
         if (chat) ctx.bus.emit('chat:updated', chat);
       }
-      // nothing hidden left for this number: stop looking
-      if (!hiddenRows(inboxId).some((r) => r.hidden_number === number)) armed.delete(inboxId);
+      // nothing hidden left: stop looking
+      if (hiddenSet.size === 0) armed.delete(inboxId);
       return out;
     },
 
@@ -268,7 +316,7 @@ export function createChatHideService(
             db
               .prepare(
                 `SELECT COUNT(*) AS n FROM chats WHERE inbox_id = ? AND hidden_at IS NOT NULL
-                   AND hidden_number = ? AND ${NOT_ARCHIVED}`,
+                   AND (hidden_number = ? OR hidden_number IS NULL) AND ${NOT_ARCHIVED}`,
               )
               .get(inboxId, number) as { n: number }
           ).n

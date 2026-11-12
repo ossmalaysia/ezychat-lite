@@ -6,6 +6,7 @@ import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
 import { errors } from '../http/errors.js';
+import { getAliases } from './aliases.js';
 import { parseChatKey } from '../inboxes/keys.js';
 import { chatMediaDir, MediaStore } from '../messages/media-store.js';
 import { waJidOf, type ChatColumns } from './repo.js';
@@ -95,6 +96,27 @@ export function chatDeletedAt(
     )
     .get(inboxId, JSON.stringify(list)) as { at: number | null };
   return row.at;
+}
+
+/**
+ * As chatDeletedAt for every address of the same person: each JID, the LID a phone number resolves to,
+ * and every phone number of each LID (a chat deleted under one address is found under the other).
+ */
+export function personDeletedAt(
+  ctx: AppContext,
+  inboxId: number,
+  waJids: Iterable<string | null | undefined>,
+): number | null {
+  const aliases = getAliases(ctx);
+  const all = new Set<string>();
+  for (const j of waJids) {
+    if (!j) continue;
+    all.add(j);
+    all.add(aliases.resolve(j));
+  }
+  for (const j of [...all])
+    if (j.endsWith('@lid')) for (const p of aliases.aliasesOf(j)) all.add(p);
+  return chatDeletedAt(ctx.db, inboxId, all);
 }
 
 export interface ChatDeleteResult {
@@ -202,8 +224,8 @@ export function createChatDeleteService(
       chatRow(jid);
       const r = ctx.db
         .prepare(
-          `SELECT COUNT(*) AS messages, COUNT(media_path) AS files FROM messages
-           WHERE chat_jid = ? AND hidden_at IS NULL`,
+          // every message the delete removes (hidden-for-the-team ones too), as the audit counts them
+          'SELECT COUNT(*) AS messages, COUNT(media_path) AS files FROM messages WHERE chat_jid = ?',
         )
         .get(jid) as ChatDeletePreview;
       return { messages: r.messages, files: r.files };

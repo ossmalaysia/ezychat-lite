@@ -1647,6 +1647,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- In screen scripts, scope action buttons to the page content (`getByRole('main').getByRole('button', { name,
+exact: true })`): on admin pages a bare "Log out" also matches the account menu's sign-out, and `.first()` signs
+  the script out. A confirm dialog may be an `alertdialog`, so wait for either role.
+
 - The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
   `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
   (or `newClientId`), never `crypto.randomUUID()` directly or `Math.random`; feature-check any other secure-only API. One call in an always-mounted host (e.g. `FeedbackHost`) blanked every

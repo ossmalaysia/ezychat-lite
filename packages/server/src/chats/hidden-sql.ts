@@ -15,9 +15,16 @@ export const visibleChat = (c: string): string => `${c}.hidden_at IS NULL`;
 /** The error a send of a hidden chat fails with (it is never sent later, e.g. from another number). */
 export const LOGGED_OUT_MESSAGE = 'This WhatsApp number was logged out';
 
+/** One prepared look-up per database (it runs on hot paths: socket emits, access checks, ingest). */
+const lookups = new WeakMap<DB, ReturnType<DB['prepare']>>();
+
 /** True when the chat with this key exists and is hidden. */
 export function isChatHidden(db: DB, jid: string): boolean {
-  const r = db.prepare('SELECT hidden_at FROM chats WHERE jid = ?').get(jid) as
-    { hidden_at: number | null } | undefined;
+  let stmt = lookups.get(db);
+  if (!stmt) {
+    stmt = db.prepare('SELECT hidden_at FROM chats WHERE jid = ?');
+    lookups.set(db, stmt);
+  }
+  const r = stmt.get(jid) as { hidden_at: number | null } | undefined;
   return r?.hidden_at != null;
 }

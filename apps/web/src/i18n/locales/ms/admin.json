@@ -580,8 +580,8 @@
     "phoneHint": "Dapatkan kod 8 aksara dan bukannya mengimbas QR.",
     "linkTitle": "Paut WhatsApp",
     "linkBody": "Paut semula untuk memaparkan kod QR baharu, kemudian imbas dari telefon.",
-    "hides_other": "{{count}} chat nombor ini disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon.",
-    "hidesUnknown": "Chat nombor ini disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon.",
+    "hides_other": "{{count}} chatnya akan disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon.",
+    "hidesUnknown": "Chatnya akan disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon.",
     "hiddenNote_other": "{{count}} chat {{number}} disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon. Nombor lain bermula dengan peti masuk kosong.",
     "actionsTitle": "Tindakan",
     "actions": {

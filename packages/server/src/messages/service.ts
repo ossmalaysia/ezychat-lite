@@ -32,7 +32,7 @@ import { WaUnavailableError, type WaMediaLimits } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
-import { chatDeletedAt } from '../chats/delete.js';
+import { personDeletedAt } from '../chats/delete.js';
 import { getChatHide } from '../chats/hide.js';
 import { isChatHidden } from '../chats/hidden-sql.js';
 import { ChatRepo } from '../chats/repo.js';
@@ -330,22 +330,16 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const changeRepo = new MessageChangeRepo(ctx.db);
 
   /**
-   * A history message of a chat an admin deleted (Delete chat): never imported when the chat is gone,
-   * nor when it is older than the delete (a live message started the chat again). Checks the chat's
-   * JID and the message's other address (phone number / LID of one person).
+   * A history message, reaction, edit or delete of a chat an admin deleted (Delete chat): never stored
+   * when the chat is gone, nor when it is older than the delete (a live message started the chat
+   * again). Checks every address of the person (phone number and LID).
    */
   const deletedHistory = (
     inboxId: number,
     chatJid: string,
-    chatWaJid: string,
     m: { chatJid: string; chatJidAlt?: string | null; timestamp: number },
   ): boolean => {
-    const at = chatDeletedAt(ctx.db, inboxId, [
-      chatWaJid,
-      m.chatJid,
-      m.chatJidAlt,
-      ...(chatWaJid.endsWith('@lid') ? getAliases(ctx).aliasesOf(chatWaJid) : []),
-    ]);
+    const at = personDeletedAt(ctx, inboxId, [waJidOf(chatJid), m.chatJid, m.chatJidAlt]);
     return at !== null && (!chats.get(chatJid) || m.timestamp < at);
   };
 
@@ -1105,6 +1099,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     learnChangeAliases(c, source);
     const id = messageKey(inboxId, c.targetId);
     const chatJid = changeChat(c.chatJid, inboxId);
+    if (source === 'history' && deletedHistory(inboxId, chatJid, c)) return;
     const change = {
       kind,
       fromMe: c.fromMe,
@@ -1252,7 +1247,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const directKey = chatKey(inboxId, m.chatJid);
       const chatJid = isGroup ? directKey : aliases.route(inboxId, m.chatJid);
       const chatWaJid = waJidOf(chatJid);
-      if (source === 'history' && deletedHistory(inboxId, chatJid, chatWaJid, m)) return null;
+      if (source === 'history' && deletedHistory(inboxId, chatJid, m)) return null;
       // Any message of a chat hidden on Log out: the phone still has it, the same number shows it again.
       getChatHide(ctx).showIfHidden(inboxId, [m.chatJid, m.chatJidAlt]);
       // Our own send may echo before the queue has committed its WhatsApp id and sender. The guard
@@ -1652,6 +1647,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       } else if (r.chatJidAlt) {
         aliases.learn({ jid: r.chatJid, alias: r.chatJidAlt }, learnedFrom);
       }
+      if (source === 'history' && deletedHistory(inboxId, changeChat(r.chatJid, inboxId), r))
+        return;
       const messageId = messageKey(inboxId, r.targetId);
       const row = reactionRow(r, messageId, aliases);
       if (!row || !reactions.repo.apply(row)) return;

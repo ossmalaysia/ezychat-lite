@@ -61,9 +61,12 @@ export function canOpen(scope: InboxScope, inboxId: number): boolean {
 export function canOpenChat(
   ctx: InboxCtx,
   user: Viewer,
-  chat: { jid: string; inbox_id: number },
+  chat: { jid: string; inbox_id: number; hidden_at?: number | null },
 ): boolean {
-  if (isChatHidden(ctx.db, chat.jid)) return false;
+  // a caller with the chat's row passes its hidden_at; else one look-up
+  const hidden =
+    chat.hidden_at !== undefined ? chat.hidden_at !== null : isChatHidden(ctx.db, chat.jid);
+  if (hidden) return false;
   const chosen = chosenChats(ctx, user);
   if (chosen) return chosen.has(chat.jid) && inboxActive(ctx, chat.inbox_id);
   return canOpen(scopeFor(ctx, user), chat.inbox_id);

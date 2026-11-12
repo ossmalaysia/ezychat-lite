@@ -14,7 +14,7 @@ import { audit } from '../db/audit.js';
 import { HttpError, errors } from '../http/errors.js';
 import { canOpenChat } from '../inboxes/access.js';
 import { getAliases } from './aliases.js';
-import { chatDeletedAt } from './delete.js';
+import { personDeletedAt } from './delete.js';
 import { PRIMARY_INBOX_ID, chatKey, parseChatKey, waMessageId } from '../inboxes/keys.js';
 import { ChatRepo, chatTypeOf, jidUser, waJidOf, type ChatRow } from './repo.js';
 import { createChatPresenter } from '../messages/mentions.js';
@@ -313,7 +313,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         info.type === 'dm' ? aliases.route(inboxId, info.jid) : chatKey(inboxId, info.jid);
       if (
         !repo.get(jid) &&
-        chatDeletedAt(ctx.db, inboxId, [parseChatKey(jid).waJid, info.jid]) !== null
+        personDeletedAt(ctx, inboxId, [parseChatKey(jid).waJid, info.jid]) !== null
       )
         return null;
       return svc.upsertFromWa(info, inboxId);

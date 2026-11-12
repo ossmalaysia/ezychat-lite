@@ -6,6 +6,7 @@ import type { WaIncomingMessage } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
+import { getAliases } from '../src/chats/aliases.js';
 import { chatDeletedAt, DELETE_PLAN } from '../src/chats/delete.js';
 import { avatarFileName } from '../src/avatars/store.js';
 import { chatMediaDir } from '../src/messages/media-store.js';
@@ -369,5 +370,65 @@ describe('deleted chat tombstone', () => {
     await incoming(A, 'two');
     expect((await del(admin.cookie, A)).statusCode).toBe(204);
     expect(chatDeletedAt(t.ctx.db, 1, [A])).toBe(5_000);
+  });
+
+  it('the chat list never brings back a deleted phone-number chat reported under its LID', async () => {
+    const LID = '99887766@lid';
+    await incoming(A, 'from the phone number');
+    expect((await del(admin.cookie, A)).statusCode).toBe(204);
+    // WhatsApp tells the pair only later, then lists the chat under the LID
+    getAliases(t.ctx).learn({ jid: A, alias: LID }, 'contacts');
+    expect(getChats(t.ctx).syncFromWa({ jid: LID, type: 'dm', name: 'Customer' })).toBeNull();
+    expect(count('chats', '1 = 1')).toBe(0);
+  });
+
+  it('history reactions, edits and deletes of a deleted chat write nothing; live ones still apply', async () => {
+    const old = Date.now() - 60_000;
+    await incoming(A, 'before delete');
+    expect((await del(admin.cookie, A)).statusCode).toBe(204);
+    const messages = getMessages(t.ctx);
+    messages.applyReaction(
+      {
+        targetId: 'OLD-1',
+        chatJid: A,
+        senderJid: A,
+        senderName: null,
+        fromMe: false,
+        emoji: '👍',
+        timestamp: old,
+      },
+      'history',
+    );
+    const change = { targetId: 'OLD-2', chatJid: A, senderJid: A, fromMe: false, timestamp: old };
+    messages.applyRemoteEdit({ ...change, body: 'edited' }, 'history');
+    messages.applyRemoteDelete({ ...change, targetId: 'OLD-3' }, 'history');
+    expect(count('message_reactions', '1 = 1')).toBe(0);
+    expect(count('message_changes_pending', '1 = 1')).toBe(0);
+    // a live reaction is the customer's own new action: kept (it waits for its message)
+    messages.applyReaction(
+      {
+        targetId: 'NEW-1',
+        chatJid: A,
+        senderJid: A,
+        senderName: null,
+        fromMe: false,
+        emoji: '👍',
+        timestamp: Date.now(),
+      },
+      'live',
+    );
+    expect(count('message_reactions', '1 = 1')).toBe(1);
+  });
+
+  it('the preview counts every message the delete removes, hidden ones too', async () => {
+    const one = await incoming(A, 'one');
+    await incoming(A, 'two');
+    t.ctx.db.prepare('UPDATE messages SET hidden_at = 1 WHERE id = ?').run(one.id);
+    const preview = await t.app.inject({
+      method: 'GET',
+      url: `/api/chats/${enc(A)}/delete-preview`,
+      headers: authHeaders(admin.cookie),
+    });
+    expect(ChatDeletePreview.parse(preview.json())).toEqual({ messages: 2, files: 0 });
   });
 });

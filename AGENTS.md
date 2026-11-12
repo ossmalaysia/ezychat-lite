@@ -546,8 +546,10 @@ out or Link again, which marks itself via `markAdminLogout`, or an unlink from t
 adapter the inbox already let go of on remove or type change) runs `hideInbox`: one transaction sets `chats.hidden_at` and
 `hidden_number` (digits of `inboxes.own_jid`) on every chat of the inbox, fails its pending sends (`LOGGED_OUT_MESSAGE`),
 then drops queued jobs and AI work; audit `chats.hidden_on_logout` {inboxId, count, via}; socket `chats:hidden` {inboxId}.
-Nothing is deleted; assignees stay. On every connection open the bridge calls `onLinked` **before** saving the number:
-the same digits arm showing; other digits archive every hidden chat (re-keyed to `chatKey(inbox, '<wa_jid>~old<n>')` in
+Nothing is deleted; assignees stay (an unknown number, also not in the last status, is stored NULL and never archived).
+The bridge holds chat-list, message, reaction and edit events while chats are hidden and the new link's number is unknown
+(`linkDecided`, at most `HELD_EVENTS_MAX`), and on open (or the first event that carries the number) calls `onLinked`
+**before** saving the number: the same digits arm showing; other digits archive every hidden chat (re-keyed to `chatKey(inbox, '<wa_jid>~old<n>')` in
 `CHAT_TABLES` + `avatars`, one transaction, audit `chats.archived_on_relink`), so the new number starts empty; archived
 chats never come back. `showIfHidden` (WhatsApp's chat list in the bridge, every ingested message, New chat and a group
 member's Message) shows a chat again only for the armed number; audit `chats.shown_on_relink` {inboxId, count} once per

@@ -93,7 +93,7 @@ it("says how many chats Log out hides (inbox 1's counts, read again per state)",
   ).toBeTruthy();
   expect(
     within(dialog).getByText(
-      'The 128 chats of this number are hidden. Link the same number again to show the chats that are still on the phone.',
+      'Its 128 chats will be hidden. Link the same number again to show the chats that are still on the phone.',
     ),
   ).toBeTruthy();
 });
@@ -104,14 +104,14 @@ it('says the chats are hidden without a count while the counts load, and nothing
   await user.click(screen.getByRole('button', { name: 'Re-link' }));
   expect(
     within(screen.getByRole('alertdialog')).getByText(
-      'The chats of this number are hidden. Link the same number again to show the chats that are still on the phone.',
+      'Its chats will be hidden. Link the same number again to show the chats that are still on the phone.',
     ),
   ).toBeTruthy();
   cleanup();
   hooks.hidden = { visible: 0, hidden: 0, number: null };
   render(<WhatsAppPage />);
   await user.click(screen.getByRole('button', { name: 'Log out' }));
-  expect(within(screen.getByRole('alertdialog')).queryByText(/are hidden/)).toBeNull();
+  expect(within(screen.getByRole('alertdialog')).queryByText(/will be hidden/)).toBeNull();
 });
 
 it('shows the hidden chats of the old number while logged out', () => {
@@ -121,6 +121,17 @@ it('shows the hidden chats of the old number while logged out', () => {
   expect(
     screen.getByText(
       'The 1 chat of +60123456789 is hidden. Link the same number again to show the chats that are still on the phone. Another number starts with an empty inbox.',
+    ),
+  ).toBeTruthy();
+});
+
+it('uses the one-chat sentence for a single chat', async () => {
+  hooks.hidden = { visible: 1, hidden: 0, number: null };
+  render(<WhatsAppPage />);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Log out' }));
+  expect(
+    within(screen.getByRole('alertdialog')).getByText(
+      'Its 1 chat will be hidden. Link the same number again to show it, if it is still on the phone.',
     ),
   ).toBeTruthy();
 });

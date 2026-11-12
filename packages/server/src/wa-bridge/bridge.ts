@@ -23,6 +23,9 @@ import { capabilitiesOf } from '../inboxes/types.js';
  * ctx.services.waStatus + bus 'wa:status'; when open → that inbox's send queue onConnected().
  * Returns a detach function.
  */
+/** Most events of a new link held until its number is known (then handled at once, in order). */
+export const HELD_EVENTS_MAX = 50_000;
+
 export function attachWaBridge(
   ctx: AppContext,
   inboxId: number = PRIMARY_INBOX_ID,
@@ -86,7 +89,7 @@ export function attachWaBridge(
    * hidden. Never for a connection that is not linked by QR (Business API), nor for an adapter the
    * inbox already let go of (inbox removed or its type changed: that logout is ours).
    */
-  const hideOnLogout = () => {
+  const hideOnLogout = (before: WaStatus) => {
     if (!capabilitiesOf(wa).qrLink) return;
     try {
       if (ctx.inboxes.connections.adapter(inboxId) !== wa) return;
@@ -94,45 +97,83 @@ export function attachWaBridge(
       return; // the inbox has no connection any more (removed)
     }
     try {
-      getChatHide(ctx).hideInbox(inboxId);
+      // the number the connection reported last, for an inbox that has none saved
+      getChatHide(ctx).hideInbox(inboxId, before.me?.jid ?? null);
     } catch (err) {
       log.error({ err }, 'chats not hidden on logout');
     }
   };
 
+  /**
+   * Events of a new link that arrive while chats are hidden and its number is still unknown (before
+   * `open`) wait here: routed now, they would land in the old number's hidden chats (and be archived
+   * with them). They run in order once the number decided (`onConnected`, or the next event with it).
+   */
+  const held: Array<() => void> = [];
+  let heldWarned = false;
+  const runHeld = () => {
+    for (const run of held.splice(0)) run();
+  };
+  const linkDecided = () => {
+    try {
+      return getChatHide(ctx).linkDecided(inboxId, wa.status.me?.jid);
+    } catch (err) {
+      log.error({ err }, 'hidden chats not checked for an event');
+      return true;
+    }
+  };
+  /** Runs `run` now, or holds it until the link's number is known. */
+  const gate = (run: () => void) => {
+    if (linkDecided() || held.length >= HELD_EVENTS_MAX) {
+      if (held.length >= HELD_EVENTS_MAX && !heldWarned) {
+        heldWarned = true;
+        log.warn({ held: held.length }, 'too many events before the link opened: handled now');
+      }
+      runHeld();
+      run();
+      return;
+    }
+    held.push(run);
+  };
+
   const onConnected = () => {
     meetHiddenChats(wa.status);
+    runHeld();
     rememberOwnJid(wa.status);
     messages.queueFor(inboxId).onConnected();
     restoreContactAliases();
   };
 
-  const onMessage = (m: WaIncomingMessage, meta: { source: 'live' | 'history' }) => {
-    messages
-      .ingest(m, meta?.source ?? 'live', inboxId)
-      .catch((err: unknown) => log.error({ err, id: m.id }, 'ingest failed'));
-  };
-  const onReaction = (r: WaReaction, meta: { source: 'live' | 'history' }) => {
-    try {
-      messages.applyReaction(r, meta?.source ?? 'live', inboxId);
-    } catch (err) {
-      log.error({ err, id: r.targetId }, 'reaction not stored');
-    }
-  };
-  const onEdited = (e: WaMessageEdit, meta: { source: 'live' | 'history' }) => {
-    try {
-      messages.applyRemoteEdit(e, meta?.source ?? 'live', inboxId);
-    } catch (err) {
-      log.error({ err, id: e.targetId }, 'edit not stored');
-    }
-  };
-  const onDeleted = (r: WaMessageRevoke, meta: { source: 'live' | 'history' }) => {
-    try {
-      messages.applyRemoteDelete(r, meta?.source ?? 'live', inboxId);
-    } catch (err) {
-      log.error({ err, id: r.targetId }, 'delete not stored');
-    }
-  };
+  const onMessage = (m: WaIncomingMessage, meta: { source: 'live' | 'history' }) =>
+    gate(() => {
+      messages
+        .ingest(m, meta?.source ?? 'live', inboxId)
+        .catch((err: unknown) => log.error({ err, id: m.id }, 'ingest failed'));
+    });
+  const onReaction = (r: WaReaction, meta: { source: 'live' | 'history' }) =>
+    gate(() => {
+      try {
+        messages.applyReaction(r, meta?.source ?? 'live', inboxId);
+      } catch (err) {
+        log.error({ err, id: r.targetId }, 'reaction not stored');
+      }
+    });
+  const onEdited = (e: WaMessageEdit, meta: { source: 'live' | 'history' }) =>
+    gate(() => {
+      try {
+        messages.applyRemoteEdit(e, meta?.source ?? 'live', inboxId);
+      } catch (err) {
+        log.error({ err, id: e.targetId }, 'edit not stored');
+      }
+    });
+  const onDeleted = (r: WaMessageRevoke, meta: { source: 'live' | 'history' }) =>
+    gate(() => {
+      try {
+        messages.applyRemoteDelete(r, meta?.source ?? 'live', inboxId);
+      } catch (err) {
+        log.error({ err, id: r.targetId }, 'delete not stored');
+      }
+    });
   const onStatusUpdate = (u: WaMessageStatusUpdate) => {
     try {
       messages.applyStatus(u, inboxId);
@@ -140,20 +181,21 @@ export function attachWaBridge(
       log.error({ err, id: u.id }, 'applyStatus failed');
     }
   };
-  const onChats = (list: WaChatInfo[]) => {
-    try {
-      // the phone still has these chats: a chat hidden on Log out comes back for the same number
-      getChatHide(ctx).showIfHidden(
-        inboxId,
-        list.map((c) => c.jid),
-      );
-      ctx.db.transaction(() => {
-        for (const c of list) chats.syncFromWa(c, inboxId);
-      })();
-    } catch (err) {
-      log.error({ err }, 'chats upsert failed');
-    }
-  };
+  const onChats = (list: WaChatInfo[]) =>
+    gate(() => {
+      try {
+        // the phone still has these chats: a chat hidden on Log out comes back for the same number
+        getChatHide(ctx).showIfHidden(
+          inboxId,
+          list.map((c) => c.jid),
+        );
+        ctx.db.transaction(() => {
+          for (const c of list) chats.syncFromWa(c, inboxId);
+        })();
+      } catch (err) {
+        log.error({ err }, 'chats upsert failed');
+      }
+    });
   const onContacts = (list: WaContactInfo[]) => {
     try {
       chats.upsertContacts(list);
@@ -179,7 +221,7 @@ export function attachWaBridge(
     ctx.bus.emit('inbox:status', { inboxId, status: s });
     if (s.state === 'open' && before.state !== 'open') onConnected();
     else if (s.state !== 'open') connectionGeneration++;
-    if (s.state === 'logged_out' && before.state !== 'logged_out') hideOnLogout();
+    if (s.state === 'logged_out' && before.state !== 'logged_out') hideOnLogout(before);
   };
 
   if (primary) ctx.services.waStatus = wa.status;
@@ -197,6 +239,7 @@ export function attachWaBridge(
   return () => {
     detached = true;
     connectionGeneration++;
+    held.length = 0;
     wa.off('message', onMessage);
     wa.off('reaction', onReaction);
     wa.off('messageEdited', onEdited);
