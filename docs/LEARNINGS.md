@@ -720,6 +720,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- On Windows `git worktree remove --force` can unregister a worktree and still leave its folder (`node_modules`):
+  check `git worktree list`, then delete the leftover folder if it is yours.
+
 - Run `prettier --write` only on the files you changed (`git diff --name-only origin/main`), never on a folder glob:
   many files on `main` are not Prettier-clean, and a glob drags unrelated reformatting into the PR.
 - PowerShell does not wait for a GUI-subsystem program (Electron, also with `ELECTRON_RUN_AS_NODE=1`) called with
@@ -1225,6 +1228,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   Give each list file its own marker field too (`catalog: "templates"`).
 
 ## WhatsApp / Baileys
+
+- A chat is keyed by inbox and customer (`chatKey(inboxId, waJid)`, unique `(inbox_id, wa_jid)`), never by our own
+  linked number: a different number linked into the same inbox writes into the old number's chat rows. Any feature
+  that treats "this number's chats" as a set (hide, archive, reports per number) needs its own number stamp or new
+  keys. Admin Log out and an unlink from the phone both end in the bridge's `logged_out` status; only the admin path
+  goes through `routes/wa.ts` and its audit row.
 
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
