@@ -54,12 +54,33 @@ const MAX_CHARS = 2000;
 /** Earlier turns sent with a question (the server accepts 12). */
 const HISTORY_TURNS = 12;
 
-/** The conversation so far, as the server reads it (answers by their text only). */
-function historyOf(turns: Turn[]): AskEzyTurn[] {
+/**
+ * An answer as the server reads it back: its text, plus one line per question or setup card so the next turn
+ * knows what was asked and proposed (a tapped choice answers that question). The server trusts none of it:
+ * proposals are looked up by id in its own store.
+ */
+function answerForHistory(answer: AskAnswer, changes: Record<string, ChangeState>): string {
+  const lines = [answer.text];
+  for (const b of answer.blocks) {
+    const status = 'id' in b ? (changes[b.id]?.status ?? ('status' in b ? b.status : '')) : '';
+    if (b.type === 'question') lines.push(`[Asked: ${b.text} Choices: ${b.choices.join(' | ')}]`);
+    if (b.type === 'agent_proposal')
+      lines.push(`[New agent card "${b.name}", agentProposalId ${b.id}, ${status}]`);
+    if (b.type === 'task_proposal')
+      lines.push(
+        `[Scheduled task card "${b.name}" for ${b.agent} to ${b.chatName}${b.chatEnding ? ` (…${b.chatEnding})` : ''} at ${b.time} ${b.dayRule}, ${status}]`,
+      );
+  }
+  return lines.join('\n').slice(0, 4000);
+}
+
+/** The conversation so far, as the server reads it. */
+function historyOf(turns: Turn[], changes: Record<string, ChangeState>): AskEzyTurn[] {
   const out: AskEzyTurn[] = [];
   for (const turn of turns) {
     if (turn.role === 'user') out.push({ role: 'user', text: turn.text.slice(0, 4000) });
-    else if (turn.role === 'ezy') out.push({ role: 'assistant', text: turn.answer.text });
+    else if (turn.role === 'ezy')
+      out.push({ role: 'assistant', text: answerForHistory(turn.answer, changes) });
   }
   return out.slice(-HISTORY_TURNS);
 }
@@ -77,6 +98,10 @@ const STEP_KEYS = [
   'get_ai_setup_version',
   'try_ai_reply',
   'propose_ai_setup_change',
+  'list_scheduled_tasks',
+  'propose_agent',
+  'propose_scheduled_task',
+  'propose_scheduled_task_edit',
 ] as const;
 type StepKey = (typeof STEP_KEYS)[number] | 'other';
 
@@ -149,6 +174,7 @@ function answerAsText(answer: AskAnswer): string {
     if (b.type === 'customer')
       lines.push(b.name, ...b.points.map((p) => `- ${p}`), `Next: ${b.next}`);
     if (b.type === 'heatmap' && b.finding) lines.push(b.finding);
+    if (b.type === 'question') lines.push(b.text, ...b.choices.map((c) => `- ${c}`));
   }
   return lines.join('\n');
 }
@@ -197,7 +223,7 @@ export function AskEzyPanel() {
     abort.current = controller;
     try {
       const answer = await askEzy(
-        { question, history: historyOf(turns), chatJid },
+        { question, history: historyOf(turns, changes), chatJid },
         (step) => {
           doneSteps.current = [...doneSteps.current, step];
           setSteps(doneSteps.current);
@@ -251,8 +277,29 @@ export function AskEzyPanel() {
     }));
     try {
       const r = await askEzyChange(id, action);
-      setChanges((c) => ({ ...c, [id]: { status: r.status, version: r.version } }));
-      if (action === 'apply') setStatus(t('askEzy.change.appliedStatus'));
+      setChanges((c) => {
+        const next: Record<string, ChangeState> = {
+          ...c,
+          [id]: {
+            status: r.status,
+            version: r.version,
+            agentId: r.agentId,
+            taskId: r.taskId,
+            nextRunAt: r.nextRunAt,
+            agentOn: r.agentOn,
+            // "Apply both": the new agent was made, its task was not saved.
+            error: r.failed ? r.failed.message : null,
+          },
+        };
+        for (const rel of r.related ?? [])
+          next[rel.id] = {
+            status: rel.status,
+            ...(rel.status === 'applied' && r.agentId ? { agentId: r.agentId } : {}),
+          };
+        return next;
+      });
+      if (action === 'apply')
+        setStatus(r.failed ? r.failed.message : t('askEzy.change.appliedStatus'));
     } catch (e) {
       const message =
         e instanceof ApiError && e.code === 'setup_changed'
@@ -288,7 +335,9 @@ export function AskEzyPanel() {
     (turn) =>
       turn.role === 'ezy' &&
       turn.answer.blocks.some(
-        (b) => b.type === 'change' && (changes[b.id]?.status ?? b.status) !== 'discarded',
+        (b) =>
+          (b.type === 'change' || b.type === 'agent_proposal' || b.type === 'task_proposal') &&
+          (changes[b.id]?.status ?? b.status) !== 'discarded',
       ),
   );
   const [confirmNew, setConfirmNew] = useState(false);
@@ -442,7 +491,7 @@ export function AskEzyPanel() {
             </>
           )}
           <ol className="flex flex-col gap-5">
-            {turns.map((turn) => (
+            {turns.map((turn, index) => (
               <li
                 key={turn.id}
                 ref={(el) => {
@@ -466,6 +515,11 @@ export function AskEzyPanel() {
                     onNavigate={() => window.innerWidth < 768 && closePanel()}
                     onAsk={(q) => void send({ question: q })}
                     onAskAgain={() => void send(turn.request)}
+                    answered={(() => {
+                      const next = turns[index + 1];
+                      return next?.role === 'user' ? next.text : null;
+                    })()}
+                    busy={busy}
                   />
                 )}
                 {turn.role === 'error' &&
@@ -669,6 +723,8 @@ function AnswerView({
   onNavigate,
   onAsk,
   onAskAgain,
+  answered,
+  busy,
 }: {
   answer: AskAnswer;
   isAdmin: boolean;
@@ -678,9 +734,33 @@ function AnswerView({
   onNavigate: () => void;
   onAsk: (q: string) => void;
   onAskAgain: () => void;
+  answered: string | null;
+  busy: boolean;
 }) {
   const { t } = useTranslation('inbox');
   const wide = window.matchMedia?.('(min-width: 640px)').matches ?? true;
+  const saved = new Map<string, ChangeState['status']>();
+  for (const b of answer.blocks)
+    if (b.type === 'agent_proposal' || b.type === 'task_proposal') saved.set(b.id, b.status);
+  const stateOf = (id: string): ChangeState =>
+    changes[id] ?? { status: saved.get(id) ?? 'proposed' };
+  // A new agent and the task that needs it: one "Apply both" (the server creates the agent first).
+  const agentIds = new Set(
+    answer.blocks.filter((b) => b.type === 'agent_proposal').map((b) => b.id),
+  );
+  const pairs = answer.blocks.flatMap((b) =>
+    b.type === 'task_proposal' && b.dependsOn && agentIds.has(b.dependsOn)
+      ? [{ task: b.id, agent: b.dependsOn }]
+      : [],
+  );
+  const linked = new Set(pairs.flatMap((p) => [p.task, p.agent]));
+  const open = pairs.filter((p) =>
+    [p.task, p.agent].every((id) => {
+      const state = stateOf(id);
+      return state.status === 'proposed' && !state.error;
+    }),
+  );
+  const paired = new Set(open.flatMap((p) => [p.task, p.agent]));
   const proposed = answer.blocks.filter(
     (b): b is Extract<AskBlock, { type: 'change' }> =>
       b.type === 'change' &&
@@ -705,8 +785,46 @@ function AnswerView({
         <AskEzyBlock
           key={i}
           block={b}
-          ctx={{ scopeJid, onNavigate, changes, onChange, onAskAgain, wide }}
+          ctx={{
+            scopeJid,
+            onNavigate,
+            changes,
+            onChange,
+            onAskAgain,
+            wide,
+            onAsk,
+            answered,
+            busy,
+            paired,
+            linked,
+          }}
         />
+      ))}
+      {open.map((p) => (
+        <div key={p.task} className="flex flex-wrap gap-2" data-testid="ask-ezy-apply-both">
+          <Button
+            size="sm"
+            className="pointer-coarse:min-h-11"
+            disabled={changes[p.task]?.busy || changes[p.agent]?.busy}
+            onClick={() => onChange(p.task, 'apply')}
+          >
+            <CheckCheck aria-hidden />
+            {t('askEzy.setup.applyBoth')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="pointer-coarse:min-h-11"
+            disabled={changes[p.task]?.busy || changes[p.agent]?.busy}
+            onClick={() => {
+              onChange(p.task, 'discard');
+              onChange(p.agent, 'discard');
+            }}
+          >
+            <X aria-hidden />
+            {t('askEzy.change.discard')}
+          </Button>
+        </div>
       ))}
       {proposed.length > 1 && (
         <div className="flex flex-col gap-1.5 rounded-lg border bg-muted/40 p-3">

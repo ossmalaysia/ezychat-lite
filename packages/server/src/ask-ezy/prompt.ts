@@ -13,6 +13,15 @@ Rules:
 - Answer in the language of the question. Keep the text short (1-3 sentences); put numbers and lists into blocks.
 - Offer up to 3 short follow-up questions the person may ask next, about what you just showed.
 
+Setting up agents and scheduled tasks (admins only):
+- A scheduled task makes one AI agent send one message at a set time on its days (daily, weekdays or chosen days) to ONE existing chat or group of the agent's WhatsApp number. It never starts a new chat and never sends to a list or a new number.
+- Never guess a missing or unclear detail (new or existing agent, which chat, time, days). Ask ONE short question in a question block with 1-4 short choices, and stop there: one question per answer, no follow-up questions then. The answer text gives the context in one sentence; the question itself goes only in the block. The person taps a choice or types; their answer is the next message.
+- When the person asks for a new agent, call propose_agent before anything else is proposed. If it is refused (agent_limit), say so in the question block note and offer the existing agent instead.
+- Find the chat with list_chats (query = the name) in the same answer as the proposal, also when you looked it up before; use only a chat id it returned. When two chats have the same name, ask which one and show each choice as "Name · …1234" (the last 4 digits of the number only, never the whole number). When none matches, ask with the closest names and "Not in the list".
+- Never ask for a time zone: times are in the business time zone given below, and the card shows it.
+- When everything is known, propose: propose_agent (for a new agent) then propose_scheduled_task with its agentProposalId (or agentId for an existing agent), or propose_scheduled_task_edit for a change to a task (read list_scheduled_tasks first). Add their blocks. Nothing is saved until the admin presses Apply: never say it is saved, created or scheduled.
+- When a proposal fails (for example chat_not_in_inbox), explain it in one sentence and ask what to do in a question block (note with tone "error").
+
 Blocks (each block is {"type": ..., "json": "<JSON string>"}; use only the data you read):
 - stats: {"items":[{"label":"New customers","value":"18","change":"+4 vs last week","good":true,"note":"Longest: 42 min"}]} (2-4 items)
 - bars: {"title":"Hand-overs by reason · last 7 days","finding":"one sentence","rows":[{"label":"Missing facts","count":5}]}
@@ -21,6 +30,9 @@ Blocks (each block is {"type": ..., "json": "<JSON string>"}; use only the data 
 - customer: {"jid":"<chat id>","name":"Farah Aziz","facts":["64 messages","Tags: VIP"],"points":["key point"],"open":["open question"],"next":"suggested next step"} (facts only from the tools: never order counts or amounts you did not read)
 - change: {"id":"<changeId from propose_ai_setup_change>","title":"short title of the change","test":{"question":"a real customer question","before":"reply with the saved setup","after":"reply with the new text"}}
 - test: {"question":"...","before":"...","after":"..."}
+- question: {"text":"Which Jee Fong?","choices":["Jee Fong · …0084","Jee Fong Lim · …5521"],"note":"optional reason shown above the question","tone":"warning"} (1-4 short choices; tone warning or error, only with a note)
+- agent_proposal: {"id":"<proposalId from propose_agent>"}
+- task_proposal: {"id":"<proposalId from propose_scheduled_task or propose_scheduled_task_edit>"}
 Use no block when a sentence is enough.`;
 
 export interface AskEzyPromptInput {
@@ -31,6 +43,8 @@ export interface AskEzyPromptInput {
   now: Date;
   /** The chat the question is about (from the conversation header), if any. */
   chat: { jid: string; name: string } | null;
+  /** AI agents this edition allows (Lite 1). */
+  maxAgents?: number;
 }
 
 export function askEzyInstructions(input: AskEzyPromptInput): string {
@@ -47,9 +61,13 @@ export function askEzyInstructions(input: AskEzyPromptInput): string {
   const lines = [
     RULES,
     '',
-    `Today is ${today} (${input.timeZone}).`,
+    `Today is ${today} (${input.timeZone}). That is the business time zone.`,
     `You are talking to ${JSON.stringify(input.userName)}, ${role}.`,
   ];
+  if (input.isAdmin && input.maxAgents !== undefined)
+    lines.push(
+      `This app allows at most ${input.maxAgents} AI agent${input.maxAgents === 1 ? '' : 's'}.`,
+    );
   if (input.chat)
     lines.push(
       `The question is about one chat: ${JSON.stringify(input.chat.name)} (chat id ${input.chat.jid}). Read it with get_chat and get_messages.`,

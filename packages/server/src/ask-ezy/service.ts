@@ -1,8 +1,11 @@
 import type { ModelMessage } from 'ai';
 import {
+  ASK_EZY_CHOICE_CHARACTERS,
+  ASK_EZY_CHOICES_MAX,
   AskEzyAnswer,
   AskEzyBlock,
   AskEzyTest,
+  type AskEzyChangeResult,
   type AskEzyEvent,
   type AskEzyRequest,
   type AskEzyStep,
@@ -17,6 +20,7 @@ import type { AssistOutput } from '../ai/agent/assist.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
 import { createChangeStore, lineDiff, type ChangeStore } from './changes.js';
 import { askEzyInstructions } from './prompt.js';
+import { createSetupStore, type SetupStore } from './setup.js';
 import { askEzyTools } from './tools.js';
 
 const MAX_BLOCKS = 8;
@@ -33,6 +37,14 @@ const clip = (text: string, max: number) => {
 
 export interface AskEzyService {
   changes: ChangeStore;
+  setup: SetupStore;
+  /** Apply, discard or undo a proposal of this admin: a setup change, a new agent or a scheduled task. */
+  act(
+    id: string,
+    action: 'apply' | 'discard' | 'undo',
+    user: User,
+    ip: string | null,
+  ): AskEzyChangeResult;
   /** `connected`: a question can be answered now (the panel checks it on open). */
   status(): { connected: boolean };
   /**
@@ -50,6 +62,7 @@ export interface AskEzyService {
 export function createAskEzyService(ctx: AppContext): AskEzyService {
   const log = ctx.log.child({ mod: 'ask-ezy' });
   const changes = createChangeStore(ctx);
+  const setup = createSetupStore(ctx);
   const inbox = createInboxReadPort(ctx);
   const aiSetup = createAiSetupPort(ctx);
 
@@ -64,6 +77,18 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
       data = parsed as Record<string, unknown>;
     } catch {
       return null;
+    }
+    if (raw.type === 'agent_proposal' || raw.type === 'task_proposal')
+      return setupBlock(user, raw.type, data);
+    if (raw.type === 'question') {
+      // Lenient on length: keep the first choices and short labels rather than drop the question.
+      if (Array.isArray(data.choices))
+        data.choices = data.choices
+          .filter((c): c is string => typeof c === 'string' && c.trim() !== '')
+          .map((c) => clip(c, ASK_EZY_CHOICE_CHARACTERS))
+          .slice(0, ASK_EZY_CHOICES_MAX);
+      if (typeof data.text === 'string') data.text = clip(data.text, 400);
+      if (typeof data.note === 'string') data.note = clip(data.note, 400);
     }
     if (raw.type === 'change') {
       if (user.role !== 'admin' || typeof data.id !== 'string') return null;
@@ -104,6 +129,53 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
     return b;
   }
 
+  /** A new-agent or scheduled-task card, filled from the held proposal (the model gives only its id). */
+  function setupBlock(
+    user: User,
+    type: 'agent_proposal' | 'task_proposal',
+    data: Record<string, unknown>,
+  ): AskEzyBlock | null {
+    if (user.role !== 'admin' || typeof data.id !== 'string') return null;
+    const p = setup.get(data.id, user);
+    if (!p) return null;
+    if (type === 'agent_proposal') {
+      if (p.kind !== 'agent') return null;
+      const parsed = AskEzyBlock.safeParse({
+        type,
+        id: p.id,
+        name: p.name,
+        preset: p.preset,
+        inboxName: clip(p.inboxName, 200),
+        note: p.note,
+        status: p.status,
+        ...(p.agentId ? { agentId: p.agentId } : {}),
+      });
+      return parsed.success ? parsed.data : null;
+    }
+    if (p.kind !== 'task') return null;
+    const parsed = AskEzyBlock.safeParse({
+      type,
+      id: p.id,
+      agent: clip(p.agentName, 200),
+      agentId: p.agentId,
+      dependsOn: p.agentId === null ? p.dependsOn : null,
+      name: p.spec.name,
+      time: p.spec.time,
+      dayRule: p.spec.dayRule,
+      days: p.spec.days,
+      chatName: clip(p.chat.name, 200),
+      chatEnding: p.chat.ending,
+      chatType: p.chat.type,
+      instruction: p.spec.instruction,
+      timeZone: p.timeZone,
+      preview: p.preview === null ? null : clip(p.preview, 4000),
+      before: p.edit ? p.edit.before : null,
+      ...(p.taskId ? { taskId: p.taskId } : p.edit ? { taskId: p.edit.taskId } : {}),
+      status: p.status,
+    });
+    return parsed.success ? parsed.data : null;
+  }
+
   /** Tool calls in order, repeated calls of one tool merged (their row counts added). */
   function mergeSteps(calls: Array<{ tool: string; count: number; ok: boolean }>): AskEzyStep[] {
     const steps: AskEzyStep[] = [];
@@ -118,6 +190,16 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
 
   return {
     changes,
+    setup,
+
+    act(id, action, user, ip) {
+      // A new agent or scheduled task, else a change to the AI setup.
+      const store = setup.has(id, user) ? setup : null;
+      if (action === 'apply')
+        return store ? store.apply(id, user, ip) : changes.apply(id, user, ip);
+      if (action === 'discard') return store ? store.discard(id, user) : changes.discard(id, user);
+      return store ? store.undo(id, user, ip) : changes.undo(id, user, ip);
+    },
 
     status() {
       return { connected: connection() === 'ready' };
@@ -144,6 +226,7 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
         inbox,
         aiSetup,
         changes,
+        setup,
         onCall: (call) => {
           calls.push(call);
           if (call.ok) emit({ type: 'step', key: call.tool, count: call.count });
@@ -163,6 +246,7 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
         timeZone: resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null)),
         now: new Date(),
         chat,
+        maxAgents: ai.maxAgents(),
       });
       try {
         const result = await ai.assist({ instructions, messages, tools }, signal);

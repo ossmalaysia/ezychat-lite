@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { RankedBars } from '../admin/ReportCharts';
 import { encodeJid } from '../lib/jid';
 import type { AskEzyBlock as AskBlock, AskEzyTest as AskTest } from '@ezychat/shared';
+import { AgentProposalBlock, QuestionBlock, TaskProposalBlock } from './AskEzySetupBlocks';
 
 /** Where the change card stands; kept by the panel so "Apply both" updates every card. */
 export interface ChangeState {
@@ -26,6 +27,11 @@ export interface ChangeState {
   version?: number;
   busy?: boolean;
   error?: string | null;
+  /** New agent and scheduled task cards: what Apply made. */
+  agentId?: number;
+  taskId?: number;
+  nextRunAt?: number | null;
+  agentOn?: boolean;
 }
 
 export interface BlockContext {
@@ -39,6 +45,16 @@ export interface BlockContext {
   onAskAgain: () => void;
   /** Wide screen: tests in change cards start open (on a phone they start folded). */
   wide: boolean;
+  /** Sends a question choice as the person's next message. */
+  onAsk: (text: string) => void;
+  /** The person's next message after this answer (a question's chosen choice), null while unanswered. */
+  answered: string | null;
+  /** Ezy is answering: choices wait. */
+  busy: boolean;
+  /** Cards whose Apply and Discard are the "Apply both" buttons under them. */
+  paired: ReadonlySet<string>;
+  /** A new agent and its task shown together: the task card's Undo removes both. */
+  linked: ReadonlySet<string>;
 }
 
 /** The frame every block shares: a quiet card inside Ezy's answer. */
@@ -544,6 +560,12 @@ export function AskEzyBlock({ block, ctx }: { block: AskBlock; ctx: BlockContext
       return <ChangeBlock block={block} ctx={ctx} />;
     case 'test':
       return <TestBlock test={block} />;
+    case 'question':
+      return <QuestionBlock block={block} ctx={ctx} />;
+    case 'agent_proposal':
+      return <AgentProposalBlock block={block} ctx={ctx} />;
+    case 'task_proposal':
+      return <TaskProposalBlock block={block} ctx={ctx} />;
   }
 }
 

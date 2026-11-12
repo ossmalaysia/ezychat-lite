@@ -1420,6 +1420,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
+- Ask Ezy's history is text only: whatever a block asked or proposed (question choices, a pending proposal id) must
+  be written back into the assistant's history line, or a tapped choice reaches the model without its question. Ids
+  in history are hints only: the server reads proposals from its own store, and chat ids a proposal names come from
+  the look-ups of the same answer, never from history.
 - Anything a person waits for (completions, Ask Ezy turns of 2–3 tool rounds: 13–23 s on the workhorse, 8–13 s
   on `gpt-6-luna`) needs the connection's fast model, never the saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
   `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose

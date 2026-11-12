@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { AiAgentPreset } from './ai.js';
+import { ScheduledDayRule } from './scheduled-tasks.js';
 
 /**
  * Ask Ezy (design: docs/features/ask-ezy/design.md): an assistant panel for every signed-in user. It answers
@@ -42,7 +44,87 @@ export type AskEzyChangeStatus = z.infer<typeof AskEzyChangeStatus>;
 export const AskEzyChangeTarget = z.enum(['instructions', 'handoff_rules', 'context_text']);
 export type AskEzyChangeTarget = z.infer<typeof AskEzyChangeTarget>;
 
+/** A question choice: a short label the panel shows as a chip and sends back as the next turn. */
+export const ASK_EZY_CHOICE_CHARACTERS = 80;
+export const ASK_EZY_CHOICES_MAX = 4;
+
+/** What a scheduled task card shows (design docs/features/ask-ezy-setup/design.md). */
+const AskEzyTaskFields = {
+  /** The task's name. */
+  name: short,
+  time: z.string().regex(/^\d\d:\d\d$/),
+  dayRule: ScheduledDayRule,
+  days: z.array(z.number().int().min(0).max(6)).max(7),
+  chatName: short,
+  /** The last 4 digits of the chat's number; null for a group or a chat without a number. */
+  chatEnding: z
+    .string()
+    .regex(/^\d{4}$/)
+    .nullable(),
+  chatType: z.enum(['dm', 'group']),
+  instruction: text(1000),
+};
+
+export const AskEzyTaskBefore = z.object({
+  name: short.optional(),
+  time: AskEzyTaskFields.time.optional(),
+  dayRule: ScheduledDayRule.optional(),
+  days: AskEzyTaskFields.days.optional(),
+  chatName: short.optional(),
+  chatEnding: AskEzyTaskFields.chatEnding.optional(),
+  instruction: text(1000).optional(),
+});
+export type AskEzyTaskBefore = z.infer<typeof AskEzyTaskBefore>;
+
 export const AskEzyBlock = z.discriminatedUnion('type', [
+  /** Ezy needs one detail: the person taps a choice (sent as their next turn) or types an answer. */
+  z.object({
+    type: z.literal('question'),
+    text: text(400),
+    choices: z
+      .array(z.string().trim().min(1).max(ASK_EZY_CHOICE_CHARACTERS))
+      .min(1)
+      .max(ASK_EZY_CHOICES_MAX),
+    /** Why Ezy asks (the agent limit, a chat on another number), shown above the question. */
+    note: text(400).optional(),
+    tone: z.enum(['warning', 'error']).optional(),
+  }),
+  /** A new AI agent Ezy proposed (admins); Apply creates it switched off. */
+  z.object({
+    type: z.literal('agent_proposal'),
+    /** Server-made id of the pending proposal (never from the model). */
+    id: z.string().min(1).max(64),
+    name: short,
+    preset: AiAgentPreset,
+    /** The WhatsApp number (inbox) it will serve. */
+    inboxName: short,
+    /** What it will do, in the person's language. */
+    note: text(300).nullable(),
+    status: AskEzyChangeStatus,
+    /** The created agent (applied). */
+    agentId: z.number().int().positive().optional(),
+  }),
+  /** A new scheduled task, or a change to one (`taskId` + `before`), that Ezy proposed (admins). */
+  z.object({
+    type: z.literal('task_proposal'),
+    id: z.string().min(1).max(64),
+    /** The agent's name ("(new)" is added by the page while `dependsOn` is set). */
+    agent: short,
+    /** The agent; null while it is a pending new agent (`dependsOn`). */
+    agentId: z.number().int().positive().nullable(),
+    /** The id of the pending new-agent proposal this task needs first. */
+    dependsOn: z.string().min(1).max(64).nullable(),
+    ...AskEzyTaskFields,
+    /** The business time zone the time is read in (`ai_timezone`). */
+    timeZone: short,
+    /** One message the agent would send now (nothing sent or stored); null when there is none. */
+    preview: z.string().max(4000).nullable(),
+    /** An edit: the saved values of the fields it changes. */
+    before: AskEzyTaskBefore.nullable(),
+    /** The task (an edit, or applied). */
+    taskId: z.number().int().positive().optional(),
+    status: AskEzyChangeStatus,
+  }),
   z.object({
     type: z.literal('stats'),
     items: z
@@ -152,10 +234,25 @@ export const AskEzyEvent = z.discriminatedUnion('type', [
 ]);
 export type AskEzyEvent = z.infer<typeof AskEzyEvent>;
 
-/** `POST /api/ask-ezy/changes/:id/{apply|discard|undo}` answer (admins only). */
+/**
+ * `POST /api/ask-ezy/changes/:id/{apply|discard|undo}` answer (admins only). The id is a setup change, a new
+ * agent or a scheduled task proposal.
+ */
 export const AskEzyChangeResult = z.object({
   status: AskEzyChangeStatus,
   version: z.number().int().positive().optional(),
+  /** Other proposals the same request moved ("Apply both": the new agent; Undo of both). */
+  related: z
+    .array(z.object({ id: z.string().min(1).max(64), status: AskEzyChangeStatus }))
+    .optional(),
+  /** The agent the proposal created or uses, and the task (agent and task proposals). */
+  agentId: z.number().int().positive().optional(),
+  taskId: z.number().int().positive().optional(),
+  /** A saved task: its next time (epoch ms) and whether its agent is on (it sends only then). */
+  nextRunAt: z.number().nullable().optional(),
+  agentOn: z.boolean().optional(),
+  /** "Apply both": the new agent was created but the task was not saved (`related` says so). */
+  failed: z.object({ code: z.string().min(1).max(64), message: z.string().max(500) }).optional(),
 });
 export type AskEzyChangeResult = z.infer<typeof AskEzyChangeResult>;
 

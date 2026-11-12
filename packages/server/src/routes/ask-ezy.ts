@@ -64,8 +64,6 @@ export default async function askEzyRoutes(app: FastifyInstance, ctx: AppContext
     const { id, action } = parse(ChangeParams, req.params);
     const user = req.user!;
     const ip = clientIp(req);
-    if (action === 'apply') return service.changes.apply(id, user, ip);
-    if (action === 'discard') return service.changes.discard(id, user);
-    return service.changes.undo(id, user, ip);
+    return service.act(id, action, user, ip);
   });
 }

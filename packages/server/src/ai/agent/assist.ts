@@ -1,4 +1,11 @@
-import { generateText, Output, stepCountIs, type LanguageModel, type ModelMessage, type ToolSet } from 'ai';
+import {
+  generateText,
+  Output,
+  stepCountIs,
+  type LanguageModel,
+  type ModelMessage,
+  type ToolSet,
+} from 'ai';
 import { z } from 'zod';
 
 /** Ask Ezy: at most this many model calls per question (tool calls + the final answer). */
@@ -14,6 +21,9 @@ export const ASSIST_BLOCK_TYPES = [
   'customer',
   'change',
   'test',
+  'question',
+  'agent_proposal',
+  'task_proposal',
 ] as const;
 
 /**

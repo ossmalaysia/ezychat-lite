@@ -290,6 +290,21 @@ the signed-in user (team members: the inbox read tools of their own inboxes; adm
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
+Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
+optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
+question and card back into the assistant's history line. Admins also get `list_scheduled_tasks`, `propose_agent`,
+`propose_scheduled_task`, `propose_scheduled_task_edit` (`ask-ezy/setup.ts`, a sibling store with the same 30 min /
+20 per admin rules, server-made ids): blocks `agent_proposal` and `task_proposal` are filled from the held proposal.
+`propose_agent` is refused at `maxAgents` (Lite text in the tool error); Apply creates the agent **switched off** through
+`AiService.createAgent` (409 `agent_limit` again). A task names only a chat id a `list_chats`/`get_chat` look-up returned
+in the same answer, that `canOpenChat` allows and that is on the agent's inbox (else `chat_not_in_inbox` in the tool
+error); its preview is `ScheduledService.preview` (none for a pending agent). Apply runs the scheduled-task
+create/update service (same limits); a task whose `dependsOn` agent is pending applies the agent first in the same
+request (`related`), and when the task then fails the answer is 200 `{status:'proposed', failed}` with the agent kept.
+Undo removes the task (and the agent Apply made with it, only while it is off with no chats or tasks, else 409
+`agent_in_use`); an edit's Apply/Undo refuse 409 `setup_changed` when the task moved. The same
+`/api/ask-ezy/changes/:id/:action` route serves all three kinds (`AskEzyService.act`); logs `ask_ezy_setup` carry kind,
+action, ok, code and ids only.
 Logs carry tool names, counts, ms and model, never question or answer text. Web: `apps/web/src/askezy/`.
 
 **Send feedback** (design `docs/features/in-app-feedback/design.md`, mock `docs/features/in-app-feedback/mock`). Any

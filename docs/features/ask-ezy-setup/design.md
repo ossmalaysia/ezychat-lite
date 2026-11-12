@@ -29,12 +29,12 @@ Ezy never guesses a missing or ambiguous detail. It asks **one** short question 
 (a new `question` block; a tap sends the choice as the next user turn). Examples for "greet Jee Fong at 9am every
 day":
 
-| Unclear | Ezy asks | Choices |
-| --- | --- | --- |
-| New or existing agent | "Use Sales Agent, or create a new agent for this?" | Sales Agent · New agent · (Lite: only Sales Agent, with "Lite has one agent") |
-| Two chats match "Jee Fong" | "Which Jee Fong?" | Jee Fong (…0084) · Jee Fong Lim (…5521) |
-| No chat matches | "I can't find a chat named Jee Fong. Which chat?" | the 3 closest names · "Not in the list" |
-| Time zone unclear | never asked: the business time zone (`ai_timezone`) is shown on the card |
+| Unclear                    | Ezy asks                                                                 | Choices                                                                       |
+| -------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| New or existing agent      | "Use Sales Agent, or create a new agent for this?"                       | Sales Agent · New agent · (Lite: only Sales Agent, with "Lite has one agent") |
+| Two chats match "Jee Fong" | "Which Jee Fong?"                                                        | Jee Fong (…0084) · Jee Fong Lim (…5521)                                       |
+| No chat matches            | "I can't find a chat named Jee Fong. Which chat?"                        | the 3 closest names · "Not in the list"                                       |
+| Time zone unclear          | never asked: the business time zone (`ai_timezone`) is shown on the card |
 
 When everything is known it proposes. Updates work the same way: "move Jee Fong's greeting to 8:30" finds the task,
 and proposes an edit card that shows before → after.
@@ -59,6 +59,28 @@ and proposes an edit card that shows before → after.
 - Turning the new agent on (stays an admin switch on the agent page; the card says so).
 - Sending a message now, or to a number that has no chat (scheduled tasks never start a chat).
 - Business context files for a new agent (text only, like today).
+
+## Implementation notes (2026-11-12)
+
+Deviations from the text above and the mock, decided while building:
+
+- **No `find_chats` tool.** The model looks chats up with the existing `list_chats` (query = the name). The server keeps
+  the chat ids `list_chats` / `get_chat` returned in the same answer, and a task proposal may name only one of those
+  (plus `canOpenChat` and "on the agent's number"). After a tapped choice, the next turn looks the chat up again.
+- **`list_scheduled_tasks`** (admins) is new: an edit needs the task id, and history carries only text.
+- **The question block has an optional `note` + `tone`** (warning / error) for the Lite text (state 5) and the
+  "other number" error (state 7); the model writes the note from the tool error.
+- **The task card carries time, day rule and days**, not a "when" sentence: the page writes it in the person's
+  language with the Scheduled tasks card's own format ("Every day · 9:00").
+- **No preview for a task of a pending new agent** (state 3 shows one): a preview needs the agent to exist
+  (`scheduledTurn` reads its row). The card shows the preview only when there is one.
+- **History:** the panel adds one line per question and card (`[Asked: … Choices: …]`, `[New agent card …,
+agentProposalId …]`) to the assistant's text, so a tapped choice answers that question. The server trusts none of
+  it: proposals are read only from its own store by id.
+- **"Apply both"** is one request to the task's Apply; the server creates the agent first. If the task then fails,
+  the answer is 200 with `failed` and the agent stays (it is off); the task card says why. The agent card has no Undo
+  of its own while its task is shown with it: the task's Undo removes both.
+- "Open scheduled tasks" goes to `/admin/members/ai/:agentId#scheduled-tasks`; the card scrolls into view.
 
 ## Screens (quick mock)
 

@@ -1,6 +1,12 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
-import { AskEzyChangeTarget, type User } from '@ezychat/shared';
+import {
+  AI_INSTRUCTIONS_CHARACTERS,
+  AiAgentPreset,
+  AskEzyChangeTarget,
+  ScheduledDayRule,
+  type User,
+} from '@ezychat/shared';
 import { INBOX_TOOLS, ToolError, type ToolContext, type ToolDef } from '../mcp/tools.js';
 import { AI_SETUP_TOOLS } from '../mcp/ai-tools.js';
 import type { InboxReadPort } from '../mcp/inbox.js';
@@ -8,6 +14,7 @@ import { AiSetupError, type AiSetupPort } from '../mcp/ai-setup.js';
 import { SendError, type InboxSendPort } from '../mcp/send.js';
 import { HttpError } from '../http/errors.js';
 import { ProposeError, type ChangeStore } from './changes.js';
+import type { SetupStore } from './setup.js';
 
 /**
  * Ask Ezy's tools: the MCP tools the signed-in user's role allows (same definitions, so a new MCP tool works
@@ -30,7 +37,87 @@ export const ASK_EZY_ADMIN_TOOLS: readonly string[] = [
   'get_ai_setup_version',
   'try_ai_reply',
   'propose_ai_setup_change',
+  'list_scheduled_tasks',
+  'propose_agent',
+  'propose_scheduled_task',
+  'propose_scheduled_task_edit',
 ];
+
+const time = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5][05]$/)
+  .describe('HH:MM, 24-hour, in 5-minute steps, in the business time zone (never ask for a zone)');
+const days = z
+  .array(z.number().int().min(0).max(6))
+  .max(7)
+  .describe('dayRule custom only: 0 = Sunday … 6 = Saturday');
+const chatJid = z
+  .string()
+  .min(1)
+  .max(200)
+  .describe(
+    'The chat id (jid) a list_chats look-up returned in this answer, never one you made up',
+  );
+
+export const ProposeAgentInput = z.strictObject({
+  name: z.string().trim().min(1).max(60).describe('The agent name, e.g. "Morning greeter"'),
+  preset: AiAgentPreset.describe('sales = sells; faq = answers questions; custom = anything else'),
+  inboxId: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('The WhatsApp number (inbox id) it serves; needed only with more than one number'),
+  instructions: z
+    .string()
+    .max(AI_INSTRUCTIONS_CHARACTERS)
+    .optional()
+    .describe('Its AI instructions; omit to start from the preset text'),
+  purpose: z
+    .string()
+    .trim()
+    .min(3)
+    .max(300)
+    .describe("What it will do, one short sentence in the person's language, for the card"),
+});
+
+export const ProposeTaskInput = z.strictObject({
+  agentId: z.number().int().positive().optional().describe('An existing agent (list_ai_agents)'),
+  agentProposalId: z
+    .string()
+    .min(1)
+    .max(64)
+    .optional()
+    .describe('Or: the proposalId propose_agent returned (the task waits for the new agent)'),
+  chatJid,
+  name: z.string().trim().min(1).max(60).describe('A short task name, e.g. "Morning greeting"'),
+  time,
+  dayRule: ScheduledDayRule.describe('daily, weekdays (Monday to Friday) or custom days'),
+  days: days.optional(),
+  instruction: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1000)
+    .describe('What the agent writes each time, in plain words'),
+});
+
+export const ProposeTaskEditInput = z.strictObject({
+  taskId: z.number().int().positive().describe('taskId from list_scheduled_tasks'),
+  name: ProposeTaskInput.shape.name.optional(),
+  time: time.optional(),
+  dayRule: ScheduledDayRule.optional(),
+  days: days.optional(),
+  chatJid: chatJid.optional(),
+  instruction: ProposeTaskInput.shape.instruction.optional(),
+});
+
+const ListTasksInput = z.strictObject({
+  agentId: z.number().int().positive().optional().describe('One agent; omit for every agent'),
+});
+
+/** Tools whose results name chats a later proposal may use (their ids are kept for this answer). */
+const CHAT_LOOKUPS = new Set(['list_chats', 'get_chat']);
 
 export const ProposeInput = z.strictObject({
   agentId: z.number().int().positive().describe('agentId from list_ai_agents'),
@@ -67,6 +154,7 @@ export interface AskEzyToolDeps {
   inbox: InboxReadPort;
   aiSetup: AiSetupPort;
   changes: ChangeStore;
+  setup: SetupStore;
   /** One line per call for the log and the live steps: tool name, rows, ok. Never inputs or outputs. */
   onCall: (call: { tool: string; count: number; ok: boolean; ms: number }) => void;
 }
@@ -115,12 +203,75 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
       return { error: failure(err) };
     }
   };
+  /** Chat ids the look-ups of this answer returned: the only ones a task proposal may name. */
+  const seen = new Set<string>();
+  const remember = (name: string, result: unknown) => {
+    if (!CHAT_LOOKUPS.has(name) || !result || typeof result !== 'object') return;
+    const r = result as { chats?: Array<{ jid?: unknown }>; chat?: { jid?: unknown } };
+    for (const c of [...(r.chats ?? []), ...(r.chat ? [r.chat] : [])])
+      if (typeof c.jid === 'string') seen.add(c.jid);
+  };
   for (const def of [...INBOX_TOOLS, ...AI_SETUP_TOOLS] as ToolDef[]) {
     if (!allowed.has(def.name)) continue;
     tools[def.name] = tool({
       description: def.description,
       inputSchema: def.input,
-      execute: (args) => run(def.name, () => def.run(def.input.parse(args), context)),
+      execute: (args) =>
+        run(def.name, async () => {
+          const out = await def.run(def.input.parse(args), context);
+          remember(def.name, out.result);
+          return out;
+        }),
+    });
+  }
+  if (isAdmin) {
+    tools.list_scheduled_tasks = tool({
+      description:
+        "Lists the AI agents' scheduled tasks (taskId, agent, name, time, days, chat, instruction, on/off) in the business time zone. Read it before changing a task.",
+      inputSchema: ListTasksInput,
+      execute: (args) =>
+        run('list_scheduled_tasks', () => {
+          const tasks = deps.setup.listTasks(deps.user, ListTasksInput.parse(args).agentId);
+          for (const task of tasks) if (task.chatJid) seen.add(task.chatJid);
+          return { result: { tasks }, count: tasks.length };
+        }),
+    });
+    tools.propose_agent = tool({
+      description:
+        'Proposes a new AI agent. Nothing is created: the admin sees a card and decides with Apply, and the agent starts switched off. Refused when the edition allows no more agents (then offer an existing agent). Returns proposalId: add a block {type: \'agent_proposal\', json: \'{"id":"<proposalId>"}\'}, and pass it as agentProposalId to propose_scheduled_task when the task is for this agent.',
+      inputSchema: ProposeAgentInput,
+      execute: (args) =>
+        run('propose_agent', () => {
+          const p = deps.setup.proposeAgent(deps.user, ProposeAgentInput.parse(args));
+          return { result: { proposalId: p.id, saved: false }, count: 1 };
+        }),
+    });
+    tools.propose_scheduled_task = tool({
+      description:
+        "Proposes a scheduled task: the agent sends one message at a set time on its days to ONE existing chat or group of the agent's WhatsApp number. Nothing is saved or sent: the admin sees a card with a preview and decides with Apply. Look the chat up with list_chats first. Returns proposalId: add a block {type: 'task_proposal', json: '{\"id\":\"<proposalId>\"}'}.",
+      inputSchema: ProposeTaskInput,
+      execute: (args) =>
+        run('propose_scheduled_task', async () => {
+          const p = await deps.setup.proposeTask(deps.user, ProposeTaskInput.parse(args), seen);
+          return {
+            result: { proposalId: p.id, saved: false, preview: p.preview !== null },
+            count: 1,
+          };
+        }),
+    });
+    tools.propose_scheduled_task_edit = tool({
+      description:
+        'Proposes a change to an existing scheduled task (only the fields that change). Nothing is saved: the admin sees before → after and decides with Apply. Read list_scheduled_tasks first. Returns proposalId: add a block {type: \'task_proposal\', json: \'{"id":"<proposalId>"}\'}.',
+      inputSchema: ProposeTaskEditInput,
+      execute: (args) =>
+        run('propose_scheduled_task_edit', async () => {
+          const p = await deps.setup.proposeTaskEdit(
+            deps.user,
+            ProposeTaskEditInput.parse(args),
+            seen,
+          );
+          return { result: { proposalId: p.id, saved: false }, count: 1 };
+        }),
     });
   }
   if (isAdmin)
