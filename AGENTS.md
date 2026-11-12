@@ -540,6 +540,25 @@ touches `contacts`, `jid_aliases`, `safety_numbers` or `audit_log`. A new table 
 into `DELETE_PLAN` (`test/chat-delete-coverage.test.ts` fails otherwise). Audit `chat.deleted` {chatJid, messages, files};
 socket `chat:deleted` {jid} drops it from every web cache. Web: chat header ⋮ (admins) → `inbox/DeleteChatDialog.tsx`.
 
+**Hide chats on Log out** (design `docs/features/chat-hide-delete/design.md` Part A, migration 043). `chats/hide.ts` is the
+only code that hides, shows or archives. A `logged_out` status of an adapter with `WaCapabilities.qrLink` (the admin's Log
+out or Link again, which marks itself via `markAdminLogout`, or an unlink from the phone; never a connection drop, never an
+adapter the inbox already let go of on remove or type change) runs `hideInbox`: one transaction sets `chats.hidden_at` and
+`hidden_number` (digits of `inboxes.own_jid`) on every chat of the inbox, fails its pending sends (`LOGGED_OUT_MESSAGE`),
+then drops queued jobs and AI work; audit `chats.hidden_on_logout` {inboxId, count, via}; socket `chats:hidden` {inboxId}.
+Nothing is deleted; assignees stay. On every connection open the bridge calls `onLinked` **before** saving the number:
+the same digits arm showing; other digits archive every hidden chat (re-keyed to `chatKey(inbox, '<wa_jid>~old<n>')` in
+`CHAT_TABLES` + `avatars`, one transaction, audit `chats.archived_on_relink`), so the new number starts empty; archived
+chats never come back. `showIfHidden` (WhatsApp's chat list in the bridge, every ingested message, New chat and a group
+member's Message) shows a chat again only for the armed number; audit `chats.shown_on_relink` {inboxId, count} once per
+30 s quiet period. A hidden chat does not exist for anyone: `canOpenChat`/`usersWhoCanOpenChat` (so every 404 route, push,
+hand-off), `requireSendable` (404), `ChatRepo.list`/`openCount`/`openChats`, `chatScope` (stats, activity, Reports), Safety
+lists, `linkedChats`, tag suggestions, MCP `findChats`/send/file, scheduled tasks (skipped `chat_hidden`), AI hand-off
+candidates, AI group lists, socket chat events (`toVisibleChat`); an ingested message of a still-hidden chat is stored but
+emits no `message:received`/`inbound:notify`. Read side helpers in `chats/hidden-sql.ts` (`HIDDEN_CHAT_KEYS`,
+`isChatHidden`). Admin read `GET /api/inboxes/:id/hidden-chats` {visible, hidden, number}; web `api/chat-hide.ts`,
+`admin/HiddenChats.tsx` (Log out / Link again dialogs and the logged-out note on Admin → WhatsApp and Admin → Inboxes).
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links

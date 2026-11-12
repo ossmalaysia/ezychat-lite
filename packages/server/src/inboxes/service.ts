@@ -237,7 +237,7 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
     if (!user || user.role === 'admin' || user.kind === 'ai') return;
     const rows = ctx.db
       .prepare(
-        `SELECT jid FROM chats WHERE assigned_to = ? AND status = 'open'
+        `SELECT jid FROM chats WHERE assigned_to = ? AND status = 'open' AND hidden_at IS NULL
          AND inbox_id IN (${inboxIds.map(() => '?').join(', ')})`,
       )
       .all(userId, ...inboxIds) as Array<{ jid: string }>;
@@ -290,7 +290,10 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
     const user = ctx.services.auth?.getUser(userId) ?? null;
     if (!user || user.role === 'admin' || user.kind === 'ai') return;
     const rows = ctx.db
-      .prepare(`SELECT jid, inbox_id FROM chats WHERE assigned_to = ? AND status = 'open'`)
+      // a chat hidden on Log out keeps its assignee: it comes back with the chat
+      .prepare(
+        `SELECT jid, inbox_id FROM chats WHERE assigned_to = ? AND status = 'open' AND hidden_at IS NULL`,
+      )
       .all(userId) as Array<{ jid: string; inbox_id: number }>;
     const chats = getChats(ctx);
     let count = 0;
@@ -483,7 +486,7 @@ export function createInboxService(ctx: AppContext, deps?: { now?: () => number 
       const assignees = ctx.db
         .prepare(
           `SELECT DISTINCT assigned_to AS id FROM chats
-           WHERE inbox_id = ? AND status = 'open' AND assigned_to IS NOT NULL`,
+           WHERE inbox_id = ? AND status = 'open' AND assigned_to IS NOT NULL AND hidden_at IS NULL`,
         )
         .all(id) as Array<{ id: number }>;
       for (const a of assignees) unassignLost(a.id, [id], actor.userId);

@@ -646,3 +646,46 @@ it('drops a chat an admin deleted from the lists and its own caches', async () =
   expect(qc.getQueryData(qk.messages(gone))).toBeUndefined();
   qc.clear();
 });
+
+it('drops every chat of an inbox whose phone logged out (lists, opened chats, messages)', async () => {
+  const { qk } = await vi.importActual<typeof Queries>('./queries');
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const hidden = '60111@s.whatsapp.net';
+  const opened = '60333@s.whatsapp.net';
+  const other = '60222@s.whatsapp.net#2';
+  const filters = { assigned: 'any', status: 'open' } as const;
+  qc.setQueryData(qk.chats(filters), {
+    pages: [
+      {
+        chats: [
+          { jid: hidden, inboxId: 1 },
+          { jid: other, inboxId: 2 },
+        ],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [null],
+  });
+  qc.setQueryData(qk.messages(hidden), { pages: [], pageParams: [] });
+  qc.setQueryData(qk.chat(opened), { chat: { jid: opened, inboxId: 1 }, events: [] });
+  qc.setQueryData(qk.chat(other), { chat: { jid: other, inboxId: 2 }, events: [] });
+  qc.setQueryData(['hidden-chats', 1, 'open'], { visible: 2, hidden: 0, number: null });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('chats:hidden')!({ inboxId: 1 }));
+  const list = qc.getQueryData<{ pages: Array<{ chats: Array<{ jid: string }> }> }>(
+    qk.chats(filters),
+  )!;
+  expect(list.pages[0]!.chats.map((c) => c.jid)).toEqual([other]);
+  expect(qc.getQueryData(qk.messages(hidden))).toBeUndefined();
+  expect(qc.getQueryData(qk.chat(opened))).toBeUndefined();
+  expect(qc.getQueryData(qk.chat(other))).toBeDefined();
+  expect(qc.getQueryState(['hidden-chats', 1, 'open'])?.isInvalidated).toBe(true);
+  qc.clear();
+});

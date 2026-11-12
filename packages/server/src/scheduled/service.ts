@@ -20,6 +20,7 @@ import type { AppContext } from '../context.js';
 import { agentById, type AgentRow } from '../ai/agents.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
 import { audit } from '../db/audit.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { errors, HttpError } from '../http/errors.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 import { replyWindowOpen } from '../inboxes/reply-window.js';
@@ -122,10 +123,10 @@ export function createScheduledService(
     return state === 'open' ? null : 'wa_disconnected';
   };
 
-  /** The task's chat when it is still a chat of the agent's (active) inbox; else null. */
+  /** The task's chat when it is still a visible chat of the agent's (active) inbox; else null. */
   const chatOf = (agent: AgentRow, jid: string) => {
     const chat = chats.get(jid);
-    if (!chat || agent.inboxId === null) return null;
+    if (!chat || agent.inboxId === null || isChatHidden(ctx.db, chat.jid)) return null;
     let inboxId: number;
     try {
       inboxId = inboxOfKey(jid);
@@ -258,6 +259,8 @@ export function createScheduledService(
       const agent = agentById(ctx.db, task.agentId);
       const paused = pausedFor(agent);
       if (paused) return paused;
+      // hidden when its number logged out: skipped, never sent (it may come back with that number)
+      if (isChatHidden(ctx.db, task.chatJid)) return 'chat_hidden';
       if (!chatOf(agent!, task.chatJid)) return 'chat_gone';
       if (!replyWindowOpen(ctx, task.chatJid, now())) return 'window_closed';
       return null;

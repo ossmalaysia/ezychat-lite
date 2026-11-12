@@ -19,6 +19,7 @@ import type {
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
+import { HIDDEN_CHAT_KEYS } from '../chats/hidden-sql.js';
 import { HttpError } from '../http/errors.js';
 import { capabilitiesOf } from '../inboxes/types.js';
 import { MediaStore } from '../messages/media-store.js';
@@ -555,6 +556,7 @@ export function createSafetyService(
              LEFT JOIN chats c ON c.jid = i.chat_jid
              LEFT JOIN customer_profiles p ON p.chat_jid = i.chat_jid
              LEFT JOIN users du ON du.id = i.deleted_by
+            WHERE i.chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
             ORDER BY i.created_at DESC, i.id DESC LIMIT 300`,
         )
         .all() as Array<

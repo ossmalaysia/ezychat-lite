@@ -584,14 +584,19 @@
     "phoneHint": "Get an 8-character code instead of scanning the QR.",
     "linkTitle": "Link WhatsApp",
     "linkBody": "Re-link to show a new QR code, then scan it from the phone.",
+    "hides_one": "The {{count}} chat of this number is hidden. Link the same number again to show the chats that are still on the phone.",
+    "hides_other": "The {{count}} chats of this number are hidden. Link the same number again to show the chats that are still on the phone.",
+    "hidesUnknown": "The chats of this number are hidden. Link the same number again to show the chats that are still on the phone.",
+    "hiddenNote_one": "The {{count}} chat of {{number}} is hidden. Link the same number again to show the chats that are still on the phone. Another number starts with an empty inbox.",
+    "hiddenNote_other": "The {{count}} chats of {{number}} are hidden. Link the same number again to show the chats that are still on the phone. Another number starts with an empty inbox.",
     "actionsTitle": "Actions",
     "actions": {
       "logout": {
         "label": "Log out",
         "title": "Log out of WhatsApp?",
-        "body": "The linked device is removed from the phone. The team inbox stops receiving and sending messages until you link again. Message history is kept.",
+        "body": "The linked device is removed from the phone. The team inbox stops receiving and sending messages.",
         "done": "Logged out of WhatsApp.",
-        "hint": "Remove this inbox from the phone's linked devices. Message history is kept."
+        "hint": "Remove this inbox from the phone's linked devices. Its chats are hidden until the same number links again."
       },
       "relink": {
         "label": "Re-link",
@@ -1441,6 +1446,7 @@
         "window_closed": "The 24-hour reply window of this chat was closed (WhatsApp Business API).",
         "missed": "The app was not running at that time. Missed runs are not sent later.",
         "chat_gone": "The chat is no longer in this inbox.",
+        "chat_hidden": "The chat is hidden because its WhatsApp number was logged out.",
         "confidential_leak": "The message would have shown an Internal item, so it was not sent.",
         "ai_unavailable": "The AI did not answer in time.",
         "lookup_failed": "A look-up (for example Google Calendar) did not work.",

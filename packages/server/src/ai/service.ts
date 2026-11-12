@@ -1118,7 +1118,8 @@ export function createAiService(
     const candidates = ctx.db
       .prepare(
         `SELECT u.id FROM users u WHERE u.kind = 'human' AND u.role = 'agent' AND u.disabled_at IS NULL
-      AND NOT EXISTS (SELECT 1 FROM chats c WHERE c.assigned_to = u.id AND c.status = 'open') ORDER BY u.id`,
+      AND NOT EXISTS (SELECT 1 FROM chats c WHERE c.assigned_to = u.id AND c.status = 'open'
+        AND c.hidden_at IS NULL) ORDER BY u.id`,
       )
       .all() as Array<{ id: number }>;
     // Only a teammate who may open the chat (its inbox, or one of their chosen chats).

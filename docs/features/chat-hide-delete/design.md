@@ -53,6 +53,22 @@ A hidden chat behaves like a chat that does not exist, for everyone (admins, the
   Scheduled tasks to a hidden chat are skipped (`chat_hidden`), not sent.
 - Socket: a `chats:hidden` event {inboxId} makes open web pages drop those chats from their caches.
 
+### Implementation notes (Part A, 2026-11-12)
+
+- Archive key: `chatKey(inbox, '<wa_jid>~old<n>')`, so inbox 1 gets `<key>~old<n>` as above and another inbox
+  `<wa_jid>~old<n>#<id>` (the `#<inbox>` suffix stays last, so the key still names its inbox). The moved tables are
+  Delete chat's `CHAT_TABLES` plus `avatars` (one list for both features). A hidden chat whose number was not known
+  when it was hidden counts as another number (archived).
+- `chats.shown_on_relink` is written after 30 s without another shown chat: one row for the link's sync, and a small
+  row for each later live message that shows a chat.
+- New chat and a group member's **Message** show a hidden chat of the same number (the team starts that chat again),
+  like the customer's live message does.
+- Admin → Inboxes **Link the phone again** logs the phone out first, so it now asks first (title and text of Re-link
+  plus the hidden-chats line). Not in the quick mock: confirm with the owner.
+- Left as they are (history, never a list of chats): `audit_log` rows and Reports' AI hand-off/resolve counts from
+  them, connector Activity names, the phrase list's team replies, Members → "Chats this member can see" (keeps a
+  hidden chosen chat so it comes back), Lite import summary counts.
+
 ## Part B: Delete chat (admins)
 
 ### Screen

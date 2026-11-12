@@ -893,6 +893,10 @@ describe('mergeLiteInbox refusals and rollback', () => {
     db.exec('DROP TABLE media_thumbs; ALTER TABLE messages DROP COLUMN media_has_thumb;');
     // and 042 (deleted chats)
     db.exec('DROP TABLE deleted_chats;');
+    // and 043 (chats hidden on Log out)
+    db.exec(
+      'DROP INDEX idx_chats_hidden; ALTER TABLE chats DROP COLUMN hidden_at; ALTER TABLE chats DROP COLUMN hidden_number;',
+    );
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

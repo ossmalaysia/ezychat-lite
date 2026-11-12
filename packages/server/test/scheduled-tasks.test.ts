@@ -351,6 +351,19 @@ describe('scheduler', { timeout: 30_000 }, () => {
     expect(runsOf(task.id)[0]).toMatchObject({ result: 'skipped', reason: 'agent_off' });
   });
 
+  it('skips a chat hidden on Log out (chat_hidden) and sends nothing to it', async () => {
+    await setUp();
+    const task = create();
+    t.ctx.db
+      .prepare("UPDATE chats SET hidden_at = 1, hidden_number = '60000000000' WHERE jid = ?")
+      .run(STAFF);
+    await tickAt(MON_0830 + MIN);
+    expect(runsOf(task.id)[0]).toMatchObject({ result: 'skipped', reason: 'chat_hidden' });
+    expect(prompts).toHaveLength(0);
+    expect(sentByTask(task.id)).toHaveLength(0);
+    expect(scheduled.list(agentId).tasks[0]!.chat).toBeNull();
+  });
+
   it('skips a chat that left the inbox and stops tasks when the agent moves inbox', async () => {
     await setUp();
     const task = create();

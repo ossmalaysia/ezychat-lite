@@ -86,6 +86,18 @@ export const ChatDeletePreview = z.object({
 });
 export type ChatDeletePreview = z.infer<typeof ChatDeletePreview>;
 
+/**
+ * Hide chats on Log out (admins, design.md Part A; `GET /api/inboxes/:id/hidden-chats`): `visible` =
+ * the inbox's chats the team sees (the Log out confirmation hides them), `hidden` = chats hidden when
+ * `number` (digits of the inbox's own number) logged out, shown again when the same number links.
+ */
+export const HiddenChatsInfo = z.object({
+  visible: z.number().int().nonnegative(),
+  hidden: z.number().int().nonnegative(),
+  number: z.string().nullable(),
+});
+export type HiddenChatsInfo = z.infer<typeof HiddenChatsInfo>;
+
 export const ChatDetailResponse = z.object({ chat: ChatSchema, events: z.array(ChatEventSchema) });
 export type ChatDetailResponse = z.infer<typeof ChatDetailResponse>;
 

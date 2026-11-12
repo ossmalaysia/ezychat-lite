@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- When a WhatsApp number is logged out (Log out in EzyChat, or Linked devices → Log out on the phone), its chats are hidden from the inbox. Nothing is deleted. If the same number links again, each chat comes back as soon as WhatsApp shows it is still on the phone (or the customer writes again). If a different number links, the old chats stay hidden and the new number starts with an empty inbox. The Log out confirmation says how many chats are hidden.
 - Admins can delete a chat: chat menu (⋮) → **Delete chat**. The chat, its messages, notes and files are removed from EzyChat for good; your WhatsApp phone keeps its own copy. WhatsApp's history never brings it back, and if the customer writes again, a new empty chat starts.
 - When the AI agent reads a customer's message in a direct chat and decides not to reply, the chat now shows a small line for your team only: "Sales Agent did not reply" (or "… it saw the chat as finished"). A silent AI turn is no longer invisible, so you can reply yourself or adjust the agent's instructions. The customer sees nothing.
 

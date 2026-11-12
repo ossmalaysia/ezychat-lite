@@ -147,9 +147,9 @@ export function mergeChat(
     if (!b) {
       db.prepare(
         `INSERT INTO chats (jid, type, name, avatar_path, unread_count, last_message_at, last_message_preview,
-           status, assigned_to, updated_at, phone, inbox_id, wa_jid)
+           status, assigned_to, updated_at, phone, inbox_id, wa_jid, hidden_at, hidden_number)
          VALUES (@jid, 'dm', @name, @avatar, @unread, @lastAt, @preview, @status, @assigned, @now, @phone,
-           @inboxId, @waJid)`,
+           @inboxId, @waJid, @hiddenAt, @hiddenNumber)`,
       ).run({
         jid: to,
         inboxId: dst.inboxId,
@@ -163,6 +163,9 @@ export function mergeChat(
         assigned: a.assigned_to,
         now: opts.now,
         phone,
+        // a chat hidden on Log out stays hidden under its new key
+        hiddenAt: a.hidden_at ?? null,
+        hiddenNumber: a.hidden_number ?? null,
       });
     } else {
       const newest = (b.last_message_at ?? -1) >= (a.last_message_at ?? -1) ? b : a;
@@ -188,6 +191,10 @@ export function mergeChat(
         assigned_to: assignedTo,
         phone: phone ?? b.phone,
         updated_at: opts.now,
+        // hidden on Log out only while both were: a chat WhatsApp showed again stays visible
+        hidden_at: a.hidden_at != null && b.hidden_at != null ? b.hidden_at : null,
+        hidden_number:
+          a.hidden_at != null && b.hidden_at != null ? (b.hidden_number ?? null) : null,
       });
     }
 

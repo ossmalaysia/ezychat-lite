@@ -75,7 +75,7 @@ export function directChats(db: DB, limit = 500): Array<{ jid: string; name: str
       `SELECT c.jid AS jid,
               COALESCE(NULLIF(p.name, ''), NULLIF(c.name, ''), '+' || substr(c.jid, 1, instr(c.jid, '@') - 1)) AS name
        FROM chats c LEFT JOIN customer_profiles p ON p.chat_jid = c.jid
-       WHERE c.jid NOT LIKE '%@g.us' AND c.jid NOT LIKE 'status@%'
+       WHERE c.jid NOT LIKE '%@g.us' AND c.jid NOT LIKE 'status@%' AND c.hidden_at IS NULL
        ORDER BY c.last_message_at DESC LIMIT ?`,
     )
     .all(limit) as Array<{ jid: string; name: string }>;

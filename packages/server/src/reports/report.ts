@@ -1,7 +1,7 @@
 import { MISSED_LEAD_MS, type Report, type ReportPeriod, type ReportTotals } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
 import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
-import { inboxCondition, localClock, localDate, localMidnight } from '../chats/stats.js';
+import { chatScope, localClock, localDate, localMidnight } from '../chats/stats.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 
 /**
@@ -37,7 +37,7 @@ function dayStarts(days: number, timeZone: string, now: number): number[] {
 export function computeReport(db: DB, opts: Options): Report {
   const days = opts.days as ReportPeriod;
   const { timeZone, now } = opts;
-  const scope = inboxCondition('c', opts.inboxIds);
+  const scope = chatScope('c', opts.inboxIds);
   const starts = dayStarts(days, timeZone, now);
   const from = starts[0]!;
   const previousFrom = localMidnight(

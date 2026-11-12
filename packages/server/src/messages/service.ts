@@ -33,6 +33,8 @@ import type { AppContext } from '../context.js';
 import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
 import { chatDeletedAt } from '../chats/delete.js';
+import { getChatHide } from '../chats/hide.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { ChatRepo } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
 import {
@@ -837,6 +839,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   /** Sending needs the chat's inbox: a removed inbox keeps its chats read only. */
   const requireSendable = (jid: string) => {
     const c = requireChat(jid);
+    // a chat hidden on Log out does not exist for anyone (never sent from the next number)
+    if (isChatHidden(ctx.db, c.jid)) throw errors.notFound('Chat');
     refuseSend(inboxOfKey(jid));
     return c;
   };
@@ -1249,6 +1253,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const chatJid = isGroup ? directKey : aliases.route(inboxId, m.chatJid);
       const chatWaJid = waJidOf(chatJid);
       if (source === 'history' && deletedHistory(inboxId, chatJid, chatWaJid, m)) return null;
+      // Any message of a chat hidden on Log out: the phone still has it, the same number shows it again.
+      getChatHide(ctx).showIfHidden(inboxId, [m.chatJid, m.chatJidAlt]);
       // Our own send may echo before the queue has committed its WhatsApp id and sender. The guard
       // is keyed by the chat the send came from: the routed chat, or a PN chat still kept separate.
       const guard = m.fromMe ? (inflight.get(chatJid) ?? inflight.get(directKey)) : undefined;
@@ -1327,7 +1333,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         ctx.bus.emit('chat:event', ev);
       }
 
-      if (source === 'live') {
+      // A chat still hidden on Log out (no same-number link shows it) is stored, never acted on.
+      const hidden = isChatHidden(ctx.db, chatJid);
+      if (source === 'live' && !hidden) {
         // AI Sales Agent trigger (#18): keyed by the routed chat, where its ai_chat_state lives.
         ctx.bus.emit('message:received', {
           chat: ctx.services.chats!.get(chatJid)!,
@@ -1395,7 +1403,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const msg = present(final);
       ctx.bus.emit('message:new', msg);
       const chat = emitChat(chatJid);
-      if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });
+      if (isNewLiveInbound && chat && !hidden)
+        ctx.bus.emit('inbound:notify', { chat, message: msg });
       return msg;
     },
 

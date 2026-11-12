@@ -320,6 +320,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
+  renumber or change them on that branch (later parts take the next number), or the official release cannot
+  upgrade that install. Build such an installer from a clean worktree of one commit, never from a folder another
+  agent is editing, and give it a prerelease version below the next release (`0.1.32-dev.1`).
+
 - Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
   push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
   (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
@@ -1365,6 +1370,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   generically from `PRAGMA table_info` with `foreign_keys = OFF` and `ignore_check_constraints = ON` (`chat-delete.test.ts`).
   A service that stores `deps.now ?? Date.now` keeps the original function, so `vi.spyOn(Date, 'now')` misses it: store
   `() => Date.now()`.
+- A per-chat "does not exist" state (hidden on Log out) needs the SQL filter in every list and count, not only the
+  `canOpenChat` gate: admins and the AI get scope `'all'` and Lite's one-inbox shortcut skips membership. Readers use
+  `chats/hidden-sql.ts`; a socket emit for one chat goes through `toVisibleChat` and returns nothing instead of calling
+  `io.to([])` (an empty room list broadcasts to every socket). Code that copies or re-keys a `chats` row builds its
+  column list from `PRAGMA table_info`, and `chats/merge.ts` carries the hidden columns, so a later column is never lost.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and

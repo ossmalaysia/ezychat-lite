@@ -11,6 +11,7 @@ import { seedFromLinked } from '../customers/linked.js';
 import { avatarHashes } from '../avatars/sql.js';
 import type { DB } from '../db/index.js';
 import { chatKey, parseChatKey } from '../inboxes/keys.js';
+import { visibleChat } from './hidden-sql.js';
 
 /** Columns of the `chats` table itself (e.g. `SELECT * FROM chats`). */
 export interface ChatColumns {
@@ -31,6 +32,10 @@ export interface ChatColumns {
   wa_jid: string | null;
   /** epoch ms of the customer's last live message (migration 019; the reply window starts there). */
   last_inbound_at?: number | null;
+  /** epoch ms the chat was hidden on Log out (migration 043); null = visible. Read `chats/hide.ts`. */
+  hidden_at?: number | null;
+  /** digits of the inbox's own number when the chat was hidden (migration 043). */
+  hidden_number?: string | null;
 }
 
 /**
@@ -219,7 +224,9 @@ export class ChatRepo {
 
   openCount(): number {
     return (
-      this.db.prepare("SELECT COUNT(*) AS count FROM chats WHERE status = 'open'").get() as {
+      this.db
+        .prepare("SELECT COUNT(*) AS count FROM chats WHERE status = 'open' AND hidden_at IS NULL")
+        .get() as {
         count: number;
       }
     ).count;
@@ -227,7 +234,7 @@ export class ChatRepo {
 
   openChats(): ChatColumns[] {
     return this.db
-      .prepare("SELECT * FROM chats WHERE status = 'open' ORDER BY jid")
+      .prepare("SELECT * FROM chats WHERE status = 'open' AND hidden_at IS NULL ORDER BY jid")
       .all() as ChatColumns[];
   }
 
@@ -300,7 +307,8 @@ export class ChatRepo {
     if (f.chatJids && f.chatJids.length === 0) return [];
     if (f.inboxIds && f.inboxIds.length === 0 && !f.chatJids) return [];
     if (f.inbox !== undefined && f.inboxIds && !f.inboxIds.includes(f.inbox)) return [];
-    const where: string[] = [];
+    // a chat hidden on Log out is listed for nobody (admins too)
+    const where: string[] = [visibleChat('c')];
     const params: Record<string, unknown> = { limit: f.limit };
     if (f.inbox !== undefined) {
       where.push('c.inbox_id = @inbox');
@@ -352,7 +360,7 @@ export class ChatRepo {
       params.cjid = f.cursor.jid;
     }
     const sql = `${CHAT_SELECT} LEFT JOIN contacts ct ON ct.jid = COALESCE(c.wa_jid, c.jid)
-      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+      WHERE ${where.join(' AND ')}
       ORDER BY COALESCE(c.last_message_at, 0) DESC, c.jid ASC LIMIT @limit`;
     return this.withTags(this.db.prepare(sql).all(params) as JoinedRow[]);
   }
@@ -428,7 +436,8 @@ export class ChatRepo {
     return (
       this.db
         .prepare(
-          "SELECT jid FROM contacts UNION SELECT COALESCE(wa_jid, jid) FROM chats WHERE type = 'dm'",
+          // never an archived chat's `~old<n>` JID (it is no WhatsApp address)
+          "SELECT jid FROM contacts UNION SELECT COALESCE(wa_jid, jid) FROM chats WHERE type = 'dm' AND COALESCE(wa_jid, jid) NOT LIKE '%~old%'",
         )
         .all() as Array<{ jid: string }>
     ).map((r) => r.jid);

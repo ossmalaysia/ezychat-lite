@@ -1,5 +1,6 @@
 import type { User } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { inboxOfKey } from './keys.js';
 
 /** Inboxes a user may open: every inbox, or a set of inbox ids. */
@@ -55,12 +56,14 @@ export function canOpen(scope: InboxScope, inboxId: number): boolean {
 /**
  * The one per-chat check: a chosen chat for a limited agent (its inbox still active, or any inbox for
  * nobody else), else the inbox scope. Use it wherever one chat is opened, sent to or notified about.
+ * A chat hidden on Log out opens for nobody, admins and the AI included (it behaves as missing).
  */
 export function canOpenChat(
   ctx: InboxCtx,
   user: Viewer,
   chat: { jid: string; inbox_id: number },
 ): boolean {
+  if (isChatHidden(ctx.db, chat.jid)) return false;
   const chosen = chosenChats(ctx, user);
   if (chosen) return chosen.has(chat.jid) && inboxActive(ctx, chat.inbox_id);
   return canOpen(scopeFor(ctx, user), chat.inbox_id);
@@ -124,9 +127,10 @@ export function usersWhoCanOpen(ctx: InboxCtx, inboxId: number): number[] {
  * Active human users who may open one chat: `usersWhoCanOpen(its inbox)` plus the agents limited to
  * chosen chats who chose it (only while its inbox is active). Every notification about a chat (push,
  * `notification:new`, AI hand-off) is sent only to these people. Ascending ids; a key that does not
- * parse reaches nobody.
+ * parse, or a chat hidden on Log out, reaches nobody.
  */
 export function usersWhoCanOpenChat(ctx: InboxCtx, jid: string): number[] {
+  if (isChatHidden(ctx.db, jid)) return [];
   let inboxId: number;
   try {
     inboxId = inboxOfKey(jid);

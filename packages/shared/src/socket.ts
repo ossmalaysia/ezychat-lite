@@ -49,6 +49,10 @@ export type MessageReactionsPayload = z.infer<typeof MessageReactionsPayload>;
 export const ChatDeletedPayload = z.object({ jid: z.string() });
 export type ChatDeletedPayload = z.infer<typeof ChatDeletedPayload>;
 
+/** A linked phone logged out: every chat of this inbox is hidden; drop them from every cache. */
+export const ChatsHiddenPayload = z.object({ inboxId: z.number().int().positive() });
+export type ChatsHiddenPayload = z.infer<typeof ChatsHiddenPayload>;
+
 export interface ServerToClientEvents {
   'notification:new': (notification: NotificationPayload) => void;
   'message:new': (m: Message) => void;
@@ -63,6 +67,8 @@ export interface ServerToClientEvents {
   'chat:event': (e: ChatEvent) => void;
   /** An admin deleted the chat (sent to the chat's rooms). */
   'chat:deleted': (p: ChatDeletedPayload) => void;
+  /** The inbox's phone logged out and its chats are hidden (sent to everyone who sees the inbox). */
+  'chats:hidden': (p: ChatsHiddenPayload) => void;
   'note:new': (n: Note) => void;
   typing: (p: TypingPayload) => void;
   /** Connection status of inbox 1 (the number linked before multi-inbox). */

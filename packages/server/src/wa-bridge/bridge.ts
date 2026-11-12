@@ -11,7 +11,9 @@ import type {
   WaReaction,
 } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
+import { getChatHide } from '../chats/hide.js';
 import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
+import { capabilitiesOf } from '../inboxes/types.js';
 
 /**
  * Wires the events of one inbox's WaAdapter into the domain services:
@@ -68,7 +70,38 @@ export function attachWaBridge(
     }
   };
 
+  /** Hidden chats meet the number that linked now: the same number shows them, another archives them. */
+  const meetHiddenChats = (s: WaStatus) => {
+    const jid = s.me?.jid;
+    if (!jid) return;
+    try {
+      getChatHide(ctx).onLinked(inboxId, jid);
+    } catch (err) {
+      log.error({ err }, 'hidden chats not checked on link');
+    }
+  };
+
+  /**
+   * The linked phone logged out (the admin's Log out or an unlink on the phone): the inbox's chats are
+   * hidden. Never for a connection that is not linked by QR (Business API), nor for an adapter the
+   * inbox already let go of (inbox removed or its type changed: that logout is ours).
+   */
+  const hideOnLogout = () => {
+    if (!capabilitiesOf(wa).qrLink) return;
+    try {
+      if (ctx.inboxes.connections.adapter(inboxId) !== wa) return;
+    } catch {
+      return; // the inbox has no connection any more (removed)
+    }
+    try {
+      getChatHide(ctx).hideInbox(inboxId);
+    } catch (err) {
+      log.error({ err }, 'chats not hidden on logout');
+    }
+  };
+
   const onConnected = () => {
+    meetHiddenChats(wa.status);
     rememberOwnJid(wa.status);
     messages.queueFor(inboxId).onConnected();
     restoreContactAliases();
@@ -109,6 +142,11 @@ export function attachWaBridge(
   };
   const onChats = (list: WaChatInfo[]) => {
     try {
+      // the phone still has these chats: a chat hidden on Log out comes back for the same number
+      getChatHide(ctx).showIfHidden(
+        inboxId,
+        list.map((c) => c.jid),
+      );
       ctx.db.transaction(() => {
         for (const c of list) chats.syncFromWa(c, inboxId);
       })();
@@ -141,6 +179,7 @@ export function attachWaBridge(
     ctx.bus.emit('inbox:status', { inboxId, status: s });
     if (s.state === 'open' && before.state !== 'open') onConnected();
     else if (s.state !== 'open') connectionGeneration++;
+    if (s.state === 'logged_out' && before.state !== 'logged_out') hideOnLogout();
   };
 
   if (primary) ctx.services.waStatus = wa.status;
