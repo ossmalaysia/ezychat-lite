@@ -298,11 +298,17 @@ question and card back into the assistant's history line. Admins also get `list_
 `propose_agent` is refused at `maxAgents` (Lite text in the tool error); Apply creates the agent **switched off** through
 `AiService.createAgent` (409 `agent_limit` again). A task names only a chat id a `list_chats`/`get_chat` look-up returned
 in the same answer, that `canOpenChat` allows and that is on the agent's inbox (else `chat_not_in_inbox` in the tool
-error); its preview is `ScheduledService.preview` (none for a pending agent). Apply runs the scheduled-task
-create/update service (same limits); a task whose `dependsOn` agent is pending applies the agent first in the same
-request (`related`), and when the task then fails the answer is 200 `{status:'proposed', failed}` with the agent kept.
-Undo removes the task (and the agent Apply made with it, only while it is off with no chats or tasks, else 409
-`agent_in_use`); an edit's Apply/Undo refuse 409 `setup_changed` when the task moved. The same
+error). Its preview is one `AiService.scheduledTurn` (preview, the Ask Ezy request's signal, 60 s, own limit 10 a
+minute per admin, not the agent page's); a pending new agent previews as a `draft` (name, preset, instructions, no
+business context, no look-ups, nothing stored). A chat without a name is never shown by its number: `chatName` null,
+"Chat …6789". Apply runs the scheduled-task create/update service (same limits); a task whose `dependsOn` agent is
+pending applies the agent first in the same request (`related`); when the task then fails the answer is 200
+`{status:'proposed', failed}`, the agent stays with its own Undo, and a retry re-checks it (409 `agent_gone`).
+Undo of a task refuses 409 `setup_changed` when it was edited since Apply; Undo of a new agent (also via its task)
+deletes it only where `maxAgents > 1` (Lite: 409 `agent_kept`, `removable: false` on the card, the agent stays off),
+while it is off with no chats or tasks (409 `agent_in_use`) and unchanged since Apply (fingerprint of its texts, items
+and every `agent_id` row; 409 `setup_changed`), and discards the task proposals still waiting for it. The store
+evicts a new agent together with the tasks that need it, never the one a new proposal needs. The same
 `/api/ask-ezy/changes/:id/:action` route serves all three kinds (`AskEzyService.act`); logs `ask_ezy_setup` carry kind,
 action, ok, code and ids only.
 Logs carry tool names, counts, ms and model, never question or answer text. Web: `apps/web/src/askezy/`.

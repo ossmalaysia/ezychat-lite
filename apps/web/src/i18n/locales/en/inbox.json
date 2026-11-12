@@ -904,7 +904,10 @@
       "saved": "Saved.",
       "savedOff": "Saved. It sends once the agent is on.",
       "openAgent": "Open the agent",
-      "openTasks": "Open scheduled tasks"
+      "openTasks": "Open scheduled tasks",
+      "chatUnnamed": "Chat …{{ending}}",
+      "chatNoName": "Chat",
+      "agentStays": "Created. It stays, switched off: change it on its page."
     }
   },
   "safety": {

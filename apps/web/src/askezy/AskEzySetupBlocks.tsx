@@ -256,9 +256,13 @@ export function AgentProposalBlock({ block, ctx }: { block: AgentCard; ctx: Bloc
         state={state}
         ctx={ctx}
         paired={ctx.paired.has(block.id)}
-        // Its task card's Undo removes both.
-        undo={!ctx.linked.has(block.id)}
-        appliedNote={t('askEzy.setup.created')}
+        // Its task card's Undo removes both; an edition with one agent keeps it (no Undo).
+        undo={!ctx.linked.has(block.id) && block.removable !== false}
+        appliedNote={
+          block.removable === false && !ctx.linked.has(block.id)
+            ? t('askEzy.setup.agentStays')
+            : t('askEzy.setup.created')
+        }
         links={
           agentId && !ctx.linked.has(block.id) ? (
             <PageLink to={agentPage(agentId)} ctx={ctx}>
@@ -277,8 +281,15 @@ export function TaskProposalBlock({ block, ctx }: { block: TaskCard; ctx: BlockC
   const state = ctx.changes[block.id] ?? { status: block.status };
   const agentId = state.agentId ?? block.agentId ?? undefined;
   const before = block.before;
-  const chat = (name: string, ending: string | null | undefined) =>
-    ending ? t('askEzy.setup.chatWithEnding', { name, ending }) : name;
+  // A chat without a name shows the last 4 digits of its number only, never the whole number.
+  const chat = (name: string | null | undefined, ending: string | null | undefined) =>
+    name
+      ? ending
+        ? t('askEzy.setup.chatWithEnding', { name, ending })
+        : name
+      : ending
+        ? t('askEzy.setup.chatUnnamed', { ending })
+        : t('askEzy.setup.chatNoName');
   const schedule = format.schedule(block);
   const old =
     before && (before.time !== undefined || before.dayRule !== undefined)

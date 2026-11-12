@@ -68,7 +68,7 @@ function answerForHistory(answer: AskAnswer, changes: Record<string, ChangeState
       lines.push(`[New agent card "${b.name}", agentProposalId ${b.id}, ${status}]`);
     if (b.type === 'task_proposal')
       lines.push(
-        `[Scheduled task card "${b.name}" for ${b.agent} to ${b.chatName}${b.chatEnding ? ` (…${b.chatEnding})` : ''} at ${b.time} ${b.dayRule}, ${status}]`,
+        `[Scheduled task card "${b.name}" for ${b.agent} to ${b.chatName ?? 'Chat'}${b.chatEnding ? ` (…${b.chatEnding})` : ''} at ${b.time} ${b.dayRule}, ${status}]`,
       );
   }
   return lines.join('\n').slice(0, 4000);
@@ -753,7 +753,10 @@ function AnswerView({
       ? [{ task: b.id, agent: b.dependsOn }]
       : [],
   );
-  const linked = new Set(pairs.flatMap((p) => [p.task, p.agent]));
+  // The task card's Undo removes both only while the task stands applied with its new agent.
+  const linked = new Set(
+    pairs.filter((p) => stateOf(p.task).status === 'applied').flatMap((p) => [p.task, p.agent]),
+  );
   const open = pairs.filter((p) =>
     [p.task, p.agent].every((id) => {
       const state = stateOf(id);

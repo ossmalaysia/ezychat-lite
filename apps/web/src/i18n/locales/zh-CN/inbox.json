@@ -900,7 +900,10 @@
       "saved": "已保存。",
       "savedOff": "已保存。代理开启后才会发送。",
       "openAgent": "打开代理",
-      "openTasks": "打开定时任务"
+      "openTasks": "打开定时任务",
+      "chatUnnamed": "聊天 …{{ending}}",
+      "chatNoName": "聊天",
+      "agentStays": "已创建。它会保留并处于关闭状态：请在它的页面中修改。"
     }
   },
   "safety": {

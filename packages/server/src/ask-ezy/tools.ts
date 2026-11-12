@@ -155,6 +155,8 @@ export interface AskEzyToolDeps {
   aiSetup: AiSetupPort;
   changes: ChangeStore;
   setup: SetupStore;
+  /** The Ask Ezy request's signal: a proposal preview stops with it. */
+  signal?: AbortSignal;
   /** One line per call for the log and the live steps: tool name, rows, ok. Never inputs or outputs. */
   onCall: (call: { tool: string; count: number; ok: boolean; ms: number }) => void;
 }
@@ -252,7 +254,12 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
       inputSchema: ProposeTaskInput,
       execute: (args) =>
         run('propose_scheduled_task', async () => {
-          const p = await deps.setup.proposeTask(deps.user, ProposeTaskInput.parse(args), seen);
+          const p = await deps.setup.proposeTask(
+            deps.user,
+            ProposeTaskInput.parse(args),
+            seen,
+            deps.signal,
+          );
           return {
             result: { proposalId: p.id, saved: false, preview: p.preview !== null },
             count: 1,
@@ -269,6 +276,7 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
             deps.user,
             ProposeTaskEditInput.parse(args),
             seen,
+            deps.signal,
           );
           return { result: { proposalId: p.id, saved: false }, count: 1 };
         }),

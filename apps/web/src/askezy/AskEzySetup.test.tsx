@@ -245,13 +245,67 @@ describe('Ask Ezy setup', () => {
     await user.click(screen.getByRole('button', { name: 'Apply both' }));
     const task = screen.getByTestId('ask-block-task-task-1');
     await within(task).findByText('An agent can have at most 10');
-    expect(screen.getByTestId('ask-block-agent-agent-1').textContent).toContain(
-      'Created (switched off).',
+    const agent = screen.getByTestId('ask-block-agent-agent-1');
+    expect(agent.textContent).toContain('Created (switched off).');
+    // The agent stands on its own now: its own Undo and its page.
+    expect(within(agent).getByRole('link', { name: 'Open the agent' }).getAttribute('href')).toBe(
+      '/admin/members/ai/7',
     );
-    // Discard both.
-    replies.push({ json: { status: 'discarded' } });
-    await user.click(within(task).getByRole('button', { name: /discard/i }));
-    await waitFor(() => expect(sent.at(-1)!.url).toBe('/api/ask-ezy/changes/task-1/discard'));
+    replies.push({
+      json: { status: 'proposed', related: [{ id: 'task-1', status: 'discarded' }] },
+    });
+    await user.click(within(agent).getByRole('button', { name: /undo/i }));
+    await waitFor(() => expect(sent.at(-1)!.url).toBe('/api/ask-ezy/changes/agent-1/undo'));
+    // Its task waited for it: discarded with it.
+    await within(task).findByText('Discarded');
+  });
+
+  it('in Lite, says the new agent stays (no Undo for it)', async () => {
+    replies.push({
+      events: [
+        answer({
+          text: 'Here is the plan.',
+          blocks: [{ ...agentCard, removable: false }, taskCard],
+        }),
+      ],
+    });
+    const user = await start();
+    replies.push({
+      json: {
+        status: 'applied',
+        related: [{ id: 'agent-1', status: 'applied' }],
+        agentId: 7,
+        taskId: 3,
+        nextRunAt: null,
+        agentOn: false,
+      },
+    });
+    await user.click(await screen.findByRole('button', { name: 'Apply both' }));
+    const task = screen.getByTestId('ask-block-task-task-1');
+    replies.push({
+      json: { status: 'proposed', related: [{ id: 'agent-1', status: 'applied' }], agentId: 7 },
+    });
+    await user.click(await within(task).findByRole('button', { name: /undo/i }));
+    const agent = screen.getByTestId('ask-block-agent-agent-1');
+    await within(agent).findByText(/It stays, switched off/);
+    expect(within(agent).queryByRole('button', { name: /undo/i })).toBeNull();
+    expect(within(agent).getByRole('link', { name: 'Open the agent' })).toBeTruthy();
+  });
+
+  it('writes "Chat …6789" for a chat without a name', async () => {
+    replies.push({
+      events: [
+        answer({
+          text: 'Plan.',
+          blocks: [
+            { ...taskCard, chatName: null, chatEnding: '6789', dependsOn: null, agentId: 4 },
+          ],
+        }),
+      ],
+    });
+    await start();
+    const task = await screen.findByTestId('ask-block-task-task-1');
+    expect(task.textContent).toContain('Chat …6789');
   });
 
   it('shows an edit with the saved time struck through and applies it alone', async () => {

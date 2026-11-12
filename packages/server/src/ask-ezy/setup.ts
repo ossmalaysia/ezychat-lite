@@ -19,6 +19,7 @@ import { HttpError } from '../http/errors.js';
 import { agentById, listAgents, type AgentRow } from '../ai/agents.js';
 import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
 import { canOpenChat } from '../inboxes/access.js';
+import { replyWindowOpen } from '../inboxes/reply-window.js';
 import { ScheduledRepo, type TaskRow } from '../scheduled/repo.js';
 import { toTime } from '../scheduled/time.js';
 import { getChats } from '../wa-bridge/index.js';
@@ -41,7 +42,8 @@ interface TaskSpec {
 }
 
 interface ChatInfo {
-  name: string;
+  /** null: the chat has no name but its number (shown as "Chat …6789", never the whole number). */
+  name: string | null;
   ending: string | null;
   type: 'dm' | 'group';
 }
@@ -63,6 +65,8 @@ export interface AgentProposal extends Base {
   note: string | null;
   /** The created agent (applied). */
   agentId?: number;
+  /** The agent's setup right after Apply: Undo refuses once the admin changed anything of it. */
+  snapshot?: string;
 }
 
 export interface TaskProposal extends Base {
@@ -131,6 +135,17 @@ export function chatEnding(chat: Pick<Chat, 'type' | 'phone' | 'waJid'>): string
 }
 
 const FIELDS = ['name', 'time', 'dayRule', 'days', 'chatJid', 'instruction'] as const;
+const NO_NUMBER = 'This agent serves no WhatsApp number, so it cannot send scheduled messages';
+/** Ask Ezy's own proposal previews per admin per minute (the agent page's preview limit is separate). */
+export const ASK_EZY_PREVIEWS_PER_MINUTE = 10;
+const PREVIEW_TIMEOUT_MS = 60_000;
+
+/** A name that is only a phone number ("60123456789", "+60 12-345 6789") is no name. */
+const isNumber = (text: string) =>
+  /^[\d\s+().-]+$/.test(text) && text.replace(/\D/g, '').length >= 5;
+/** What the model and logs-free cards call a chat without a name: never its whole number. */
+export const chatLabel = (chat: { name: string | null; ending: string | null }) =>
+  chat.name ?? (chat.ending ? `Chat …${chat.ending}` : 'Chat');
 const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const firstIssue = (error: { issues: Array<{ path: PropertyKey[]; message: string }> }) =>
   error.issues
@@ -166,10 +181,20 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
   const prune = () => {
     for (const [id, p] of proposals) if (now() - p.createdAt > CHANGE_TTL_MS) proposals.delete(id);
   };
+  /** Removes a proposal and the task proposals that need it (a pair goes together). */
+  const evict = (id: string) => {
+    proposals.delete(id);
+    for (const [key, x] of proposals)
+      if (x.kind === 'task' && x.dependsOn === id) proposals.delete(key);
+  };
   const keep = <T extends SetupProposal>(user: User, p: T): T => {
     prune();
-    const mine = [...proposals.values()].filter((x) => x.userId === user.id);
-    while (mine.length >= CHANGES_PER_USER) proposals.delete(mine.shift()!.id);
+    // The oldest go first, never the new agent the new proposal needs.
+    const needs = p.kind === 'task' ? p.dependsOn : null;
+    const mine = () =>
+      [...proposals.values()].filter((x) => x.userId === user.id && x.id !== needs);
+    for (let left = mine(); left.length + (needs ? 1 : 0) >= CHANGES_PER_USER; left = mine())
+      evict(left[0]!.id);
     proposals.set(p.id, p);
     return p;
   };
@@ -201,15 +226,13 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
     if (input.agentId !== undefined) {
       const agent = agentById(ctx.db, input.agentId);
       if (!agent) throw new ProposeError('Unknown agentId: call list_ai_agents first');
-      if (agent.inboxId === null)
-        throw new ProposeError(
-          'This agent serves no WhatsApp number, so it cannot send scheduled messages',
-        );
+      if (agent.inboxId === null) throw new ProposeError(NO_NUMBER);
       return {
         agentId: agent.id,
         dependsOn: null,
         inboxId: agent.inboxId,
         name: displayName(agent),
+        draft: null,
       };
     }
     prune();
@@ -220,7 +243,13 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       return agentFor(user, { agentId: pending.agentId });
     if (pending.status !== 'proposed')
       throw new ProposeError('That new agent was discarded: propose it again first');
-    return { agentId: null, dependsOn: pending.id, inboxId: pending.inboxId, name: pending.name };
+    return {
+      agentId: null,
+      dependsOn: pending.id,
+      inboxId: pending.inboxId,
+      name: pending.name,
+      draft: pending,
+    };
   };
 
   const displayName = (agent: AgentRow) =>
@@ -240,33 +269,60 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       throw new ProposeError('That chat belongs to a removed WhatsApp number');
     if (chat.inboxId !== agentInbox)
       throw new ProposeError(
-        `chat_not_in_inbox: ${JSON.stringify(chat.name)} is on another WhatsApp number (${inbox.name}); ` +
+        `chat_not_in_inbox: ${JSON.stringify(chatLabel(infoOf(chat)))} is on another WhatsApp number (${inbox.name}); ` +
           `this agent sends only on ${inboxName(agentInbox)}. Nothing was proposed. Say so in a question ` +
           `block (tone "error") and ask what to use instead (an agent of ${inbox.name}, or another chat).`,
       );
     return chat;
   };
+  /** The saved or WhatsApp name; never a phone number (the card writes "Chat …6789" then). */
   const infoOf = (chat: Chat): ChatInfo => ({
-    name: chat.name?.trim() || chat.phone || chat.jid,
+    name:
+      [chat.name, chat.whatsappName]
+        .map((n) => n?.trim() ?? '')
+        .find((n) => n !== '' && !isNumber(n)) ?? null,
     ending: chatEnding(chat),
     type: chat.type === 'group' ? 'group' : 'dm',
   });
 
-  /** One message the agent would send now: nothing is sent or stored; null when there is none. */
+  const previewTimes = new Map<number, number[]>();
+  /**
+   * One message the agent would send now (nothing sent or stored); null when there is none. A new agent that is
+   * not saved yet previews as a draft: its name, preset and instructions, no business context, no look-ups.
+   * Its own limit (`ASK_EZY_PREVIEWS_PER_MINUTE`), not the agent page's; stops with the Ask Ezy request.
+   */
   const preview = async (
     user: User,
-    agentId: number | null,
-    chatJid: string,
-    instruction: string,
+    agent: { agentId: number } | { draft: AgentProposal },
+    chat: { jid: string; taskName: string; instruction: string },
+    signal?: AbortSignal,
   ) => {
-    if (agentId === null) return null;
+    const at = now();
+    const recent = (previewTimes.get(user.id) ?? []).filter((t) => at - t < 60_000);
+    if (recent.length >= ASK_EZY_PREVIEWS_PER_MINUTE) return null;
+    previewTimes.set(user.id, [...recent, at]);
+    const service = ai();
+    if (!service.answerReady() || !replyWindowOpen(ctx, chat.jid, at)) return null;
     try {
-      const result = await scheduled().preview(
-        agentId,
-        { chatJid, instruction },
-        { userId: user.id, ip: null },
+      const turn = await service.scheduledTurn(
+        {
+          agentId: 'agentId' in agent ? agent.agentId : null,
+          chatJid: chat.jid,
+          task: { name: chat.taskName, instruction: chat.instruction },
+          preview: true,
+          ...('draft' in agent
+            ? {
+                draft: {
+                  name: agent.draft.name,
+                  preset: agent.draft.preset,
+                  instructions: agent.draft.instructions,
+                },
+              }
+            : {}),
+        },
+        AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(PREVIEW_TIMEOUT_MS)]),
       );
-      return result.result === 'sent' && result.text ? result.text : null;
+      return turn.outcome === 'send' && turn.text ? turn.text : null;
     } catch {
       return null;
     }
@@ -284,9 +340,50 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
     agent.enabled ||
     repo.count(agent.id) > 0 ||
     !!ctx.db.prepare('SELECT 1 FROM chats WHERE assigned_to = ? LIMIT 1').get(agent.userId);
+  /** Only an edition with room for more than one agent deletes one (Lite keeps its only agent). */
+  const removable = () => ai().maxAgents() > 1;
+
+  /**
+   * Everything an admin can change of an agent: its name, switches, texts, items, and every row keyed by the
+   * agent (setup versions, group chats, connector settings…). Scheduled tasks are checked on their own, and
+   * the phrase list is built by the app, not the admin.
+   */
+  const agentTables = () =>
+    (
+      ctx.db
+        .prepare(
+          "SELECT DISTINCT m.name AS name FROM sqlite_master m, pragma_table_info(m.name) p WHERE m.type = 'table' AND p.name = 'agent_id'",
+        )
+        .all() as Array<{ name: string }>
+    )
+      .map((r) => r.name)
+      .filter((name) => !name.startsWith('ai_scheduled') && !name.startsWith('reply_phrase'));
+  const fingerprint = (agentId: number) => {
+    const status = ai().agentStatus(agentId);
+    const rows = agentTables().map((table) => [
+      table,
+      (
+        ctx.db.prepare(`SELECT count(*) AS n FROM "${table}" WHERE agent_id = ?`).get(agentId) as {
+          n: number;
+        }
+      ).n,
+    ]);
+    return JSON.stringify({
+      agent: status.agent,
+      instructions: status.settings.instructions,
+      handoffRules: status.settings.handoffRules,
+      documents: status.documents.map((d) => [d.id, d.name]),
+      rows,
+    });
+  };
 
   const applyAgent = (p: AgentProposal, user: User, ip: string | null) => {
-    if (p.status === 'applied' && p.agentId) return p.agentId;
+    if (p.status === 'applied' && p.agentId) {
+      // A retry after "Apply both" made only the agent: it must still be there.
+      if (!agentRow(p))
+        throw new HttpError(409, 'agent_gone', 'The new agent was removed. Ask Ezy again.');
+      return p.agentId;
+    }
     try {
       const status = ai().createAgent(
         {
@@ -300,6 +397,7 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       );
       p.agentId = status.agent.id;
       p.status = 'applied';
+      p.snapshot = fingerprint(p.agentId);
       logApply(p, 'apply', true);
       return p.agentId;
     } catch (error) {
@@ -308,21 +406,52 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
     }
   };
 
-  /** Removes the agent Apply created: only while it is off and has no chats or scheduled tasks. */
-  const undoAgent = (p: AgentProposal, user: User, ip: string | null) => {
+  /**
+   * Removes the agent Apply created: only where an agent can be deleted (not Lite), while it is off, has no
+   * chats or scheduled tasks, and nothing of it changed since Apply. Task proposals that still wait for it
+   * (other than `except`) are discarded; returns them.
+   */
+  const undoAgent = (p: AgentProposal, user: User, ip: string | null, except?: string) => {
     const agent = agentRow(p);
     if (agent) {
+      if (!removable())
+        throw new HttpError(
+          409,
+          'agent_kept',
+          'This edition keeps its only AI agent: it stays, switched off. Change it on its page.',
+        );
       if (agentInUse(agent))
         throw new HttpError(
           409,
           'agent_in_use',
           'The agent is on, or has chats or scheduled tasks: change it on its page',
         );
+      if (p.snapshot !== undefined && fingerprint(agent.id) !== p.snapshot)
+        throw new HttpError(
+          409,
+          'setup_changed',
+          'The agent changed after it was created: change or remove it on its page',
+        );
       ai().deleteAgent(agent.id, actor(user, ip, 'undo new agent'));
     }
+    const gone = p.agentId;
     p.status = 'proposed';
     p.agentId = undefined;
+    p.snapshot = undefined;
     logApply(p, 'undo', true);
+    const discarded: NonNullable<AskEzyChangeResult['related']> = [];
+    for (const x of proposals.values())
+      if (
+        x.kind === 'task' &&
+        x.id !== except &&
+        x.status === 'proposed' &&
+        (x.dependsOn === p.id || (gone !== undefined && x.agentId === gone))
+      ) {
+        x.status = 'discarded';
+        if (x.dependsOn === p.id) x.agentId = null;
+        discarded.push({ id: x.id, status: 'discarded' });
+      }
+    return discarded;
   };
 
   const taskResult = (p: TaskProposal, related: AskEzyChangeResult['related']) => {
@@ -369,7 +498,12 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       }
     } catch (error) {
       logApply(p, 'apply', false, error instanceof HttpError ? error.code : 'error');
-      // "Apply both": the agent stays (it is off); the task was not saved, and the card says why.
+      // The task waits for its new agent again: a retry reads (and re-checks) the agent proposal.
+      if (dep) {
+        p.agentId = null;
+        p.createdAgent = false;
+      }
+      // "Apply both": the agent stays (it is off, with its own Undo); the task was not saved, and the card says why.
       if (related.length && error instanceof HttpError)
         return {
           status: 'proposed',
@@ -395,6 +529,9 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       scheduled().update(agentId, p.edit.taskId, ScheduledTaskPatch.parse(p.edit.original), who);
       p.edit.updatedAt = repo.get(p.edit.taskId)!.updatedAt;
     } else if (saved) {
+      // Changed on the agent page since Apply: never remove what someone edited.
+      if (saved.updatedAt !== p.appliedAt)
+        throw new HttpError(409, 'setup_changed', 'The task changed after it was saved');
       scheduled().remove(agentId, saved.id, who);
     }
     p.status = 'proposed';
@@ -405,13 +542,13 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       const dep = proposals.get(p.dependsOn);
       if (dep?.kind === 'agent' && dep.status === 'applied') {
         try {
-          undoAgent(dep, user, ip);
+          related.push(...undoAgent(dep, user, ip, p.id));
           p.agentId = null;
-          p.createdAgent = false;
         } catch {
-          // The agent is in use now: it stays, the task is gone.
+          // Lite keeps its only agent, or the agent is in use now: it stays (off), the task is gone.
         }
-        related.push({ id: dep.id, status: dep.status });
+        p.createdAgent = false;
+        related.unshift({ id: dep.id, status: dep.status });
       }
     }
     return { status: p.status, related, ...(p.agentId ? { agentId: p.agentId } : {}) };
@@ -487,6 +624,7 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       user: User,
       input: ProposeTaskInput,
       seen: ReadonlySet<string>,
+      signal?: AbortSignal,
     ): Promise<TaskProposal> {
       const agent = agentFor(user, input);
       const chat = chatFor(user, input.chatJid, seen, agent.inboxId);
@@ -513,7 +651,12 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
         agentName: agent.name,
         spec,
         chat: infoOf(chat),
-        preview: await preview(user, agent.agentId, chat.jid, spec.instruction),
+        preview: await preview(
+          user,
+          agent.draft ? { draft: agent.draft } : { agentId: agent.agentId! },
+          { jid: chat.jid, taskName: spec.name, instruction: spec.instruction },
+          signal,
+        ),
         edit: null,
       });
     },
@@ -523,6 +666,7 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       user: User,
       input: ProposeTaskEditInput,
       seen: ReadonlySet<string>,
+      signal?: AbortSignal,
     ): Promise<TaskProposal> {
       const task = repo.get(input.taskId);
       const agent = task ? agentById(ctx.db, task.agentId) : null;
@@ -544,9 +688,10 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       const next: TaskSpec = { ...saved, ...patch };
       const checked = ScheduledTaskBody.safeParse(next);
       if (!checked.success) throw new ProposeError(firstIssue(checked.error));
+      if (patch.chatJid !== undefined && agent.inboxId === null) throw new ProposeError(NO_NUMBER);
       const chat =
-        patch.chatJid !== undefined
-          ? chatFor(user, patch.chatJid, seen, agent.inboxId ?? -1)
+        patch.chatJid !== undefined && agent.inboxId !== null
+          ? chatFor(user, patch.chatJid, seen, agent.inboxId)
           : chats.get(task.chatJid);
       const oldChat = chats.get(task.chatJid);
       const original: Partial<TaskSpec> = {};
@@ -576,8 +721,15 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
         dependsOn: null,
         agentName: displayName(agent),
         spec: next,
-        chat: chat ? infoOf(chat) : { name: task.chatJid, ending: null, type: 'dm' },
-        preview: changesText ? await preview(user, agent.id, next.chatJid, next.instruction) : null,
+        chat: chat ? infoOf(chat) : { name: null, ending: null, type: 'dm' },
+        preview: changesText
+          ? await preview(
+              user,
+              { agentId: agent.id },
+              { jid: next.chatJid, taskName: next.name, instruction: next.instruction },
+              signal,
+            )
+          : null,
         edit: { taskId: task.id, updatedAt: task.updatedAt, patch, original, before },
       });
     },
@@ -602,7 +754,7 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
             enabled: task.enabled,
             ...specOf(task),
             chatJid: openable ? task.chatJid : null,
-            chatName: openable ? infoOf(chat).name : null,
+            chatName: openable ? chatLabel(infoOf(chat)) : null,
             chatEnding: openable ? chatEnding(chat) : null,
             timeZone: timeZone(),
           };
@@ -626,7 +778,12 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       if (p.kind === 'task') return applyTask(p, user, ip);
       // The agent service checks the edition's limit again (409 agent_limit).
       const agentId = applyAgent(p, user, ip);
-      return { status: 'applied', related: [], agentId, agentOn: false };
+      return {
+        status: 'applied',
+        related: [],
+        agentId,
+        agentOn: agentById(ctx.db, agentId)?.enabled ?? false,
+      };
     },
 
     discard(id: string, user: User): AskEzyChangeResult {
@@ -646,9 +803,11 @@ export function createSetupStore(ctx: AppContext, now: () => number = Date.now) 
       }
       if (p.status !== 'applied') return { status: p.status, related: [] };
       if (p.kind === 'task') return undoTask(p, user, ip);
-      undoAgent(p, user, ip);
-      return { status: 'proposed', related: [] };
+      return { status: 'proposed', related: undoAgent(p, user, ip) };
     },
+
+    /** Whether Undo can remove a new agent in this edition (Lite keeps its only agent). */
+    agentsRemovable: removable,
   };
 }
 

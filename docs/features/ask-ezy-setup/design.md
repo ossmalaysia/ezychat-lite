@@ -72,14 +72,22 @@ Deviations from the text above and the mock, decided while building:
   "other number" error (state 7); the model writes the note from the tool error.
 - **The task card carries time, day rule and days**, not a "when" sentence: the page writes it in the person's
   language with the Scheduled tasks card's own format ("Every day · 9:00").
-- **No preview for a task of a pending new agent** (state 3 shows one): a preview needs the agent to exist
-  (`scheduledTurn` reads its row). The card shows the preview only when there is one.
+- **Preview of a pending new agent** (state 3): a draft turn (`scheduledTurn` with `draft`: the proposed name,
+  preset texts and instructions, no business context, no look-ups); nothing is stored or sent. Proposal previews
+  have their own limit (10 a minute per admin), not the agent page's 20, and stop with the Ask Ezy request.
+- **Chats without a name** are never shown by their number: the card says "Chat …6789" (last 4 digits).
+- **Undo is careful (code review 2026-11-12):** a task edited on the agent page since Apply, or a new agent the
+  admin changed since Apply (texts, items, groups, connectors, any `agent_id` row), is not undone (409
+  `setup_changed`). In Lite (one agent) Undo never deletes the new agent: the task goes, the agent card says it
+  stays, switched off. Undo of a new agent discards the task proposals still waiting for it.
+- **"Apply both" failed half-way:** the agent card stands alone (Applied, its own Undo, "Open the agent"); a retried
+  task Apply re-checks that the agent still exists (409 `agent_gone`).
 - **History:** the panel adds one line per question and card (`[Asked: … Choices: …]`, `[New agent card …,
 agentProposalId …]`) to the assistant's text, so a tapped choice answers that question. The server trusts none of
   it: proposals are read only from its own store by id.
 - **"Apply both"** is one request to the task's Apply; the server creates the agent first. If the task then fails,
-  the answer is 200 with `failed` and the agent stays (it is off); the task card says why. The agent card has no Undo
-  of its own while its task is shown with it: the task's Undo removes both.
+  the answer is 200 with `failed` and the agent stays (it is off); the task card says why. While the task stands applied
+  with its new agent, the agent card has no Undo of its own: the task's Undo removes both.
 - "Open scheduled tasks" goes to `/admin/members/ai/:agentId#scheduled-tasks`; the card scrolls into view.
 
 ## Screens (quick mock)

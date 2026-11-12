@@ -55,7 +55,8 @@ const AskEzyTaskFields = {
   time: z.string().regex(/^\d\d:\d\d$/),
   dayRule: ScheduledDayRule,
   days: z.array(z.number().int().min(0).max(6)).max(7),
-  chatName: short,
+  /** null: the chat has no name (the page writes "Chat …6789"); never a whole phone number. */
+  chatName: short.nullable(),
   /** The last 4 digits of the chat's number; null for a group or a chat without a number. */
   chatEnding: z
     .string()
@@ -70,7 +71,7 @@ export const AskEzyTaskBefore = z.object({
   time: AskEzyTaskFields.time.optional(),
   dayRule: ScheduledDayRule.optional(),
   days: AskEzyTaskFields.days.optional(),
-  chatName: short.optional(),
+  chatName: short.nullable().optional(),
   chatEnding: AskEzyTaskFields.chatEnding.optional(),
   instruction: text(1000).optional(),
 });
@@ -103,6 +104,8 @@ export const AskEzyBlock = z.discriminatedUnion('type', [
     status: AskEzyChangeStatus,
     /** The created agent (applied). */
     agentId: z.number().int().positive().optional(),
+    /** Undo can remove the created agent (false in an edition with one agent: it stays, switched off). */
+    removable: z.boolean().optional(),
   }),
   /** A new scheduled task, or a change to one (`taskId` + `before`), that Ezy proposed (admins). */
   z.object({

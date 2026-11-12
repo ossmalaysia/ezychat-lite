@@ -30,9 +30,19 @@ const DEFAULT_TITLE = {
   handoff_rules: 'Hand-off rules',
 } as const;
 
-const clip = (text: string, max: number) => {
+/**
+ * At most `max` UTF-16 units, as zod's `.max()` counts them, cut between characters (never inside an emoji),
+ * so a clipped text still passes the block contract.
+ */
+export const clip = (text: string, max: number) => {
   const t = text.trim();
-  return [...t].length > max ? [...t].slice(0, max - 1).join('') + '…' : t;
+  if (t.length <= max) return t;
+  let out = '';
+  for (const ch of t) {
+    if (out.length + ch.length > max - 1) break;
+    out += ch;
+  }
+  return out + '…';
 };
 
 export interface AskEzyService {
@@ -149,6 +159,7 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
         note: p.note,
         status: p.status,
         ...(p.agentId ? { agentId: p.agentId } : {}),
+        removable: setup.agentsRemovable(),
       });
       return parsed.success ? parsed.data : null;
     }
@@ -163,7 +174,7 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
       time: p.spec.time,
       dayRule: p.spec.dayRule,
       days: p.spec.days,
-      chatName: clip(p.chat.name, 200),
+      chatName: p.chat.name === null ? null : clip(p.chat.name, 200),
       chatEnding: p.chat.ending,
       chatType: p.chat.type,
       instruction: p.spec.instruction,
@@ -227,6 +238,7 @@ export function createAskEzyService(ctx: AppContext): AskEzyService {
         aiSetup,
         changes,
         setup,
+        signal,
         onCall: (call) => {
           calls.push(call);
           if (call.ok) emit({ type: 'step', key: call.tool, count: call.count });

@@ -900,7 +900,10 @@
       "saved": "Disimpan.",
       "savedOff": "Disimpan. Mesej dihantar apabila ejen dihidupkan.",
       "openAgent": "Buka ejen",
-      "openTasks": "Buka tugasan berjadual"
+      "openTasks": "Buka tugasan berjadual",
+      "chatUnnamed": "Sembang …{{ending}}",
+      "chatNoName": "Sembang",
+      "agentStays": "Dicipta. Ejen ini kekal, dimatikan: ubah di halamannya."
     }
   },
   "safety": {
