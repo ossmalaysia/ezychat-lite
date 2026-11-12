@@ -1347,6 +1347,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Ask Ezy unit tests mock the model and often `scheduledTurn` too, so only a Dev Build runs the real tool path: a new
+  Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
+  their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
+  `Ask Ezy tool failed` {tool, errName}: read it before guessing why a tool "failed".
+
 - Every AI path that ends with nothing sent (`no_reply`, a guard that silences `resolve`) must leave a team-only
   trace in the chat; a silent turn while the AI holds the chat leaves the customer waiting where nobody looks. For
   "why no reply", read the `AI decision` log line (`action` + `proposed`) before blaming the code or the rules: an
