@@ -1356,6 +1356,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
   their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
   `Ask Ezy tool failed` {tool, errName}: read it before guessing why a tool "failed".
+- A real-model eval (`e2e/ask-ezy-eval.mjs`) reads the environment before it expects anything (agent count against
+  `maxAgents` from `GET /api/ai`), and each scenario states whether a question is needed: without that it scored correct
+  refusals and correct direct proposals as failures. Read the saved turns (`--out`) before calling a check a model fault.
 
 - Every AI path that ends with nothing sent (`no_reply`, a guard that silences `resolve`) must leave a team-only
   trace in the chat; a silent turn while the AI holds the chat leaves the customer waiting where nobody looks. For
