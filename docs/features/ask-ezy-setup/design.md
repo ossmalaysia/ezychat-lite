@@ -1,6 +1,6 @@
 # Ask Ezy sets up agents and scheduled tasks
 
-Status: **proposal, waiting for the owner's confirmation of the quick mock** (no production code yet).
+Status: **confirmed by the owner on 2026-11-12** ("look good, implement", on the quick mock page).
 Branch: `feat/ask-ezy-setup`. Requested by the owner on 2026-11-12: "i want to create new agent that greeting to
 jee fong at 9am every day", and "ask ezy should support multi turn to aware user need to setup agent or update agent".
 
