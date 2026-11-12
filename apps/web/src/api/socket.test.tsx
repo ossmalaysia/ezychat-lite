@@ -98,11 +98,12 @@ it('fetches changes missed before the first socket connection and during a recon
   await screen.findByText('Before the connection');
   serverChat = 'Arrived before joining the socket';
   await act(async () => socket.listeners.get('connect')!());
-  await screen.findByText(serverChat);
+  expect(await screen.findByText(serverChat)).toBeTruthy();
   act(() => socket.listeners.get('disconnect')!());
   serverChat = 'Arrived while offline';
   await act(async () => socket.listeners.get('connect')!());
-  await screen.findByText(serverChat);
+  expect(await screen.findByText(serverChat)).toBeTruthy();
+  expect(screen.queryByText('Arrived before joining the socket')).toBeNull();
   qc.clear();
 });
 
