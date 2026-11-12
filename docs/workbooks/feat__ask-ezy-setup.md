@@ -8,7 +8,7 @@ Branch: `feat/ask-ezy-setup` · Every agent updates its stage with
 | Design | pass | Owner confirmed the quick mock 2026-11-12 (look good, implement) | d506483 | 2026-11-12 |
 | Dev | pass | Question block, agent/task proposals and edits, Apply both, Undo; 10 review fixes; tool-failure log | d506483 | 2026-11-12 |
 | Unit tests | pass | Ask Ezy setup/ask-ezy server tests, askezy web tests, contract test: 61 pass; earlier full targeted set 234; typecheck all workspaces | d506483 | 2026-11-12 |
-| E2E | todo |  |  |  |
+| E2E | pass | npm run e2e (Windows, Node 24, 2 workers): 159 passed, 27 skipped, 0 failed; e2e:electron-links 17/17 screens | d506483 | 2026-11-12 |
 | Dev Build | pass | devbuild-ask-ezy-setup-check.mjs 12/12 on d506483 (mock model over the real tools, temp data) | d506483 | 2026-11-12 |
 | Screen review | pass | Question, which chat, cards, edit at 1280/360 light/dark: 16 shots, no errors, no overflow; duplicate question fixed | d506483 | 2026-11-12 |
 
@@ -19,3 +19,4 @@ Branch: `feat/ask-ezy-setup` · Every agent updates its stage with
 - 2026-11-12 Unit tests: pass — Ask Ezy setup/ask-ezy server tests, askezy web tests, contract test: 61 pass; earlier full targeted set 234; typecheck all workspaces (d506483)
 - 2026-11-12 Dev Build: pass — devbuild-ask-ezy-setup-check.mjs 12/12 on d506483 (mock model over the real tools, temp data) (d506483)
 - 2026-11-12 Screen review: pass — Question, which chat, cards, edit at 1280/360 light/dark: 16 shots, no errors, no overflow; duplicate question fixed (d506483)
+- 2026-11-12 E2E: pass — npm run e2e (Windows, Node 24, 2 workers): 159 passed, 27 skipped, 0 failed; e2e:electron-links 17/17 screens (d506483)
