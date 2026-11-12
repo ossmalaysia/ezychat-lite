@@ -194,6 +194,8 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
     };
   if (last.includes('RESOLVE'))
     return { reply: 'Thank you! I will close this chat now.', action: 'resolve' };
+  // Nothing to say (like a bare "ok"): the chat shows the team-only "did not reply" line.
+  if (last.includes('SILENT')) return { reply: '', action: 'no_reply' };
   if (last.includes('HUMAN'))
     return {
       reply: 'A team member will help you shortly.',
