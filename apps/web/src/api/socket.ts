@@ -32,6 +32,7 @@ import {
 import { voiceStatusKey } from './voice';
 import { groupChatAiKey } from './ai-groups';
 import { groupAdminKey } from './group-admin';
+import { removeChatFromCache } from './chat-delete';
 import { dispatchAccessRecheck } from '../access/events';
 import { ProfileImageContext } from '../inbox/ProfileImageContext';
 import { registerResumeReconnect } from './resume-reconnect';
@@ -198,6 +199,8 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (e.type === 'ai_tool_used' && e.payload.group)
         void qc.invalidateQueries({ queryKey: groupChatAiKey(e.chatJid) });
     });
+    // An admin deleted the chat: it leaves every list and cache (an open chat page shows "not found").
+    socket.on('chat:deleted', ({ jid }) => removeChatFromCache(qc, jid));
     socket.on('note:new', (n) => {
       qc.setQueryData<Note[]>(qk.notes(n.chatJid), (old) =>
         old ? (old.some((x) => x.id === n.id) ? old : [...old, n]) : old,

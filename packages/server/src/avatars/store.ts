@@ -68,6 +68,10 @@ const isJpeg = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && 
 
 class DownloadError extends Error {}
 
+/** The file of one photo key inside the avatar folder (`<sha256 of key>.jpg`). */
+export const avatarFileName = (key: string) =>
+  `${createHash('sha256').update(key).digest('hex')}.jpg`;
+
 /**
  * WhatsApp profile photos kept on this computer (`<data>/avatars/`), so a browser can cache them by
  * content hash instead of following a short-lived WhatsApp link. Logs carry no keys, numbers or URLs.
@@ -101,8 +105,7 @@ export function createAvatarStore(opts: {
   );
   const remove = db.prepare('DELETE FROM avatars WHERE key = ?');
 
-  const fileOf = (key: string) =>
-    join(dir, `${createHash('sha256').update(key).digest('hex')}.jpg`);
+  const fileOf = (key: string) => join(dir, avatarFileName(key));
 
   async function fromRow(row: Row | undefined): Promise<AvatarResult | null> {
     if (!row) return null;

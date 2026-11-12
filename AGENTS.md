@@ -529,6 +529,17 @@ XHR, `lib/upload-progress.ts`). Through the tunnel the web refuses files above `
 `message.forwarded` {messageId, chatJids, messageIds}; logs ids and counts only. Web: `inbox/ForwardDialog.tsx`,
 ⋮ menu and touch bar **Forward**, the Forwarded line and "Sending … to WhatsApp" in `MessageBubble`.
 
+**Delete chat** (admins; design `docs/features/chat-hide-delete/design.md` Part B, migration 042). `DELETE /api/chats/:jid`
+(admin, `chatJidParam`, 30 a minute per admin, 204; `GET …/delete-preview` gives the dialog's counts) goes only through
+`chats/delete.ts#deleteChat`: it drops the chat's queued sends (`SendQueue.drop`) and AI work (`AiService.cancelChat`),
+then one transaction runs `DELETE_PLAN` (every chat-keyed and message-keyed table, then `chats`) and writes the tombstone
+`deleted_chats` (inbox, wa_jid, deleted_at); files (media paths, quarantine copies, the chat's photo) go after the commit,
+never one another message still points at. History sync (`ingest` 'history') and `chats.syncFromWa` (WhatsApp's chat list)
+never bring a deleted chat back or import its messages older than `deleted_at`; a live message starts a new chat. Never
+touches `contacts`, `jid_aliases`, `safety_numbers` or `audit_log`. A new table with a `chat_jid` or message-id column goes
+into `DELETE_PLAN` (`test/chat-delete-coverage.test.ts` fails otherwise). Audit `chat.deleted` {chatJid, messages, files};
+socket `chat:deleted` {jid} drops it from every web cache. Web: chat header ⋮ (admins) → `inbox/DeleteChatDialog.tsx`.
+
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
 `groupChanged` event, names members from contacts and existing chats only (never inferred), and links

@@ -39,6 +39,8 @@ export interface BusEvents {
   /** A WhatsApp group changed (here or on WhatsApp): open Group info panels refetch. Chat key. */
   'group:changed': [{ chatJid: string }];
   'chat:event': [ChatEvent];
+  /** An admin deleted the chat (`chats/delete.ts`); emitted after the commit. Chat key. */
+  'chat:deleted': [{ jid: string }];
   'note:new': [Note];
   /** Connection status of inbox 1 (the number linked before multi-inbox). */
   'wa:status': [WaStatus];

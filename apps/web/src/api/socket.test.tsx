@@ -618,3 +618,31 @@ it('reloads Group info and its admin view when a group changes', async () => {
   expect(keys).toContain(JSON.stringify(['group-members', group]));
   qc.clear();
 });
+
+it('drops a chat an admin deleted from the lists and its own caches', async () => {
+  const { qk } = await vi.importActual<typeof Queries>('./queries');
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const gone = '60111@s.whatsapp.net';
+  const kept = '60222@s.whatsapp.net';
+  const filters = { assigned: 'any', status: 'open' } as const;
+  qc.setQueryData(qk.chats(filters), {
+    pages: [{ chats: [{ jid: gone }, { jid: kept }], nextCursor: null }],
+    pageParams: [null],
+  });
+  qc.setQueryData(qk.messages(gone), { pages: [], pageParams: [] });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('chat:deleted')!({ jid: gone }));
+  const list = qc.getQueryData<{ pages: Array<{ chats: Array<{ jid: string }> }> }>(
+    qk.chats(filters),
+  )!;
+  expect(list.pages[0]!.chats.map((c) => c.jid)).toEqual([kept]);
+  expect(qc.getQueryData(qk.messages(gone))).toBeUndefined();
+  qc.clear();
+});

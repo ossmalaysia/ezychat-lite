@@ -34,6 +34,7 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   customer_tags: { merged: true },
   contacts: { merged: true },
   jid_aliases: { merged: true },
+  deleted_chats: { merged: true },
   quick_replies: { merged: true },
   fix_english_words: { merged: true },
   audit_log: { merged: true },
@@ -447,6 +448,13 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     }
     const addAlias = inserter(target, 'jid_aliases', { verb: 'INSERT OR IGNORE' });
     for (const a of rows(lite, 'SELECT * FROM jid_aliases')) addAlias(a);
+    // Chats an admin deleted in Lite stay deleted: WhatsApp's history sync of the new inbox never brings them back.
+    const addDeleted = target.prepare(
+      `INSERT INTO deleted_chats (inbox_id, wa_jid, deleted_at) VALUES (?, ?, ?)
+       ON CONFLICT(inbox_id, wa_jid) DO UPDATE SET deleted_at = MAX(deleted_at, excluded.deleted_at)`,
+    );
+    for (const d of rows(lite, 'SELECT wa_jid, deleted_at FROM deleted_chats'))
+      addDeleted.run(input.inboxId, d.wa_jid, d.deleted_at);
     const addNumber = inserter(target, 'safety_numbers', { verb: 'INSERT OR IGNORE' });
     for (const n of rows(lite, 'SELECT * FROM safety_numbers'))
       // Inbox ids differ between the two installs: an imported block counts for every inbox (null).

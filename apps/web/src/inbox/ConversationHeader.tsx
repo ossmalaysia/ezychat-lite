@@ -1,7 +1,21 @@
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, CheckCircle2, NotebookPen, RotateCcw, UserRound } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  EllipsisVertical,
+  NotebookPen,
+  RotateCcw,
+  Trash2,
+  UserRound,
+} from 'lucide-react';
 import type { AiGroupChat, Chat, Inbox } from '@ezychat/shared';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
@@ -43,6 +57,8 @@ export interface ConversationHeaderProps {
   /** Group chats: whether the AI agent answers when tagged or quoted (the header badge). */
   groupAi?: AiGroupChat | null;
   busy?: boolean;
+  /** Admins only: the ⋮ menu with Delete chat (no menu without it). */
+  onDelete?(): void;
 }
 
 const UNASSIGNED = 'none';
@@ -64,6 +80,7 @@ export function ConversationHeader({
   inbox,
   groupAi = null,
   busy,
+  onDelete,
 }: ConversationHeaderProps) {
   const { t } = useTranslation('inbox');
   const name = chatTitle(chat, t);
@@ -230,6 +247,32 @@ export function ConversationHeader({
           {resolved ? <RotateCcw aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
           {resolved ? t('header.reopen') : t('header.resolve')}
         </Button>
+        {onDelete && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-touch"
+                aria-label={t('deleteChat.more')}
+                title={t('deleteChat.more')}
+                className="shrink-0 text-muted-foreground"
+                data-testid="chat-more"
+              >
+                <EllipsisVertical className="size-5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 max-w-[calc(100vw-2rem)]">
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={onDelete}
+                className="min-h-11 sm:min-h-9"
+              >
+                <Trash2 aria-hidden="true" />
+                {t('deleteChat.action')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </header>
   );

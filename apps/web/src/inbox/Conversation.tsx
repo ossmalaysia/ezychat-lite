@@ -72,6 +72,7 @@ import {
 } from './reply-window';
 import { DeleteMessageDialog, EditMessageDialog } from './MessageActions';
 import { ForwardDialog } from './ForwardDialog';
+import { DeleteChatDialog } from './DeleteChatDialog';
 import { NO_RIGHTS, messageRights, type MessageChangeProps } from './message-changes';
 import { useChosenChatsOnly } from '../auth/chat-scope';
 
@@ -125,6 +126,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     customerGuard.current ? customerGuard.current(next) : next();
   const [confirm, setConfirm] = useState<{ name: string; resolve(ok: boolean): void } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  // Delete chat (admins): the confirmation, closed when another chat opens.
+  const [deletingChat, setDeletingChat] = useState(false);
+  useEffect(() => setDeletingChat(false), [jid]);
 
   const chat = chatQ.data?.chat;
   // The composer follows the chat's own inbox: another phone offline never blocks this one.
@@ -423,6 +427,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             setCustomerOpen(true);
             setNotesOpen(false);
           }}
+          onDelete={me?.role === 'admin' ? () => setDeletingChat(true) : undefined}
         />
         <SafetyChatBar jid={jid} />
         {startedByAssistant && (
@@ -612,6 +617,18 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         />
       )}
       <EditMessageDialog message={editing} onClose={() => setEditing(null)} />
+      {me?.role === 'admin' && (
+        <DeleteChatDialog
+          jid={jid}
+          name={chatTitle(chat, t)}
+          open={deletingChat}
+          onClose={() => setDeletingChat(false)}
+          onDeleted={() => {
+            setDeletingChat(false);
+            onBack();
+          }}
+        />
+      )}
       {forwarding && (
         <ForwardDialog
           key={forwarding.opening}

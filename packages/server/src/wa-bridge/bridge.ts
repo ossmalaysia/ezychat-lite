@@ -110,7 +110,7 @@ export function attachWaBridge(
   const onChats = (list: WaChatInfo[]) => {
     try {
       ctx.db.transaction(() => {
-        for (const c of list) chats.upsertFromWa(c, inboxId);
+        for (const c of list) chats.syncFromWa(c, inboxId);
       })();
     } catch (err) {
       log.error({ err }, 'chats upsert failed');

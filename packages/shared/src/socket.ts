@@ -45,6 +45,10 @@ export const MessageReactionsPayload = z.object({
 });
 export type MessageReactionsPayload = z.infer<typeof MessageReactionsPayload>;
 
+/** An admin deleted a chat in EzyChat: drop it (and its messages) from every cache. */
+export const ChatDeletedPayload = z.object({ jid: z.string() });
+export type ChatDeletedPayload = z.infer<typeof ChatDeletedPayload>;
+
 export interface ServerToClientEvents {
   'notification:new': (notification: NotificationPayload) => void;
   'message:new': (m: Message) => void;
@@ -57,6 +61,8 @@ export interface ServerToClientEvents {
   'voice:status': (s: VoiceStatus) => void;
   'chat:updated': (c: Chat) => void;
   'chat:event': (e: ChatEvent) => void;
+  /** An admin deleted the chat (sent to the chat's rooms). */
+  'chat:deleted': (p: ChatDeletedPayload) => void;
   'note:new': (n: Note) => void;
   typing: (p: TypingPayload) => void;
   /** Connection status of inbox 1 (the number linked before multi-inbox). */

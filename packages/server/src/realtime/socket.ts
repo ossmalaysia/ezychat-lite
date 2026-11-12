@@ -241,6 +241,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   const onVoice = (s: VoiceStatus) => io.to('admins').emit('voice:status', s);
   const onChatUpdated = (c: Chat) => toChat(c.jid).emit('chat:updated', c);
   const onChatEvent = (e: ChatEvent) => toChat(e.chatJid).emit('chat:event', e);
+  const onChatDeleted = (p: { jid: string }) => toChat(p.jid).emit('chat:deleted', { jid: p.jid });
   const onNote = (n: Note) => toChat(n.chatJid).emit('note:new', n);
   const onGroupChanged = (p: { chatJid: string }) =>
     toChat(p.chatJid).emit('group:changed', { chatJid: p.chatJid });
@@ -309,6 +310,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   bus.on('voice:status', onVoice);
   bus.on('chat:updated', onChatUpdated);
   bus.on('chat:event', onChatEvent);
+  bus.on('chat:deleted', onChatDeleted);
   bus.on('note:new', onNote);
   bus.on('group:changed', onGroupChanged);
   bus.on('wa:status', onWaStatus);
@@ -335,6 +337,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       bus.off('voice:status', onVoice);
       bus.off('chat:updated', onChatUpdated);
       bus.off('chat:event', onChatEvent);
+      bus.off('chat:deleted', onChatDeleted);
       bus.off('note:new', onNote);
       bus.off('group:changed', onGroupChanged);
       bus.off('wa:status', onWaStatus);

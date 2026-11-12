@@ -329,6 +329,8 @@ export interface AiService {
   canSend(jid: string, userId: number, quotedId: string | undefined): boolean;
   /** Stops scheduled and running WhatsApp group answers of one agent or in one group. */
   stopGroupTurns(filter: { agentId?: number; jid?: string }): void;
+  /** Stops every AI reply, timer and group turn of one chat (the chat is being deleted). */
+  cancelChat(jid: string): void;
   /**
    * AI reply suggestions: `ready` = drafts can run now, `unavailable` = a saved connection that
    * does not work now (expired, blocked, service closing), `none` = no saved connection.
@@ -3276,6 +3278,10 @@ export function createAiService(
       );
     },
     stopGroupTurns,
+    cancelChat(jid) {
+      cancel(jid);
+      cancelGroup(jid);
+    },
     async shutdown() {
       closed = true;
       ctx.bus.emit('ai:connection-changed');

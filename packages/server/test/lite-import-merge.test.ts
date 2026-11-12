@@ -823,6 +823,25 @@ describe('mergeLiteInbox refusals and rollback', () => {
     }
   });
 
+  it('keeps the chats an admin deleted in Lite deleted, under the new inbox', async () => {
+    const t = seedTarget();
+    const lite = seedLite();
+    const db = openDb(join(lite.dir, 'app.db'));
+    db.prepare('INSERT INTO deleted_chats (inbox_id, wa_jid, deleted_at) VALUES (1, ?, 500)').run(
+      '60999@s.whatsapp.net',
+    );
+    db.close();
+    const { inboxId } = (await merge(t.dir, lite.dir)).result;
+    const check = openDb(join(t.dir, 'app.db'));
+    try {
+      expect(check.prepare('SELECT * FROM deleted_chats').all()).toEqual([
+        { inbox_id: inboxId, wa_jid: '60999@s.whatsapp.net', deleted_at: 500 },
+      ]);
+    } finally {
+      check.close();
+    }
+  });
+
   it('migrates an older Lite copy before merging, never Lite itself', async () => {
     const t = seedTarget();
     const lite = seedLite();
@@ -872,6 +891,8 @@ describe('mergeLiteInbox refusals and rollback', () => {
       'DROP TABLE media_refs; ALTER TABLE messages DROP COLUMN media_width; ALTER TABLE messages DROP COLUMN media_height;',
     );
     db.exec('DROP TABLE media_thumbs; ALTER TABLE messages DROP COLUMN media_has_thumb;');
+    // and 042 (deleted chats)
+    db.exec('DROP TABLE deleted_chats;');
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

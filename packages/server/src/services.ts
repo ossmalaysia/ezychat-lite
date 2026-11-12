@@ -43,6 +43,10 @@ initializers.push(initNewChat);
 import { initAi } from './ai/service.js';
 initializers.push(initAi);
 
+// Delete chat (admins): stops the chat's sends and AI work first, so it follows both.
+import { initChatDelete } from './chats/delete.js';
+initializers.push(initChatDelete);
+
 import { initEnrichment } from './customers/enrichment.js';
 initializers.push(initEnrichment);
 

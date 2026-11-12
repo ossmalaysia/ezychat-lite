@@ -88,6 +88,19 @@
     "openGroupInfo": "Open group info for {{name}}",
     "openCustomer": "Open customer details for {{name}}"
   },
+  "deleteChat": {
+    "more": "Chat actions",
+    "action": "Delete chat",
+    "title": "Delete this chat?",
+    "messages_one": "{{count}} message",
+    "messages_other": "{{count}} messages",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "body": "Deleted from {{product}} for good. Your WhatsApp phone keeps its copy. Backups keep it for up to 7 days.",
+    "confirm": "Delete chat",
+    "done": "Chat deleted",
+    "failed": "Couldn’t delete this chat."
+  },
   "conversation": {
     "loading": "Loading chat",
     "notFound": "This chat doesn’t exist.",

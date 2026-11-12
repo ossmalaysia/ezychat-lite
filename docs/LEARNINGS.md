@@ -1360,6 +1360,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
   task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
   as "chat ownership changed".
+- A table with a `chat_jid` or message-id column also goes into `chats/delete.ts` `DELETE_PLAN` (Delete chat;
+  `chat-delete-coverage.test.ts` fails otherwise). A "remove every row of X" test can seed one row in every table
+  generically from `PRAGMA table_info` with `foreign_keys = OFF` and `ignore_check_constraints = ON` (`chat-delete.test.ts`).
+  A service that stores `deps.now ?? Date.now` keeps the original function, so `vi.spyOn(Date, 'now')` misses it: store
+  `() => Date.now()`.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and

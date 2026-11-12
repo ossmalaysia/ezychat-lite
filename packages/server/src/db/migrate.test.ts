@@ -42,6 +42,7 @@ const TABLES = [
   'message_edits',
   'message_changes_pending',
   'avatars',
+  'deleted_chats',
 ];
 const LATEST = latestMigration();
 

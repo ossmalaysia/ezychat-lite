@@ -23,7 +23,7 @@ Branch: `feat/chat-hide-delete`. Requested by the owner on 2026-11-12.
 
 ### What happens
 
-- Migration 042 adds `chats.hidden_at INTEGER NULL` and `chats.hidden_number TEXT NULL` (the digits of
+- Migration 043 adds `chats.hidden_at INTEGER NULL` and `chats.hidden_number TEXT NULL` (the digits of
   `inboxes.own_jid` at that moment, via `numberOfJid`).
 - On `logged_out`: one transaction sets both columns on every chat of that inbox that is not hidden yet; audit
   `chats.hidden_on_logout` {inboxId, count, via: `admin` | `phone`}. Pending send jobs of those chats fail as
@@ -34,10 +34,10 @@ Branch: `feat/chat-hide-delete`. Requested by the owner on 2026-11-12.
 
 `bridge.ts` `onConnected` compares the new number with `hidden_number` **before** `setOwnJid` writes it:
 
-| New number | Result |
-| --- | --- |
-| Same digits | Chats come back **one by one, only when WhatsApp says the phone still has them** (owner 2026-11-12: "if the chat is still on the phone, show it, else not"). A hidden chat is shown again (history, notes, tags and assignee kept) when, for that number, WhatsApp reports it in the link's history sync (`messaging-history.set` `chats`, no date cutoff), in `chats.upsert`, in the group list (the number is still a member), or with any message. The match goes through `AliasStore.route` (phone-number JID and LID). Chats WhatsApp never reports stay hidden; a later live message from that person still shows the chat. Audit `chats.shown_on_relink` {inboxId, count} once per link. |
-| Different digits | The hidden chats are **archived**: each gets a new internal key `<key>~old<n>` and `wa_jid` `<wa_jid>~old<n>` in every chat-keyed table (the move list of `chats/merge.ts`, one transaction). The unique `(inbox_id, wa_jid)` is free again, so a customer who writes to the new number starts a new empty chat. Archived chats stay hidden; nothing is ever sent to them. Audit `chats.archived_on_relink` {inboxId, count}. |
+| New number       | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Same digits      | Chats come back **one by one, only when WhatsApp says the phone still has them** (owner 2026-11-12: "if the chat is still on the phone, show it, else not"). A hidden chat is shown again (history, notes, tags and assignee kept) when, for that number, WhatsApp reports it in the link's history sync (`messaging-history.set` `chats`, no date cutoff), in `chats.upsert`, in the group list (the number is still a member), or with any message. The match goes through `AliasStore.route` (phone-number JID and LID). Chats WhatsApp never reports stay hidden; a later live message from that person still shows the chat. Audit `chats.shown_on_relink` {inboxId, count} once per link. |
+| Different digits | The hidden chats are **archived**: each gets a new internal key `<key>~old<n>` and `wa_jid` `<wa_jid>~old<n>` in every chat-keyed table (the move list of `chats/merge.ts`, one transaction). The unique `(inbox_id, wa_jid)` is free again, so a customer who writes to the new number starts a new empty chat. Archived chats stay hidden; nothing is ever sent to them. Audit `chats.archived_on_relink` {inboxId, count}.                                                                                                                                                                                                                                                                   |
 
 Why the archive step: chats are keyed by inbox and customer, not by our own number (`inboxes/keys.ts:32`). Without
 it, a customer who wrote to both numbers would land in the old hidden chat and bring its history back.
@@ -57,7 +57,7 @@ A hidden chat behaves like a chat that does not exist, for everyone (admins, the
 
 ### Screen
 
-- Chat ⋮ menu → **Delete chat** (admins only; also in the Customer panel / Group info footer). Hidden from agents.
+- A new admin-only chat header ⋮ menu ("Chat actions") → **Delete chat**. Hidden from agents. (Customer panel / Group info entry: not built, follow-up.)
 - Dialog: "Delete this chat?" · name · "48 messages, 3 files" · "Deleted from EzyChat for good. Your WhatsApp phone
   keeps its copy. Backups keep it for up to 7 days." · [Cancel] [Delete chat] (danger button).
 - After delete: the chat leaves the list, an open chat page goes back to the inbox, toast "Chat deleted".
@@ -85,7 +85,7 @@ A hidden chat behaves like a chat that does not exist, for everyone (admins, the
 
 ## Upgrade and editions
 
-- Migration 042 (hidden columns) and 043 (`deleted_chats`); `upgrade-from-oldest.test.ts` seed extended; Lite merge
+- Migration 042 (`deleted_chats`, Part B) and 043 (hidden columns, Part A); `upgrade-from-oldest.test.ts` seed extended; Lite merge
   `TABLE_PLAN` gets `deleted_chats` and the new columns.
 - Enterprise gets both through the core; no extension API change. Inbox 1 rules unchanged.
 
