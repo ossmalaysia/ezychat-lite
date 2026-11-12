@@ -161,8 +161,8 @@ async function runScenario(name, s) {
     if (qs.length > 1) oneQuestionEach = false;
     const q = qs[0];
     if (COMPOUND.test(q.text) || q.choices.length < 2) oneQuestionEach = false; // two things at once, or a one-choice question
-    if (/which|chat|jee fong/i.test(q.text) && q.choices.some((c) => /…\d{4}/.test(c)))
-      askedChat = true;
+    // A chat question shows chats as choices ("Name · …1234"), whatever its wording ("which", "who should receive").
+    if (q.choices.filter((c) => /…\d{4}/.test(c)).length >= 2) askedChat = true;
     const patterns = s.answers.flat();
     const pick = q.choices.find((c) => patterns.some((p) => p.test(c))) ?? q.choices[0];
     r = await turn(pick, history);
