@@ -316,7 +316,8 @@ it('shows a retry action for a failed status request', async () => {
   mount();
   await screen.findByText('Cannot reach the server. Check your connection.');
   await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
-  await screen.findByRole('button', { name: 'Sign in to Cloudflare' });
+  expect(await screen.findByRole('button', { name: 'Sign in to Cloudflare' })).toBeTruthy();
+  expect(screen.queryByText('Cannot reach the server. Check your connection.')).toBeNull();
 });
 
 it('keeps pending approval available after cancellation fails and allows retry', async () => {

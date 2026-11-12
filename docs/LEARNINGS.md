@@ -1039,6 +1039,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   sign-in honours `Retry-After` instead of weakening limits. Click a `SegmentedControl` option by its
   `<label>` (it covers the small radio). Capture drawers and dialogs with viewport screenshots: full-page
   shots stretch fixed elements and hide the drawer's scrolling body.
+- A test's last line is an `expect`, never a bare `await screen.findBy…`: assert what the screen or the request did
+  (the call's body, a closed tab, the old message gone), so the test fails when the behaviour goes (SonarCloud S2699).
+- A CLI command that opens `app.db` closes it in `finally`, also when it fails: an open SQLite file stays locked on
+  Windows and blocks the next start or a cleanup.
 - Vitest: no globals (call `cleanup()` in `afterEach`, assert on `textContent`); native subprocess tests get
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).

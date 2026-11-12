@@ -614,4 +614,37 @@ describe('parseArgs, Lite import flags', () => {
     expect(run.stderr).toContain('--import-lite <lite data dir>');
     expect(run.stderr).toContain('--restore-moved');
   });
+
+  it('runCli --reset-admin prints a new password for the first admin, or why it could not', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wati-reset-'));
+    try {
+      const close = vi.spyOn(Database.prototype, 'close');
+      const empty = await cli(['--data', dir, '--reset-admin']);
+      expect(empty.code).toBe(1);
+      expect(empty.stderr).toContain('Reset failed: no admin user exists yet');
+      // the database is closed even when the reset fails (an open file stays locked on Windows)
+      expect(close).toHaveBeenCalledOnce();
+      close.mockRestore();
+
+      const db = new Database(join(dir, 'app.db'));
+      db.prepare(
+        "INSERT INTO users (username, display_name, password_hash, role, created_at) VALUES ('boss', 'Boss', 'x', 'admin', 1)",
+      ).run();
+      db.close();
+      const run = await cli(['--data', dir, '--reset-admin']);
+      expect(run.code).toBe(0);
+      const printed = /^New admin password for boss: (\S+)$/.exec(run.stdout.join('\n'))?.[1];
+      expect(printed).toHaveLength(12);
+      const check = new Database(join(dir, 'app.db'));
+      const row = check
+        .prepare("SELECT password_hash FROM users WHERE username = 'boss'")
+        .get() as {
+        password_hash: string;
+      };
+      check.close();
+      expect(await verifyPassword(row.password_hash, printed!)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    }
+  });
 });
