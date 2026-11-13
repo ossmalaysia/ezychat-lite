@@ -49,6 +49,11 @@ describe('askEzyInstructions', () => {
     expect(admin).toContain('call start_setup and nothing else');
     // Improving an existing agent's answers stays on this turn (propose_ai_setup_change), never the setup turn.
     expect(admin).toContain('do not call start_setup: use propose_ai_setup_change');
+    // A tested improvement becomes a change card (Apply) in the same answer, never a "Want me to propose?" chip.
+    expect(admin).toContain('propose it in the same answer');
+    expect(admin).toContain(
+      'Never end with a question or follow-up such as "Want me to propose this?"',
+    );
     expect(admin).not.toContain('Setting up agents and scheduled tasks');
     expect(admin).not.toContain('agent_proposal');
     expect(admin).not.toContain('This app allows');

@@ -10,7 +10,7 @@ import {
 import { z } from 'zod';
 
 /** Ask Ezy: at most this many model calls per question (tool calls + the final answer). */
-export const ASSIST_MAX_STEPS = 6;
+export const ASSIST_MAX_STEPS = 8;
 export const ASSIST_MAX_OUTPUT_TOKENS = 3000;
 
 /** Block types the model may fill; the server checks each against `AskEzyBlock` and drops the rest. */
