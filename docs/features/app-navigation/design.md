@@ -11,7 +11,7 @@ directly, outside Admin.
   on phones).
 - Lite has no Contacts page: no Contacts tab.
 
-Status: **proposal, not confirmed.** Production UI work waits for the owner's confirmation of this mock.
+Status: **confirmed 2026-11-13 and built** (see Confirmation and "Built" below).
 
 ## Mock and baseline
 
@@ -182,3 +182,25 @@ the key screenshots, mock revision `dc0d5ce640bd06322a86a423a25c88f3f54e58f8`, w
 4. Rail Settings opens App settings, or the WhatsApp numbers page when a number needs attention.
 
 Build after PR #365 (owner, 2026-11-13). Add the "App navigation" entry to `docs/design-system.md` in the same PR.
+
+## Built
+
+- `apps/web/src/nav/`: `AppNav.tsx` (`AppShell`, `AppRail`, `AppTabs`, `placeOf`), `AccountPage.tsx` (`/account`),
+  `PhoneBar.tsx`, `attention.ts` (`useNumberAttention`, `useNumbersPath`). `App.tsx` mounts the shell as a layout
+  route; the Ask Ezy panel stays in `App` (a sheet in a portal). `AskEzyButton` was removed.
+- `InboxPage`: header keeps the title (now **Chats**) and New chat; the version line is desktop only.
+- `AdminLayout`: the phone sheet, "Back to inbox" and the admin footer's Log out are gone (sign out is in the account
+  menu and on the Account page). Desktop shows the Settings side menu except on Reports and Members; phones show the
+  Settings list at `/admin` (Safety under Business, extension links under **More**) and a `PhoneBar` on every page.
+  Unknown admin paths go to `/admin/settings` (before: Members). `nav.settings` reads **App settings**, and so does
+  the page's own title (`settings.title`; the mock still says "Settings" there, which repeated the menu's name).
+- Server: `GET /api/chats/unread-count` → `{ count }` (`UnreadChatCountResponse`): open chats with `unread_count > 0`
+  in the same scope as `GET /api/chats` (admins every inbox, agents their inboxes, a limited agent the chosen chats
+  of active inboxes). The web reloads it with the chat list (`refreshChats` in `api/socket.ts`); its query key is not
+  under `['chats']`, because `upsertChatInCache` rewrites every query there as a chat list.
+- Attention dot: a not-removed inbox in `disconnected`, `qr`, `logged_out`, `replaced` or `blocked`, or an extension
+  admin link whose `useBadge` says `attention` (one probe component per link, each in its own `ErrorBoundary`).
+  `extensionSectionOf` moved to `extensions/routes.tsx`, so the rail marks Members on an extension's agent sub-page.
+- Tests: `nav/AppNav.test.tsx`, `nav/AccountPage.test.tsx`, `admin/AdminLayout.test.tsx` (rewritten),
+  `packages/server/test/unread-chat-count.test.ts`; e2e `e2e/app-navigation.spec.ts` (desktop and phone projects,
+  admin and team member), and `admin.spec.ts` / `responsive.spec.ts` moved to the new menu.

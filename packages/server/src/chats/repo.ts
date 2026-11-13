@@ -225,6 +225,25 @@ export class ChatRepo {
     ).count;
   }
 
+  /** Open chats with unread messages, in the same scope rules as `list` (omitted = every inbox, empty = none). */
+  unreadCount(f: { inboxIds?: readonly number[]; chatJids?: readonly string[] }): number {
+    if (f.chatJids?.length === 0 || (f.inboxIds?.length === 0 && !f.chatJids)) return 0;
+    const where = ["c.status = 'open'", 'c.unread_count > 0'];
+    const params: Record<string, unknown> = {};
+    if (f.chatJids) {
+      where.push(
+        `c.jid IN (SELECT value FROM json_each(@chatJids))
+         AND c.inbox_id IN (SELECT id FROM inboxes WHERE removed_at IS NULL)`,
+      );
+      params.chatJids = JSON.stringify(f.chatJids);
+    } else if (f.inboxIds) {
+      where.push('c.inbox_id IN (SELECT value FROM json_each(@inboxIds))');
+      params.inboxIds = JSON.stringify(f.inboxIds);
+    }
+    const sql = `SELECT COUNT(*) AS count FROM chats c WHERE ${where.join(' AND ')}`;
+    return (this.db.prepare(sql).get(params) as { count: number }).count;
+  }
+
   openChats(): ChatColumns[] {
     return this.db
       .prepare("SELECT * FROM chats WHERE status = 'open' ORDER BY jid")

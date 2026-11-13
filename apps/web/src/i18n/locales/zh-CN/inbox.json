@@ -7,8 +7,7 @@
   },
   "page": {
     "chats": "聊天",
-    "title": "收件箱",
-    "admin": "管理",
+    "title": "聊天",
     "version": "{{appName}} · v{{version}}",
     "selectTitle": "选择一个聊天",
     "selectDescription": "从列表中选择一个对话，与团队一起阅读和回复。"

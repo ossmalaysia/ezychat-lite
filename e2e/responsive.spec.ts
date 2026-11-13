@@ -9,24 +9,41 @@ import {
   projectTag,
 } from './helpers';
 
-test('admin footer stays readable and reachable on phones and short screens', async ({
-  page,
-}, info) => {
+test('phones and short phones reach every admin page from the Settings tab', async ({ page }) => {
   for (const size of [
     { width: 360, height: 780 },
     { width: 740, height: 360 },
+  ]) {
+    await page.setViewportSize(size);
+    await page.goto('/');
+    const tab = page.getByTestId('tab-settings');
+    await expect(tab).toBeInViewport();
+    expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await tab.click();
+    const home = page.getByTestId('settings-home');
+    await home.getByRole('link', { name: 'Quick replies', exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/quick-replies$/);
+    await expect(
+      page.getByRole('heading', { name: 'Quick replies', exact: true }).last(),
+    ).toBeVisible();
+    // the phone app bar goes back to the Settings list
+    const back = page.getByRole('link', { name: 'Back to Settings', exact: true });
+    expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await back.click();
+    await expect(home).toBeVisible();
+    await expectNoHorizontalScroll(page, `${size.width}px Settings list`);
+  }
+});
+
+test('the Settings side menu footer stays readable and reachable on short screens', async ({
+  page,
+}, info) => {
+  for (const size of [
+    { width: 1280, height: 800 },
     { width: 1280, height: 360 },
   ]) {
     await page.setViewportSize(size);
     await page.goto('/admin/settings');
-    if (size.width < 768)
-      await page.getByRole('button', { name: 'Admin menu', exact: true }).click();
-    // The way back to the inbox is the first item of the admin menu.
-    const back = page
-      .getByRole('link', { name: 'Back to inbox', exact: true })
-      .filter({ visible: true });
-    await expect(back).toBeInViewport();
-    expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const footer = page
       .getByLabel('Admin tools and support', { exact: true })
       .filter({ visible: true });
@@ -125,21 +142,24 @@ test.describe('360px: no horizontal scroll', () => {
     }
   });
 
-  test('all admin menu links navigate on a phone', async ({ page }) => {
-    await page.goto('/admin/members');
+  test('every row of the phone Settings list navigates and comes back', async ({ page }) => {
     for (const [label, path] of [
       ['Members', 'members'],
       ['Quick replies', 'quick-replies'],
       ['WhatsApp', 'whatsapp'],
+      ['Safety', 'safety'],
+      ['Connectors', 'connectors'],
       ['Phone access', 'tunnel'],
-      ['Settings', 'settings/general'],
+      ['App settings', 'settings/general'],
       ['Audit', 'audit'],
     ]) {
-      await page.getByRole('button', { name: 'Admin menu' }).click();
-      const menu = page.getByRole('dialog', { name: 'Admin', exact: true });
-      await menu.getByRole('link', { name: label, exact: true }).click();
+      await page.goto('/admin');
+      const home = page.getByTestId('settings-home');
+      await home.getByRole('link', { name: label }).click();
       await expect(page).toHaveURL(new RegExp(`/admin/${path}$`));
-      await expect(menu).toBeHidden();
+      await expect(page.getByTestId('tab-settings')).toHaveAttribute('aria-current', 'page');
+      await page.getByRole('link', { name: 'Back to Settings', exact: true }).click();
+      await expect(home).toBeVisible();
     }
   });
 

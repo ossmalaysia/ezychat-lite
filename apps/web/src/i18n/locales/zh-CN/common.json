@@ -228,5 +228,29 @@
       "step2": "从不发送：姓名、电话号码、聊天、消息、电子邮件、IP 地址或密钥。",
       "step3": "数据发送到 EzyChat 许可证服务器，由它在 Google Analytics 中统计。你可以随时在这里关闭。"
     }
+  },
+  "appNav": {
+    "main": "主导航",
+    "chats": "聊天",
+    "reports": "报告",
+    "askEzy": "问 Ezy",
+    "members": "成员",
+    "settings": "设置",
+    "account": "账户",
+    "unread_one": "{{count}} 个聊天有未读消息",
+    "unread_other": "{{count}} 个聊天有未读消息",
+    "attention": "有一个 WhatsApp 号码需要处理",
+    "settingsTitle": "设置",
+    "settingsDescription": "团队、WhatsApp、连接器和应用设置。",
+    "team": "团队",
+    "business": "业务",
+    "app": "应用",
+    "yourAccount": "你的账户",
+    "accountTitle": "账户",
+    "accountDescription": "你的名字、外观和此设备上的语言。",
+    "attentionRow": "需要处理",
+    "appSettings": "应用设置",
+    "backTo": "返回{{place}}",
+    "more": "更多"
   }
 }

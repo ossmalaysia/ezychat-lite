@@ -228,5 +228,29 @@
       "step2": "Tidak sekali-kali dihantar: nama, nombor telefon, sembang, mesej, e-mel, alamat IP atau kunci.",
       "step3": "Ia dihantar ke pelayan lesen EzyChat, yang mengiranya dalam Google Analytics. Matikan di sini pada bila-bila masa."
     }
+  },
+  "appNav": {
+    "main": "Utama",
+    "chats": "Sembang",
+    "reports": "Laporan",
+    "askEzy": "Tanya Ezy",
+    "members": "Ahli",
+    "settings": "Tetapan",
+    "account": "Akaun",
+    "unread_one": "{{count}} sembang dengan mesej belum dibaca",
+    "unread_other": "{{count}} sembang dengan mesej belum dibaca",
+    "attention": "Satu nombor WhatsApp perlu perhatian",
+    "settingsTitle": "Tetapan",
+    "settingsDescription": "Pasukan, WhatsApp, penyambung dan tetapan aplikasi anda.",
+    "team": "Pasukan",
+    "business": "Perniagaan",
+    "app": "Aplikasi",
+    "yourAccount": "Akaun anda",
+    "accountTitle": "Akaun",
+    "accountDescription": "Nama, rupa dan bahasa anda pada peranti ini.",
+    "attentionRow": "Perlu perhatian",
+    "appSettings": "Tetapan aplikasi",
+    "backTo": "Kembali ke {{place}}",
+    "more": "Lain-lain"
   }
 }

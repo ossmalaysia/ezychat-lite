@@ -1,26 +1,19 @@
 {
   "title": "Pentadbir",
-  "titleWithSection": "Pentadbir · {{section}}",
   "nav": {
     "label": "Bahagian pentadbir",
     "members": "Ahli",
     "quickReplies": "Balasan pantas",
     "whatsapp": "WhatsApp",
     "tunnel": "Akses telefon",
-    "settings": "Tetapan",
+    "settings": "Tetapan aplikasi",
     "audit": "Audit",
     "connectors": "Penyambung",
     "reports": "Laporan",
     "safety": "Keselamatan"
   },
   "layout": {
-    "inbox": "Peti masuk",
-    "menu": "Menu pentadbir",
     "footer": "Alatan pentadbir dan sokongan",
-    "backToInbox": "Kembali ke peti masuk",
-    "logOut": "Log keluar",
-    "loggingOut": "Sedang log keluar…",
-    "logOutFailed": "Tidak dapat log keluar: {{error}}",
     "loading": "Memuatkan"
   },
   "ui": {
@@ -406,7 +399,7 @@
     }
   },
   "settings": {
-    "title": "Tetapan",
+    "title": "Tetapan aplikasi",
     "saved": "Tetapan disimpan.",
     "save": "Simpan tetapan",
     "portInvalid": "Port mesti antara 1024 dan 65535.",

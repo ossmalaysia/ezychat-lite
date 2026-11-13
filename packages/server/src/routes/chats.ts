@@ -29,6 +29,13 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
   app.get('/chats/open-count', { preHandler: requireAdmin(ctx) }, async () => ({
     openCount: chats.openCount(),
   }));
+  // App navigation: the Chats count, in the same scope as GET /chats.
+  app.get('/chats/unread-count', async (req) => {
+    const chosen = chosenChats(ctx, req.user!);
+    if (chosen) return { count: chats.unreadCount({ chatJids: [...chosen] }) };
+    const scope = scopeFor(ctx, req.user!);
+    return { count: chats.unreadCount(scope === 'all' ? {} : { inboxIds: [...scope] }) };
+  });
   app.post('/chats/resolve-all', { preHandler: requireAdmin(ctx) }, async (req) => {
     parse(ResolveAllChatsBody, req.body);
     const resolvedCount = chats.resolveAll(req.user!.id, clientIp(req));

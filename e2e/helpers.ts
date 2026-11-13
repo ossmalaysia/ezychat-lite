@@ -91,10 +91,19 @@ export async function expectNoHorizontalScroll(page: Page, label: string): Promi
   ).toBeLessThanOrEqual(m.innerWidth);
 }
 
-/** Opens the account menu in the inbox header and signs out. */
+/**
+ * Signs out: the account menu under the photo at the bottom of the rail (768 px and up), else the Account page
+ * (a team member's Account tab, an admin's Settings → Your account).
+ */
 export async function signOutFromInbox(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Account menu' }).click();
-  await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  const menu = page.getByRole('button', { name: 'Account menu' }).filter({ visible: true });
+  if (await menu.count()) {
+    await menu.click();
+    await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  } else {
+    await page.goto('/account');
+    await page.getByTestId('account-sign-out').click();
+  }
   await expect(page).toHaveURL(/\/login$/);
 }
 
@@ -122,5 +131,5 @@ export async function signIn(page: Page, username: string, password: string): Pr
 }
 
 export function inboxHeading(page: Page) {
-  return page.getByRole('heading', { name: 'Inbox', exact: true });
+  return page.getByRole('heading', { name: 'Chats', exact: true });
 }

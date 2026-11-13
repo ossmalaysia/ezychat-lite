@@ -221,7 +221,7 @@ for (const scheme of ['light', 'dark'])
     const d2 = await session('daniel', 'daniel-pass-456', size, scheme);
     await d2.step('staff-off', async () => {
       await d2.page.goto('/');
-      await d2.page.getByRole('heading', { name: 'Inbox' }).waitFor();
+      await d2.page.getByRole('heading', { name: 'Chats' }).waitFor();
       await d2.page.waitForTimeout(800);
       if (await d2.page.getByTestId('new-chat-button').count())
         throw new Error('New chat shown to a team member with the switch off');

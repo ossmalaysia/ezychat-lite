@@ -72,6 +72,9 @@ export type ChatPatchBody = z.infer<typeof ChatPatchBody>;
 
 export const OpenChatCountResponse = z.object({ openCount: z.number().int().nonnegative() });
 export type OpenChatCountResponse = z.infer<typeof OpenChatCountResponse>;
+/** App navigation: open chats with unread messages that the signed-in user may open. */
+export const UnreadChatCountResponse = z.object({ count: z.number().int().nonnegative() });
+export type UnreadChatCountResponse = z.infer<typeof UnreadChatCountResponse>;
 export const ResolveAllChatsBody = z.object({ confirmed: z.literal(true) });
 export type ResolveAllChatsBody = z.infer<typeof ResolveAllChatsBody>;
 export const ResolveAllChatsResponse = z.object({ resolvedCount: z.number().int().nonnegative() });

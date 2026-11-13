@@ -1,12 +1,10 @@
 import { ExtensionBannerSlot } from '@/access/BannerSlot';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   BarChart3,
-  ChevronLeft,
+  ChevronRight,
   Inbox,
   Loader2,
-  LogOut,
-  Menu,
   MessageSquareText,
   Plug,
   Puzzle,
@@ -15,51 +13,33 @@ import {
   ShieldAlert,
   Smartphone,
   Globe,
+  UserRound,
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import {
-  Link,
-  NavLink,
-  Navigate,
-  Route,
-  Routes,
-  matchPath,
-  useLocation,
-  useParams,
-} from 'react-router-dom';
-import { toast } from 'sonner';
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { errorMessage } from '../api/client';
 import { useAiAgents } from '../api/ai';
 import { useInboxes } from '../api/queries';
 import { useAuth } from '../auth/AuthProvider';
-import { PushToggle } from '../pwa/PushToggle';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { AskEzyButton } from '../askezy/AskEzyButton';
 import { useAppVersion } from '@/lib/version';
+import { useMediaQuery } from '@/lib/use-media-query';
 import { reportClientError } from '@/lib/error-reporter';
 import { AppCredits } from '@/components/app';
 import { ErrorBoundary } from '@/components/app/ErrorBoundary';
 import {
   extensionPath,
   extensionRoutes,
+  extensionSectionOf,
   useExtensionTranslation,
   useWebExtensions,
   type WebExtension,
   type WebExtensionAdminSection,
   type WebExtensionNavItem,
 } from '../extensions';
+import { PhoneBar } from '../nav/PhoneBar';
+import { useNumberAttention } from '../nav/attention';
 import { AiMemberPage } from './AiMemberPage';
 import { AuditPage } from './AuditPage';
 import { ConnectorDetailPage } from './connectors/ConnectorDetailPage';
@@ -90,6 +70,7 @@ export const ADMIN_NAV = [
   { to: 'whatsapp', labelKey: 'nav.whatsapp', icon: Smartphone },
   { to: 'inboxes', labelKey: 'inboxes.title', icon: Inbox },
   { to: 'tunnel', labelKey: 'nav.tunnel', icon: Globe },
+  // "App settings", so it does not repeat the name of the whole area, Settings.
   { to: 'settings', labelKey: 'nav.settings', icon: Settings },
   { to: 'audit', labelKey: 'nav.audit', icon: ScrollText },
 ] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
@@ -103,6 +84,13 @@ export type AdminNavItem = (typeof ADMIN_NAV)[number];
 export function visibleAdminNav(multiInbox: boolean): AdminNavItem[] {
   return ADMIN_NAV.filter((n) => n.to !== (multiInbox ? 'whatsapp' : 'inboxes'));
 }
+
+/**
+ * App navigation (docs/features/app-navigation/design.md): Reports and Members are places of the rail (full width,
+ * no side menu); every other admin page is under Settings.
+ */
+const RAIL_PLACES: ReadonlySet<string> = new Set(['reports', 'members']);
+const isNumbers = (to: string) => to === 'whatsapp' || to === 'inboxes';
 
 /** True when the edition allows several WhatsApp numbers; false (Lite) until the server says so. */
 function useMultiInbox(): { multiInbox: boolean; isPending: boolean } {
@@ -170,22 +158,6 @@ function extensionNavLinks(extensions: readonly WebExtension[]): ExtensionNavLin
   );
 }
 
-/** The core section an extension admin route declares for this path (e.g. `members`). */
-export function extensionSectionOf(
-  extensions: readonly WebExtension[],
-  pathname: string,
-): WebExtensionAdminSection | undefined {
-  for (const ext of extensions)
-    for (const route of ext.routes ?? [])
-      if (
-        route.admin &&
-        route.section &&
-        matchPath({ path: extensionPath(ext.name, route.path, true), end: true }, pathname)
-      )
-        return route.section;
-  return undefined;
-}
-
 function NavBadgeContent({ useBadge }: { useBadge: NonNullable<ExtensionNavLink['useBadge']> }) {
   const tExt = useExtensionTranslation();
   const badge = useBadge();
@@ -228,6 +200,20 @@ function NavBadge({ useBadge }: { useBadge?: ExtensionNavLink['useBadge'] }) {
   );
 }
 
+/** The red dot of a WhatsApp number that needs an admin; `label` names it for screen readers. */
+function AttentionDot({ label }: { label?: string }) {
+  return (
+    <>
+      <span
+        aria-hidden
+        className="size-2.5 shrink-0 rounded-full bg-danger"
+        data-testid="settings-attention-dot"
+      />
+      {label && <span className="sr-only">{label}</span>}
+    </>
+  );
+}
+
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
     'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors md:min-h-9',
@@ -242,35 +228,43 @@ function UnknownAdminRoute() {
   useEffect(() => {
     reportClientError({ kind: 'error', message: 'Unmatched admin route', route: pathname });
   }, [pathname]);
-  return <Navigate to="/admin/members" replace />;
+  return <Navigate to="/admin/settings" replace />;
 }
 
-function AdminNav({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
-  const { t } = useTranslation('admin');
+/** Desktop: the Settings side menu beside the rail (every admin page but the rail places Reports and Members). */
+function SettingsNav() {
+  const { t } = useTranslation(['admin', 'common']);
   const tExt = useExtensionTranslation();
   const extensions = useWebExtensions();
   const extensionLinks = extensionNavLinks(extensions);
   const { multiInbox } = useMultiInbox();
+  const attention = useNumberAttention();
   // An extension page under a core section (e.g. an agent's sub-page) keeps that item active.
   const section = extensionSectionOf(extensions, useLocation().pathname);
   return (
-    <nav aria-label={t('nav.label')} className={className}>
+    <nav aria-label={t('nav.label')} className="flex-1 p-2">
       <ul className="flex flex-col gap-1">
-        {visibleAdminNav(multiInbox).map((n) => (
-          <li key={n.to}>
-            <NavLink
-              to={`/admin/${n.to}`}
-              onClick={onNavigate}
-              className={({ isActive }) => navLinkClass({ isActive: isActive || section === n.to })}
-            >
-              <n.icon className="size-4 shrink-0" aria-hidden />
-              {t(n.labelKey)}
-            </NavLink>
-          </li>
-        ))}
+        {visibleAdminNav(multiInbox)
+          .filter((n) => !RAIL_PLACES.has(n.to))
+          .map((n) => (
+            <li key={n.to}>
+              <NavLink
+                to={`/admin/${n.to}`}
+                className={({ isActive }) =>
+                  navLinkClass({ isActive: isActive || section === n.to })
+                }
+              >
+                <n.icon className="size-4 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">{t(n.labelKey)}</span>
+                {isNumbers(n.to) && attention && (
+                  <AttentionDot label={t('common:appNav.attention')} />
+                )}
+              </NavLink>
+            </li>
+          ))}
         {extensionLinks.map((n) => (
           <li key={n.key}>
-            <NavLink to={n.href} onClick={onNavigate} className={navLinkClass}>
+            <NavLink to={n.href} className={navLinkClass}>
               <n.icon className="size-4 shrink-0" aria-hidden />
               {tExt(n.labelKey)}
               <NavBadge useBadge={n.useBadge} />
@@ -282,89 +276,145 @@ function AdminNav({ onNavigate, className }: { onNavigate?: () => void; classNam
   );
 }
 
-function AdminFooter({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
-  const { logout } = useAuth();
-  const { t } = useTranslation('admin');
-  const [loggingOut, setLoggingOut] = useState(false);
+const homeRowClass =
+  'flex min-h-14 items-center gap-3 px-4 text-[15px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await logout();
-      onNavigate?.();
-    } catch (error) {
-      toast.error(t('layout.logOutFailed', { error: errorMessage(error) }));
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
+/** Phone: the Settings tab's first page, one row per admin page (Members included), then the account. */
+function SettingsHome() {
+  const { t } = useTranslation(['admin', 'common']);
+  const tExt = useExtensionTranslation();
+  const extensionLinks = extensionNavLinks(useWebExtensions());
+  const { multiInbox } = useMultiInbox();
+  const attention = useNumberAttention();
+  const { user } = useAuth();
+  const nav = visibleAdminNav(multiInbox);
+  const pick = (...to: string[]) =>
+    to.flatMap((x) => nav.filter((n) => n.to === x)) as AdminNavItem[];
+  const groups = [
+    { titleKey: 'common:appNav.team', items: pick('members', 'quick-replies') },
+    {
+      titleKey: 'common:appNav.business',
+      items: pick('whatsapp', 'inboxes', 'safety', 'connectors', 'tunnel'),
+    },
+    { titleKey: 'common:appNav.app', items: pick('settings', 'audit') },
+  ] as const;
   return (
-    <footer
-      aria-label={t('layout.footer')}
-      className="safe-bottom flex shrink-0 flex-col gap-1 border-t p-3"
-    >
-      <PushToggle compact className="px-2" />
-      <Button
-        variant="ghost"
-        size="touch"
-        className="justify-start px-2 text-muted-foreground"
-        disabled={loggingOut}
-        aria-busy={loggingOut}
-        onClick={() => void handleLogout()}
-      >
-        {loggingOut ? <Loader2 className="animate-spin" aria-hidden /> : <LogOut aria-hidden />}
-        {loggingOut ? t('layout.loggingOut') : t('layout.logOut')}
-      </Button>
-      <Separator className="my-1" />
-      <AppCredits version={version} variant="sidebar" />
-    </footer>
-  );
-}
-
-function AdminMenu({ version, onNavigate }: { version?: string; onNavigate?: () => void }) {
-  const { t } = useTranslation('admin');
-  return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      {/* The way out comes first, right under "Admin", not buried below the footer tools. */}
-      <div className="border-b p-2">
-        <Button
-          asChild
-          variant="ghost"
-          size="touch"
-          className="w-full justify-start px-3 text-primary"
-        >
-          <Link to="/" onClick={onNavigate}>
-            <ChevronLeft aria-hidden />
-            {t('layout.backToInbox')}
-          </Link>
-        </Button>
-      </div>
-      <AdminNav className="flex-1 p-2" onNavigate={onNavigate} />
-      <AdminFooter version={version} onNavigate={onNavigate} />
+    <div className="flex flex-col gap-5" data-testid="settings-home">
+      {groups.map((g) => (
+        <section key={g.titleKey} className="flex flex-col gap-2">
+          <h2 className="px-1 text-sm font-medium text-muted-foreground">{t(g.titleKey)}</h2>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-surface">
+            {g.items.map((n) => (
+              <li key={n.to}>
+                <Link to={`/admin/${n.to}`} className={homeRowClass}>
+                  <n.icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1">{t(n.labelKey)}</span>
+                  {isNumbers(n.to) && attention && (
+                    <span className="flex items-center gap-1.5 text-sm text-danger">
+                      <AttentionDot />
+                      {t('common:appNav.attentionRow')}
+                    </span>
+                  )}
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {extensionLinks.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="px-1 text-sm font-medium text-muted-foreground">
+            {t('common:appNav.more')}
+          </h2>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-surface">
+            {extensionLinks.map((n) => (
+              <li key={n.key}>
+                <Link to={n.href} className={homeRowClass}>
+                  <n.icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1">{tExt(n.labelKey)}</span>
+                  <NavBadge useBadge={n.useBadge} />
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section className="flex flex-col gap-2">
+        <h2 className="px-1 text-sm font-medium text-muted-foreground">
+          {t('common:appNav.yourAccount')}
+        </h2>
+        <Link to="/account" className={cn(homeRowClass, 'rounded-xl border bg-surface')}>
+          <UserRound className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">{user?.displayName}</span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </Link>
+      </section>
     </div>
   );
 }
 
+/** `/admin`: phones show the Settings list; desktop opens App settings (the rail and side menu do the rest). */
+function AdminIndex() {
+  const desktop = useMediaQuery('(min-width: 768px)');
+  return desktop ? <Navigate to="/admin/settings" replace /> : <SettingsHome />;
+}
+
+/** The phone app bar of an admin page: a tab's own page has only its title, the others go back one level. */
+function useAdminPhoneBar(section: WebExtensionAdminSection | undefined): {
+  title: string;
+  back?: { to: string; label: string };
+} {
+  const { t } = useTranslation(['admin', 'common']);
+  const tExt = useExtensionTranslation();
+  const { pathname } = useLocation();
+  const extensions = useWebExtensions();
+  const { multiInbox } = useMultiInbox();
+  const settings = t('common:appNav.settings');
+  const backTo = (to: string, place: string) => ({
+    to,
+    label: t('common:appNav.backTo', { place }),
+  });
+  if (pathname.startsWith('/admin/reports') || section === 'reports')
+    return { title: t('common:appNav.reports') };
+  // An agent's page (and an extension's agent sub-page) goes back to Members.
+  if (pathname.startsWith('/admin/members/') || section === 'members')
+    return { title: t('nav.members'), back: backTo('/admin/members', t('nav.members')) };
+  const core = visibleAdminNav(multiInbox).find(
+    (n) => pathname.startsWith(`/admin/${n.to}`) || section === n.to,
+  );
+  if (core) {
+    // A connector's own page goes back to the gallery; every other page back to the Settings list.
+    if (core.to === 'connectors' && pathname.startsWith('/admin/connectors/'))
+      return { title: t(core.labelKey), back: backTo('/admin/connectors', t(core.labelKey)) };
+    return { title: t(core.labelKey), back: backTo('/admin', settings) };
+  }
+  const ext = extensionNavLinks(extensions).find(
+    (n) => pathname === n.href || pathname.startsWith(`${n.href}/`),
+  );
+  if (ext) return { title: tExt(ext.labelKey), back: backTo('/admin', settings) };
+  return { title: settings };
+}
+
 /**
- * Admin shell. Side nav on >= md; on phones a top bar with a Sheet menu.
- * Mounted by App.tsx at `/admin/*`; non-admins are redirected to `/`.
+ * Admin area inside the app shell (rail on desktop, bottom tabs on phones). Reports and Members are full-width rail
+ * places; every other admin page keeps the Settings side menu on desktop. Non-admins are redirected to `/`.
  */
 export function AdminLayout() {
   const { user, isLoading } = useAuth();
-  const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { pathname } = useLocation();
   const version = useAppVersion();
   const { t } = useTranslation(['admin', 'common']);
   const extensions = useWebExtensions();
-  const tExt = useExtensionTranslation();
-  const { multiInbox } = useMultiInbox();
+  const section = extensionSectionOf(extensions, pathname);
+  const bar = useAdminPhoneBar(section);
 
   if (isLoading)
     return (
       <div
         role="status"
-        className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground"
+        className="flex h-full items-center justify-center bg-background text-muted-foreground"
       >
         <Loader2 className="size-6 animate-spin" aria-hidden />
         <span className="sr-only">{t('layout.loading')}</span>
@@ -372,73 +422,36 @@ export function AdminLayout() {
     );
   if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
 
-  const section = extensionSectionOf(extensions, location.pathname);
-  const coreCurrent = visibleAdminNav(multiInbox).find(
-    (n) => location.pathname.includes(`/admin/${n.to}`) || section === n.to,
-  );
-  const extensionCurrent = coreCurrent
-    ? undefined
-    : extensionNavLinks(extensions).find(
-        (n) => location.pathname === n.href || location.pathname.startsWith(`${n.href}/`),
-      );
-  const currentLabel = coreCurrent
-    ? t(coreCurrent.labelKey)
-    : extensionCurrent
-      ? tExt(extensionCurrent.labelKey)
-      : undefined;
+  const railPlace =
+    pathname.startsWith('/admin/reports') ||
+    pathname.startsWith('/admin/members') ||
+    (section !== undefined && RAIL_PLACES.has(section));
 
   return (
-    <div className="safe-x flex min-h-dvh flex-col bg-background text-foreground md:flex-row">
-      {/* Phone: top bar with section menu */}
-      <header className="safe-top sticky top-0 z-20 border-b bg-card md:hidden">
-        <div className="flex items-center gap-1 px-1">
-          <Button asChild variant="ghost" size="touch" className="px-2 text-primary">
-            <Link to="/">
-              <ChevronLeft aria-hidden />
-              {t('layout.inbox')}
-            </Link>
-          </Button>
-          <p className="min-w-0 flex-1 truncate text-center text-base font-semibold">
-            {currentLabel ? t('titleWithSection', { section: currentLabel }) : t('title')}
-          </p>
-          <AskEzyButton compact />
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon-touch" aria-label={t('layout.menu')}>
-                <Menu aria-hidden />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 max-w-[85vw] gap-0 p-0">
-              <SheetHeader className="border-b">
-                <SheetTitle>{t('title')}</SheetTitle>
-                <SheetDescription>{t('common:appName')}</SheetDescription>
-              </SheetHeader>
-              <AdminMenu version={version ?? undefined} onNavigate={() => setMenuOpen(false)} />
-            </SheetContent>
-          </Sheet>
-        </div>
-      </header>
+    <div className="safe-x flex h-full flex-col bg-background text-foreground md:flex-row">
+      <PhoneBar title={bar.title} back={bar.back} />
 
-      {/* Desktop: side nav */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
-        <div className="sticky top-0 flex h-dvh flex-col">
+      {/* Desktop: the Settings side menu, only on Settings pages (not on the rail places Reports and Members). */}
+      {!railPlace && (
+        <aside
+          className="hidden w-60 shrink-0 flex-col overflow-y-auto border-r bg-card md:flex"
+          data-testid="settings-nav"
+        >
           <div className="border-b px-4 py-4">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              {t('common:appName')}
-            </p>
-            <p className="text-lg font-semibold">{t('title')}</p>
-            {/* An action, not a page: apart from the page list. */}
-            <AskEzyButton variant="outline" className="mt-3 w-full" />
+            <p className="text-lg font-semibold">{t('common:appNav.settingsTitle')}</p>
           </div>
-          <AdminMenu version={version ?? undefined} />
-        </div>
-      </aside>
+          <SettingsNav />
+          <footer aria-label={t('layout.footer')} className="safe-bottom border-t p-3">
+            <AppCredits version={version ?? undefined} variant="sidebar" />
+          </footer>
+        </aside>
+      )}
 
-      <main className="safe-bottom min-w-0 flex-1">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto" data-testid="admin-main">
         <ExtensionBannerSlot />
         <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:py-6">
           <Routes>
-            <Route index element={<Navigate to="/admin/members" replace />} />
+            <Route index element={<AdminIndex />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="safety" element={<SafetyPage />} />
             <Route path="members" element={<MembersPage />} />

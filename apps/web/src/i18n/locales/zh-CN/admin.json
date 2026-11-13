@@ -1,26 +1,19 @@
 {
   "title": "管理",
-  "titleWithSection": "管理 · {{section}}",
   "nav": {
     "label": "管理分区",
     "members": "成员",
     "quickReplies": "快捷回复",
     "whatsapp": "WhatsApp",
     "tunnel": "手机访问",
-    "settings": "设置",
+    "settings": "应用设置",
     "audit": "审计日志",
     "connectors": "连接器",
     "reports": "报表",
     "safety": "安全"
   },
   "layout": {
-    "inbox": "收件箱",
-    "menu": "管理菜单",
     "footer": "管理工具与支持",
-    "backToInbox": "返回收件箱",
-    "logOut": "退出登录",
-    "loggingOut": "正在退出…",
-    "logOutFailed": "无法退出登录：{{error}}",
     "loading": "正在加载"
   },
   "ui": {
@@ -405,7 +398,7 @@
     }
   },
   "settings": {
-    "title": "设置",
+    "title": "应用设置",
     "saved": "设置已保存。",
     "save": "保存设置",
     "portInvalid": "端口必须介于 1024 和 65535 之间。",

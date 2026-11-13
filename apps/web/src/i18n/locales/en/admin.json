@@ -1,26 +1,19 @@
 {
   "title": "Admin",
-  "titleWithSection": "Admin · {{section}}",
   "nav": {
     "label": "Admin sections",
     "members": "Members",
     "quickReplies": "Quick replies",
     "whatsapp": "WhatsApp",
     "tunnel": "Phone access",
-    "settings": "Settings",
+    "settings": "App settings",
     "audit": "Audit",
     "connectors": "Connectors",
     "reports": "Reports",
     "safety": "Safety"
   },
   "layout": {
-    "inbox": "Inbox",
-    "menu": "Admin menu",
     "footer": "Admin tools and support",
-    "backToInbox": "Back to inbox",
-    "logOut": "Log out",
-    "loggingOut": "Logging out…",
-    "logOutFailed": "Could not log out: {{error}}",
     "loading": "Loading"
   },
   "ui": {
@@ -408,7 +401,7 @@
     }
   },
   "settings": {
-    "title": "Settings",
+    "title": "App settings",
     "saved": "Settings saved.",
     "save": "Save settings",
     "portInvalid": "Port must be between 1024 and 65535.",
