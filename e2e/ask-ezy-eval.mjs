@@ -57,9 +57,8 @@ const status = (await api('GET', '/ai')).json ?? {};
 const agentCount = Array.isArray(status.agents) ? status.agents.length : 0;
 const maxAgents = Number.isInteger(status.maxAgents) ? status.maxAgents : 1;
 const ROOM = agentCount < maxAgents;
-console.log(
-  `agents ${agentCount} of ${maxAgents}: a new agent is ${ROOM ? 'possible' : 'not possible'}\n`,
-);
+// Fixed texts only: nothing the server sent is printed (Sonar S5145).
+console.log(ROOM ? 'A new agent is possible.\n' : 'No room for a new agent (edition limit).\n');
 
 /** A turn that has not answered after this long is recorded as `client_timeout` (one hang never ends the run). */
 const TURN_LIMIT_MS = 240_000;
