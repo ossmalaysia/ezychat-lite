@@ -860,14 +860,54 @@
       "get_ai_context_item": "konteks perniagaan",
       "get_ai_setup_history": "sejarah tetapan",
       "get_ai_setup_version": "tetapan terdahulu",
+      "edit_ai_setup_text": "satu draf perubahan",
       "try_ai_reply_one": "{{count}} balasan ujian",
       "try_ai_reply_other": "{{count}} balasan ujian",
       "propose_ai_setup_change": "satu cadangan perubahan",
-      "other": "data anda"
+      "other": "data anda",
+      "list_scheduled_tasks_one": "{{count}} tugasan berjadual",
+      "list_scheduled_tasks_other": "{{count}} tugasan berjadual",
+      "propose_agent": "pelan ejen baharu",
+      "propose_scheduled_task": "pratonton mesej",
+      "propose_scheduled_task_edit": "perubahan pada tugasan berjadual"
     },
     "summariseButton": "Ringkaskan dengan Ezy",
     "readyWith": "Jawapan sedia: {{first}}",
-    "aboutChatSuffix": "tentang chat ini"
+    "aboutChatSuffix": "tentang chat ini",
+    "setup": {
+      "newAgent": "Ejen baharu",
+      "scheduledTask": "Tugasan berjadual",
+      "changeTag": "Perubahan",
+      "type": "Jenis",
+      "number": "Nombor",
+      "does": "Tugas",
+      "agent": "Ejen",
+      "sendTo": "Hantar kepada",
+      "when": "Bila",
+      "instruction": "Arahan",
+      "preset": {
+        "sales": "Ejen jualan",
+        "faq": "Ejen soalan lazim",
+        "custom": "Ejen tersuai"
+      },
+      "startsOff": "Ejen ini bermula dalam keadaan dimatikan. Hidupkannya di Admin → Ahli apabila anda sedia.",
+      "newSuffix": "{{name}} (baharu)",
+      "chatWithEnding": "{{name}} (…{{ending}})",
+      "whenZone": "{{schedule}} · {{zone}}",
+      "whenNext": "{{schedule}} · seterusnya: {{next}}",
+      "preview": "Pratonton (tidak dihantar)",
+      "applyBoth": "Guna kedua-duanya",
+      "created": "Dicipta (dimatikan).",
+      "saved": "Disimpan.",
+      "savedOff": "Disimpan. Mesej dihantar apabila ejen dihidupkan.",
+      "openAgent": "Buka ejen",
+      "openTasks": "Buka tugasan berjadual",
+      "chatUnnamed": "Sembang …{{ending}}",
+      "chatNoName": "Sembang",
+      "agentStays": "Dicipta. Ejen ini kekal, dimatikan: ubah di halamannya.",
+      "agentNeedsTask": "Apakah yang perlu dihantar oleh ejen baharu, kepada sembang mana, dan bila? Ejen baharu disediakan bersama tugasan berjadualnya.",
+      "previewNotReady": "Pratonton mengambil masa terlalu lama, jadi ia tidak ditunjukkan. Tugasan tetap berfungsi."
+    }
   },
   "safety": {
     "title": {

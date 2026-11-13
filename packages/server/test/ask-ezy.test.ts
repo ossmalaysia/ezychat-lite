@@ -210,6 +210,77 @@ describe('Ask Ezy', () => {
     expect(s.seen.calls[0]!.instructions).toContain('a team member');
   });
 
+  it('drafts a change from edits only, tests saved and draft at once, and proposes it by draftId with the test', async () => {
+    const s = await setup();
+    const ai = s.t.ctx.services.ai!;
+    vi.spyOn(ai, 'tryAnswer').mockImplementation(async (input: unknown) => ({
+      ok: true,
+      reply: JSON.stringify(input).includes('late orders') ? 'I passed it on.' : 'Let me check.',
+      action: 'answer',
+      handoffReason: null,
+      model: 'm',
+      error: null,
+    }));
+    let changeId = '';
+    const results: unknown[] = [];
+    s.setScript(async (tools) => {
+      const setupRead = (await exec(tools, 'get_ai_agent_setup', { agentId: s.agentId })) as {
+        handoffRules: string;
+      };
+      results.push(setupRead);
+      expect(
+        await exec(tools, 'edit_ai_setup_text', {
+          agentId: s.agentId,
+          target: 'handoff_rules',
+          edits: [{ find: 'not there', replace: 'x' }],
+        }),
+      ).toEqual({ error: expect.stringContaining('not in the saved text') });
+      const draft = (await exec(tools, 'edit_ai_setup_text', {
+        agentId: s.agentId,
+        target: 'handoff_rules',
+        edits: [
+          { find: 'Hand over refunds.', replace: 'Hand over refunds.\nHand over late orders.' },
+        ],
+      })) as { draftId: string };
+      const tested = (await exec(tools, 'try_ai_reply', {
+        draftId: draft.draftId,
+        messages: ['Where is my order?'],
+      })) as { results: Array<{ saved: { reply: string }; draft: { reply: string } }> };
+      results.push(tested);
+      expect(
+        await exec(tools, 'propose_ai_setup_change', { draftId: 'd99', reason: 'late orders' }),
+      ).toEqual({ error: expect.stringContaining('Unknown draftId') });
+      const r = (await exec(tools, 'propose_ai_setup_change', {
+        draftId: draft.draftId,
+        reason: '3 late orders were handed over',
+      })) as { changeId: string };
+      changeId = r.changeId;
+      return {
+        text: 'One change.',
+        blocks: [{ type: 'change', json: JSON.stringify({ id: changeId, title: 'Late orders' }) }],
+        followUps: [],
+      };
+    });
+    const { events } = await ask(s.t, s.adminCookie, { question: 'Fix my hand-over rules' });
+    expect(results[1]).toEqual({
+      results: [
+        {
+          message: 'Where is my order?',
+          saved: { reply: 'Let me check.', action: 'answer', handoffReason: null },
+          draft: { reply: 'I passed it on.', action: 'answer', handoffReason: null },
+        },
+      ],
+    });
+    expect(answerOf(events).blocks[0]).toMatchObject({
+      type: 'change',
+      id: changeId,
+      before: 'Hand over refunds.',
+      after: 'Hand over refunds.\nHand over late orders.',
+      // The server adds the test Ezy ran; the model did not write it.
+      test: { question: 'Where is my order?', before: 'Let me check.', after: 'I passed it on.' },
+    });
+  });
+
   it('lets an admin apply, undo and discard a change Ezy proposed, with a version and an audit row', async () => {
     const s = await setup();
     let changeId = '';

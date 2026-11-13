@@ -23,6 +23,7 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { ReplySuggestionsSection } from './ReplySuggestionsSection';
+import { AskEzySettingsSection } from './AskEzySettingsSection';
 import { FixEnglishSection } from './FixEnglishSection';
 import { PhraseDictionarySection } from './PhraseDictionarySection';
 import { AiVoiceSection } from './AiVoiceSection';
@@ -300,6 +301,7 @@ export function SettingsPage() {
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
           <ReplySuggestionsSection />
+          <AskEzySettingsSection />
           <PhraseDictionarySection />
           <FixEnglishSection />
           {/* Optional features collapsed under one heading, closed by default. */}

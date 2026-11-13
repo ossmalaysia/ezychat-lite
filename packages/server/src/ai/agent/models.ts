@@ -181,9 +181,41 @@ export class AgentTurnFailure extends Error {
     readonly causeName: string | null = null,
     /** HTTP status when the model service answered with an error. */
     readonly status: number | null = null,
+    /** Why an unusable answer ended (e.g. `length` = cut at the output limit), from the AI SDK error. */
+    readonly finishReason: string | null = null,
+    /** The form of an unusable answer's text (`answerShape`), never the text itself. */
+    readonly answerShape: AnswerShape | null = null,
   ) {
     super(message);
   }
+}
+
+export type AnswerShape = 'empty' | 'json' | 'text_then_json' | 'json_then_text' | 'not_json';
+
+/**
+ * What an unusable answer looked like, without its words: `json` = valid JSON with wrong fields, `text_then_json` =
+ * a sentence before the JSON (e.g. a preamble message joined to the answer), `json_then_text` = JSON then more.
+ */
+export function answerShape(text: string): AnswerShape {
+  const trimmed = text.trim();
+  if (!trimmed) return 'empty';
+  const parses = (s: string) => {
+    try {
+      JSON.parse(s);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (parses(trimmed)) return 'json';
+  const start = trimmed.indexOf('{');
+  if (start > 0 && parses(trimmed.slice(start))) return 'text_then_json';
+  const end = trimmed.lastIndexOf('}');
+  if (start === 0 && end > 0) {
+    for (let i = trimmed.indexOf('}'); i >= 0 && i <= end; i = trimmed.indexOf('}', i + 1))
+      if (parses(trimmed.slice(0, i + 1))) return 'json_then_text';
+  }
+  return 'not_json';
 }
 
 /** The class name of an error (bounded), for the log. */
@@ -221,6 +253,16 @@ export function agentFailure(error: unknown, invalid: string, generic: string): 
   // response) means the answer itself was unusable.
   if (APICallError.isInstance(error) && (error.statusCode ?? 0) >= 400)
     return new AgentTurnFailure(error.message, 'provider', causeName, error.statusCode ?? null);
-  if (isInvalidAnswer(error)) return new AgentTurnFailure(invalid, 'invalid', causeName);
+  if (isInvalidAnswer(error)) {
+    const { finishReason: finish, text } = error as { finishReason?: unknown; text?: unknown };
+    return new AgentTurnFailure(
+      invalid,
+      'invalid',
+      causeName,
+      null,
+      typeof finish === 'string' ? finish.slice(0, 40) : null,
+      typeof text === 'string' ? answerShape(text) : null,
+    );
+  }
   return new AgentTurnFailure(generic, 'other', causeName);
 }

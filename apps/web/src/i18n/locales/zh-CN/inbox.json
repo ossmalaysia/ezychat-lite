@@ -860,14 +860,54 @@
       "get_ai_context_item": "业务资料",
       "get_ai_setup_history": "设置历史",
       "get_ai_setup_version": "之前的设置",
+      "edit_ai_setup_text": "一份更改草稿",
       "try_ai_reply_one": "{{count}} 条测试回复",
       "try_ai_reply_other": "{{count}} 条测试回复",
       "propose_ai_setup_change": "一项建议更改",
-      "other": "您的数据"
+      "other": "您的数据",
+      "list_scheduled_tasks_one": "{{count}} 个定时任务",
+      "list_scheduled_tasks_other": "{{count}} 个定时任务",
+      "propose_agent": "新代理方案",
+      "propose_scheduled_task": "消息预览",
+      "propose_scheduled_task_edit": "定时任务的修改"
     },
     "summariseButton": "用 Ezy 总结聊天",
     "readyWith": "回答已就绪：{{first}}",
-    "aboutChatSuffix": "（关于此聊天）"
+    "aboutChatSuffix": "（关于此聊天）",
+    "setup": {
+      "newAgent": "新代理",
+      "scheduledTask": "定时任务",
+      "changeTag": "修改",
+      "type": "类型",
+      "number": "号码",
+      "does": "用途",
+      "agent": "代理",
+      "sendTo": "发送给",
+      "when": "时间",
+      "instruction": "指示",
+      "preset": {
+        "sales": "销售代理",
+        "faq": "常见问题代理",
+        "custom": "自定义代理"
+      },
+      "startsOff": "它创建后处于关闭状态。准备好后，请在 管理 → 成员 中开启。",
+      "newSuffix": "{{name}}（新）",
+      "chatWithEnding": "{{name}}（…{{ending}}）",
+      "whenZone": "{{schedule}} · {{zone}}",
+      "whenNext": "{{schedule}} · 下次：{{next}}",
+      "preview": "预览（未发送）",
+      "applyBoth": "两项都应用",
+      "created": "已创建（已关闭）。",
+      "saved": "已保存。",
+      "savedOff": "已保存。代理开启后才会发送。",
+      "openAgent": "打开代理",
+      "openTasks": "打开定时任务",
+      "chatUnnamed": "聊天 …{{ending}}",
+      "chatNoName": "聊天",
+      "agentStays": "已创建。它会保留并处于关闭状态：请在它的页面中修改。",
+      "agentNeedsTask": "新代理要发送什么、发给哪个聊天、什么时候发？新代理会和它的定时任务一起设置。",
+      "previewNotReady": "预览耗时太长，所以没有显示。任务照常运行。"
+    }
   },
   "safety": {
     "title": {

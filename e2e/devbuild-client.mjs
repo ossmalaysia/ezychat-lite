@@ -42,6 +42,8 @@ export function apiClient(base) {
   api.reset = () => {
     cookie = '';
   };
+  /** The session's request headers, for a call `api` cannot parse (e.g. Ask Ezy's NDJSON stream). */
+  api.headers = () => ({ origin: base, ...(cookie ? { cookie } : {}) });
   return api;
 }
 

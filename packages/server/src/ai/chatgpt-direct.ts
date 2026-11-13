@@ -613,18 +613,32 @@ export class DirectChatGptProvider implements AiProvider {
     call: AiAssistCall,
     signal: AbortSignal,
   ) {
+    // A setup turn (`main`) uses the saved main model: setting up an agent needs the better model.
     if (settings.mode !== 'chatgpt')
       return (settings.mode === 'api' ? assistOpenAi : assistClaude)(
-        draftModelSettings(settings, true),
+        draftModelSettings(settings, !call.main),
         apiKey,
         call,
         signal,
       );
-    const fast = { ...settings, model: this.fastDraftModel(settings.model) };
-    return this.turn(fast, call.cacheId, signal, async (model, turnSignal, id) => ({
-      ...(await runAssist({ ...call, model, signal: turnSignal, reasoningEffort: 'low' })),
-      model: id,
-    }));
+    const chosen = call.main
+      ? settings
+      : { ...settings, model: this.fastDraftModel(settings.model) };
+    return this.turn(
+      chosen,
+      call.cacheId,
+      signal,
+      async (model, turnSignal, id) => ({
+        ...(await runAssist({
+          ...call,
+          model,
+          signal: turnSignal,
+          ...(call.main ? {} : { reasoningEffort: 'low' as const }),
+        })),
+        model: id,
+      }),
+      call.timeoutMs,
+    );
   }
 
   /** The first fast model this account lists (live list once read, else the fallback list), else the saved one. */
@@ -639,6 +653,7 @@ export class DirectChatGptProvider implements AiProvider {
     cacheId: string | undefined,
     signal: AbortSignal,
     run: (model: LanguageModel, turnSignal: AbortSignal, modelId: string) => Promise<T>,
+    timeoutMs?: number,
   ): Promise<T> {
     signal.throwIfAborted();
     const model = await this.resolveModel(settings.model);
@@ -647,7 +662,7 @@ export class DirectChatGptProvider implements AiProvider {
     // One bound for the whole reply: a multi-step turn must not reset it on every model call.
     const turnSignal = AbortSignal.any([
       signal,
-      AbortSignal.timeout(this.deps.turnTimeoutMs ?? 60_000),
+      AbortSignal.timeout(timeoutMs ?? this.deps.turnTimeoutMs ?? 60_000),
     ]);
     try {
       return await run(
