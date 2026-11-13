@@ -1,5 +1,6 @@
 import {
   generateText,
+  NoObjectGeneratedError,
   Output,
   stepCountIs,
   type LanguageModel,
@@ -55,12 +56,62 @@ export interface AssistResult {
   /** Tool names in call order (for the log and the "Ezy read" line), never inputs or outputs. */
   toolCalls: string[];
   steps: number;
+  /** The answer was taken out of extra text around it (see `answerFromText`). */
+  repaired?: true;
+}
+
+const ANSWER_START = /\{\s*"text"\s*:/g;
+
+/**
+ * The last complete answer object inside a text the format check refused, else null. The model sometimes writes a
+ * valid answer and then more (a second copy, a closing sentence); the AI SDK reads it all as one JSON value.
+ */
+export function answerFromText(text: string): AssistOutput | null {
+  const starts = [...text.matchAll(ANSWER_START)].map((m) => m.index).reverse();
+  for (const start of starts) {
+    for (let end = text.indexOf('}', start); end >= 0; end = text.indexOf('}', end + 1)) {
+      let value: unknown;
+      try {
+        value = JSON.parse(text.slice(start, end + 1));
+      } catch {
+        continue;
+      }
+      const parsed = AssistOutput.safeParse(value);
+      if (parsed.success) return parsed.data;
+      break;
+    }
+  }
+  return null;
 }
 
 /** One Ask Ezy turn: read tools, then a structured answer. Never retried (a retry costs usage). */
 export async function runAssist(call: AssistCall): Promise<AssistResult> {
   call.signal.throwIfAborted();
-  const result = await generateText({
+  const toolCalls: string[] = [];
+  let steps = 0;
+  let answer: AssistResult;
+  try {
+    const result = await generate(call, (names) => {
+      steps++;
+      toolCalls.push(...names);
+    });
+    answer = {
+      output: AssistOutput.parse(result.output),
+      toolCalls: result.steps.flatMap((s) => s.toolCalls.map((c) => c.toolName)),
+      steps: result.steps.length,
+    };
+  } catch (error) {
+    const text = NoObjectGeneratedError.isInstance(error) ? error.text : undefined;
+    const output = text ? answerFromText(text) : null;
+    if (!output || call.signal.aborted) throw error;
+    answer = { output, toolCalls, steps, repaired: true };
+  }
+  call.signal.throwIfAborted();
+  return answer;
+}
+
+function generate(call: AssistCall, onStepNames: (names: string[]) => void) {
+  return generateText({
     model: call.model,
     instructions: call.instructions,
     messages: call.messages,
@@ -75,6 +126,7 @@ export async function runAssist(call: AssistCall): Promise<AssistResult> {
     maxOutputTokens: ASSIST_MAX_OUTPUT_TOKENS,
     onStepFinish: (step) => {
       const names = step.toolCalls.map((c) => c.toolName);
+      onStepNames(names);
       if (names.length) {
         try {
           call.onStep?.(names);
@@ -87,10 +139,4 @@ export async function runAssist(call: AssistCall): Promise<AssistResult> {
       ? { providerOptions: { openai: { reasoningEffort: call.reasoningEffort } } }
       : {}),
   });
-  call.signal.throwIfAborted();
-  return {
-    output: AssistOutput.parse(result.output),
-    toolCalls: result.steps.flatMap((s) => s.toolCalls.map((c) => c.toolName)),
-    steps: result.steps.length,
-  };
 }

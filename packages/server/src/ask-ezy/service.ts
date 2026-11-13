@@ -407,6 +407,7 @@ export function createAskEzyService(
             ms: Date.now() - started,
             model: result.model,
             ...(setupTurn ? { setup: true } : {}),
+            ...(result.repaired ? { repaired: true } : {}),
           },
           'Ask Ezy answered',
         );
@@ -452,6 +453,7 @@ export function createAskEzyService(
             errName: failure?.causeName ?? errorNameOf(error),
             status: failure?.status ?? null,
             finishReason: failure?.finishReason ?? null,
+            answerShape: failure?.answerShape ?? null,
             setup: setupTurn,
             tools: calls.map((c) => c.tool),
             ms: Date.now() - started,

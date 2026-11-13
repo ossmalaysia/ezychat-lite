@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MockLanguageModelV4 } from 'ai/test';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { ASSIST_MAX_OUTPUT_TOKENS, ASSIST_MAX_STEPS, runAssist } from './assist.js';
+import { answerFromText, ASSIST_MAX_OUTPUT_TOKENS, ASSIST_MAX_STEPS, runAssist } from './assist.js';
 
 const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
@@ -107,6 +107,65 @@ describe('runAssist', () => {
     const calls = model.doGenerateCalls;
     expect(calls.at(-1)!.toolChoice).toEqual({ type: 'none' });
     expect(calls.slice(0, -1).every((c) => c.toolChoice?.type !== 'none')).toBe(true);
+  });
+
+  it('takes a complete answer out of extra text after it (a second copy, a closing sentence)', async () => {
+    const json = JSON.stringify(OUTPUT);
+    const model = new MockLanguageModelV4({
+      doGenerate: [
+        toolStep,
+        {
+          ...final(OUTPUT),
+          content: [
+            { type: 'text' as const, text: `${json}\n${json.replace('A good week.', 'Copy')}` },
+          ],
+        },
+      ],
+    });
+    const result = await runAssist({
+      model,
+      instructions: 'x',
+      messages: [{ role: 'user', content: 'q' }],
+      tools,
+      signal: new AbortController().signal,
+    });
+    expect(result).toEqual({
+      output: { ...OUTPUT, text: 'Copy' },
+      toolCalls: ['get_stats'],
+      steps: 2,
+      repaired: true,
+    });
+    expect(model.doGenerateCalls).toHaveLength(2);
+  });
+
+  it.each([
+    ['a sentence after the answer', `${JSON.stringify(OUTPUT)} Done!`, OUTPUT],
+    ['a sentence before it', `Here it is: ${JSON.stringify(OUTPUT)}`, OUTPUT],
+    ['the answer format is wrong', '{"text":"x"} more', null],
+    ['no JSON', 'What would you like to improve?', null],
+    ['cut short', '{"text":"x","blocks":[', null],
+  ])('answerFromText: %s', (_case, text, expected) => {
+    expect(answerFromText(text)).toEqual(expected);
+  });
+
+  it('still fails when no complete answer is in the text', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [
+        {
+          ...final(OUTPUT),
+          content: [{ type: 'text' as const, text: '{"text":"x"} and then words' }],
+        },
+      ],
+    });
+    await expect(
+      runAssist({
+        model,
+        instructions: 'x',
+        messages: [{ role: 'user', content: 'q' }],
+        tools: {},
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow();
   });
 
   it('throws before any call when cancelled', async () => {

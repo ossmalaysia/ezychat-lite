@@ -5,6 +5,7 @@ import { APICallError } from 'ai';
 import {
   AgentTurnFailure,
   agentFailure,
+  answerShape,
   chatGptModel,
   codexRequestBody,
   openAiKeyModel,
@@ -181,13 +182,30 @@ describe('agentFailure', () => {
   );
 
   it('keeps why an unusable answer ended (cut at the output limit), never its text', () => {
-    const cut = Object.assign(named('AI_NoObjectGeneratedError'), { finishReason: 'length' });
-    expect(agentFailure(cut, 'invalid', 'generic')).toMatchObject({
+    const cut = Object.assign(named('AI_NoObjectGeneratedError'), {
+      finishReason: 'length',
+      text: '{"text":"Hi, Farah',
+    });
+    const failure = agentFailure(cut, 'invalid', 'generic');
+    expect(failure).toMatchObject({
       kind: 'invalid',
       finishReason: 'length',
+      answerShape: 'not_json',
     });
+    expect(JSON.stringify(failure)).not.toContain('Farah');
     expect(agentFailure(named('AI_JSONParseError'), 'invalid', 'generic').finishReason).toBeNull();
     expect(agentFailure(apiError(429), 'invalid', 'generic').finishReason).toBeNull();
+  });
+
+  it.each([
+    ['   ', 'empty'],
+    ['{"reply":"no"}', 'json'],
+    ['Let me check.{"text":"x","blocks":[],"followUps":[]}', 'text_then_json'],
+    ['{"text":"x","blocks":[],"followUps":[]} Done!', 'json_then_text'],
+    ['{"text":"x"}{"text":"y"}', 'json_then_text'],
+    ['What would you like to improve?', 'not_json'],
+  ] as const)('names the shape of an unusable answer %j as %s', (text, shape) => {
+    expect(answerShape(text)).toBe(shape);
   });
 });
 
