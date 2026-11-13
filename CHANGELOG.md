@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Reports now shows the **AI completion rate**: of the chats the AI answered that were closed in the period, the share the AI finished with no help from your team (no hand-off and nobody on the team or the phone wrote after the AI's first reply). A teammate who only presses Close still counts. The card also shows how many closed chats the team helped with (hand-offs and replies), how many chats are still open with the AI, and the change against the period before.
 - When the AI agent reads a customer's message in a direct chat and decides not to reply, the chat now shows a small line for your team only: "Sales Agent did not reply" (or "… it saw the chat as finished"). A silent AI turn is no longer invisible, so you can reply yourself or adjust the agent's instructions. The customer sees nothing.
 
 ### Fixed

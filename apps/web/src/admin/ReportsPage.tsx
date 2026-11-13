@@ -9,6 +9,7 @@ import { useReport } from '../api/queries';
 import { useVisibleInboxes } from '../inbox/useVisibleInboxes';
 import { formatPhone } from '../lib/jid';
 import { Banner, PageHeader, SegmentedControl } from '@/components/app';
+import { InfoTip } from '@/components/app/InfoTip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -170,6 +171,7 @@ function ReportBody({ report, inbox }: { report: Report; inbox: number | null })
         </Banner>
       )}
       <Totals report={report} />
+      <AiCompletion report={report} />
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <ChartCard
           testId="card-weekdays"
@@ -291,6 +293,129 @@ function ReportBody({ report, inbox }: { report: Report; inbox: number | null })
       <Team report={report} />
       <SafetyReportSection days={report.days} inbox={inbox} />
     </>
+  );
+}
+
+/**
+ * Whole percent of closed AI chats the AI completed; null when none closed. Never rounds to 100 % while the team
+ * helped in one, or to 0 % while the AI completed one, so the headline never contradicts the parts below it.
+ */
+export function completionRate(totals: ReportTotals): number | null {
+  const { aiClosed: closed, aiCompleted: done } = totals;
+  if (closed === 0) return null;
+  if (done === closed || done === 0) return done === 0 ? 0 : 100;
+  return Math.min(99, Math.max(1, Math.round((done / closed) * 100)));
+}
+
+/**
+ * AI completion rate: of the AI chats closed in the period, the share with no hand-off and no reply from a person
+ * (rule in `ReportTotals`). Left out when no AI chat closed in the period and the AI holds none now (scheduled
+ * messages alone never show it).
+ */
+function AiCompletion({ report }: { report: Report }) {
+  const { t } = useTranslation('admin');
+  const { totals: now, previous, days, aiOpen } = report;
+  if (now.aiClosed === 0 && aiOpen === 0) return null;
+  const rate = completionRate(now);
+  const before = previous ? completionRate(previous) : null;
+  const points = rate !== null && before !== null ? rate - before : null;
+  const helped = now.aiClosed - now.aiCompleted;
+  return (
+    <Card className="min-w-0 gap-3 px-4 py-4" data-testid="card-ai-completion">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1">
+          <h2 className="text-base font-semibold">{t('reports.aiRateTitle')}</h2>
+          <InfoTip
+            title={t('reports.aiRateTipTitle')}
+            body={t('reports.aiRateTipBody')}
+            steps={[
+              t('reports.aiRateTipStep1'),
+              t('reports.aiRateTipStep2'),
+              t('reports.aiRateTipStep3'),
+            ]}
+          />
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{t('reports.aiRateFinding')}</p>
+      </div>
+      {rate === null ? (
+        <>
+          <p className="text-3xl font-semibold">–</p>
+          <p className="border-t border-dashed pt-3 text-sm text-muted-foreground">
+            {t('reports.aiRateNone', { count: days })}{' '}
+            {aiOpen > 0 && (
+              <>
+                <b className="text-foreground tabular-nums">{aiOpen}</b> {t('reports.aiRateOpen')}
+              </>
+            )}
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="text-3xl font-semibold tabular-nums" data-testid="ai-rate">
+              {t('reports.aiRatePct', { pct: rate })}
+            </p>
+            {points === 0 && (
+              <p className="text-xs text-muted-foreground">{t('reports.same', { count: days })}</p>
+            )}
+            {points !== null && points !== 0 && (
+              <p
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs',
+                  points > 0 ? 'text-success' : 'text-danger',
+                )}
+              >
+                {points > 0 ? (
+                  <ArrowUpRight className="size-3.5" aria-hidden />
+                ) : (
+                  <ArrowDownRight className="size-3.5" aria-hidden />
+                )}
+                {t(points > 0 ? 'reports.aiRateUp' : 'reports.aiRateDown', {
+                  points: Math.abs(points),
+                  count: days,
+                })}
+              </p>
+            )}
+          </div>
+          <div
+            role="img"
+            aria-label={t('reports.aiRateBar', {
+              completed: now.aiCompleted,
+              closed: now.aiClosed,
+            })}
+            className="flex h-3 overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="bg-primary"
+              style={{ width: `${(now.aiCompleted / now.aiClosed) * 100}%` }}
+            />
+            <div
+              className="bg-muted-foreground/40"
+              style={{ width: `${(helped / now.aiClosed) * 100}%` }}
+            />
+          </div>
+          <ul className="flex flex-col gap-1 text-sm sm:flex-row sm:flex-wrap sm:gap-x-5">
+            <li className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 shrink-0 rounded-sm bg-primary" aria-hidden />
+              <b className="tabular-nums">{now.aiCompleted}</b> {t('reports.aiRateCompleted')}
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 shrink-0 rounded-sm bg-muted-foreground/40" aria-hidden />
+              <b className="tabular-nums">{helped}</b>{' '}
+              {t('reports.aiRateHelped', {
+                handoffs: now.aiClosedAfterHandoff,
+                replies: now.aiClosedAfterReply,
+              })}
+            </li>
+            {aiOpen > 0 && (
+              <li className="text-muted-foreground">
+                <b className="text-foreground tabular-nums">{aiOpen}</b> {t('reports.aiRateOpen')}
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+    </Card>
   );
 }
 
