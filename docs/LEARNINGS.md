@@ -1030,6 +1030,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - In PowerShell, `git commit -F - @'…'@` passes the here-string as a pathspec, not stdin: the commit fails while the
   `git add` before it already staged its files. Write multi-line commit messages with a Bash heredoc (`-F - <<'EOF'`)
   or `-m` per paragraph, and run `git add` and `git commit` of one change together.
+- Git Bash's `/tmp` is not the folder Node opens (`/tmp/x` in Node is `D:\tmp\x`): pass temp files to Node with a
+  Windows path in the scratchpad. Never put `;` after an `&&` chain whose first step can fail before a `git commit`: a
+  failed conflict-resolution script still let `git add && git commit` record a merge with conflict markers. Check
+  `git grep -nE '^(<{7,8}|>{7,8})( |$)'` before every commit that ends a merge.
+- The Cloudflare Workers log tool fails on the events view (`requestId` schema error); the calculations view with a
+  count grouped by `$metadata.message` works and shows which webhook paths ran.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
