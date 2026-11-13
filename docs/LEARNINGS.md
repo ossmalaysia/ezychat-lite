@@ -1445,7 +1445,13 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Ask Ezy's history is text only: whatever a block asked or proposed (question choices, a pending proposal id) must
   be written back into the assistant's history line, or a tapped choice reaches the model without its question. Ids
   in history are hints only: the server reads proposals from its own store, and chat ids a proposal names come from
-  the look-ups of the same answer, never from history.
+  the look-ups of the same answer, never from history. An eval or script that drives `/api/ask-ezy` must build
+  history the same way (`answerForHistory`), or it tests a harder case than the app and reports false failures.
+- An AI SDK turn with `stopWhen: stepCountIs(n)` and a structured `output` must forbid tools on step n
+  (`prepareStep` → `toolChoice: 'none'`): a tool call on the last step leaves no answer
+  (`AI_NoOutputGeneratedError`), which the person sees as "the provider did not respond".
+- A hand-over tool's description (e.g. `start_setup`) must match the prompt's trigger word for word: "create or change
+  an AI agent" in the tool sent "improve <agent>" to the setup turn, while the prompt meant only new agents and tasks.
 - Anything a person waits for (completions, Ask Ezy turns of 2–3 tool rounds: 13–23 s on the workhorse, 8–13 s
   on `gpt-6-luna`) needs the connection's fast model, never the saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
   `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose
