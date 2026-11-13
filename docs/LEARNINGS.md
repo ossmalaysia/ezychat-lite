@@ -1453,6 +1453,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - An AI SDK turn with `stopWhen: stepCountIs(n)` and a structured `output` must forbid tools on step n
   (`prepareStep` → `toolChoice: 'none'`): a tool call on the last step leaves no answer
   (`AI_NoOutputGeneratedError`), which the person sees as "the provider did not respond".
+- A strict JSON schema does not stop the ChatGPT backend from writing a valid answer and then more text (1 in 5
+  "improve <agent>" turns: `AI_NoObjectGeneratedError`, finish `stop`). Log the answer's shape, never its text
+  (`answerShape`: empty / json / text_then_json / json_then_text / not_json), and take the complete object out of
+  the refused text (`answerFromText`) before failing the turn; a retry would cost a model call.
 - A hand-over tool's description (e.g. `start_setup`) must match the prompt's trigger word for word: "create or change
   an AI agent" in the tool sent "improve <agent>" to the setup turn, while the prompt meant only new agents and tasks.
 - Anything a person waits for (completions, Ask Ezy turns of 2–3 tool rounds: 13–23 s on the workhorse, 8–13 s
