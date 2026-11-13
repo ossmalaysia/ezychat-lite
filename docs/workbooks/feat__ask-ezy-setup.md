@@ -7,10 +7,10 @@ Branch: `feat/ask-ezy-setup` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | pass | Owner confirmed the quick mock 2026-11-12 (look good, implement) | d506483 | 2026-11-12 |
 | Dev | pass | Fixes A-H after the owner's real-model test; one question per agent by name; no one-choice question | bc52a8e | 2026-11-12 |
-| Unit tests | pass | Ask Ezy server, prompt, shared and web tests 247 + 49 on the final prompt; typecheck all workspaces | bc52a8e | 2026-11-12 |
-| E2E | pass | npm run e2e --workers=2: 159 passed, 27 skipped, 0 failed; desktop build OK; e2e:electron-links OK | 197cea8b | 2026-11-13 |
-| Dev Build | pass | Real-model eval GPA 3.95 (126/126) on 197cea8; improve-agent 8/8 answered, 1 repaired | 197cea8b | 2026-11-13 |
-| Screen review | pass | Question, which chat, cards, edit at 1280/360 light/dark on bc52a8e: 16 shots, no errors, no overflow | bc52a8e | 2026-11-12 |
+| Unit tests | pass | Ask Ezy server, assist, models, prompt and web tests 133 passed; typecheck all workspaces after rebase on main | a328664 | 2026-11-13 |
+| E2E | pass | npm run e2e --workers=2: 159 passed, 27 skipped, 0 failed; desktop build OK; e2e:electron-links OK (ran on 197cea8, rebased as 02f39c3; same code) | 02f39c38 | 2026-11-13 |
+| Dev Build | pass | Real-model eval GPA 3.95 (126/126); improve-agent 8/8 answered, 1 repaired (ran on 197cea8, rebased as 02f39c3; same code) | 02f39c38 | 2026-11-13 |
+| Screen review | pass | Question, which chat, cards, edit at 1280/360 light/dark: 16 shots, no errors, no overflow (ran on bc52a8e; apps/web and packages/shared unchanged since, rebased as 71a876a) | 71a876af | 2026-11-13 |
 
 ## Log
 
@@ -27,3 +27,7 @@ Branch: `feat/ask-ezy-setup` · Every agent updates its stage with
 - 2026-11-13 Dev Build: pass — Real-model eval GPA 3.97 (126/126) on b1b0e3f, Lite agent limit; improve-agent repro 4/4 (b1b0e3f6)
 - 2026-11-13 E2E: pass — npm run e2e --workers=2: 159 passed, 27 skipped, 0 failed; desktop build OK; e2e:electron-links OK (197cea8b)
 - 2026-11-13 Dev Build: pass — Real-model eval GPA 3.95 (126/126) on 197cea8; improve-agent 8/8 answered, 1 repaired (197cea8b)
+- 2026-11-13 E2E: pass — npm run e2e --workers=2: 159 passed, 27 skipped, 0 failed; desktop build OK; e2e:electron-links OK (ran on 197cea8, rebased as 02f39c3; same code) (02f39c38)
+- 2026-11-13 Dev Build: pass — Real-model eval GPA 3.95 (126/126); improve-agent 8/8 answered, 1 repaired (ran on 197cea8, rebased as 02f39c3; same code) (02f39c38)
+- 2026-11-13 Screen review: pass — Question, which chat, cards, edit at 1280/360 light/dark: 16 shots, no errors, no overflow (ran on bc52a8e; apps/web and packages/shared unchanged since, rebased as 71a876a) (71a876af)
+- 2026-11-13 Unit tests: pass — Ask Ezy server, assist, models, prompt and web tests 133 passed; typecheck all workspaces after rebase on main (a328664)
