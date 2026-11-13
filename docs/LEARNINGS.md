@@ -98,7 +98,13 @@ into AGENTS.md.
   stages that do not apply as `skip` with the reason (MCP-only: no design, screen review or UI e2e),
   and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose. Stage keys are
   `design|dev|unit|e2e|devbuild|screen`. A plan ledger under `.superpowers/` is git-ignored and deleted
-  at the end: copy its rulings and deferred findings into the workbook first.
+  at the end: copy its rulings and deferred findings into the workbook first. `build-summary.mjs record` rewrites
+  the workbook and keeps only the text above the stage table and the `## Log` part: design notes kept in a
+  workbook go between the branch line and the table, or the next record deletes them. Commit a workbook edit
+  before any `git checkout -- <file>` that undoes a trial run, or the edit is lost with it.
+- A web rebuild under a running Dev Build leaves a blank page ("Failed to load module script … MIME type
+  text/html": the old page asks for script files the build removed): restart the Dev Build after every
+  `npm run build -w @ezychat/web`, and run its check again on the new data.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
