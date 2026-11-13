@@ -334,6 +334,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- A test that scans the whole repository does it in one native call (`git grep`), not file by file in JS: the
+  read loop passed locally and timed out at 5 s on a busy macOS runner.
 - Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
   push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
   (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
