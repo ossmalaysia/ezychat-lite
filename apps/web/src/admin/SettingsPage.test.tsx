@@ -21,6 +21,7 @@ vi.mock('./NewChatSection', () => ({ NewChatSection: () => <p>New chats card</p>
 vi.mock('./ReplySuggestionsSection', () => ({
   ReplySuggestionsSection: () => <p>Reply suggestions card</p>,
 }));
+vi.mock('./AskEzySettingsSection', () => ({ AskEzySettingsSection: () => <p>Ask Ezy card</p> }));
 vi.mock('./AiVoiceSection', () => ({ AiVoiceSection: () => <p>Voice messages card</p> }));
 vi.mock('./CustomerEnrichmentSection', () => ({
   CustomerEnrichmentSection: () => <p>Customer enrichment card</p>,
@@ -80,6 +81,7 @@ it('shows the AI connection inline on the AI tab (no popup)', () => {
   renderAt('/admin/settings/ai');
   expect(screen.getByText('Inline AI connection')).toBeTruthy();
   expect(screen.getByText('Reply suggestions card')).toBeTruthy();
+  expect(screen.getByText('Ask Ezy card')).toBeTruthy();
   expect(screen.getByText('Voice messages card')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Configure AI connection' })).toBeNull();
   expect(patch.mutate).not.toHaveBeenCalled();
