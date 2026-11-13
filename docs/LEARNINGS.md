@@ -1722,6 +1722,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- Never key a non-list query under `['chats', …]`: `upsertChatInCache` rewrites every query there as a chat list
+  (`setQueriesData`). Give a count its own key (`qk.unreadChatCount`) and invalidate it in `refreshChats`, so it stays
+  live with the list's 50 ms batch and no new socket event.
+- A component added to an always-mounted shell (rail, tabs) runs in every test that renders `App`: hooks it uses
+  (`useUnreadChatCount`, `useAuth().isAdmin`, `user.displayName`, `DesktopUpdatePanel` via `AboutDialog`) must be in
+  those tests' mocks, or the ErrorBoundary hides the page and dozens of unrelated tests fail at once.
+- In a Playwright check, `waitForURL` resolves before React draws the new page: read `aria-current`, a dot or a
+  heading with a retrying `expect`/poll, never one `getAttribute`/`isVisible` right after the URL changes.
 - The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
   `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
   (or `newClientId`), never `crypto.randomUUID()` directly or `Math.random`; feature-check any other secure-only API. One call in an always-mounted host (e.g. `FeedbackHost`) blanked every
