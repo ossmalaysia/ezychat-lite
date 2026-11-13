@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { MockLanguageModelV4 } from 'ai/test';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { answerFromText, ASSIST_MAX_OUTPUT_TOKENS, ASSIST_MAX_STEPS, runAssist } from './assist.js';
+import {
+  answerFromText,
+  ASSIST_MAX_OUTPUT_TOKENS,
+  ASSIST_MAX_STEPS,
+  runAssist,
+  type AssistCallTrace,
+} from './assist.js';
 
 const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },

@@ -5,6 +5,7 @@ import {
   AI_INSTRUCTIONS_CHARACTERS,
   AskEzyChangeTarget,
   ScheduledDayRule,
+  type AskEzyTest,
   type User,
 } from '@ezychat/shared';
 import { INBOX_TOOLS, ToolError, type ToolContext, type ToolDef } from '../mcp/tools.js';
@@ -135,11 +136,70 @@ const ListTasksInput = z.strictObject({
 /** Tools whose results name chats a later proposal may use (their ids are kept for this answer). */
 const CHAT_LOOKUPS = new Set(['list_chats', 'get_chat']);
 
+const TARGET = AskEzyChangeTarget.describe(
+  'instructions = AI instructions; handoff_rules = hand-off rules; context_text = a Business context text item',
+);
+
+/** Small Business context texts come with the setup read (one model round trip less each). */
+export const INLINE_ITEM_CHARACTERS = 6_000;
+export const INLINE_TOTAL_CHARACTERS = 12_000;
+
+export const EditInput = z.strictObject({
+  agentId: z
+    .number()
+    .int()
+    .positive()
+    .describe('The agent (agentId from the prompt or list_ai_agents)'),
+  target: TARGET,
+  itemId: z.number().int().positive().optional().describe('context_text only: the item to change'),
+  edits: z
+    .array(
+      z.strictObject({
+        find: z
+          .string()
+          .min(1)
+          .max(4000)
+          .describe(
+            'An exact piece of the saved text, copied from what you read; it must occur once',
+          ),
+        replace: z
+          .string()
+          .max(8000)
+          .describe(
+            'Its new text ("" removes it). To add a line, find the line before it and replace it with that line plus the new one.',
+          ),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+export const TryInput = z.strictObject({
+  agentId: z.number().int().positive().optional().describe('The agent; not needed with draftId'),
+  messages: z
+    .array(z.string().trim().min(1).max(500))
+    .min(1)
+    .max(3)
+    .describe('1-3 customer messages to test, real ones from the chats when you have them'),
+  draftId: z
+    .string()
+    .max(16)
+    .optional()
+    .describe(
+      'A draft from edit_ai_setup_text: each message is answered with the saved setup AND the draft at the same time',
+    ),
+});
+
 export const ProposeInput = z.strictObject({
-  agentId: z.number().int().positive().describe('agentId from list_ai_agents'),
-  target: AskEzyChangeTarget.describe(
-    'instructions = AI instructions; handoff_rules = hand-off rules; context_text = a Business context text item',
-  ),
+  draftId: z
+    .string()
+    .max(16)
+    .optional()
+    .describe(
+      'The draft from edit_ai_setup_text (then no agentId, target or text): the server proposes its text and adds the test you ran',
+    ),
+  agentId: z.number().int().positive().optional().describe('Without draftId: agentId'),
+  target: TARGET.optional(),
   itemId: z
     .number()
     .int()
@@ -156,7 +216,10 @@ export const ProposeInput = z.strictObject({
   text: z
     .string()
     .max(200_000)
-    .describe('The complete new text (not a diff). One line per paragraph or list item.'),
+    .optional()
+    .describe(
+      'Without draftId only, for a new Business context item: the complete text. One line per paragraph or list item.',
+    ),
   reason: z
     .string()
     .trim()
@@ -251,16 +314,44 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
     for (const c of [...(r.chats ?? []), ...(r.chat ? [r.chat] : [])])
       if (typeof c.jid === 'string') seen.add(c.jid);
   };
+  /** Adds the text of small Business context text items to a setup read (each one a round trip less). */
+  const withSmallTexts = (result: unknown) => {
+    const r = result as {
+      agentId?: number | null;
+      businessContext?: Array<{ id: number; kind: string; characters: number }>;
+    };
+    if (!Array.isArray(r.businessContext)) return result;
+    let budget = INLINE_TOTAL_CHARACTERS;
+    const businessContext = r.businessContext.map((d) => {
+      if (d.kind !== 'text' || d.characters > INLINE_ITEM_CHARACTERS || d.characters > budget)
+        return d;
+      try {
+        const doc = deps.aiSetup.contextItem(d.id, r.agentId ?? undefined);
+        if (doc.truncated) return d;
+        budget -= d.characters;
+        return { ...d, text: doc.text };
+      } catch {
+        return d;
+      }
+    });
+    return { ...r, businessContext };
+  };
+  const DESCRIPTION_NOTE: Record<string, string> = {
+    get_ai_agent_setup:
+      ' Small text items come with their text here: read only the items without text with get_ai_context_item.',
+  };
   for (const def of [...INBOX_TOOLS, ...AI_SETUP_TOOLS] as ToolDef[]) {
     if (!allowed.has(def.name)) continue;
     tools[def.name] = tool({
-      description: def.description,
+      description: def.description + (DESCRIPTION_NOTE[def.name] ?? ''),
       inputSchema: def.input,
       execute: (args) =>
         run(def.name, async () => {
           const out = await def.run(def.input.parse(args), context);
           remember(def.name, out.result);
-          return out;
+          return def.name === 'get_ai_agent_setup'
+            ? { ...out, result: withSmallTexts(out.result) }
+            : out;
         }),
     });
   }
@@ -331,16 +422,149 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
         }),
     });
   }
-  if (isAdmin)
+  if (isAdmin) {
+    /**
+     * Drafts of this answer: the model sends only the parts that change, and the full text never goes through the
+     * model again (test and proposal take the draftId). Output tokens are most of a turn's time.
+     */
+    const drafts = new Map<
+      string,
+      {
+        agentId: number;
+        target: AskEzyChangeTarget;
+        itemId?: number;
+        text: string;
+        test?: AskEzyTest;
+      }
+    >();
+    tools.edit_ai_setup_text = tool({
+      description:
+        "Drafts a change to an AI agent's AI instructions, hand-off rules or a Business context text item: send only the parts that change (find → replace), never the whole text. Nothing is saved. Returns draftId for try_ai_reply and propose_ai_setup_change.",
+      inputSchema: EditInput,
+      execute: (args) =>
+        run('edit_ai_setup_text', () => {
+          const input = EditInput.parse(args);
+          let text: string;
+          if (input.target === 'context_text') {
+            if (input.itemId === undefined)
+              throw new ToolError(
+                'Give itemId. To add a new item, call propose_ai_setup_change with its name and text.',
+              );
+            const doc = deps.aiSetup.contextItem(input.itemId, input.agentId);
+            if (doc.kind !== 'text' || doc.truncated)
+              throw new ToolError('Only whole text items can be changed');
+            text = doc.text;
+          } else {
+            const setup = deps.aiSetup.setup(input.agentId);
+            if (setup.agentId !== input.agentId)
+              throw new ToolError('Unknown agentId: call list_ai_agents first');
+            text = input.target === 'instructions' ? setup.instructions : setup.handoffRules;
+          }
+          for (const [i, e] of input.edits.entries()) {
+            const at = text.indexOf(e.find);
+            if (at < 0)
+              throw new ToolError(
+                `Edit ${i + 1}: this find text is not in the saved text. Copy it exactly from what you read.`,
+              );
+            if (text.indexOf(e.find, at + 1) >= 0)
+              throw new ToolError(
+                `Edit ${i + 1}: this find text occurs more than once. Make it longer.`,
+              );
+            text = text.slice(0, at) + e.replace + text.slice(at + e.find.length);
+          }
+          const draftId = `d${drafts.size + 1}`;
+          drafts.set(draftId, {
+            agentId: input.agentId,
+            target: input.target,
+            ...(input.itemId !== undefined ? { itemId: input.itemId } : {}),
+            text,
+          });
+          return { result: { draftId, characters: text.length, saved: false }, count: 1 };
+        }),
+    });
+    tools.try_ai_reply = tool({
+      description:
+        "Shows how an AI agent answers 1-3 customer messages and whether it hands the chat to the team. With draftId, each message is answered with the saved setup AND the draft at the same time (one call for before and after); the first result becomes the change card's test. Touches no chat and saves nothing, but uses the AI connection (10 answers a minute).",
+      inputSchema: TryInput,
+      execute: (args) =>
+        run('try_ai_reply', async () => {
+          const input = TryInput.parse(args);
+          const draft = input.draftId ? drafts.get(input.draftId) : undefined;
+          if (input.draftId && !draft)
+            throw new ToolError('Unknown draftId: call edit_ai_setup_text first');
+          if (draft?.target === 'context_text')
+            throw new ToolError(
+              'A Business context draft cannot be tested here: propose it with its draftId',
+            );
+          const agentId = draft?.agentId ?? input.agentId;
+          const answer = async (message: string, withDraft: boolean) => {
+            deps.aiSetup.allow('try', context.principal.tokenId);
+            const r = await deps.aiSetup.tryReply({
+              ...(agentId !== undefined ? { agentId } : {}),
+              message,
+              ...(withDraft && draft
+                ? draft.target === 'instructions'
+                  ? { instructions: draft.text }
+                  : { handoffRules: draft.text }
+                : {}),
+            });
+            if (!r.ok) throw new ToolError(r.error ?? 'The AI could not answer');
+            return { reply: r.reply, action: r.action, handoffReason: r.handoffReason ?? null };
+          };
+          const results = await Promise.all(
+            input.messages.map(async (message) => {
+              const [saved, drafted] = await Promise.all([
+                answer(message, false),
+                draft ? answer(message, true) : Promise.resolve(null),
+              ]);
+              return { message, saved, ...(drafted ? { draft: drafted } : {}) };
+            }),
+          );
+          const first = results[0]!;
+          if (draft && first.saved.reply && first.draft?.reply)
+            draft.test = {
+              question: first.message.slice(0, 1000),
+              before: first.saved.reply.slice(0, 2000),
+              after: first.draft.reply.slice(0, 2000),
+            };
+          return { result: { results }, count: results.length };
+        }),
+    });
     tools.propose_ai_setup_change = tool({
       description:
-        'Proposes a change to an AI agent\'s AI instructions, hand-off rules or a Business context text item. Nothing is saved: the admin sees the change as a card and decides with Apply. Send the complete new text. Test it first with try_ai_reply when it changes how the agent answers. Returns changeId: add a block {type: \'change\', json: \'{"id":"<changeId>","title":"<short title>","test":{...}}\'} to your answer.',
+        'Proposes a change to an AI agent\'s AI instructions, hand-off rules or a Business context text item for the admin\'s Apply. Nothing is saved. Give the draftId from edit_ai_setup_text (test it first with try_ai_reply when it changes how the agent answers); write a complete text only for a new Business context item (agentId, target context_text, name, text). Returns changeId: add a block {type: \'change\', json: \'{"id":"<changeId>","title":"<short title>"}\'} (the server adds the test you ran).',
       inputSchema: ProposeInput,
       execute: (args) =>
         run('propose_ai_setup_change', () => {
-          const change = deps.changes.propose(deps.user, ProposeInput.parse(args));
+          const input = ProposeInput.parse(args);
+          const draft = input.draftId ? drafts.get(input.draftId) : undefined;
+          if (input.draftId && !draft)
+            throw new ProposeError('Unknown draftId: call edit_ai_setup_text first');
+          if (!draft && (input.agentId === undefined || !input.target || input.text === undefined))
+            throw new ProposeError('Give draftId, or agentId, target and the complete text');
+          const change = deps.changes.propose(
+            deps.user,
+            draft
+              ? {
+                  agentId: draft.agentId,
+                  target: draft.target,
+                  ...(draft.itemId !== undefined ? { itemId: draft.itemId } : {}),
+                  text: draft.text,
+                  reason: input.reason,
+                  ...(draft.test ? { test: draft.test } : {}),
+                }
+              : {
+                  agentId: input.agentId!,
+                  target: input.target!,
+                  ...(input.itemId !== undefined ? { itemId: input.itemId } : {}),
+                  ...(input.name !== undefined ? { name: input.name } : {}),
+                  text: input.text!,
+                  reason: input.reason,
+                },
+          );
           return { result: { changeId: change.id, saved: false }, count: 1 };
         }),
     });
+  }
   return tools;
 }

@@ -150,7 +150,7 @@ export function createAskEzyService(
         before: c.before,
         after: c.after,
         reason: clip(c.reason, 600),
-        ...(test.success ? { test: test.data } : {}),
+        ...(test.success ? { test: test.data } : c.test ? { test: c.test } : {}),
         status: c.status,
         ...(c.version ? { version: c.version } : {}),
       });
