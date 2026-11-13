@@ -17,7 +17,7 @@
   "proposals": [
     {
       "feature": "app-navigation",
-      "creationOrder": 42,
+      "creationOrder": 43,
       "createdAt": "2026-11-13",
       "design": "docs/features/app-navigation/design.md",
       "mock": "docs/features/app-navigation/mock/index.html",
@@ -26,6 +26,16 @@
       "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
       "coverage": "Full app clone of the confirmed forward-message reference; app navigation on every signed-in screen: desktop (768 px and up) 64 px icon rail (Chats with the count of chats with unread messages, Reports and Members for admins, Ask Ezy, Settings with the red attention dot for admins, account photo/menu at the bottom), the Settings side menu on the other admin pages (Quick replies, Connectors, Inboxes/WhatsApp with the dot, Phone access, App settings, Audit), Reports and Members full width; phone (below 768 px) bottom tabs (admin: Chats, Reports, Ask Ezy, Settings; team member: Chats, Ask Ezy, Account; agent limited to chosen chats: Chats, Account), no tabs inside an open chat, Settings list page (every admin page, Your account, Mock only attention switch), Account page, phone app bar with back; Ask Ezy panel copied from the app (docked from 1280 px, full screen on phones, scripted answers via /api/mock/ask-ezy); desktop 1280 / phone 360, light/dark, en/ms/zh-CN, admin/team member/limited agent (shots.mjs, 44 shots in docs/features/app-navigation/screenshots).",
       "note": "Replaces the phone list header of the unconfirmed mobile-redesign proposal (39) where they overlap (Admin moves to the Settings tab, account to Settings/Account) and reverses the design-system rule \"no bottom bar\" (2026-11-07) on owner request 2026-11-13. Removes new-chat (37) for retention; template-store stays (live tooling). Inherits forward-message coverage gaps (message edit/delete and Safety-on-message screens; no Safety admin page in the mock)."
+    },
+    {
+      "feature": "ai-completion-rate",
+      "creationOrder": 42,
+      "createdAt": "2026-11-13",
+      "design": "docs/workbooks/feat__ai-completion-rate.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock folder (one card on the Reports page; the owner confirmed a quick review page with screenshots at 1280/360, light and dark, 2026-11-13: \"ok go ahead\"): the Design section of the workbook and the refreshed docs/screenshots/reports shots.",
+      "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
     },
     {
       "feature": "ai-silent-line",
@@ -73,6 +83,21 @@
       "confirmedAt": "2026-11-07",
       "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
       "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured."
+    },
+    {
+      "feature": "new-chat",
+      "creationOrder": 37,
+      "createdAt": "2026-11-06",
+      "design": "docs/features/new-chat/design.md",
+      "mock": "docs/features/new-chat/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "scheduled-tasks",
+      "baselineGitRevision": "426c2eb766f24e520fd4f59b66ab837c11296045",
+      "coverage": "Full app clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks); New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on) and daily limit field (invalid, 0 = no limit, 10, ban warning), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs)",
+      "note": "Built in parallel with partner-role (36, from google-drive) on the scheduled-tasks baseline (35); confirmed after partner-role, so latestConfirmed is new-chat and the next clone starts from this mock and copies in partner-role's files (its design.md lists them). Inherits scheduled-tasks' coverage gaps.",
+      "confirmedAt": "2026-11-06",
+      "gitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
+      "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd): \"The owner CONFIRMED the New chat mock on 2026-11-06, with one change\": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning, audited before/after, shared with MCP send_to_new_number); suggested answers stand (counts in memory; Business API only 5/hour per user; default country from the inbox's own number, +60 fallback; assigned to the starter, AI waits); limited agents (chat_scope 'chosen') never start a new chat."
     },
     {
       "feature": "scheduled-tasks",

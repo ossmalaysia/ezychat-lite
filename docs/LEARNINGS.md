@@ -480,12 +480,6 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
   (`compare.commits`), not just any commit in a log. A rebase gives every commit a new SHA, so it drops all recorded
-<<<<<<< HEAD
-  stages and Dev Build rows: rebase onto `main` first, then run and record the checks.
-- Two open PRs that both add to `CHANGELOG.md`, `docs/LEARNINGS.md` or `docs/dev-build-checks.md` conflict as soon as one
-  merges: merge `main` into the other (never rebase a reviewed PR; a merge of `main` keeps its proofs), keep both
-  sides, and expect one more CI run before its MERGE OK. Merge the PR whose CI is already green first.
-=======
   stages and Dev Build rows: rebase onto `main` first, then run and record the checks. When a rebase must come after
   them, map each old SHA to its new one by commit subject, record the stages again with `--sha <new>` and name the new
   SHA in the rows ("rebased from …"); screens taken before a later code change still count as missing, so take them
@@ -494,7 +488,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   change to any `e2e/*.mjs` file counts as test code too: a one-line SonarCloud fix in an eval script after the checks
   cancelled the e2e, Dev Build and screen proofs. Read SonarCloud's findings on new scripts (taint rules such as S5145
   flag any server value in `console.log`; print fixed texts) before the final checks, not after.
->>>>>>> origin/main
+- Two open PRs that both add to `CHANGELOG.md`, `docs/LEARNINGS.md` or `docs/dev-build-checks.md` conflict as soon as one
+  merges: merge `main` into the other (never rebase a reviewed PR; a merge of `main` keeps its proofs), keep both
+  sides, and expect one more CI run before its MERGE OK. Merge the PR whose CI is already green first.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
@@ -1029,14 +1025,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
-<<<<<<< HEAD
 - `new URL(import.meta.url).pathname` gives `/D:/…` on Windows, so a cloned mock's seed or runner fails to find its
   files: use `fileURLToPath(new URL(…, import.meta.url))` in every script that may run on the Windows dev machine.
-=======
 - In PowerShell, `git commit -F - @'…'@` passes the here-string as a pathspec, not stdin: the commit fails while the
   `git add` before it already staged its files. Write multi-line commit messages with a Bash heredoc (`-F - <<'EOF'`)
   or `-m` per paragraph, and run `git add` and `git commit` of one change together.
->>>>>>> origin/main
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
