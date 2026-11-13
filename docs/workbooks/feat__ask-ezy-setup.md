@@ -8,9 +8,9 @@ Branch: `feat/ask-ezy-setup` · Every agent updates its stage with
 | Design | pass | Owner confirmed the quick mock 2026-11-12 (look good, implement) | d506483 | 2026-11-12 |
 | Dev | pass | Fixes A-H after the owner's real-model test; one question per agent by name; no one-choice question | bc52a8e | 2026-11-12 |
 | Unit tests | pass | Ask Ezy server, assist, models, prompt and web tests 133 passed; typecheck all workspaces after rebase on main | a328664 | 2026-11-13 |
-| E2E | pass | npm run e2e --workers=2: 159 passed, 27 skipped, 0 failed; desktop build OK; e2e:electron-links OK (ran on 197cea8, rebased as 02f39c3; same code) | 02f39c38 | 2026-11-13 |
-| Dev Build | pass | Mock check devbuild-ask-ezy-setup-check.mjs all PASS on 70472ce; real-model eval GPA 3.95 (126/126) on 02f39c3 (same Ask Ezy code) | 70472ce | 2026-11-13 |
-| Screen review | pass | Question, which chat, cards, edit at 1280/360 light/dark on the final code: 16 shots, no page errors, no overflow | 70472ce | 2026-11-13 |
+| E2E | pass | npm run e2e --workers=2: 159 passed, 0 failed; desktop build OK; e2e:electron-links 17/17 screens (PR head after the eval-script Sonar fixes) | e73c1c0c | 2026-11-13 |
+| Dev Build | pass | Mock check devbuild-ask-ezy-setup-check.mjs 13/13 on e73c1c0; real-model eval GPA 3.95 (126/126) on 02f39c3 (same Ask Ezy code) | e73c1c0c | 2026-11-13 |
+| Screen review | pass | Question, which chat, cards, edit at 1280/360 light/dark on e73c1c0: 16 shots, no page errors, no overflow | e73c1c0c | 2026-11-13 |
 
 ## Log
 
@@ -33,3 +33,6 @@ Branch: `feat/ask-ezy-setup` · Every agent updates its stage with
 - 2026-11-13 Unit tests: pass — Ask Ezy server, assist, models, prompt and web tests 133 passed; typecheck all workspaces after rebase on main (a328664)
 - 2026-11-13 Screen review: pass — Question, which chat, cards, edit at 1280/360 light/dark on the final code: 16 shots, no page errors, no overflow (70472ce)
 - 2026-11-13 Dev Build: pass — Mock check devbuild-ask-ezy-setup-check.mjs all PASS on 70472ce; real-model eval GPA 3.95 (126/126) on 02f39c3 (same Ask Ezy code) (70472ce)
+- 2026-11-13 E2E: pass — npm run e2e --workers=2: 159 passed, 0 failed; desktop build OK; e2e:electron-links 17/17 screens (PR head after the eval-script Sonar fixes) (e73c1c0c)
+- 2026-11-13 Dev Build: pass — Mock check devbuild-ask-ezy-setup-check.mjs 13/13 on e73c1c0; real-model eval GPA 3.95 (126/126) on 02f39c3 (same Ask Ezy code) (e73c1c0c)
+- 2026-11-13 Screen review: pass — Question, which chat, cards, edit at 1280/360 light/dark on e73c1c0: 16 shots, no page errors, no overflow (e73c1c0c)
