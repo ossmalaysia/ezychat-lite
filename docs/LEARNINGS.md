@@ -1003,6 +1003,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
+- In PowerShell, `git commit -F - @'…'@` passes the here-string as a pathspec, not stdin: the commit fails while the
+  `git add` before it already staged its files. Write multi-line commit messages with a Bash heredoc (`-F - <<'EOF'`)
+  or `-m` per paragraph, and run `git add` and `git commit` of one change together.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
