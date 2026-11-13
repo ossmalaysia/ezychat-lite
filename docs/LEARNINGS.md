@@ -1276,6 +1276,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- A reconnect socket can hang with no `open`, no `close` and no error (seen after a 503 stream error: one number back in
+  4 s, the other stuck at "connecting" 1 h 45 min until a relink). Never rely on Baileys alone to end a connect
+  attempt: the adapter needs its own time limit that closes the attempt and schedules the next one.
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
   app must make its own. The adapter's `raw` cache is memory only, so a later download goes
@@ -1569,7 +1572,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   class and status for the log, or every cause looks like the same plain `Error`.
 - Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`, Enterprise
   `C:\ProgramData\ezychat-enterprise`) is admin-only; the owner's downloads land in `D:\Downloads` (read the
-  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). An `AI decision` with `toolCalls: []` where a
+  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). Read it with a read-only filter script started by
+  `Start-Process powershell -Verb RunAs -Wait` (the owner clicks Yes) that writes the matching lines there; filter by
+  `"inboxId":<n>` and close/reconnect messages with no per-file line cap (request lines flood any cap), and remember
+  each line appears twice (pino file + WinSW `out.log`). An `AI decision` with `toolCalls: []` where a
   connector tool was expected means the agent was not offered it: check that agent's own connector settings. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
   Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
