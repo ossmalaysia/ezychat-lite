@@ -991,6 +991,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
+- `new URL(import.meta.url).pathname` gives `/D:/…` on Windows, so a cloned mock's seed or runner fails to find its
+  files: use `fileURLToPath(new URL(…, import.meta.url))` in every script that may run on the Windows dev machine.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
