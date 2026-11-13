@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Info,
   KeyRound,
+  Loader2,
   LogOut,
   Mail,
   MessageSquarePlus,
@@ -29,12 +30,12 @@ import { useAppVersion } from '@/lib/version';
 import { THEME_OPTIONS, useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { useChangeLocale } from '@/i18n/use-change-locale';
+import { toast } from 'sonner';
+import { errorMessage } from '../api/client';
 import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from '../auth/AuthProvider';
+import { shortLocaleLabel } from '../auth/UserMenu';
 import { PhoneBar } from './PhoneBar';
-
-/** Short button text for the language switch (endonyms/codes, not translated), as in the account menu. */
-const SHORT_LOCALE: Record<string, string> = { en: 'EN', ms: 'BM', 'zh-CN': '中文' };
 
 const rowClass =
   'flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
@@ -70,9 +71,22 @@ export function AccountPage() {
   const links = useAppLinks();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const themeId = useId();
   const langId = useId();
   if (!user) return null;
+
+  // One request at a time; a failure says so and leaves the button ready for a retry.
+  async function signOut() {
+    setSigningOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      toast.error(t('account.signOutFailed', { error: errorMessage(error) }));
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -129,7 +143,7 @@ export function AccountPage() {
                   value: l.code,
                   label: (
                     <span lang={l.code} title={l.nativeName}>
-                      {SHORT_LOCALE[l.code] ?? l.nativeName}
+                      {shortLocaleLabel(l.code, l.nativeName)}
                     </span>
                   ),
                 }))}
@@ -178,11 +192,13 @@ export function AccountPage() {
             variant="outline"
             size="touch"
             className="w-full text-danger"
-            onClick={() => void logout()}
+            onClick={() => void signOut()}
+            disabled={signingOut}
+            aria-busy={signingOut}
             data-testid="account-sign-out"
           >
-            <LogOut aria-hidden />
-            {t('account.signOut')}
+            {signingOut ? <Loader2 className="animate-spin" aria-hidden /> : <LogOut aria-hidden />}
+            {signingOut ? t('account.signingOut') : t('account.signOut')}
           </Button>
           {version && (
             <p className="text-center text-xs text-muted-foreground">

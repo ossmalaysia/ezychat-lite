@@ -788,7 +788,7 @@ App navigation (design `docs/features/app-navigation/design.md`, design-system "
 `AppShell` wraps every signed-in page (`/`, `/chats/:jid`, `/account`, `/admin/*`, extension user routes): a rail
 from 768 px, bottom tabs below, no tabs inside an open chat. Reports and Members are rail places; every other admin
 page is under Settings (side menu on desktop, the `/admin` list on phones, `PhoneBar` back one level; unknown admin
-paths go to `/admin/settings`). The Chats count is `GET /api/chats/unread-count` (open chats with unread messages
+paths go to `/admin`, which opens App settings on desktop and the list on phones). The Chats count is `GET /api/chats/unread-count` (open chats with unread messages
 in the caller's scope, reloaded with the chat list). Never put an Admin button, Ask Ezy or the account photo back in
 a page header.
 

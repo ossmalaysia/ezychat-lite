@@ -228,7 +228,8 @@ function UnknownAdminRoute() {
   useEffect(() => {
     reportClientError({ kind: 'error', message: 'Unmatched admin route', route: pathname });
   }, [pathname]);
-  return <Navigate to="/admin/settings" replace />;
+  // `/admin` picks the page for the screen: App settings on desktop, the Settings list on phones.
+  return <Navigate to="/admin" replace />;
 }
 
 /** Desktop: the Settings side menu beside the rail (every admin page but the rail places Reports and Members). */
@@ -276,6 +277,24 @@ function SettingsNav() {
   );
 }
 
+/**
+ * The groups of the phone Settings list. A section in no group (a new `ADMIN_NAV` entry) is returned as
+ * `ungrouped` and shows under More: phones have no other menu. Reports is left out (it has its own tab).
+ */
+export function settingsHomeGroups<T extends { to: string }>(nav: readonly T[]) {
+  const pick = (...to: string[]) => to.flatMap((x) => nav.filter((n) => n.to === x));
+  const groups = [
+    { titleKey: 'common:appNav.team', items: pick('members', 'quick-replies') },
+    {
+      titleKey: 'common:appNav.business',
+      items: pick('whatsapp', 'inboxes', 'safety', 'connectors', 'tunnel'),
+    },
+    { titleKey: 'common:appNav.app', items: pick('settings', 'audit') },
+  ] as const;
+  const grouped = new Set(['reports', ...groups.flatMap((g) => g.items.map((n) => n.to))]);
+  return { groups, ungrouped: nav.filter((n) => !grouped.has(n.to)) };
+}
+
 const homeRowClass =
   'flex min-h-14 items-center gap-3 px-4 text-[15px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
 
@@ -288,16 +307,7 @@ function SettingsHome() {
   const attention = useNumberAttention();
   const { user } = useAuth();
   const nav = visibleAdminNav(multiInbox);
-  const pick = (...to: string[]) =>
-    to.flatMap((x) => nav.filter((n) => n.to === x)) as AdminNavItem[];
-  const groups = [
-    { titleKey: 'common:appNav.team', items: pick('members', 'quick-replies') },
-    {
-      titleKey: 'common:appNav.business',
-      items: pick('whatsapp', 'inboxes', 'safety', 'connectors', 'tunnel'),
-    },
-    { titleKey: 'common:appNav.app', items: pick('settings', 'audit') },
-  ] as const;
+  const { groups, ungrouped } = settingsHomeGroups(nav);
   return (
     <div className="flex flex-col gap-5" data-testid="settings-home">
       {groups.map((g) => (
@@ -322,12 +332,21 @@ function SettingsHome() {
           </ul>
         </section>
       ))}
-      {extensionLinks.length > 0 && (
+      {ungrouped.length + extensionLinks.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="px-1 text-sm font-medium text-muted-foreground">
             {t('common:appNav.more')}
           </h2>
           <ul className="divide-y overflow-hidden rounded-xl border bg-surface">
+            {ungrouped.map((n) => (
+              <li key={n.to}>
+                <Link to={`/admin/${n.to}`} className={homeRowClass}>
+                  <n.icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1">{t(n.labelKey)}</span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
             {extensionLinks.map((n) => (
               <li key={n.key}>
                 <Link to={n.href} className={homeRowClass}>

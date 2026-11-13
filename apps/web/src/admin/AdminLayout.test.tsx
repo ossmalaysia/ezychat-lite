@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AdminLayout, visibleAdminNav } from './AdminLayout';
+import { AdminLayout, settingsHomeGroups, visibleAdminNav } from './AdminLayout';
 import { i18n } from '@/i18n';
 import { reportClientError } from '@/lib/error-reporter';
 import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL } from '@/lib/links';
@@ -58,11 +58,10 @@ vi.mock('./connectors/ConnectorDetailPage', () => ({
 vi.mock('./ReportsPage', () => ({ ReportsPage: () => <h1>Reports</h1> }));
 vi.mock('./SafetyPage', () => ({ SafetyPage: () => <h1>Safety</h1> }));
 
-const label = (key: string) => i18n.t(`admin:${key}`);
 /** The pages under Settings (the side menu); Reports and Members are rail places of their own. */
 const SETTINGS_NAV = visibleAdminNav(false)
   .filter((n) => n.to !== 'reports' && n.to !== 'members')
-  .map((n) => ({ ...n, label: label(n.labelKey) }));
+  .map((n) => ({ ...n, label: i18n.t(`admin:${n.labelKey}`) }));
 
 function Location() {
   return <output data-testid="location">{useLocation().pathname}</output>;
@@ -151,7 +150,12 @@ describe('AdminLayout routing', () => {
     '/admin/members/quick-replies/members/members',
     '/admin/members/ai/1/extra',
     '/admin/unknown',
-  ])('recovers %s to App settings', async (path) => {
+  ])('recovers %s to the Settings list on a phone and App settings on desktop', async (path) => {
+    setup(path);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin'));
+    expect(screen.getByTestId('settings-home')).toBeTruthy();
+    cleanup();
+    desktop(true);
     setup(path);
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/settings'));
     expect(pageHeading('App settings')).toBeTruthy();
@@ -295,7 +299,18 @@ describe('AdminLayout routing', () => {
         route: '/admin/members/quick-replies',
       }),
     );
-    expect(screen.getByTestId('location').textContent).toBe('/admin/settings');
+    expect(screen.getByTestId('location').textContent).toBe('/admin');
+  });
+
+  it('puts an admin section that is in no group of the phone Settings list under More', () => {
+    const nav = [{ to: 'members' }, { to: 'reports' }, { to: 'billing' }, { to: 'audit' }];
+    const { groups, ungrouped } = settingsHomeGroups(nav);
+    expect(groups.map((g) => g.items.map((n) => n.to))).toEqual([['members'], [], ['audit']]);
+    // Reports has its own tab
+    expect(ungrouped.map((n) => n.to)).toEqual(['billing']);
+    // every core section today has a group
+    expect(settingsHomeGroups(visibleAdminNav(false)).ungrouped).toEqual([]);
+    expect(settingsHomeGroups(visibleAdminNav(true)).ungrouped).toEqual([]);
   });
 
   it('keeps version and support destinations in the Settings side menu', async () => {

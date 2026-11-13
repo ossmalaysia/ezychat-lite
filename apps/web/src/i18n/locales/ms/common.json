@@ -58,7 +58,9 @@
     "about": "Perihal {{appName}}",
     "signOut": "Log keluar",
     "sendFeedback": "Hantar maklum balas",
-    "emailSupport": "E-mel sokongan"
+    "emailSupport": "E-mel sokongan",
+    "signingOut": "Sedang log keluar…",
+    "signOutFailed": "Tidak dapat log keluar: {{error}}"
   },
   "errorBoundary": {
     "title": "Berlaku ralat",
@@ -241,7 +243,6 @@
     "unread_other": "{{count}} sembang dengan mesej belum dibaca",
     "attention": "Satu nombor WhatsApp perlu perhatian",
     "settingsTitle": "Tetapan",
-    "settingsDescription": "Pasukan, WhatsApp, penyambung dan tetapan aplikasi anda.",
     "team": "Pasukan",
     "business": "Perniagaan",
     "app": "Aplikasi",
@@ -249,7 +250,6 @@
     "accountTitle": "Akaun",
     "accountDescription": "Nama, rupa dan bahasa anda pada peranti ini.",
     "attentionRow": "Perlu perhatian",
-    "appSettings": "Tetapan aplikasi",
     "backTo": "Kembali ke {{place}}",
     "more": "Lain-lain"
   }

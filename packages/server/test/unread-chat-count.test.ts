@@ -28,7 +28,7 @@ async function seed(app: TestApp, inboxId = 1) {
 }
 
 function inject(
-  method: 'GET' | 'POST' | 'PATCH' | 'PUT',
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   url: string,
   cookie: string,
   payload?: object,
@@ -102,5 +102,8 @@ describe('GET /api/chats/unread-count', () => {
     expect(await count(agent.cookie)).toBe(3);
     t.ctx.inboxes.repo.setUserInboxes(agent.user.id, []);
     expect(await count(agent.cookie)).toBe(0);
+    // a removed inbox keeps its chats read only: nobody can answer them, so they leave the count
+    expect((await inject('DELETE', '/api/inboxes/2', admin.cookie)).statusCode).toBe(204);
+    expect(await count(admin.cookie)).toBe(3);
   });
 });

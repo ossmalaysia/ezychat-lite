@@ -192,7 +192,7 @@ Build after PR #365 (owner, 2026-11-13). Add the "App navigation" entry to `docs
 - `AdminLayout`: the phone sheet, "Back to inbox" and the admin footer's Log out are gone (sign out is in the account
   menu and on the Account page). Desktop shows the Settings side menu except on Reports and Members; phones show the
   Settings list at `/admin` (Safety under Business, extension links under **More**) and a `PhoneBar` on every page.
-  Unknown admin paths go to `/admin/settings` (before: Members). `nav.settings` reads **App settings**, and so does
+  Unknown admin paths go to `/admin` (before: Members): App settings on desktop, the Settings list on phones. `nav.settings` reads **App settings**, and so does
   the page's own title (`settings.title`; the mock still says "Settings" there, which repeated the menu's name).
 - Server: `GET /api/chats/unread-count` → `{ count }` (`UnreadChatCountResponse`): open chats with `unread_count > 0`
   in the same scope as `GET /api/chats` (admins every inbox, agents their inboxes, a limited agent the chosen chats

@@ -1,6 +1,6 @@
 // App navigation: the account menu as a page (phones: the Account tab, or Settings → Your account).
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AppLinksProvider } from '@/lib/app-links';
@@ -27,6 +27,8 @@ vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.84' }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => <p>Notifications</p> }));
 const feedback = vi.hoisted(() => vi.fn());
 vi.mock('@/components/app/FeedbackDialog', () => ({ openFeedback: feedback }));
+const toast = vi.hoisted(() => ({ error: vi.fn() }));
+vi.mock('sonner', () => ({ toast }));
 
 function setup(links: Parameters<typeof resolveAppLinks>[0] = {}) {
   render(
@@ -44,6 +46,7 @@ beforeEach(() => {
   auth.isAdmin = false;
   auth.logout.mockReset().mockResolvedValue(undefined);
   feedback.mockReset();
+  toast.error.mockReset();
   changeLocale.mockReset();
 });
 afterEach(cleanup);
@@ -66,6 +69,24 @@ it('shows who is signed in, the version, and the same items as the account menu'
   expect(changeLocale).toHaveBeenCalledWith('ms');
   await user.click(page.getByRole('button', { name: 'Sign out' }));
   expect(auth.logout).toHaveBeenCalledOnce();
+});
+
+it('signs out once at a time, and says so when signing out fails', async () => {
+  let finish!: (e?: Error) => void;
+  auth.logout.mockImplementation(
+    () => new Promise<void>((resolve, reject) => (finish = (e) => (e ? reject(e) : resolve()))),
+  );
+  const user = setup();
+  await user.click(screen.getByRole('button', { name: 'Sign out' }));
+  const busy = screen.getByRole('button', { name: 'Signing out…' }) as HTMLButtonElement;
+  expect(busy.disabled).toBe(true);
+  expect(busy.getAttribute('aria-busy')).toBe('true');
+  await user.click(busy);
+  expect(auth.logout).toHaveBeenCalledOnce();
+  await act(async () => finish(new Error('Server unreachable')));
+  expect(toast.error).toHaveBeenCalledWith('Could not sign out: Server unreachable');
+  const retry = screen.getByRole('button', { name: 'Sign out' }) as HTMLButtonElement;
+  expect(retry.disabled).toBe(false);
 });
 
 it('a team member has no way back to Settings (the Account tab is their own place)', () => {

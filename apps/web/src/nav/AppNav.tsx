@@ -222,17 +222,18 @@ function useNav() {
   };
 }
 
+/** What the rail and the tabs show: computed once by `AppShell`, so each extension badge hook runs once. */
+type Nav = ReturnType<typeof useNav>;
+
 /** Desktop (768 px and up): the icon rail. Settings and the account photo sit at the bottom. */
-export function AppRail() {
-  const { t, isAdmin, unread, attention, settingsPath, probes, ask, canAsk, place, toggleAsk } =
-    useNav();
+function AppRail({ nav }: { nav: Nav }) {
+  const { t, isAdmin, unread, attention, settingsPath, ask, canAsk, place, toggleAsk } = nav;
   return (
     <nav
       aria-label={t('appNav.main')}
       className="safe-top safe-bottom hidden w-16 shrink-0 flex-col items-center gap-1 border-r bg-background py-3 md:flex"
       data-testid="app-rail"
     >
-      {probes}
       <NavItem
         variant="rail"
         icon={MessagesSquare}
@@ -291,15 +292,14 @@ export function AppRail() {
 }
 
 /** Phone (below 768 px): bottom tabs. Admins: Chats, Reports, Ask Ezy, Settings; others: Chats, Ask Ezy, Account. */
-export function AppTabs() {
-  const { t, isAdmin, unread, attention, probes, ask, canAsk, place, toggleAsk } = useNav();
+function AppTabs({ nav }: { nav: Nav }) {
+  const { t, isAdmin, unread, attention, ask, canAsk, place, toggleAsk } = nav;
   return (
     <nav
       aria-label={t('appNav.main')}
       className="safe-bottom flex shrink-0 border-t bg-surface px-1 md:hidden"
       data-testid="app-tabs"
     >
-      {probes}
       <NavItem
         variant="tab"
         icon={MessagesSquare}
@@ -360,15 +360,17 @@ export function AppTabs() {
 export function AppShell() {
   const { pathname } = useLocation();
   const inChat = pathname.startsWith('/chats/');
+  const nav = useNav();
   return (
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
-      <AppRail />
+      {nav.probes}
+      <AppRail nav={nav} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Inbox and admin scroll inside themselves; an extension page that is taller scrolls here. */}
         <div className="min-h-0 flex-1 overflow-y-auto">
           <Outlet />
         </div>
-        {!inChat && <AppTabs />}
+        {!inChat && <AppTabs nav={nav} />}
       </div>
     </div>
   );

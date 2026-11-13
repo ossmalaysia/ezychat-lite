@@ -70,21 +70,6 @@
       "note": "Phase 1 only (the owner's three items + quick wins). Phase 2 (composer, message actions, Customer details / Group info sheets, keyboard) is described in design.md, not mocked. Inherits forward-message's coverage gaps (message edit/delete and Safety-on-message screens). Removes scheduled-tasks (35) for retention; template-store stays (live tooling). Also updates docs/design-system.md (Mobile patterns, Editions, fixes) as part of the same confirmation."
     },
     {
-      "feature": "forward-message",
-      "creationOrder": 38,
-      "createdAt": "2026-11-07",
-      "design": "docs/features/forward-message/design.md",
-      "mock": "docs/features/forward-message/mock/index.html",
-      "status": "confirmed",
-      "baselineFeature": "new-chat",
-      "baselineGitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
-      "coverage": "Full app clone of new-chat with partner-role (846a09cc) merged in three ways against google-drive 442b6317; Forward on the message menu (desktop ⋮ menu, touch press-and-hold bar, disabled when Safety locks the file), dialog: what is forwarded, search, chats and groups by inbox access / chosen chats, two inboxes picked with the own-number note, 5 of 5, Business API chat with the window closed (row disabled), Safety locked, WhatsApp offline, forwarded many times = one chat, sent toast (n chats; one chat with Open chat); Forwarded / Forwarded many times label on copies and on customers' forwarded messages; Activity row; limited agent (Ravi) list; Lite; desktop 1280 / mobile 360 touch, light (dark for the dialog and label), en/ms/zh-CN ; large files (owner case, a 70 MB video from Catering to a Business API chat and a group on another number: size, large-file note, Send as Video/File with Video disabled above the chat's limit, 120 MB greyed out for the Business API chat, Sending 70 MB… in the target chat, upload failed with Retry) (forward-shots.mjs, 56 shots, 0 page errors, 0 overflow)",
-      "note": "Inherits new-chat's coverage gaps (the mock web source predates message edit/delete and Safety on messages: a minimal ⋮ menu and a Mock only Safety switch stand in). Stand-in routes /api/mock/forward*. Prunes sql-accounting (34). partner-role's files are already merged in, so the next clone starts from this mock alone.",
-      "confirmedAt": "2026-11-07",
-      "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-      "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured."
-    },
-    {
       "feature": "new-chat",
       "creationOrder": 37,
       "createdAt": "2026-11-06",
@@ -736,6 +721,25 @@
       "archivedAt": "2026-11-13",
       "archivedRevision": "98b22a044a6ce1d805d0fc5fb38c5e44a3838716",
       "archivedBy": "app-navigation (five-folder retention; template-store kept as tooling; cloud-auth-storage is a design-only folder created 2026-11-08, newer than new-chat)"
+    },
+    {
+      "feature": "forward-message",
+      "creationOrder": 38,
+      "createdAt": "2026-11-07",
+      "design": "docs/features/forward-message/design.md",
+      "mock": "docs/features/forward-message/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "new-chat",
+      "baselineGitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
+      "coverage": "Full app clone of new-chat with partner-role (846a09cc) merged in three ways against google-drive 442b6317; Forward on the message menu (desktop ⋮ menu, touch press-and-hold bar, disabled when Safety locks the file), dialog: what is forwarded, search, chats and groups by inbox access / chosen chats, two inboxes picked with the own-number note, 5 of 5, Business API chat with the window closed (row disabled), Safety locked, WhatsApp offline, forwarded many times = one chat, sent toast (n chats; one chat with Open chat); Forwarded / Forwarded many times label on copies and on customers' forwarded messages; Activity row; limited agent (Ravi) list; Lite; desktop 1280 / mobile 360 touch, light (dark for the dialog and label), en/ms/zh-CN ; large files (owner case, a 70 MB video from Catering to a Business API chat and a group on another number: size, large-file note, Send as Video/File with Video disabled above the chat's limit, 120 MB greyed out for the Business API chat, Sending 70 MB… in the target chat, upload failed with Retry) (forward-shots.mjs, 56 shots, 0 page errors, 0 overflow)",
+      "note": "Inherits new-chat's coverage gaps (the mock web source predates message edit/delete and Safety on messages: a minimal ⋮ menu and a Mock only Safety switch stand in). Stand-in routes /api/mock/forward*. Prunes sql-accounting (34). partner-role's files are already merged in, so the next clone starts from this mock alone.",
+      "confirmedAt": "2026-11-07",
+      "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured.",
+      "archived": true,
+      "archivedAt": "2026-11-14",
+      "archivedRevision": "81696946f1f562e93cf10a09ed0a4bfc21aa5fa5",
+      "archivedBy": "app-navigation (five-folder retention: ask-ezy-setup arrived from main as the sixth counted folder; template-store kept as tooling; app-navigation is the confirmed baseline now)"
     }
   ]
 }

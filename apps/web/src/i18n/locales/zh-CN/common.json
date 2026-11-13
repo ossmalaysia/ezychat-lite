@@ -58,7 +58,9 @@
     "about": "关于 {{appName}}",
     "signOut": "退出登录",
     "sendFeedback": "发送反馈",
-    "emailSupport": "发送邮件给支持团队"
+    "emailSupport": "发送邮件给支持团队",
+    "signingOut": "正在退出登录…",
+    "signOutFailed": "无法退出登录：{{error}}"
   },
   "errorBoundary": {
     "title": "出了点问题",
@@ -241,7 +243,6 @@
     "unread_other": "{{count}} 个聊天有未读消息",
     "attention": "有一个 WhatsApp 号码需要处理",
     "settingsTitle": "设置",
-    "settingsDescription": "团队、WhatsApp、连接器和应用设置。",
     "team": "团队",
     "business": "业务",
     "app": "应用",
@@ -249,7 +250,6 @@
     "accountTitle": "账户",
     "accountDescription": "你的名字、外观和此设备上的语言。",
     "attentionRow": "需要处理",
-    "appSettings": "应用设置",
     "backTo": "返回{{place}}",
     "more": "更多"
   }
