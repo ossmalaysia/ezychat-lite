@@ -2064,6 +2064,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   gets a security review before the PR: which interfaces it touches, OS firewall prompts, what a LAN or
   other local program could reach, and the security invariants in AGENTS.md. Run `/security-review` on the
   branch and record the answer in the PR description.
+- One concept, one English word on every screen (the AI's "hand-off", not "hand-over" on one page): when renaming a
+  label, also change the sentences that refer to it, then grep tests and e2e for every old sentence, not only the label.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.
