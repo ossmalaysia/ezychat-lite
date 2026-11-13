@@ -1,10 +1,9 @@
-import { test, expect } from './helpers';
+import { test, expect, openAccountItem } from './helpers';
 import type { DesktopUpdateState } from '@ezychat/shared';
 
 test('phones and browsers have no host update workflow', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Account menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'About EzyChat Lite', exact: true }).click();
+  await openAccountItem(page, 'About EzyChat Lite');
   await expect(page.getByRole('dialog', { name: 'About EzyChat Lite' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Check for updates', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Review update', exact: true })).toHaveCount(0);

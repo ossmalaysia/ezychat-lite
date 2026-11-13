@@ -91,6 +91,7 @@ export function AccountPage() {
   return (
     <div className="flex h-full flex-col">
       <PhoneBar
+        heading
         title={t('appNav.accountTitle')}
         back={
           isAdmin

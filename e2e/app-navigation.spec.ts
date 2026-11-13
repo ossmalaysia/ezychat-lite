@@ -45,12 +45,12 @@ async function signInAsAgent(browser: Browser, page: Page, baseURL: string, tag:
   });
   const agent = await context.newPage();
   await signIn(agent, username, 'temp-pass-123');
-  if (agent.url().endsWith('/change-password')) {
-    await agent.getByLabel('Current password').fill('temp-pass-123');
-    await agent.getByLabel('New password', { exact: true }).fill('agent-pass-456');
-    await agent.getByLabel('Confirm new password').fill('agent-pass-456');
-    await agent.getByRole('button', { name: 'Save password' }).click();
-  }
+  // A member made with a temporary password must replace it first.
+  await expect(agent.getByRole('heading', { name: 'Choose a new password' })).toBeVisible();
+  await agent.getByLabel('Current password').fill('temp-pass-123');
+  await agent.getByLabel('New password', { exact: true }).fill('agent-pass-456');
+  await agent.getByLabel('Confirm new password').fill('agent-pass-456');
+  await agent.getByRole('button', { name: 'Save password' }).click();
   await expect(inboxHeading(agent)).toBeVisible();
   return { agent, context };
 }

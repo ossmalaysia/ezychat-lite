@@ -106,7 +106,7 @@ test.describe('360px: no horizontal scroll', () => {
       { path: 'quick-replies', heading: 'Quick replies' },
       { path: 'whatsapp', heading: 'WhatsApp' },
       { path: 'tunnel', heading: 'Phone access' },
-      { path: 'settings', heading: 'Settings' },
+      { path: 'settings', heading: 'App settings' },
       { path: 'audit', heading: 'Audit' },
     ];
     for (const p of adminPages) {

@@ -1,4 +1,13 @@
-import { ADMIN, expect, inboxHeading, test, projectTag, signIn, signOutFromInbox } from './helpers';
+import {
+  ADMIN,
+  expect,
+  hasRail,
+  inboxHeading,
+  test,
+  projectTag,
+  signIn,
+  signOutFromInbox,
+} from './helpers';
 
 test.describe('admin: members', () => {
   // Fresh session: this flow signs out, which must not revoke the shared admin storage state.
@@ -87,11 +96,15 @@ test.describe('admin: members', () => {
     await page.getByRole('button', { name: 'Save password' }).click();
     await expect(inboxHeading(page)).toBeVisible();
 
-    // Agents have no admin entry and are bounced from /admin.
-    await page.getByRole('button', { name: 'Account menu' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Admin settings' })).toHaveCount(0);
-    await page.keyboard.press('Escape');
+    // Agents have no admin entry (no Settings place, no Admin settings item) and are bounced from /admin.
+    await expect(page.getByTestId('nav-settings')).toHaveCount(0);
+    await expect(page.getByTestId('tab-settings')).toHaveCount(0);
+    if (await hasRail(page)) {
+      await page.getByRole('button', { name: 'Account menu' }).click();
+      await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+      await expect(page.getByRole('menuitem', { name: 'Admin settings' })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+    }
 
     await page.goto('/admin/members');
     await expect(page).not.toHaveURL(/\/admin/);

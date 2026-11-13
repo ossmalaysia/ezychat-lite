@@ -96,15 +96,37 @@ export async function expectNoHorizontalScroll(page: Page, label: string): Promi
  * (a team member's Account tab, an admin's Settings → Your account).
  */
 export async function signOutFromInbox(page: Page): Promise<void> {
-  const menu = page.getByRole('button', { name: 'Account menu' }).filter({ visible: true });
-  if (await menu.count()) {
-    await menu.click();
+  if (await hasRail(page)) {
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Sign out' }).click();
   } else {
     await page.goto('/account');
     await page.getByTestId('account-sign-out').click();
   }
   await expect(page).toHaveURL(/\/login$/);
+}
+
+/** True from 768 px (the rail with the account menu), false on phones (tabs); waits until one of them is drawn. */
+export async function hasRail(page: Page): Promise<boolean> {
+  await page
+    .locator('[data-testid="app-rail"]:visible, [data-testid="app-tabs"]:visible')
+    .first()
+    .waitFor();
+  return page.getByTestId('app-rail').isVisible();
+}
+
+/**
+ * Opens an item of the account menu (`name`, e.g. "Share this app", "About EzyChat Lite"): the menu under the photo in
+ * the rail from 768 px, else the same row on the Account page.
+ */
+export async function openAccountItem(page: Page, name: string): Promise<void> {
+  if (await hasRail(page)) {
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+    await page.getByRole('menuitem', { name, exact: true }).click();
+  } else {
+    await page.goto('/account');
+    await page.getByTestId('account-page').getByRole('button', { name, exact: true }).click();
+  }
 }
 
 export async function signIn(page: Page, username: string, password: string): Promise<void> {

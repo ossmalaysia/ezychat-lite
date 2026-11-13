@@ -222,7 +222,7 @@ describe('AdminLayout routing', () => {
     ['/admin/audit', 'Audit', '/admin'],
   ])('the phone app bar of %s says %s and goes back to %s', (path, title, back) => {
     setup(path);
-    expect(within(phoneBar()).getByRole('heading').textContent).toBe(title);
+    expect(screen.getByTestId('phone-bar-title').textContent).toBe(title);
     const link = within(phoneBar()).queryByRole('link');
     expect(link?.getAttribute('href') ?? null).toBe(back);
   });
@@ -398,7 +398,7 @@ describe('AdminLayout inboxes', () => {
     await user.click(link);
     expect(pageHeading('Inboxes')).toBeTruthy();
     expect(link.getAttribute('aria-current')).toBe('page');
-    expect(within(phoneBar()).getByRole('heading').textContent).toBe('Inboxes');
+    expect(screen.getByTestId('phone-bar-title').textContent).toBe('Inboxes');
   });
 
   it('redirects /admin/whatsapp to /admin/inboxes with several numbers', async () => {

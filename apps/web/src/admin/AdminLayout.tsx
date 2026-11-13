@@ -448,7 +448,12 @@ export function AdminLayout() {
 
   return (
     <div className="safe-x flex h-full flex-col bg-background text-foreground md:flex-row">
-      <PhoneBar title={bar.title} back={bar.back} />
+      {/* The Settings list has no title of its own: there the bar's title is the page's h1. */}
+      <PhoneBar
+        title={bar.title}
+        back={bar.back}
+        heading={pathname === '/admin' || pathname === '/admin/'}
+      />
 
       {/* Desktop: the Settings side menu, only on Settings pages (not on the rail places Reports and Members). */}
       {!railPlace && (
