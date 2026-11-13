@@ -1462,6 +1462,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   (`AI_NoOutputGeneratedError`), which the person sees as "the provider did not respond". Size n from a real
   turn's log, not a guess: an "improve the agent" turn needs agents, setup, context items, one or two tests and the
   proposal (7 tool steps), so 6 cut it off.
+- Every AI connection (ChatGPT sign-in, OpenAI key, Claude key) bounds a whole turn to 60 s for customer replies; a
+  feature's own longer budget means nothing unless it passes it down (`AiAssistCall.timeoutMs`). Look for the
+  smallest bound on the path before raising one (the owner's question died at 61 s under a 150 s budget). A
+  streamed answer that may stay silent over 100 s needs a keep-alive line, or the Cloudflare tunnel closes it.
 - "Propose after testing" is not enough for a model: it tested the change and then offered "Want me to propose
   this?" as a follow-up chip, so the admin saw no Apply button. Say "propose it in the same answer; never end with a
   question instead of the proposal", and judge an improvement turn by its blocks (`change`), not its text.
