@@ -54,9 +54,11 @@ const GENERIC = /^(new )?(ai )?(agent|assistant|bot)( \d+)?$/i;
 const COMPOUND = /\bwhich\b.+\band (which|what|when)\b/i;
 // A new agent is possible only while there is room under the edition's limit; else Ezy must offer an existing one.
 const status = (await api('GET', '/ai')).json ?? {};
-const ROOM = (status.agents?.length ?? 0) < (status.maxAgents ?? 1);
+const agentCount = Array.isArray(status.agents) ? status.agents.length : 0;
+const maxAgents = Number.isInteger(status.maxAgents) ? status.maxAgents : 1;
+const ROOM = agentCount < maxAgents;
 console.log(
-  `agents ${status.agents?.length ?? '?'} of ${status.maxAgents ?? '?'}: a new agent is ${ROOM ? 'possible' : 'not possible'}\n`,
+  `agents ${agentCount} of ${maxAgents}: a new agent is ${ROOM ? 'possible' : 'not possible'}\n`,
 );
 
 /** A turn that has not answered after this long is recorded as `client_timeout` (one hang never ends the run). */
