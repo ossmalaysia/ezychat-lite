@@ -280,7 +280,7 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
-**Ask Ezy** (design `docs/features/ask-ezy/design.md`, mock `docs/features/ask-ezy/mock`). An in-app assistant
+**Ask Ezy** (design and decision log `docs/ask-ezy.md`: read it before changing Ask Ezy and add a decision line when you change a rule). An in-app assistant
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
 the signed-in user (team members: the inbox read tools of their own inboxes; admins also the AI setup reads,
