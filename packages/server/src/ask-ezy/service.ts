@@ -376,12 +376,35 @@ export function createAskEzyService(
             once: true,
           }),
         );
+        const instructions = instructionsFor(mode === 'setup');
+        const tools = toolsFor(mode, turnSignal);
+        // The fixed part every call of this turn starts with (what a prompt cache can hold), once per turn.
+        log.info(
+          {
+            event: 'ask_ezy_turn_start',
+            setup: mode === 'setup',
+            instructionsChars: instructions.length,
+            tools: Object.keys(tools).length,
+            toolDescriptionChars: Object.values(tools).reduce(
+              (n, t) => n + (t.description?.length ?? 0),
+              0,
+            ),
+            historyMessages: messages.length,
+            historyChars: JSON.stringify(messages).length,
+          },
+          'Ask Ezy turn start',
+        );
         const work = ai.assist(
           {
-            instructions: instructionsFor(mode === 'setup'),
+            instructions,
             messages,
-            tools: toolsFor(mode, turnSignal),
+            tools,
             ...(mode === 'setup' ? { main: true } : {}),
+            onTrace: (trace) =>
+              log.info(
+                { event: 'ask_ezy_call', setup: mode === 'setup', ...trace },
+                'Ask Ezy model call',
+              ),
             // The connection's own bound is 60 s (customer replies); the question's budget is the limit here.
             timeoutMs: ms,
           },
@@ -436,6 +459,7 @@ export function createAskEzyService(
             event: 'ask_ezy',
             role: user.role,
             tools: calls.map((c) => c.tool),
+            toolMs: calls.map((c) => c.ms),
             steps: result.steps,
             blocks: blocks.length,
             dropped: all.length - blocks.length,

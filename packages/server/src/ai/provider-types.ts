@@ -1,5 +1,5 @@
 import type { ModelMessage, ToolSet } from 'ai';
-import type { AssistResult } from './agent/assist.js';
+import type { AssistCallTrace, AssistResult } from './agent/assist.js';
 import type { z } from 'zod';
 import type {
   AiConnection,
@@ -61,6 +61,8 @@ export interface AiAssistCall {
   timeoutMs?: number;
   /** Tool names of each finished step, for the live "Read …" lines. */
   onStep?: (toolNames: string[]) => void;
+  /** One record per model call (counts and times only), for the latency and cache trace. */
+  onTrace?: (trace: AssistCallTrace) => void;
 }
 
 /** A reply-draft call: its output format, the fast model for completions, the output bound. */

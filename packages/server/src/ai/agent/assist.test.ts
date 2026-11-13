@@ -168,6 +168,44 @@ describe('runAssist', () => {
     ).rejects.toThrow();
   });
 
+  it('traces each model call with counts and times only, and a failing trace changes nothing', async () => {
+    const model = new MockLanguageModelV4({ doGenerate: [toolStep, final(OUTPUT)] });
+    const traces: AssistCallTrace[] = [];
+    const result = await runAssist({
+      model,
+      instructions: 'x',
+      messages: [{ role: 'user', content: 'How is my week, Farah?' }],
+      tools,
+      signal: new AbortController().signal,
+      onTrace: (t) => traces.push(t),
+    });
+    expect(result.output).toEqual(OUTPUT);
+    expect(traces.map((t) => [t.call, t.tools, t.finish])).toEqual([
+      [1, ['get_stats'], 'tool-calls'],
+      [2, [], 'stop'],
+    ]);
+    expect(traces[0]).toMatchObject({
+      inputMessages: 1,
+      inputTokens: 1,
+      cachedTokens: 0,
+      outputTokens: 1,
+    });
+    expect(traces[1]!.inputMessages).toBeGreaterThan(1);
+    expect(JSON.stringify(traces)).not.toContain('Farah');
+    const again = new MockLanguageModelV4({ doGenerate: [final(OUTPUT)] });
+    const ok = await runAssist({
+      model: again,
+      instructions: 'x',
+      messages: [{ role: 'user', content: 'q' }],
+      tools: {},
+      signal: new AbortController().signal,
+      onTrace: () => {
+        throw new Error('log gone');
+      },
+    });
+    expect(ok.output).toEqual(OUTPUT);
+  });
+
   it('throws before any call when cancelled', async () => {
     const controller = new AbortController();
     controller.abort();

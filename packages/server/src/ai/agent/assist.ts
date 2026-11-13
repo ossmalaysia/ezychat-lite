@@ -4,6 +4,7 @@ import {
   Output,
   stepCountIs,
   type LanguageModel,
+  type LanguageModelUsage,
   type ModelMessage,
   type ToolSet,
 } from 'ai';
@@ -49,6 +50,26 @@ export interface AssistCall {
   onStep?: (toolNames: string[]) => void;
   /** OpenAI Responses reasoning effort for ChatGPT sign-in; omitted = the model's default. */
   reasoningEffort?: 'low';
+  /** One record per model call (counts and times only, never text), for the latency and cache trace. */
+  onTrace?: (trace: AssistCallTrace) => void;
+}
+
+/** What one model call of a turn cost: what was sent (sizes), how long it took, what came from the cache. */
+export interface AssistCallTrace {
+  /** 1 = the first model call of the turn. */
+  call: number;
+  ms: number;
+  /** Characters of the conversation sent with this call (instructions and tool definitions not counted). */
+  inputChars: number;
+  inputMessages: number;
+  inputTokens: number | null;
+  /** Input tokens the provider read from its prompt cache. */
+  cachedTokens: number | null;
+  outputTokens: number | null;
+  reasoningTokens: number | null;
+  /** Tools this call asked for (run before the next call). */
+  tools: string[];
+  finish: string;
 }
 
 export interface AssistResult {
@@ -111,6 +132,34 @@ export async function runAssist(call: AssistCall): Promise<AssistResult> {
 }
 
 function generate(call: AssistCall, onStepNames: (names: string[]) => void) {
+  let callNo = 0;
+  let sent = { chars: 0, messages: 0 };
+  const trace = (event: {
+    usage: LanguageModelUsage;
+    performance: { responseTimeMs: number };
+    content: ReadonlyArray<{ type: string; toolName?: string }>;
+    finishReason: string;
+  }) => {
+    if (!call.onTrace) return;
+    try {
+      call.onTrace({
+        call: callNo,
+        ms: Math.round(event.performance.responseTimeMs),
+        inputChars: sent.chars,
+        inputMessages: sent.messages,
+        inputTokens: event.usage.inputTokens ?? null,
+        cachedTokens: event.usage.inputTokenDetails?.cacheReadTokens ?? null,
+        outputTokens: event.usage.outputTokens ?? null,
+        reasoningTokens: event.usage.outputTokenDetails?.reasoningTokens ?? null,
+        tools: event.content.flatMap((p) =>
+          p.type === 'tool-call' && p.toolName ? [p.toolName] : [],
+        ),
+        finish: event.finishReason,
+      });
+    } catch {
+      // a trace never changes the answer
+    }
+  };
   return generateText({
     model: call.model,
     instructions: call.instructions,
@@ -118,8 +167,13 @@ function generate(call: AssistCall, onStepNames: (names: string[]) => void) {
     tools: call.tools,
     stopWhen: stepCountIs(ASSIST_MAX_STEPS),
     // The last step may not call a tool: a tool call there leaves no answer (`NoOutputGeneratedError`).
-    prepareStep: ({ stepNumber }) =>
-      stepNumber === ASSIST_MAX_STEPS - 1 ? { toolChoice: 'none' } : undefined,
+    prepareStep: ({ stepNumber, messages }) => {
+      callNo = stepNumber + 1;
+      if (call.onTrace)
+        sent = { chars: JSON.stringify(messages).length, messages: messages.length };
+      return stepNumber === ASSIST_MAX_STEPS - 1 ? { toolChoice: 'none' } : undefined;
+    },
+    onLanguageModelCallEnd: trace,
     output: Output.object({ schema: AssistOutput }),
     abortSignal: call.signal,
     maxRetries: 0,
