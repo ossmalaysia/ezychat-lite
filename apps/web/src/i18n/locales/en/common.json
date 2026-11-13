@@ -145,7 +145,7 @@
       "body": "How the AI behaves: tone, language, what to ask. Facts like prices go in Business context."
     },
     "handoff": {
-      "title": "What is a hand-over?",
+      "title": "What is a hand-off?",
       "body": "The AI stops and passes the chat to your team, who get a notification. These rules say when, e.g. complaints or refunds."
     },
     "tryIt": {

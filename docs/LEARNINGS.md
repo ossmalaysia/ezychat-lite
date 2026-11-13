@@ -334,6 +334,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- A test that scans the whole repository does it in one native call (`git grep`), not file by file in JS: the
+  read loop passed locally and timed out at 5 s on a busy macOS runner.
 - Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
   push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
   (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
@@ -2064,6 +2066,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   gets a security review before the PR: which interfaces it touches, OS firewall prompts, what a LAN or
   other local program could reach, and the security invariants in AGENTS.md. Run `/security-review` on the
   branch and record the answer in the PR description.
+- One concept, one English word on every screen (the AI's "hand-off", not "hand-over" on one page): when renaming a
+  label, also change the sentences that refer to it, then grep tests and e2e for every old sentence, not only the label.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.
