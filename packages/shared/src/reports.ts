@@ -33,6 +33,16 @@ export const ReportTotals = z.object({
   aiAnswered: z.number().int().nonnegative(),
   aiResolved: z.number().int().nonnegative(),
   aiHandoffs: z.number().int().nonnegative(),
+  /**
+   * AI completion rate (docs/workbooks/feat__ai-completion-rate.md): direct chats closed in the period (by the AI or
+   * a person) where the AI replied since the chat's previous close. `aiCompleted` of them had no hand-off since that
+   * close and no message from a teammate or the phone after the AI's first reply; the others split into
+   * `aiClosedAfterHandoff` and `aiClosedAfterReply` (a person replied, no hand-off). Scheduled messages do not count.
+   */
+  aiClosed: z.number().int().nonnegative().default(0),
+  aiCompleted: z.number().int().nonnegative().default(0),
+  aiClosedAfterHandoff: z.number().int().nonnegative().default(0),
+  aiClosedAfterReply: z.number().int().nonnegative().default(0),
 });
 export type ReportTotals = z.infer<typeof ReportTotals>;
 
@@ -74,6 +84,8 @@ export const Report = z.object({
     count: z.number().int().nonnegative(),
     oldestAt: z.number().int().nullable(),
   }),
+  /** Current state: open direct chats an AI agent still holds and replied in during the period; not in the rate yet. */
+  aiOpen: z.number().int().nonnegative().default(0),
   /** One row per local day from the later of the period start and `firstDate`; today is partial. */
   daily: z.array(ReportDay),
   /** Monday first: average messages from customers and active chats per day of that weekday. */

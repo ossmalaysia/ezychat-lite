@@ -35,11 +35,17 @@ function msg(
   jid: string,
   t: number,
   from: 'customer' | number | 'phone',
-  opts: { storedAt?: number; status?: 'sent' | 'failed'; type?: 'text' | 'system' } = {},
+  opts: {
+    storedAt?: number;
+    status?: 'sent' | 'failed';
+    type?: 'text' | 'system';
+    scheduledTaskId?: number;
+  } = {},
 ) {
   db.prepare(
-    `INSERT INTO messages (id, chat_jid, from_me, sent_by_user_id, type, body, status, timestamp, created_at)
-     VALUES (?, ?, ?, ?, ?, 'x', ?, ?, ?)`,
+    `INSERT INTO messages (id, chat_jid, from_me, sent_by_user_id, type, body, status, timestamp, created_at,
+       scheduled_task_id)
+     VALUES (?, ?, ?, ?, ?, 'x', ?, ?, ?, ?)`,
   ).run(
     `m${++seq}`,
     jid,
@@ -49,7 +55,15 @@ function msg(
     opts.status ?? 'sent',
     t,
     opts.storedAt ?? t,
+    opts.scheduledTaskId ?? null,
   );
+}
+
+/** A close of the chat (`resolved` event), by a teammate (1) or the AI (2). */
+function closed(jid: string, t: number, by: 1 | 2 = 1) {
+  db.prepare(
+    `INSERT INTO chat_events (chat_jid, type, actor_id, payload, at) VALUES (?, 'resolved', ?, '{}', ?)`,
+  ).run(jid, by, t);
 }
 
 function auditRow(action: string, chatJid: string, t: number, reason?: string) {
@@ -59,6 +73,107 @@ function auditRow(action: string, chatJid: string, t: number, reason?: string) {
     t,
   );
 }
+
+describe('AI completion rate', () => {
+  it('counts closed AI chats with no hand-off and no reply from a person as completed', () => {
+    // 1: the AI answers, a teammate only presses Close: completed.
+    chat('c1@s.whatsapp.net', 'resolved');
+    msg('c1@s.whatsapp.net', at(20, '10:00'), 'customer');
+    msg('c1@s.whatsapp.net', at(20, '10:01'), 2);
+    closed('c1@s.whatsapp.net', at(20, '11:00'));
+    // 2: the AI closes it itself: completed.
+    chat('c2@s.whatsapp.net', 'resolved');
+    msg('c2@s.whatsapp.net', at(19, '10:00'), 'customer');
+    msg('c2@s.whatsapp.net', at(19, '10:01'), 2);
+    closed('c2@s.whatsapp.net', at(19, '10:30'), 2);
+    // 3: a teammate wrote BEFORE the AI's first reply only: still completed.
+    chat('c3@s.whatsapp.net', 'resolved');
+    msg('c3@s.whatsapp.net', at(18, '09:00'), 1);
+    msg('c3@s.whatsapp.net', at(18, '09:10'), 'customer');
+    msg('c3@s.whatsapp.net', at(18, '09:11'), 2);
+    closed('c3@s.whatsapp.net', at(18, '09:30'));
+    // 4: the AI hands over, then Ali replies: a hand-off.
+    chat('h@s.whatsapp.net', 'resolved');
+    msg('h@s.whatsapp.net', at(18, '10:00'), 'customer');
+    msg('h@s.whatsapp.net', at(18, '10:01'), 2);
+    auditRow('ai.handoff', 'h@s.whatsapp.net', at(18, '10:02'), 'needs_action');
+    msg('h@s.whatsapp.net', at(18, '10:30'), 1);
+    closed('h@s.whatsapp.net', at(18, '11:00'));
+    // 4b: the hand-off is recorded just before its own line, the AI's only message: still a hand-off.
+    chat('hf@s.whatsapp.net', 'resolved');
+    msg('hf@s.whatsapp.net', at(17, '11:00'), 'customer');
+    auditRow('ai.handoff', 'hf@s.whatsapp.net', at(17, '11:01'), 'asked_for_human');
+    msg('hf@s.whatsapp.net', at(17, '11:02'), 2);
+    closed('hf@s.whatsapp.net', at(17, '12:00'));
+    // 5: someone wrote from the phone after the AI: a person replied.
+    chat('r@s.whatsapp.net', 'resolved');
+    msg('r@s.whatsapp.net', at(17, '10:00'), 'customer');
+    msg('r@s.whatsapp.net', at(17, '10:01'), 2);
+    msg('r@s.whatsapp.net', at(17, '10:20'), 'phone');
+    closed('r@s.whatsapp.net', at(17, '10:30'));
+    // Not AI cases: a team-only chat, a chat with only a scheduled message, and a failed AI reply.
+    chat('t@s.whatsapp.net', 'resolved');
+    msg('t@s.whatsapp.net', at(17, '10:00'), 'customer');
+    msg('t@s.whatsapp.net', at(17, '10:01'), 1);
+    closed('t@s.whatsapp.net', at(17, '10:30'));
+    chat('s@s.whatsapp.net', 'resolved');
+    msg('s@s.whatsapp.net', at(17, '09:00'), 2, { scheduledTaskId: 7 });
+    closed('s@s.whatsapp.net', at(17, '09:30'));
+    chat('f@s.whatsapp.net', 'resolved');
+    msg('f@s.whatsapp.net', at(17, '09:00'), 'customer');
+    msg('f@s.whatsapp.net', at(17, '09:01'), 2, { status: 'failed' });
+    closed('f@s.whatsapp.net', at(17, '09:30'));
+    // Two cases in one chat: before the first close the AI was alone (previous period); after it, a teammate replied.
+    chat('x@s.whatsapp.net', 'resolved');
+    msg('x@s.whatsapp.net', at(10, '10:00'), 'customer');
+    msg('x@s.whatsapp.net', at(10, '10:01'), 2);
+    closed('x@s.whatsapp.net', at(10, '11:00'));
+    msg('x@s.whatsapp.net', at(16, '10:00'), 'customer');
+    msg('x@s.whatsapp.net', at(16, '10:01'), 2);
+    msg('x@s.whatsapp.net', at(16, '10:05'), 1);
+    closed('x@s.whatsapp.net', at(16, '11:00'));
+    // Open with the AI now (not counted yet), and an open chat whose AI reply came before its last close (that
+    // close, on the 16th, is itself a completed case; the chat is not open with the AI).
+    chat('o@s.whatsapp.net');
+    db.prepare('UPDATE chats SET assigned_to = 2 WHERE jid = ?').run('o@s.whatsapp.net');
+    msg('o@s.whatsapp.net', at(21, '09:00'), 'customer');
+    msg('o@s.whatsapp.net', at(21, '09:01'), 2);
+    // Open, but handed over (no longer held by the AI): not "still open with the AI".
+    chat('ho@s.whatsapp.net');
+    msg('ho@s.whatsapp.net', at(21, '09:00'), 'customer');
+    msg('ho@s.whatsapp.net', at(21, '09:01'), 2);
+    auditRow('ai.handoff', 'ho@s.whatsapp.net', at(21, '09:02'), 'asked_for_human');
+    chat('z@s.whatsapp.net');
+    msg('z@s.whatsapp.net', at(16, '09:01'), 2);
+    closed('z@s.whatsapp.net', at(16, '10:00'));
+    msg('z@s.whatsapp.net', at(21, '09:00'), 'customer');
+    // Groups never count.
+    chat('g@g.us', 'resolved', 'group');
+    msg('g@g.us', at(20, '10:01'), 2);
+    closed('g@g.us', at(20, '11:00'));
+
+    const r = computeReport(db, { days: 7, timeZone: TZ, now: NOW });
+
+    expect(Report.parse(r)).toEqual(r);
+    expect(r.totals).toMatchObject({
+      aiClosed: 8,
+      aiCompleted: 4,
+      aiClosedAfterHandoff: 2,
+      aiClosedAfterReply: 2,
+    });
+    expect(r.previous).toMatchObject({ aiClosed: 1, aiCompleted: 1 });
+    expect(r.aiOpen).toBe(1);
+  });
+
+  it('an older report without the new numbers still reads, as zero', () => {
+    const r = computeReport(db, { days: 7, timeZone: TZ, now: NOW });
+    const { aiClosed: _a, aiCompleted: _b, ...old } = r.totals;
+    const { aiOpen: _o, ...rest } = r;
+    const parsed = Report.parse({ ...rest, totals: old });
+    expect(parsed.totals.aiClosed).toBe(0);
+    expect(parsed.aiOpen).toBe(0);
+  });
+});
 
 describe('computeReport', () => {
   it('counts new customers, missed ones, busy days and times, hand-offs and the team', () => {
@@ -113,6 +228,10 @@ describe('computeReport', () => {
       aiAnswered: 1,
       aiResolved: 1,
       aiHandoffs: 2,
+      aiClosed: 0,
+      aiCompleted: 0,
+      aiClosedAfterHandoff: 0,
+      aiClosedAfterReply: 0,
     });
     expect(r.previous).toMatchObject({
       newCustomers: 1,
