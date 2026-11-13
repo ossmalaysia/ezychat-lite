@@ -1466,6 +1466,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   feature's own longer budget means nothing unless it passes it down (`AiAssistCall.timeoutMs`). Look for the
   smallest bound on the path before raising one (the owner's question died at 61 s under a 150 s budget). A
   streamed answer that may stay silent over 100 s needs a keep-alive line, or the Cloudflare tunnel closes it.
+- Before speeding up an AI turn, trace each model call (ms, input, cached and output tokens, tools asked for): the
+  Ask Ezy trace (`ask_ezy_call` lines) showed the prompt cache already covering 65-95 % of a small input, and the
+  time going to output tokens (~45 a second; a long text written twice, to test and to propose) and to one model
+  round trip per data read. Hand back ids instead of making the model repeat content, and push small common facts.
 - "Propose after testing" is not enough for a model: it tested the change and then offered "Want me to propose
   this?" as a follow-up chip, so the admin saw no Apply button. Say "propose it in the same answer; never end with a
   question instead of the proposal", and judge an improvement turn by its blocks (`change`), not its text.
