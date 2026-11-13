@@ -6,13 +6,13 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "forward-message",
-    "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-    "mock": "docs/features/forward-message/mock/index.html",
-    "design": "docs/features/forward-message/design.md",
-    "confirmedAt": "2026-11-07",
-    "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured.",
-    "note": "Clone of new-chat (scheduled-tasks + google-drive + sql-accounting + New chat) with partner-role (limited chat access) merged in, plus Forward (large files, across numbers). Inherits new-chat's coverage gaps (message edit/delete and Safety-on-message screens)."
+    "feature": "app-navigation",
+    "gitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
+    "mock": "docs/features/app-navigation/mock/index.html",
+    "design": "docs/features/app-navigation/design.md",
+    "confirmedAt": "2026-11-13",
+    "confirmation": "Owner (Jazz) confirmed the app navigation mock 2026-11-13 (\"other also fine\", \"design good, go ahead\") with the recommended answers: Members as a Settings row on phones, Report a problem stays in the account menu, list title renamed Inbox -> Chats in the build, rail Settings opens App settings or the numbers page when a number needs attention.",
+    "note": "Clone of forward-message (2549b7af) with Ask Ezy copied in and the desktop icon rail / phone bottom tabs added; replaces mobile-redesign's phone list header. Inherits forward-message's coverage gaps."
   },
   "proposals": [
     {
@@ -21,7 +21,7 @@
       "createdAt": "2026-11-13",
       "design": "docs/features/app-navigation/design.md",
       "mock": "docs/features/app-navigation/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "forward-message",
       "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
       "coverage": "Full app clone of the confirmed forward-message reference; app navigation on every signed-in screen: desktop (768 px and up) 64 px icon rail (Chats with the count of chats with unread messages, Reports and Members for admins, Ask Ezy, Settings with the red attention dot for admins, account photo/menu at the bottom), the Settings side menu on the other admin pages (Quick replies, Connectors, Inboxes/WhatsApp with the dot, Phone access, App settings, Audit), Reports and Members full width; phone (below 768 px) bottom tabs (admin: Chats, Reports, Ask Ezy, Settings; team member: Chats, Ask Ezy, Account; agent limited to chosen chats: Chats, Account), no tabs inside an open chat, Settings list page (every admin page, Your account, Mock only attention switch), Account page, phone app bar with back; Ask Ezy panel copied from the app (docked from 1280 px, full screen on phones, scripted answers via /api/mock/ask-ezy); desktop 1280 / phone 360, light/dark, en/ms/zh-CN, admin/team member/limited agent (shots.mjs, 44 shots in docs/features/app-navigation/screenshots).",
@@ -188,9 +188,7 @@
       "confirmedAt": "2026-10-31",
       "confirmation": "Owner wrote 2026-10-31 \"build it until merge to main\" after reviewing the mock screenshots: the @ member picker as proposed.",
       "gitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4",
-      "parallelFeatures": [
-        "whatsapp-safety"
-      ],
+      "parallelFeatures": ["whatsapp-safety"],
       "note": "Confirmed in parallel with whatsapp-safety (24, merged to main first); both cloned from ai-handoff-rules, so neither mock has the other's change. The next enhancement clones latestConfirmed and copies the WhatsApp Safety screens from docs/features/whatsapp-safety/mock. Folder pruned by the claims-template change (retention 5); recover it from git revision 2e820c944a84d2767d971ae7635e94617631d453."
     },
     {
@@ -223,10 +221,7 @@
       "confirmedAt": "2026-10-30",
       "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\").",
       "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
-      "parallelFeatures": [
-        "concept-tips",
-        "ai-handoff-rules"
-      ],
+      "parallelFeatures": ["concept-tips", "ai-handoff-rules"],
       "note": "Confirmed in parallel with concept-tips and ai-handoff-rules (all cloned from grammar-fix): none of these mocks has the others' change. The next enhancement clones latestConfirmed and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys).",
       "folderRemoved": "2026-11-03 (in-app-feedback: sixth feature folder); last on main at 1564247"
     },
@@ -345,9 +340,7 @@
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
       "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-      "parallelFeatures": [
-        "reports"
-      ],
+      "parallelFeatures": ["reports"],
       "archived": {
         "folderRemovedAt": "2026-10-30",
         "lastRevision": "2ea78a96c81a5f026d04190de919806134880b59",

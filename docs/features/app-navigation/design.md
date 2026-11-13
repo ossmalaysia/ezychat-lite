@@ -16,7 +16,7 @@ Status: **proposal, not confirmed.** Production UI work waits for the owner's co
 ## Mock and baseline
 
 - Mock: [`mock/`](mock/README.md) (`npx tsx --conditions=ezychat-source docs/features/app-navigation/mock/run.ts
-  --fake-wa`, then `http://localhost:7489/`, `aisyah` / `daniel` / `ravi`, password `demo-pass-123`).
+--fake-wa`, then `http://localhost:7489/`, `aisyah` / `daniel` / `ravi`, password `demo-pass-123`).
 - Baseline: the owner-confirmed **forward-message** mock (`latestConfirmed` in `../mock-index.json`), git revision
   `2549b7afac813d8c2c957d15d653b2a150325866`, path `docs/features/forward-message/mock/`. Copied from `main` `bbe3c6e8`
   (only `reference.json` differs from `2549b7af`), without its screenshots. `snapshot.mjs --check` passes: 121 frozen
@@ -35,18 +35,18 @@ Status: **proposal, not confirmed.** Production UI work waits for the owner's co
 
 ### Source screens and components reused
 
-| Real route / component (app and mock) | Use in this proposal |
-| --- | --- |
-| `/`, `/chats/:jid` (`inbox/InboxPage.tsx`) | Inside the shell; header loses the "Admin" button and the account photo (now in rail / tabs); version line desktop only |
-| `/admin/*` (`admin/AdminLayout.tsx`, `ADMIN_NAV`) | Inside the shell; Reports and Members are rail places (full width, no side menu); the other pages keep a "Settings" side menu |
-| `/admin/reports` (`ReportsPage`) | Rail and tab **Reports** |
-| `/admin/members`, `/admin/members/ai/:agentId` | Rail **Members**; on phones a row of the Settings list |
-| `/admin/settings/*` (`SettingsPage`) | Side-menu item renamed **App settings** (so it does not repeat "Settings"); rail Settings opens it |
-| `/admin/inboxes` (Lite `/admin/whatsapp`) | Red dot in the side menu and the Settings list; the dotted rail Settings opens it |
-| `auth/UserMenu.tsx` (account menu) | Desktop: under the photo at the bottom of the rail (unchanged items incl. "Admin settings") |
+| Real route / component (app and mock)                   | Use in this proposal                                                                                                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/`, `/chats/:jid` (`inbox/InboxPage.tsx`)              | Inside the shell; header loses the "Admin" button and the account photo (now in rail / tabs); version line desktop only                                      |
+| `/admin/*` (`admin/AdminLayout.tsx`, `ADMIN_NAV`)       | Inside the shell; Reports and Members are rail places (full width, no side menu); the other pages keep a "Settings" side menu                                |
+| `/admin/reports` (`ReportsPage`)                        | Rail and tab **Reports**                                                                                                                                     |
+| `/admin/members`, `/admin/members/ai/:agentId`          | Rail **Members**; on phones a row of the Settings list                                                                                                       |
+| `/admin/settings/*` (`SettingsPage`)                    | Side-menu item renamed **App settings** (so it does not repeat "Settings"); rail Settings opens it                                                           |
+| `/admin/inboxes` (Lite `/admin/whatsapp`)               | Red dot in the side menu and the Settings list; the dotted rail Settings opens it                                                                            |
+| `auth/UserMenu.tsx` (account menu)                      | Desktop: under the photo at the bottom of the rail (unchanged items incl. "Admin settings")                                                                  |
 | `askezy/*` (app `apps/web/src/askezy`, main `bbe3c6e8`) | Copied into the mock (no `AskEzyButton`); opened by the rail and tab; mock stand-ins `/api/mock/ask-ezy` and `/api/mock/ask-ezy/status` answer from a script |
-| `WaBanner` states, `useWaStatus`, mock inbox `status` | Attention = WhatsApp `disconnected`/`qr`/`logged_out`/`replaced`/`blocked`, or a number not `connected` |
-| `useChats` + ChatList's inbox / chosen-chat filter | Chats count = open chats with unread messages the user may open |
+| `WaBanner` states, `useWaStatus`, mock inbox `status`   | Attention = WhatsApp `disconnected`/`qr`/`logged_out`/`replaced`/`blocked`, or a number not `connected`                                                      |
+| `useChats` + ChatList's inbox / chosen-chat filter      | Chats count = open chats with unread messages the user may open                                                                                              |
 
 ### Files this proposal adds or changes in the mock
 
@@ -66,19 +66,19 @@ runner stopped; now `fileURLToPath`), `README.md`, `reference.json`.
 44 shots by `mock/shots.mjs`, 0 page errors, 0 horizontal overflow, rail only from 768 px, tabs only below, no tabs in
 an open chat, every phone tab ≥ 44 px (`screenshots/results.json`).
 
-| State | Desktop 1280 | Phone 360 |
-| --- | --- | --- |
-| Chats with the unread count (admin) | `01-chats-unread` light, dark, ms, zh-CN | same |
-| Open chat (phone: no tab bar) | `02-chat-open` light, dark | same |
-| Reports selected | `03-reports` light, dark | same |
-| Ask Ezy open (docked / full screen) | `04-ask-ezy` light, dark | same |
-| Members | `05-members` | `05-members` (from Settings, back link) |
-| Settings selected (side menu / App settings) | `06-settings` light, ms, zh-CN | `06-settings` |
-| Attention dot on Settings | `07-settings-attention`, `08-attention-numbers` (dot opens the numbers page) | `07-settings-attention`, `12-settings-home-*-ms` / `-zh-CN` |
-| Account menu / Account page | `09-account-menu` | `13-account` (admin), `14-daniel-account` light, dark |
-| Team member (3 tabs; rail without admin places) | `10-daniel-chats`, `11-daniel-ask-ezy` | `10-daniel-chats` light, dark, `11-daniel-ask-ezy` |
-| Agent limited to chosen chats (no Ask Ezy) | `10-ravi-chats` | `10-ravi-chats` (2 tabs) |
-| Settings list (phone) | n/a (`/admin` opens App settings) | `12-settings-home` light, dark, ms, zh-CN |
+| State                                           | Desktop 1280                                                                 | Phone 360                                                   |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Chats with the unread count (admin)             | `01-chats-unread` light, dark, ms, zh-CN                                     | same                                                        |
+| Open chat (phone: no tab bar)                   | `02-chat-open` light, dark                                                   | same                                                        |
+| Reports selected                                | `03-reports` light, dark                                                     | same                                                        |
+| Ask Ezy open (docked / full screen)             | `04-ask-ezy` light, dark                                                     | same                                                        |
+| Members                                         | `05-members`                                                                 | `05-members` (from Settings, back link)                     |
+| Settings selected (side menu / App settings)    | `06-settings` light, ms, zh-CN                                               | `06-settings`                                               |
+| Attention dot on Settings                       | `07-settings-attention`, `08-attention-numbers` (dot opens the numbers page) | `07-settings-attention`, `12-settings-home-*-ms` / `-zh-CN` |
+| Account menu / Account page                     | `09-account-menu`                                                            | `13-account` (admin), `14-daniel-account` light, dark       |
+| Team member (3 tabs; rail without admin places) | `10-daniel-chats`, `11-daniel-ask-ezy`                                       | `10-daniel-chats` light, dark, `11-daniel-ask-ezy`          |
+| Agent limited to chosen chats (no Ask Ezy)      | `10-ravi-chats`                                                              | `10-ravi-chats` (2 tabs)                                    |
+| Settings list (phone)                           | n/a (`/admin` opens App settings)                                            | `12-settings-home` light, dark, ms, zh-CN                   |
 
 Not covered: Lite edition shots (works with `?edition=lite`: WhatsApp instead of Inboxes), tablet widths between 768 and
 1279 px (rail + Ask Ezy as an overlay), keyboard focus order screenshots.
@@ -173,4 +173,12 @@ could, with the owner's decision.
 
 ## Confirmation
 
-_Not confirmed yet._
+Owner (Jazz) confirmed the mock on 2026-11-13 ("other also fine", then "design good, go ahead") from the review page with
+the key screenshots, mock revision `dc0d5ce640bd06322a86a423a25c88f3f54e58f8`, with the recommended answers to the open questions:
+
+1. Members on the phone: a row in Settings, not a fifth tab.
+2. Report a problem: stays in the account menu (no rail item).
+3. The list title is renamed from "Inbox" to "Chats" to match the tab (implementation; the mock still says Inbox).
+4. Rail Settings opens App settings, or the WhatsApp numbers page when a number needs attention.
+
+Build after PR #365 (owner, 2026-11-13). Add the "App navigation" entry to `docs/design-system.md` in the same PR.
