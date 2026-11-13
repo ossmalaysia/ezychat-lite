@@ -1461,6 +1461,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
+- A prompt rule about a message property the text does not show (forwarded, quoted, edited, deleted) cannot work
+  unless the input marks it: enrichment's "skip forwarded details" had no effect because the forwarded mark was not
+  sent. Enforce such a rule on the server (skip the message) and mark the property in what the model reads.
 - Ask Ezy's history is text only: whatever a block asked or proposed (question choices, a pending proposal id) must
   be written back into the assistant's history line, or a tapped choice reaches the model without its question. Ids
   in history are hints only: the server reads proposals from its own store, and chat ids a proposal names come from

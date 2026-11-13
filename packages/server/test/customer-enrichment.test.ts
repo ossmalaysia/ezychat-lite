@@ -159,10 +159,28 @@ it('updates all four fields with Sales Agent absent, retains ownership and emits
   expect(events()[0]!.meta).not.toContain('Jay Low');
   expect(events()[0]!.meta).not.toContain('jay@example.com');
 });
+it('marks an earlier forwarded message in the conversation it shows the model', async () => {
+  enable();
+  await receive({ body: 'Fwd: contact Siti Aminah, siti@other.my', forwardingScore: 1 });
+  expect(provider.extractCustomer).not.toHaveBeenCalled();
+  await receive();
+  const args: unknown[] = vi.mocked(provider.extractCustomer!).mock.calls[0]!;
+  const prompt = args.find((a) => typeof a === 'object' && a !== null && 'input' in a) as {
+    input: string;
+  };
+  const { conversation } = JSON.parse(prompt.input) as {
+    conversation: Array<{ text: string; forwarded?: true }>;
+  };
+  expect(conversation.find((m) => m.text.startsWith('Fwd:'))).toMatchObject({ forwarded: true });
+  expect(conversation.filter((m) => m.forwarded)).toHaveLength(1);
+});
 it.each([
   ['history', {}, 'history'],
   ['group', { chatJid: '123@g.us', senderJid: JID }, 'live'],
   ['outbound', { fromMe: true }, 'live'],
+  // Someone else's words: the name, email and address in a forwarded message are not the customer's own.
+  ['forwarded', { forwardingScore: 1 }, 'live'],
+  ['forwarded many times', { forwardingScore: 5 }, 'live'],
   ['caption', { type: 'image' }, 'live'],
   ['empty', { body: '' }, 'live'],
   ['invalid source reference', { id: 'x'.repeat(257) }, 'live'],
