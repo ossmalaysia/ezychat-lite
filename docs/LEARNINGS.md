@@ -408,6 +408,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
   bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` in any code (server and web too, even of string ids) a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
   names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
+- `release-review.mjs --approve` writes two files that must be committed, and that push starts CI again (~15 min)
+  before the final merge check can say MERGE OK: when the owner is likely to approve, push every other docs commit
+  first, and tell the owner the merge waits for that CI run.
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
