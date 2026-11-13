@@ -100,6 +100,7 @@ const STEP_KEYS = [
   'get_ai_context_item',
   'get_ai_setup_history',
   'get_ai_setup_version',
+  'edit_ai_setup_text',
   'try_ai_reply',
   'propose_ai_setup_change',
   'list_scheduled_tasks',

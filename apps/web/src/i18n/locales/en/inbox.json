@@ -864,6 +864,7 @@
       "get_ai_context_item": "Business context",
       "get_ai_setup_history": "the setup history",
       "get_ai_setup_version": "an earlier setup",
+      "edit_ai_setup_text": "a draft change",
       "try_ai_reply_one": "{{count}} test reply",
       "try_ai_reply_other": "{{count}} test replies",
       "propose_ai_setup_change": "a suggested change",

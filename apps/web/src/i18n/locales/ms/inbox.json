@@ -860,6 +860,7 @@
       "get_ai_context_item": "konteks perniagaan",
       "get_ai_setup_history": "sejarah tetapan",
       "get_ai_setup_version": "tetapan terdahulu",
+      "edit_ai_setup_text": "satu draf perubahan",
       "try_ai_reply_one": "{{count}} balasan ujian",
       "try_ai_reply_other": "{{count}} balasan ujian",
       "propose_ai_setup_change": "satu cadangan perubahan",

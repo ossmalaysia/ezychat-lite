@@ -860,6 +860,7 @@
       "get_ai_context_item": "业务资料",
       "get_ai_setup_history": "设置历史",
       "get_ai_setup_version": "之前的设置",
+      "edit_ai_setup_text": "一份更改草稿",
       "try_ai_reply_one": "{{count}} 条测试回复",
       "try_ai_reply_other": "{{count}} 条测试回复",
       "propose_ai_setup_change": "一项建议更改",
