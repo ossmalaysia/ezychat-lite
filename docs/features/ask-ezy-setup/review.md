@@ -23,3 +23,7 @@ Tier **core**, set by: apps/web/src/askezy/AskEzyBlocks.tsx, apps/web/src/askezy
 Hard stops: none
 
 Decision: **risk:human**
+
+## 2026-11-13 · PR #365 · `178ea90` · approved by the owner
+
+> 365 it is fine, ask ezy is support feature just merge
