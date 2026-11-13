@@ -395,17 +395,25 @@ function AiCompletion({ report }: { report: Report }) {
             />
           </div>
           <ul className="flex flex-col gap-1 text-sm sm:flex-row sm:flex-wrap sm:gap-x-5">
-            <li className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 shrink-0 rounded-sm bg-primary" aria-hidden />
-              <b className="tabular-nums">{now.aiCompleted}</b> {t('reports.aiRateCompleted')}
+            {/* Dot on the first line; the count and its words wrap as one sentence on a phone. */}
+            <li className="flex items-start gap-1.5">
+              <span className="mt-1.5 size-2.5 shrink-0 rounded-sm bg-primary" aria-hidden />
+              <span>
+                <b className="tabular-nums">{now.aiCompleted}</b> {t('reports.aiRateCompleted')}
+              </span>
             </li>
-            <li className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 shrink-0 rounded-sm bg-muted-foreground/40" aria-hidden />
-              <b className="tabular-nums">{helped}</b>{' '}
-              {t('reports.aiRateHelped', {
-                handoffs: now.aiClosedAfterHandoff,
-                replies: now.aiClosedAfterReply,
-              })}
+            <li className="flex items-start gap-1.5">
+              <span
+                className="mt-1.5 size-2.5 shrink-0 rounded-sm bg-muted-foreground/40"
+                aria-hidden
+              />
+              <span>
+                <b className="tabular-nums">{helped}</b>{' '}
+                {t('reports.aiRateHelped', {
+                  handoffs: now.aiClosedAfterHandoff,
+                  replies: now.aiClosedAfterReply,
+                })}
+              </span>
             </li>
             {aiOpen > 0 && (
               <li className="text-muted-foreground">
