@@ -43,7 +43,7 @@ data is already stored). Not done (owner): an Ask Ezy question for the rate.
 | Design | pass | Owner confirmed the quick mock 2026-11-13 ('ok go ahead'): full-width card under the tiles, team-helped line kept, no Ask Ezy question | bbe3c6e | 2026-11-13 |
 | Dev | pass | Server count (closedAiChats, openAiChats), shared totals with defaults, Reports card with InfoTip, en/ms/zh-CN; code review: 7 fixed, 3 kept with reasons | 8e899fce | 2026-11-13 |
 | Unit tests | pass | reports.test.ts (server), ReportsPage.test.tsx, i18n catalogs, web-client contract: 51 passed; typecheck shared/server/web; eslint | 8e899fce | 2026-11-13 |
-| E2E | todo |  |  |  |
+| E2E | pass | npm run e2e --workers=2: 159 passed, 0 failed; desktop build OK; e2e:electron-links 17/17 screens | f6dcd3f | 2026-11-13 |
 | Dev Build | pass | devbuild-ai-completion-check.mjs all PASS on the mock-model Dev Build: 3 closed (1 completed, 1 hand-off, 1 reply), 1 open, card 33% | ad64225 | 2026-11-13 |
 | Screen review | pass | Reports card at 1280/360, light/dark, InfoTip steps: no page errors, no overflow; legend wrap fixed at 360 px; shots in docs/screenshots/reports/ai-completion-* | ad64225 | 2026-11-13 |
 
@@ -56,3 +56,4 @@ data is already stored). Not done (owner): an Ask Ezy question for the rate.
 - 2026-11-13 Unit tests: pass — reports.test.ts (server), ReportsPage.test.tsx, i18n catalogs, web-client contract: 51 passed; typecheck shared/server/web; eslint (8e899fce)
 - 2026-11-13 Dev Build: pass — devbuild-ai-completion-check.mjs all PASS on the mock-model Dev Build: 3 closed (1 completed, 1 hand-off, 1 reply), 1 open, card 33% (ad64225)
 - 2026-11-13 Screen review: pass — Reports card at 1280/360, light/dark, InfoTip steps: no page errors, no overflow; legend wrap fixed at 360 px; shots in docs/screenshots/reports/ai-completion-* (ad64225)
+- 2026-11-13 E2E: pass — npm run e2e --workers=2: 159 passed, 0 failed; desktop build OK; e2e:electron-links 17/17 screens (f6dcd3f)
