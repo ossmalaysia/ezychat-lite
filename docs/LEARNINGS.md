@@ -464,6 +464,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
   (`compare.commits`), not just any commit in a log. A rebase gives every commit a new SHA, so it drops all recorded
   stages and Dev Build rows: rebase onto `main` first, then run and record the checks.
+- Two open PRs that both add to `CHANGELOG.md`, `docs/LEARNINGS.md` or `docs/dev-build-checks.md` conflict as soon as one
+  merges: merge `main` into the other (never rebase a reviewed PR; a merge of `main` keeps its proofs), keep both
+  sides, and expect one more CI run before its MERGE OK. Merge the PR whose CI is already green first.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
