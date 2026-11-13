@@ -1472,6 +1472,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   round trip per data read. Hand back ids instead of making the model repeat content, and push small common facts:
   find → replace edits with a `draftId` for the test and the proposal cut the written tokens from ~700 to ~180 and
   the turn from 36 s to 26 s. Run a test's before and after at the same time in one tool call.
+- A design kept only in `docs/features/<x>/design.md` disappears with the five-folder retention (AGENTS.md still
+  pointed to the pruned Ask Ezy design): keep a core feature's decisions in a lasting `docs/<feature>.md` with a
+  decision log, and point AGENTS.md there.
 - "Propose after testing" is not enough for a model: it tested the change and then offered "Want me to propose
   this?" as a follow-up chip, so the admin saw no Apply button. Say "propose it in the same answer; never end with a
   question instead of the proposal", and judge an improvement turn by its blocks (`change`), not its text.

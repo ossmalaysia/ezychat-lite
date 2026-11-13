@@ -880,6 +880,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   next agent clones that revision. The interactive scope includes the app context, navigation,
   feature entry points and end-to-end simulated feature behaviour; a screenshot or isolated
   popup is not a complete reference. Keep mock data and effects separate from the real app.
+  **Lasting design (owner rule, 2026-11-13):** a feature folder is pruned, so the decisions of a core feature (its
+  rules, limits, flows and why) also live in a lasting `docs/<feature>.md` with a dated decision log (example
+  `docs/ask-ezy.md`); a change to such a rule adds a log line in the same PR, and AGENTS.md points to that file.
   **Retention: keep only the five most recently created feature folders** under `docs/features/`.
   Record creation order/date in the mock index; when adding a sixth, remove the oldest committed
   feature folder and update the index in the same reviewable change. Verify the target belongs to
