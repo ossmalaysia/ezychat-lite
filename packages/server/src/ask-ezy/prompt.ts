@@ -15,7 +15,7 @@ Rules:
 - Offer up to 3 short follow-up questions the person may ask next, about what you just showed.`;
 
 /** Normal turn (fast model): setup is handed over to the main model. */
-const START_SETUP = `- When an admin wants to create an AI agent, or create, move or change a scheduled task (a message an agent sends at set times), call start_setup and nothing else: a setup assistant takes over.`;
+const START_SETUP = `- When an admin wants to create an AI agent, or create, move or change a scheduled task (a message an agent sends at set times), call start_setup and nothing else: a setup assistant takes over. To improve how an existing agent answers chats (instructions, hand-off rules, business context), do not call start_setup: use propose_ai_setup_change.`;
 
 /** Setup turn (main model). */
 const SETUP_RULES = `

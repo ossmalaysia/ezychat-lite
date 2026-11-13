@@ -179,6 +179,16 @@ describe('agentFailure', () => {
       expect(failure.message).not.toContain('customer words');
     },
   );
+
+  it('keeps why an unusable answer ended (cut at the output limit), never its text', () => {
+    const cut = Object.assign(named('AI_NoObjectGeneratedError'), { finishReason: 'length' });
+    expect(agentFailure(cut, 'invalid', 'generic')).toMatchObject({
+      kind: 'invalid',
+      finishReason: 'length',
+    });
+    expect(agentFailure(named('AI_JSONParseError'), 'invalid', 'generic').finishReason).toBeNull();
+    expect(agentFailure(apiError(429), 'invalid', 'generic').finishReason).toBeNull();
+  });
 });
 
 describe('PDFs in the model request', () => {

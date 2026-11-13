@@ -98,6 +98,29 @@ async function turn(question, history) {
 const blocksOf = (a, type) => (a?.blocks ?? []).filter((b) => b.type === type);
 
 /**
+ * An answer as the web panel sends it back in `history` (`answerForHistory` in apps/web/src/askezy/AskEzyPanel.tsx):
+ * the text plus one line per question or card. Sending the text alone hides Ezy's own question from the next turn.
+ */
+function forHistory(answer) {
+  const lines = [answer.text];
+  for (const b of answer.blocks) {
+    const status = b.status ?? '';
+    if (b.type === 'question') lines.push(`[Asked: ${b.text} Choices: ${b.choices.join(' | ')}]`);
+    if (b.type === 'setup_note')
+      lines.push(
+        '[The new agent was left out: it needs its scheduled task (what, to which chat, when)]',
+      );
+    if (b.type === 'agent_proposal')
+      lines.push(`[New agent card "${b.name}", agentProposalId ${b.id}, ${status}]`);
+    if (b.type === 'task_proposal')
+      lines.push(
+        `[Scheduled task card "${b.name}" for ${b.agent} to ${b.chatName ?? 'Chat'}${b.chatEnding ? ` (…${b.chatEnding})` : ''} at ${b.time} ${b.dayRule}, ${status}]`,
+      );
+  }
+  return lines.join('\n').slice(0, 4000);
+}
+
+/**
  * Scenarios: the opening request, how to answer each question (pick a choice by pattern), and what the final plan must
  * be. `newAgent`: a new agent card must come with its task. `chatEnding`: the task's chat. `time`/`dayRule`/`days`.
  */
@@ -132,7 +155,7 @@ async function runScenario(name, s) {
   const log = [];
   const record = (question, r) => {
     history.push({ role: 'user', text: question });
-    if (r.answer) history.push({ role: 'assistant', text: r.answer.text });
+    if (r.answer) history.push({ role: 'assistant', text: forHistory(r.answer) });
     log.push({
       question,
       ms: r.ms,

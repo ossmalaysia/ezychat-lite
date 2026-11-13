@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MockLanguageModelV4 } from 'ai/test';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { ASSIST_MAX_OUTPUT_TOKENS, runAssist } from './assist.js';
+import { ASSIST_MAX_OUTPUT_TOKENS, ASSIST_MAX_STEPS, runAssist } from './assist.js';
 
 const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
@@ -89,6 +89,24 @@ describe('runAssist', () => {
       }),
     ).rejects.toThrow();
     expect(bad.doGenerateCalls).toHaveLength(1);
+  });
+
+  it('forbids tool calls on the last step, so a turn that keeps calling tools still answers', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: [...Array.from({ length: ASSIST_MAX_STEPS - 1 }, () => toolStep), final(OUTPUT)],
+    });
+    const result = await runAssist({
+      model,
+      instructions: 'x',
+      messages: [{ role: 'user', content: 'q' }],
+      tools,
+      signal: new AbortController().signal,
+    });
+    expect(result.output).toEqual(OUTPUT);
+    expect(result.steps).toBe(ASSIST_MAX_STEPS);
+    const calls = model.doGenerateCalls;
+    expect(calls.at(-1)!.toolChoice).toEqual({ type: 'none' });
+    expect(calls.slice(0, -1).every((c) => c.toolChoice?.type !== 'none')).toBe(true);
   });
 
   it('throws before any call when cancelled', async () => {

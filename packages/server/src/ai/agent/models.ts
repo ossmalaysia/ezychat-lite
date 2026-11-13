@@ -181,6 +181,8 @@ export class AgentTurnFailure extends Error {
     readonly causeName: string | null = null,
     /** HTTP status when the model service answered with an error. */
     readonly status: number | null = null,
+    /** Why an unusable answer ended (e.g. `length` = cut at the output limit), from the AI SDK error. */
+    readonly finishReason: string | null = null,
   ) {
     super(message);
   }
@@ -221,6 +223,15 @@ export function agentFailure(error: unknown, invalid: string, generic: string): 
   // response) means the answer itself was unusable.
   if (APICallError.isInstance(error) && (error.statusCode ?? 0) >= 400)
     return new AgentTurnFailure(error.message, 'provider', causeName, error.statusCode ?? null);
-  if (isInvalidAnswer(error)) return new AgentTurnFailure(invalid, 'invalid', causeName);
+  if (isInvalidAnswer(error)) {
+    const finish = (error as { finishReason?: unknown }).finishReason;
+    return new AgentTurnFailure(
+      invalid,
+      'invalid',
+      causeName,
+      null,
+      typeof finish === 'string' ? finish.slice(0, 40) : null,
+    );
+  }
   return new AgentTurnFailure(generic, 'other', causeName);
 }

@@ -47,6 +47,8 @@ describe('askEzyInstructions', () => {
   it('normal turn: an admin hands setup over with start_setup; a member gets neither', () => {
     const admin = askEzyInstructions({ ...base, isAdmin: true, maxAgents: 1 });
     expect(admin).toContain('call start_setup and nothing else');
+    // Improving an existing agent's answers stays on this turn (propose_ai_setup_change), never the setup turn.
+    expect(admin).toContain('do not call start_setup: use propose_ai_setup_change');
     expect(admin).not.toContain('Setting up agents and scheduled tasks');
     expect(admin).not.toContain('agent_proposal');
     expect(admin).not.toContain('This app allows');

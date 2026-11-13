@@ -267,7 +267,7 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
   if (isAdmin && deps.mode !== 'setup')
     tools.start_setup = tool({
       description:
-        'Call this (and nothing else) when the admin wants to create or change an AI agent or a scheduled task (a message an agent sends at set times), e.g. "a new agent that greets Jee Fong at 9am" or "move the morning greeting to 8:30". A setup assistant then takes over this question.',
+        'Call this (and nothing else) when the admin wants to create a new AI agent, or create, move or change a scheduled task (a message an agent sends at set times), e.g. "a new agent that greets Jee Fong at 9am" or "move the morning greeting to 8:30". A setup assistant then takes over this question. Not for improving how an existing agent answers chats (its instructions, hand-off rules or business context): use propose_ai_setup_change for that.',
       inputSchema: z.strictObject({}),
       execute: () =>
         run('start_setup', () => {

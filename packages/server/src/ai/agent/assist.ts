@@ -66,6 +66,9 @@ export async function runAssist(call: AssistCall): Promise<AssistResult> {
     messages: call.messages,
     tools: call.tools,
     stopWhen: stepCountIs(ASSIST_MAX_STEPS),
+    // The last step may not call a tool: a tool call there leaves no answer (`NoOutputGeneratedError`).
+    prepareStep: ({ stepNumber }) =>
+      stepNumber === ASSIST_MAX_STEPS - 1 ? { toolChoice: 'none' } : undefined,
     output: Output.object({ schema: AssistOutput }),
     abortSignal: call.signal,
     maxRetries: 0,
