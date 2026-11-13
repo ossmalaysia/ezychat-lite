@@ -54,6 +54,11 @@ export interface AiAssistCall {
    * not the fast one.
    */
   main?: boolean;
+  /**
+   * The whole turn's time limit (Ask Ezy's own budget: 90 s, 150 s for setup). Omitted = the 60 s that customer
+   * replies get; an "improve the agent" turn with tests runs longer than that.
+   */
+  timeoutMs?: number;
   /** Tool names of each finished step, for the live "Read …" lines. */
   onStep?: (toolNames: string[]) => void;
 }

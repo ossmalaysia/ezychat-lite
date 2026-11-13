@@ -466,6 +466,14 @@
       "modelFastHint": "Cadang balasan dalam kira-kira 1–2 saat dan teks kelabu semasa anda menaip. {{model}} ialah model pantas sambungan ini.",
       "modelSlowHint": "Model yang lebih besar menulis lebih perlahan: teks kelabu selalunya sampai terlalu lewat untuk membantu, dan setiap permintaan mungkin lebih mahal."
     },
+    "askEzy": {
+      "title": "Ask Ezy",
+      "description": "Pembantu yang menjawab soalan tentang sembang anda dan membantu admin memperbaik ejen AI.",
+      "timeout": "Had masa untuk satu soalan",
+      "timeoutHint": "Berapa lama Ezy boleh bekerja pada satu soalan sebelum berhenti. Memperbaik ejen dengan ujian boleh mengambil beberapa minit. Sesiapa boleh menekan Henti pada bila-bila masa.",
+      "minutes_other": "{{count}} minit",
+      "minutesDefault_other": "{{count}} minit (lalai)"
+    },
     "phrases": {
       "title": "Senarai frasa",
       "description": "Teks kelabu serta-merta daripada frasa yang pasukan anda guna. AI membina senarai ini di latar belakang daripada konteks perniagaan, arahan AI dan balasan yang dihantar oleh pasukan, dan sentiasa mengemas kininya.",

@@ -465,6 +465,14 @@
       "modelFastHint": "“建议回复”约 1–2 秒完成，输入时即时显示灰色补全。{{model}} 是此连接的快速模型。",
       "modelSlowHint": "较大的模型写得更慢：灰色补全常常来得太晚，而且每次请求的费用可能更高。"
     },
+    "askEzy": {
+      "title": "Ask Ezy",
+      "description": "回答聊天相关问题、并帮助管理员改进 AI 助手的小助手。",
+      "timeout": "单个问题的时间上限",
+      "timeoutHint": "Ezy 处理一个问题最多可用的时间，超时后停止。带测试的 AI 助手改进可能需要几分钟。任何人都可以随时点击“停止”。",
+      "minutes_other": "{{count}} 分钟",
+      "minutesDefault_other": "{{count}} 分钟（默认）"
+    },
     "phrases": {
       "title": "常用语列表",
       "description": "根据团队常用语即时显示灰色补全。AI 会在后台根据业务资料、AI 指示和团队发出的回复建立此列表，并持续更新。",

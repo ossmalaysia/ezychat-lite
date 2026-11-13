@@ -2,6 +2,10 @@ import type { ModelMessage } from 'ai';
 import {
   ASK_EZY_CHOICE_CHARACTERS,
   ASK_EZY_CHOICES_MAX,
+  ASK_EZY_DEFAULT_TIMEOUT_MINUTES,
+  ASK_EZY_TIMEOUT_MINUTES,
+  type AskEzySettings,
+  type AskEzySettingsUpdate,
   AskEzyAnswer,
   AskEzyBlock,
   AskEzyTest,
@@ -12,6 +16,7 @@ import {
   type User,
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
+import { audit } from '../db/audit.js';
 import { HttpError } from '../http/errors.js';
 import { createInboxReadPort } from '../mcp/inbox.js';
 import { createAiSetupPort } from '../mcp/ai-setup.js';
@@ -57,6 +62,13 @@ export interface AskEzyService {
   ): AskEzyChangeResult;
   /** `connected`: a question can be answered now (the panel checks it on open). */
   status(): { connected: boolean };
+  /** The admin's time limit for one question. */
+  settings(): AskEzySettings;
+  /** Saves the time limit; audited `settings.ask_ezy_timeout` with before/after when it changes. */
+  updateSettings(
+    body: AskEzySettingsUpdate,
+    actor: { userId: number; ip: string | null },
+  ): AskEzySettings;
   /**
    * Answers one question: emits a `step` per tool call, then one `answer` or `error` event. Throws an
    * HttpError before the first event when no question can be asked (no connection, unknown chat).
@@ -69,21 +81,25 @@ export interface AskEzyService {
   ): Promise<void>;
 }
 
-/**
- * Each Ask Ezy turn's total time: the fast turn, and the main-model setup turn after `start_setup` (it may
- * run a preview inside a tool). After it the turn stops and the person gets `ai_timeout`.
- */
-export const ASK_EZY_FAST_BUDGET_MS = 90_000;
-export const ASK_EZY_SETUP_BUDGET_MS = 150_000;
+/** The admin's Ask Ezy time limit (`AskEzySettings.timeoutMinutes`); missing or unknown = the default. */
+export const ASK_EZY_TIMEOUT_SETTING = 'ask_ezy_timeout_minutes';
 
 export function createAskEzyService(
   ctx: AppContext,
-  opts: { fastBudgetMs?: number; setupBudgetMs?: number } = {},
+  /** Tests only: a question budget in ms instead of the admin's minutes. */
+  opts: { budgetMs?: number } = {},
 ): AskEzyService {
-  const budgets = {
-    fastMs: opts.fastBudgetMs ?? ASK_EZY_FAST_BUDGET_MS,
-    mainMs: opts.setupBudgetMs ?? ASK_EZY_SETUP_BUDGET_MS,
+  const timeoutMinutes = (): AskEzySettings['timeoutMinutes'] => {
+    const saved = ctx.settings.get<unknown>(ASK_EZY_TIMEOUT_SETTING, null);
+    return (ASK_EZY_TIMEOUT_MINUTES as readonly unknown[]).includes(saved)
+      ? (saved as AskEzySettings['timeoutMinutes'])
+      : ASK_EZY_DEFAULT_TIMEOUT_MINUTES;
   };
+  /**
+   * The whole question's time (the fast turn and a setup turn after `start_setup`, which may run a preview inside a
+   * tool). After it the question stops and the person gets `ai_timeout`.
+   */
+  const budgetMs = () => opts.budgetMs ?? timeoutMinutes() * 60_000;
   const log = ctx.log.child({ mod: 'ask-ezy' });
   const changes = createChangeStore(ctx);
   const setup = createSetupStore(ctx);
@@ -259,6 +275,24 @@ export function createAskEzyService(
       return { connected: connection() === 'ready' };
     },
 
+    settings() {
+      return { timeoutMinutes: timeoutMinutes() };
+    },
+
+    updateSettings(body, actor) {
+      const before = timeoutMinutes();
+      if (body.timeoutMinutes !== before) {
+        ctx.settings.set(ASK_EZY_TIMEOUT_SETTING, body.timeoutMinutes);
+        audit(ctx.db, {
+          userId: actor.userId,
+          action: 'settings.ask_ezy_timeout',
+          ip: actor.ip,
+          meta: { before, after: body.timeoutMinutes },
+        });
+      }
+      return { timeoutMinutes: timeoutMinutes() };
+    },
+
     async ask(user, request, emit, signal) {
       const ai = ctx.services.ai;
       const state = connection();
@@ -319,6 +353,9 @@ export function createAskEzyService(
         });
       let setupTurn = false;
       let budgetHit = false;
+      // One budget for the whole question: a setup turn gets what the fast turn left.
+      const questionMs = budgetMs();
+      const left = () => Math.max(1, started + questionMs - Date.now());
       /**
        * One model turn inside its total budget: the model call and its tools stop with it, and the turn ends
        * even when a provider never answers (the person never waits without an answer or an error).
@@ -345,6 +382,8 @@ export function createAskEzyService(
             messages,
             tools: toolsFor(mode, turnSignal),
             ...(mode === 'setup' ? { main: true } : {}),
+            // The connection's own bound is 60 s (customer replies); the question's budget is the limit here.
+            timeoutMs: ms,
           },
           turnSignal,
         );
@@ -360,11 +399,7 @@ export function createAskEzyService(
       try {
         let result: Awaited<ReturnType<typeof ai.assist>> | null = null;
         try {
-          result = await turn(
-            'normal',
-            AbortSignal.any([signal, setupStart.signal]),
-            budgets.fastMs,
-          );
+          result = await turn('normal', AbortSignal.any([signal, setupStart.signal]), left());
         } catch (error) {
           if (!setupRequested || signal.aborted || budgetHit) throw error;
         }
@@ -378,7 +413,7 @@ export function createAskEzyService(
             },
             'Ask Ezy setup turn on the main model',
           );
-          result = await turn('setup', signal, budgets.mainMs);
+          result = await turn('setup', signal, left());
         }
         if (!result) throw new Error('no answer');
         const all = result.output.blocks.slice(0, MAX_BLOCKS * 2).map((raw) => block(user, raw));
@@ -427,7 +462,7 @@ export function createAskEzyService(
               code: 'ai_timeout',
               kind: 'budget',
               setup: setupTurn,
-              budgetMs: setupTurn ? budgets.mainMs : budgets.fastMs,
+              budgetMs: questionMs,
               toolCalls: calls.length,
               tools: calls.map((c) => c.tool),
               ms: Date.now() - started,

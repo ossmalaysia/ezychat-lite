@@ -1186,7 +1186,7 @@ describe('Ask Ezy setup: usable new agents (owner test)', { timeout: 30_000 }, (
         }
         return new Promise(() => {}); // never answers, ignores the signal
       });
-      const service = createAskEzyService(s.t.ctx, { fastBudgetMs: 60, setupBudgetMs: 80 });
+      const service = createAskEzyService(s.t.ctx, { budgetMs: 80 });
       const events: AskEzyEvent[] = [];
       const started = Date.now();
       await service.ask(
@@ -1202,6 +1202,35 @@ describe('Ask Ezy setup: usable new agents (owner test)', { timeout: 30_000 }, (
       expect(logs).toContain(`"setup":${setupTurn}`);
       expect(logs).not.toContain('Greet Jee Fong');
     }
+  });
+
+  it('the admin sets the time limit of one question (default 15 min), audited, and the model call gets it', async () => {
+    const s = await setup();
+    const get = (cookie: string) =>
+      s.t.app.inject({ method: 'GET', url: '/api/ask-ezy/settings', headers: authHeaders(cookie) });
+    const put = (cookie: string, payload: object) =>
+      s.t.app.inject({
+        method: 'PUT',
+        url: '/api/ask-ezy/settings',
+        headers: authHeaders(cookie),
+        payload,
+      });
+    expect((await get(s.adminCookie)).json()).toEqual({ timeoutMinutes: 15 });
+    expect((await get(s.memberCookie)).statusCode).toBe(403);
+    expect((await put(s.memberCookie, { timeoutMinutes: 5 })).statusCode).toBe(403);
+    expect((await put(s.adminCookie, { timeoutMinutes: 7 })).statusCode).toBe(400);
+    const saved = await put(s.adminCookie, { timeoutMinutes: 5 });
+    expect(saved.json()).toEqual({ timeoutMinutes: 5 });
+    await put(s.adminCookie, { timeoutMinutes: 5 }); // unchanged: no second audit row
+    const rows = s.t.ctx.db
+      .prepare("SELECT meta FROM audit_log WHERE action = 'settings.ask_ezy_timeout'")
+      .all() as Array<{ meta: string }>;
+    expect(rows.map((r) => JSON.parse(r.meta))).toEqual([{ before: 15, after: 5 }]);
+    // The connection's own 60 s bound is replaced by what is left of the 5 minutes.
+    await ask(s.t, s.adminCookie, 'How is my week?');
+    const limit = s.calls[0]!.timeoutMs!;
+    expect(limit).toBeGreaterThan(4 * 60_000);
+    expect(limit).toBeLessThanOrEqual(5 * 60_000);
   });
 
   it('D: a team member gets no start_setup', async () => {

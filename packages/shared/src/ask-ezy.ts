@@ -267,5 +267,17 @@ export const AskEzyChangeResult = z.object({
 export type AskEzyChangeResult = z.infer<typeof AskEzyChangeResult>;
 
 /** `GET /api/ask-ezy/status`: whether the AI connection can answer now (the panel checks it on open). */
+/**
+ * How long Ezy may work on one question (admins, Settings → AI; owner 2026-11-13): the whole question, setup
+ * hand-over included. Customer replies keep the connection's own 60 s. The person can press Stop at any time.
+ */
+export const ASK_EZY_TIMEOUT_MINUTES = [5, 10, 15, 30] as const;
+export const ASK_EZY_DEFAULT_TIMEOUT_MINUTES = 15;
+const AskEzyTimeoutMinutes = z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(30)]);
+export const AskEzySettings = z.object({ timeoutMinutes: AskEzyTimeoutMinutes });
+export type AskEzySettings = z.infer<typeof AskEzySettings>;
+export const AskEzySettingsUpdate = z.strictObject({ timeoutMinutes: AskEzyTimeoutMinutes });
+export type AskEzySettingsUpdate = z.infer<typeof AskEzySettingsUpdate>;
+
 export const AskEzyStatus = z.object({ connected: z.boolean() });
 export type AskEzyStatus = z.infer<typeof AskEzyStatus>;
