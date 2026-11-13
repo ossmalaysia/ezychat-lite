@@ -1735,7 +1735,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   (`useUnreadChatCount`, `useAuth().isAdmin`, `user.displayName`, `DesktopUpdatePanel` via `AboutDialog`) must be in
   those tests' mocks, or the ErrorBoundary hides the page and dozens of unrelated tests fail at once.
 - In a Playwright check, `waitForURL` resolves before React draws the new page: read `aria-current`, a dot or a
-  heading with a retrying `expect`/poll, never one `getAttribute`/`isVisible` right after the URL changes.
+  heading with a retrying `expect`/poll, never one `getAttribute`/`isVisible` right after the URL changes. The same
+  race hits `if (await locator.count())` right after `goto`: wait for the shell (`hasRail` in `e2e/helpers.ts`) first,
+  and use `openAccountItem` / `signOutFromInbox` instead of clicking the account menu (phones have none).
+- Login returns to `state.from`, the page where the session ended: a page where people sign out (`/account`) must
+  never be a return target (`safeFrom`), or the next person signs in to someone else's last page.
+- Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
+  new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
+  to iterate, then one full run decides.
 - The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
   `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
   (or `newClientId`), never `crypto.randomUUID()` directly or `Math.random`; feature-check any other secure-only API. One call in an always-mounted host (e.g. `FeedbackHost`) blanked every
