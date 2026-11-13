@@ -468,7 +468,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
   (`compare.commits`), not just any commit in a log. A rebase gives every commit a new SHA, so it drops all recorded
-  stages and Dev Build rows: rebase onto `main` first, then run and record the checks.
+  stages and Dev Build rows: rebase onto `main` first, then run and record the checks. When a rebase must come after
+  them, map each old SHA to its new one by commit subject, record the stages again with `--sha <new>` and name the new
+  SHA in the rows ("rebased from …"); screens taken before a later code change still count as missing, so take them
+  again. Each docs commit re-pads the whole `dev-build-checks.md` table, so every replayed commit conflicts there:
+  resolve by merging rows by their first cells (never "ours"/"theirs"), then look for a row that came back twice.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
