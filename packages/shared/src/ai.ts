@@ -440,6 +440,11 @@ export const AiToolUsedPayload = z.object({
   sheet: z.object({ action: z.literal('row_added'), tab: z.string().max(100) }).optional(),
   /** Google Drive (core connector): the AI saved a file someone sent into the agent's folder. */
   drive: z.object({ action: z.literal('saved') }).optional(),
+  /**
+   * A direct chat: the agent read the customer's messages and sent nothing (team-only line).
+   * `finished` = the model wanted to close the chat but the agent asks no resolution question.
+   */
+  silent: z.object({ kind: z.enum(['no_reply', 'finished']) }).optional(),
 });
 export type AiToolUsedPayload = z.infer<typeof AiToolUsedPayload>;
 /** One extension tool call of a Try it answer: names and timing only, never input or output. */

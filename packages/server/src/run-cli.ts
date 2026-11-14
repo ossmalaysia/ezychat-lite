@@ -86,9 +86,13 @@ export async function runCli(
   if (cfg.resetAdmin) {
     try {
       const db = openDb(join(cfg.dataDir, 'app.db'));
-      const { username, password } = await resetFirstAdmin(db);
-      db.close();
-      process.stdout.write(`New admin password for ${username}: ${password}\n`);
+      let reset: { username: string; password: string };
+      try {
+        reset = resetFirstAdmin(db);
+      } finally {
+        db.close();
+      }
+      process.stdout.write(`New admin password for ${reset.username}: ${reset.password}\n`);
     } catch (err) {
       process.stderr.write(`Reset failed: ${(err as Error).message}\n`);
       exit(1);

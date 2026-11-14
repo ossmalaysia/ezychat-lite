@@ -394,10 +394,13 @@ export interface AiService {
    */
   scheduledTurn(
     input: {
-      agentId: number;
+      /** null with `draft`: Ask Ezy's preview for a new agent that is not saved yet. */
+      agentId: number | null;
       chatJid: string;
       task: { name: string; instruction: string };
       preview: boolean;
+      /** An unsaved agent (preview only): its name, preset and instructions; no business context, no look-ups. */
+      draft?: { name: string; preset: AiAgentPreset; instructions: string | null };
     },
     signal: AbortSignal,
   ): Promise<ScheduledTurnResult>;
@@ -941,6 +944,8 @@ export function createAiService(
       chat?.type === 'dm' &&
       chat.status === 'open' &&
       (chat.assignedTo === null || chat.assignedTo === agent.userId) &&
+      // A blocked number gets no AI answer (also a reply that was already scheduled).
+      !ctx.services.safety?.isBlocked(chat.waJid, chat.inboxId) &&
       !!s &&
       !s.paused &&
       !!s.last_customer_message_id &&
@@ -1876,6 +1881,18 @@ export function createAiService(
         // The 👍 goes out first: the send guard lets an AI reply out only while the message is unanswered.
         if (resolvedByAgentSinceThen(jid, user.id))
           await closeAfterThanks(jid, user.id, customerId, agent.id, controller.signal, owned);
+        // Team-only line, so a silent turn is never invisible (the closed chat shows its own line).
+        else if (owned())
+          chats.addAiToolUsed(jid, user.id, [
+            {
+              title: agent.displayName.trim().slice(0, 120) || 'AI',
+              sourceLabel: 'WhatsApp',
+              silent: {
+                kind:
+                  proposed === 'resolve' || proposed === 'ask_resolution' ? 'finished' : 'no_reply',
+              },
+            },
+          ]);
         ctx.db
           .prepare(
             'UPDATE ai_chat_state SET last_replied_message_id = ?, due_at = NULL WHERE chat_jid = ? AND last_customer_message_id = ?',
@@ -1932,7 +1949,8 @@ export function createAiService(
       !user ||
       chat.type !== 'dm' ||
       chat.status !== 'open' ||
-      (chat.assignedTo !== null && chat.assignedTo !== user.id)
+      (chat.assignedTo !== null && chat.assignedTo !== user.id) ||
+      ctx.services.safety?.isBlocked(chat.waJid, chat.inboxId)
     )
       return;
     if (state(chat.jid)?.paused) {
@@ -3103,15 +3121,27 @@ export function createAiService(
         );
       }
     },
-    async scheduledTurn({ agentId, chatJid, task, preview }, outer) {
-      const agent = agentById(ctx.db, agentId);
-      if (!agent) return { outcome: 'skip', text: null, reason: 'agent_off', lookups: [] };
+    async scheduledTurn({ agentId, chatJid, task, preview, draft }, outer) {
+      // A draft (Ask Ezy's unsaved new agent) only previews: preset texts, no business context, no look-ups.
+      if (draft && !preview)
+        return { outcome: 'skip', text: null, reason: 'agent_off', lookups: [] };
+      const agent = draft || agentId === null ? null : agentById(ctx.db, agentId);
+      if (!agent && !draft)
+        return { outcome: 'skip', text: null, reason: 'agent_off', lookups: [] };
       if (!ready()) return { outcome: 'skip', text: null, reason: 'ai_disconnected', lookups: [] };
       const chat = chats.get(chatJid);
       if (!chat) return { outcome: 'skip', text: null, reason: 'chat_gone', lookups: [] };
       const group = chat.type === 'group';
-      const current = settingsFor(agent);
-      const saved = contextItems(agent.id);
+      const preset = agent?.preset ?? draft!.preset;
+      const current: AiSettings = agent
+        ? settingsFor(agent)
+        : {
+            ...settingsFor(null),
+            displayName: draft!.name,
+            instructions: draft!.instructions ?? presetTexts(preset).instructions,
+            handoffRules: presetTexts(preset).handoffRules,
+          };
+      const saved = agent ? contextItems(agent.id) : [];
       const items = splitKnowledge(saved);
       const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
       const knowledge = relevantKnowledge(items.business, `${task.name}\n${task.instruction}`);
@@ -3130,26 +3160,28 @@ export function createAiService(
       let decision: AiDecision;
       let lookups: AgentToolInfo[];
       try {
-        extension = await agentTurnTools(
-          ctx,
-          log,
-          // A preview names no chat: tools that change data are not run (as in Try it).
-          { agent: 'sales', agentId: agent.id, chatJid: preview ? null : chatJid, signal },
-          {
-            onFailure: () => lookupAbort.abort(),
-            onCall: (name) => toolCalls.push(name),
-            lookupsOnly: true,
-            // Nobody wrote: a sheet row holds the automatic columns (and AI values where allowed).
-            record: {
-              personJids: group ? [] : null,
-              messageIds: [],
-              filesGiven: false,
-              fileNames: [],
-            },
-          },
-        );
+        extension = agent
+          ? await agentTurnTools(
+              ctx,
+              log,
+              // A preview names no chat: tools that change data are not run (as in Try it).
+              { agent: 'sales', agentId: agent.id, chatJid: preview ? null : chatJid, signal },
+              {
+                onFailure: () => lookupAbort.abort(),
+                onCall: (name) => toolCalls.push(name),
+                lookupsOnly: true,
+                // Nobody wrote: a sheet row holds the automatic columns (and AI values where allowed).
+                record: {
+                  personJids: group ? [] : null,
+                  messageIds: [],
+                  filesGiven: false,
+                  fileNames: [],
+                },
+              },
+            )
+          : null;
         // No file came in: nothing to save to Drive.
-        const tools: Record<string, unknown> = { ...extension.tools };
+        const tools: Record<string, unknown> = { ...extension?.tools };
         delete tools[SAVE_FILE_TO_DRIVE];
         decision = AiDecision.parse(
           await provider.generate(
@@ -3157,8 +3189,8 @@ export function createAiService(
             aiApiKey(ctx.settings),
             {
               ...prompt(
-                agent.id,
-                { ...current, preset: agent.preset },
+                agent?.id ?? 0,
+                { ...current, preset },
                 items.internal,
                 knowledge,
                 group
@@ -3180,7 +3212,7 @@ export function createAiService(
               ),
               tools: {
                 ...chatTools({ knowledge: items.business, onCall: (name) => toolCalls.push(name) }),
-                ...(tools as typeof extension.tools),
+                ...(tools as NonNullable<typeof extension>['tools']),
               },
               onTiming: (timing) =>
                 log.info({ event: 'ai_turn', source: 'scheduled', ...timing }, 'AI turn timing'),
@@ -3194,7 +3226,7 @@ export function createAiService(
         log.warn(
           {
             event: 'scheduled_turn_failed',
-            agentId: agent.id,
+            agentId: agent?.id ?? null,
             reason: failed ? 'lookup_failed' : 'ai_unavailable',
             kind: turnFailure?.kind ?? 'other',
             errName: turnFailure?.causeName ?? errorNameOf(error),
@@ -3232,7 +3264,7 @@ export function createAiService(
       log.info(
         {
           event: 'scheduled_turn',
-          agentId: agent.id,
+          agentId: agent?.id ?? null,
           preview,
           group,
           action: decision.action,

@@ -10,6 +10,14 @@ into AGENTS.md.
 
 ## Working method
 
+- The owner's test environment `start.ps1` serves the main folder's branch only. To hand over a branch that lives in
+  a worktree, run the same server command from the worktree (`--data D:\dev\test-env\lite\data --port 7491 --fake-wa
+--mode dev`, plus `--max-agents 2` for a multi-agent path) after checking the branch adds no migration to that kept
+  data. Point the owner to `claude-test-login.txt` for the login; never repeat it in chat. `npm run e2e` in that
+  worktree rebuilds the `apps/web/dist` the owner's build serves: with changed web code that blanks the owner's page,
+  so restart the owner's build after the e2e round (unchanged web code gives the same files), and open the page once
+  yourself before you tell the owner to test.
+
 - A change that touches many places (8+ files or 400+ lines, docs and lockfiles excluded; the `review-nudge` hook
   says so) gets `/code-review` before its PR, its findings fixed or reported in the PR; merging still waits for the
   owner's explicit request.
@@ -98,7 +106,13 @@ into AGENTS.md.
   stages that do not apply as `skip` with the reason (MCP-only: no design, screen review or UI e2e),
   and show `build-summary.mjs <PR>` in every "done / ready to merge" report, not prose. Stage keys are
   `design|dev|unit|e2e|devbuild|screen`. A plan ledger under `.superpowers/` is git-ignored and deleted
-  at the end: copy its rulings and deferred findings into the workbook first.
+  at the end: copy its rulings and deferred findings into the workbook first. `build-summary.mjs record` rewrites
+  the workbook and keeps only the text above the stage table and the `## Log` part: design notes kept in a
+  workbook go between the branch line and the table, or the next record deletes them. Commit a workbook edit
+  before any `git checkout -- <file>` that undoes a trial run, or the edit is lost with it.
+- A web rebuild under a running Dev Build leaves a blank page ("Failed to load module script … MIME type
+  text/html": the old page asks for script files the build removed): restart the Dev Build after every
+  `npm run build -w @ezychat/web`, and run its check again on the new data.
 - Run the Dev Build check yourself, unasked, before calling a feature working: green unit/e2e tests
   with a test client missed whether a real client works end to end (MCP access was nearly reported
   done without Claude Code ever connecting). Check scripts confirm the effect (audit row, empty
@@ -157,6 +171,9 @@ into AGENTS.md.
   the page busy, so every step burns the 30 s timeout). The setup wizard's step lives in React state: creating the
   first admin through `/api/setup/admin` drops the page straight into the inbox, so walk the account step in the UI
   once per fresh server and vary viewport and colour scheme on that one page.
+- On the owner's PC the nvm default can be Node 20 (vitest then dies with exit 3221225477). Put a 22+ install first
+  in `PATH` for that one command (`$env:PATH = "D:\nvm\v24.13.0;" + $env:PATH`); never `nvm use`, which switches
+  Node for every session and the live apps.
 - Run tests on the Node version CI uses (`setup-node` 22 = the newest 22.x; 22.23.4 on 2026-10-30). On Node 22.22.0
   a worker's `execArgv: ['--import', 'tsx']` does not apply tsx's hooks, so the document parser worker
   (`ai/knowledge-worker.ts`) answers "Cannot read this document": 4 server tests and the `ai-member.spec` file upload
@@ -240,6 +257,7 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - A new server-side refusal (a size limit, a window) needs a way through in every UI path that can hit it, not only
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
   failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
+- Hunting an e2e flake with `--repeat-each` shares one signed-in user and one server: a per-user rate limit (reactions: 30 a minute) turns the repeats into 429s that look like the flake. Read the failing trace's `.network` for 4xx before blaming timing; cap repeats so the user's requests stay under the limit.
 
 ## Multi-agent process
 
@@ -316,6 +334,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- A test that scans the whole repository does it in one native call (`git grep`), not file by file in JS: the
+  read loop passed locally and timed out at 5 s on a busy macOS runner.
 - Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
   push followed by `--head <name>` opens the PR on another session's branch of that name. Release branches are shared names
   (`chore/release-<version>`): check `git ls-remote origin <branch>` first.
@@ -459,7 +479,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - GitHub's compare API (`repos/…/compare/a...b`) lists at most 300 files: a full list is unknown, never
   "these are all the changes". Evidence tied to a commit must also name one of the PR's own commits
   (`compare.commits`), not just any commit in a log. A rebase gives every commit a new SHA, so it drops all recorded
-  stages and Dev Build rows: rebase onto `main` first, then run and record the checks.
+  stages and Dev Build rows: rebase onto `main` first, then run and record the checks. When a rebase must come after
+  them, map each old SHA to its new one by commit subject, record the stages again with `--sha <new>` and name the new
+  SHA in the rows ("rebased from …"); screens taken before a later code change still count as missing, so take them
+  again. Each docs commit re-pads the whole `dev-build-checks.md` table, so every replayed commit conflicts there:
+  resolve by merging rows by their first cells (never "ours"/"theirs"), then look for a row that came back twice. A
+  change to any `e2e/*.mjs` file counts as test code too: a one-line SonarCloud fix in an eval script after the checks
+  cancelled the e2e, Dev Build and screen proofs. Read SonarCloud's findings on new scripts (taint rules such as S5145
+  flag any server value in `console.log`; print fixed texts) before the final checks, not after.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
@@ -715,6 +742,13 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `mock-index.json` (renumber, prune), continue; then point the index and `design.md` at the rebased mock commit.
 
 ## Build, tooling and Windows
+
+- Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
+  replacement silently turned `/…\d{4}/` into `/…d{4}/`. After any `sed` on code, read the changed line back.
+
+- Point a custom installer output (`-- --config.directories.output=<folder>`) outside the checkout: inside it, eslint
+  scans `win-unpacked/` (8,000+ errors in Enterprise) and hides the real result. If it is already inside, lint with
+  `--ignore-pattern "<folder>/**"`.
 
 - Run `prettier --write` only on the files you changed (`git diff --name-only origin/main`), never on a folder glob:
   many files on `main` are not Prettier-clean, and a glob drags unrelated reformatting into the PR.
@@ -995,6 +1029,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
+- In PowerShell, `git commit -F - @'…'@` passes the here-string as a pathspec, not stdin: the commit fails while the
+  `git add` before it already staged its files. Write multi-line commit messages with a Bash heredoc (`-F - <<'EOF'`)
+  or `-m` per paragraph, and run `git add` and `git commit` of one change together.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
@@ -1043,6 +1080,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   sign-in honours `Retry-After` instead of weakening limits. Click a `SegmentedControl` option by its
   `<label>` (it covers the small radio). Capture drawers and dialogs with viewport screenshots: full-page
   shots stretch fixed elements and hide the drawer's scrolling body.
+- A test's last line is an `expect`, never a bare `await screen.findBy…`: assert what the screen or the request did
+  (the call's body, a closed tab, the old message gone), so the test fails when the behaviour goes (SonarCloud S2699).
+- A CLI command that opens `app.db` closes it in `finally`, also when it fails: an open SQLite file stays locked on
+  Windows and blocks the next start or a cleanup.
 - Vitest: no globals (call `cleanup()` in `afterEach`, assert on `textContent`); native subprocess tests get
   their own timeout and are re-run with one worker before changing assertions; lazy-locale tests use a
   10 s `waitFor` and 20 s test timeout; fixtures mirror Tailwind preflight (`border-style: solid`).
@@ -1343,6 +1384,24 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Ask Ezy unit tests mock the model and often `scheduledTurn` too, so only a Dev Build runs the real tool path: a new
+  Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
+  their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
+  `Ask Ezy tool failed` {tool, errName}: read it before guessing why a tool "failed". To change how Ezy behaves (e.g.
+  no one-choice question), fix the prompt rules or return a tool error and measure it with the eval; do not tighten an
+  `AskEzyBlock` schema for it: a block that fails its schema is dropped without a trace.
+- A real-model eval (`e2e/ask-ezy-eval.mjs`) reads the environment before it expects anything (agent count against
+  `maxAgents` from `GET /api/ai`), and each scenario states whether a question is needed: without that it scored correct
+  refusals and correct direct proposals as failures. Read the saved turns (`--out`) before calling a check a model fault.
+  Give each turn its own client limit and save after every conversation: one hung request otherwise ends the whole run
+  (Node's fetch gives up only after 300 s) and loses the results already gathered. Judge an answer by its structure
+  (a question whose choices are chats "Name · …1234"), never by its wording ("which" vs "who should receive"): a
+  wording test scored a correct run as a skipped question.
+
+- Every AI path that ends with nothing sent (`no_reply`, a guard that silences `resolve`) must leave a team-only
+  trace in the chat; a silent turn while the AI holds the chat leaves the customer waiting where nobody looks. For
+  "why no reply", read the `AI decision` log line (`action` + `proposed`) before blaming the code or the rules: an
+  agent's own "do not reply to yes" rule also swallows a "ya" that answers the AI's question.
 - A new kind of AI turn needs its own branch in the mock model (`e2e/agents-devbuild.ts` `mockDecision`, keyed on its
   `currentSituation` field) before a Dev Build check can show it. A timer feature's Dev Build check waits for one real
   due time (the next slot a couple of minutes away, in the business zone): fake-clock unit tests never prove the timer
@@ -1412,6 +1471,41 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - AI text that may reach a customer and is built from chat data (phrase lists, drafts) gets its name filter
   from every customer of the inbox, not only from the chats it read: a model can still write a name it saw
   elsewhere. Read the first real build's output before calling it done (it showed copied note lines).
+- A prompt rule about a message property the text does not show (forwarded, quoted, edited, deleted) cannot work
+  unless the input marks it: enrichment's "skip forwarded details" had no effect because the forwarded mark was not
+  sent. Enforce such a rule on the server (skip the message) and mark the property in what the model reads.
+- Ask Ezy's history is text only: whatever a block asked or proposed (question choices, a pending proposal id) must
+  be written back into the assistant's history line, or a tapped choice reaches the model without its question. Ids
+  in history are hints only: the server reads proposals from its own store, and chat ids a proposal names come from
+  the look-ups of the same answer, never from history. An eval or script that drives `/api/ask-ezy` must build
+  history the same way (`answerForHistory`), or it tests a harder case than the app and reports false failures.
+- An AI SDK turn with `stopWhen: stepCountIs(n)` and a structured `output` must forbid tools on step n
+  (`prepareStep` → `toolChoice: 'none'`): a tool call on the last step leaves no answer
+  (`AI_NoOutputGeneratedError`), which the person sees as "the provider did not respond". Size n from a real
+  turn's log, not a guess: an "improve the agent" turn needs agents, setup, context items, one or two tests and the
+  proposal (7 tool steps), so 6 cut it off.
+- Every AI connection (ChatGPT sign-in, OpenAI key, Claude key) bounds a whole turn to 60 s for customer replies; a
+  feature's own longer budget means nothing unless it passes it down (`AiAssistCall.timeoutMs`). Look for the
+  smallest bound on the path before raising one (the owner's question died at 61 s under a 150 s budget). A
+  streamed answer that may stay silent over 100 s needs a keep-alive line, or the Cloudflare tunnel closes it.
+- Before speeding up an AI turn, trace each model call (ms, input, cached and output tokens, tools asked for): the
+  Ask Ezy trace (`ask_ezy_call` lines) showed the prompt cache already covering 65-95 % of a small input, and the
+  time going to output tokens (~45 a second; a long text written twice, to test and to propose) and to one model
+  round trip per data read. Hand back ids instead of making the model repeat content, and push small common facts:
+  find → replace edits with a `draftId` for the test and the proposal cut the written tokens from ~700 to ~180 and
+  the turn from 36 s to 26 s. Run a test's before and after at the same time in one tool call.
+- A design kept only in `docs/features/<x>/design.md` disappears with the five-folder retention (AGENTS.md still
+  pointed to the pruned Ask Ezy design): keep a core feature's decisions in a lasting `docs/<feature>.md` with a
+  decision log, and point AGENTS.md there.
+- "Propose after testing" is not enough for a model: it tested the change and then offered "Want me to propose
+  this?" as a follow-up chip, so the admin saw no Apply button. Say "propose it in the same answer; never end with a
+  question instead of the proposal", and judge an improvement turn by its blocks (`change`), not its text.
+- A strict JSON schema does not stop the ChatGPT backend from writing a valid answer and then more text (1 in 5
+  "improve <agent>" turns: `AI_NoObjectGeneratedError`, finish `stop`). Log the answer's shape, never its text
+  (`answerShape`: empty / json / text_then_json / json_then_text / not_json), and take the complete object out of
+  the refused text (`answerFromText`) before failing the turn; a retry would cost a model call.
+- A hand-over tool's description (e.g. `start_setup`) must match the prompt's trigger word for word: "create or change
+  an AI agent" in the tool sent "improve <agent>" to the setup turn, while the prompt meant only new agents and tasks.
 - Anything a person waits for (completions, Ask Ezy turns of 2–3 tool rounds: 13–23 s on the workhorse, 8–13 s
   on `gpt-6-luna`) needs the connection's fast model, never the saved workhorse: ChatGPT `gpt-6.1-sol` took 3–9 s per structured answer (0 of 10 completions shown in 0.1.58),
   `gpt-6-luna` 1.3–2.2 s. The account's model list (`~/.codex/models_cache.json`) shows each model's purpose
@@ -1623,6 +1717,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
+  `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
+  (or `newClientId`), never `crypto.randomUUID()` directly or `Math.random`; feature-check any other secure-only API. One call in an always-mounted host (e.g. `FeedbackHost`) blanked every
+  LAN sign-in for six releases: a web change that adds a browser API gets one Dev Build check over `http://<LAN IP>`.
 - A web push `badge` must be a white shape on a transparent background (`public/badge-96.png`): Android draws it from
   the alpha only, so a full-colour app icon becomes a white square. `notification-badge.test.ts` checks it.
 - A list or panel component whose tests render it without an auth provider reads the signed-in user from the props it
@@ -1637,6 +1735,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   list reloads every loaded page, so persist and restore page 1 only. One open loaded `/api/chats` up to 6 times.
   The PWA caches (`sw-routes.ts`) never store a `no-store` answer, are cleared at sign-out and on a user switch,
   and a media file is cacheable only once WhatsApp Safety's AI check has answered (`safety.cacheable`).
+- A WhatsApp block belongs to one inbox (one WhatsApp number), but `safety_numbers` is keyed by the customer's
+  `wa_jid`: record `blocked_inbox_id` and ask `isBlocked(waJid, inboxId)`, or a block on Sales silences the AI and shows
+  "blocked" in the same customer's Support chat. Blocking from the chat moves the chat's flagged items like Admin →
+  Safety (open → blocked → reported/open); a new field in a shared response gets a zod default.
 - A list row with a label and action buttons (join requests, approvals): keep a phone number `whitespace-nowrap` and the
   buttons in one `ml-auto shrink-0` group, so a narrow panel moves the whole group below instead of truncating the
   number or putting one button per line (a `min-w-*` on the label did the latter at 360 px).
@@ -1762,9 +1864,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   API or tool that returns it must say so, and tests must find the row by `client_id`.
 - A socket event that arrives while its list is still loading is lost: the load's older answer replaces the
   patched cache, and React Query reuses a running first load instead of restarting it on
-  `invalidateQueries`. Wait for the running load to end, then reload (`reloadAfterRunningLoad`). An e2e
-  test that fails only in the full run is usually such a race: read its failure screenshot, never just
-  rerun it.
+  `invalidateQueries`. Wait for the running load to end, then reload (`reloadAfterRunningLoad`). This holds
+  for every event that patches a cached list (new message, update, reaction), not only for new rows: a
+  badge that shows and then vanishes in an e2e run is this race. An e2e test that fails only in the full
+  run is usually such a race: read its failure screenshot, never just rerun it.
 
 - Electron fires `will-frame-navigate` before `will-navigate`; `preventDefault()` in the first cancels the
   second, so a link handler only in `will-navigate` never runs (every `mailto:` button did nothing). Handle
@@ -1942,6 +2045,11 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   user exactly that text before Send (`GET …/defaults`); never trust the browser for diagnostics, and strip ids and
   numbers from a screen path before it leaves.
 
+- A click-to-close backdrop (lightbox) puts one `onClick` on the dialog component and closes when `e.target` is the
+  backdrop (a ref), not handlers on plain `<div>`/`<img>` with `stopPropagation`: SonarCloud counts each click handler
+  on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
+  button already serve keyboard users.
+
 ## Internationalization
 
 - Searchable catalog content (template gallery `keywords`) keeps the English words beside the
@@ -1966,6 +2074,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   gets a security review before the PR: which interfaces it touches, OS firewall prompts, what a LAN or
   other local program could reach, and the security invariants in AGENTS.md. Run `/security-review` on the
   branch and record the answer in the PR description.
+- One concept, one English word on every screen (the AI's "hand-off", not "hand-over" on one page): when renaming a
+  label, also change the sentences that refer to it, then grep tests and e2e for every old sentence, not only the label.
 - `<Trans>` component tags must be non-void elements (`<a>`, `<b>`).
 - Never write the product name into a catalog string: use `{{product}}` (i18next default variable set by
   `createInboxApp({ productName })`). Only the share-the-app texts keep "EzyChat Lite"; a test enforces it.

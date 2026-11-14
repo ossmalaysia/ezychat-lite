@@ -106,6 +106,16 @@ describe('describeEvent', () => {
     );
   });
 
+  it('says the AI did not reply, and when it saw the chat as finished', () => {
+    const source = { title: 'Sales Agent', sourceLabel: 'WhatsApp' };
+    expect(
+      describeEvent(event('ai_tool_used', 2, { ...source, silent: { kind: 'no_reply' } }), dir),
+    ).toBe('Jee Fong did not reply');
+    expect(
+      describeEvent(event('ai_tool_used', 2, { ...source, silent: { kind: 'finished' } }), dir),
+    ).toBe('Jee Fong did not reply: it saw the chat as finished');
+  });
+
   it('names Google Calendar checks and bookings with the booked time', () => {
     const source = { title: 'Check free times', sourceLabel: 'Google Calendar' };
     expect(

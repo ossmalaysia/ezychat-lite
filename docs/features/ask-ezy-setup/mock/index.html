@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  Quick mock: Ask Ezy sets up agents and scheduled tasks (design.md). Owner chose screenshots of a quick mock
+  (2026-11-12). Open in a browser; ?state=<id>&theme=dark picks a state. Demo data only.
+  Screenshots: node docs/features/ask-ezy-setup/mock/shots.mjs (from a checkout with node_modules)
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mock: Ask Ezy sets up agents and scheduled tasks</title>
+    <style>
+      /* Tokens copied from apps/web/src/index.css (Calm Desk). */
+      :root {
+        --radius: 10px; --background: #f8fafc; --foreground: #0f172a; --card: #ffffff; --muted: #f1f5f9;
+        --muted-foreground: #475569; --accent: #f0fdfa; --border: #e2e8f0; --primary: #0f766e;
+        --primary-foreground: #ffffff; --danger: #dc2626; --success: #15803d; --warning-bg: #fffbeb; --warning: #92400e;
+      }
+      :root.dark {
+        --background: #0b1220; --foreground: #f1f5f9; --card: #111827; --muted: #1f2937; --muted-foreground: #94a3b8;
+        --accent: #12302d; --border: #243042; --primary: #14b8a6; --primary-foreground: #04201d; --danger: #ef4444;
+        --success: #4ade80; --warning-bg: #2a2110; --warning: #fcd34d; color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px dashed var(--border); font-size: 12px; }
+      .bar a { color: var(--primary); }
+      .app { display: grid; grid-template-columns: 300px 1fr 440px; height: calc(100vh - 31px); }
+      .side { border-right: 1px solid var(--border); background: var(--card); padding: 14px 16px; }
+      .side h1 { font-size: 20px; margin: 0 0 12px; }
+      .row { padding: 10px 0; border-top: 1px solid var(--border); }
+      .name { font-weight: 600; }
+      .sub { color: var(--muted-foreground); font-size: 13px; }
+      .center { display: grid; place-items: center; color: var(--muted-foreground); }
+      .panel { border-left: 1px solid var(--border); background: var(--background); display: flex; flex-direction: column; min-width: 0; }
+      .ph { display: flex; gap: 8px; align-items: flex-start; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+      .ph .t { flex: 1; min-width: 0; } .ph b { font-size: 17px; } .ph .sub { font-size: 12px; }
+      .flow { flex: 1; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+      .me { align-self: flex-end; background: var(--accent); border-radius: 12px; padding: 8px 12px; max-width: 85%; }
+      .ezy { max-width: 100%; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; }
+      .card h3 { margin: 0; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+      .tag { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--primary); }
+      dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; } dt { color: var(--muted-foreground); } dd { margin: 0; min-width: 0; }
+      .preview { background: var(--muted); border-radius: 8px; padding: 8px 10px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip { border: 1px solid var(--border); background: var(--card); color: var(--foreground); border-radius: 999px; padding: 8px 14px; font: inherit; min-height: 40px; }
+      .chip.on { border-color: var(--primary); color: var(--primary); }
+      .chip[disabled] { opacity: .5; }
+      .btn { border: 1px solid var(--border); background: var(--card); color: var(--foreground); border-radius: 8px; padding: 8px 14px; font: inherit; min-height: 40px; }
+      .btn.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .ok { color: var(--success); } .err { color: var(--danger); }
+      .note { background: var(--warning-bg); color: var(--warning); border-radius: 8px; padding: 8px 10px; }
+      a.link { color: var(--primary); }
+      .old { text-decoration: line-through; color: var(--muted-foreground); }
+      .foot { border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; }
+      .foot .in { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--muted-foreground); background: var(--card); }
+      .read { font-size: 12px; color: var(--muted-foreground); }
+      [hidden] { display: none !important; }
+      @media (max-width: 767px) {
+        .app { grid-template-columns: 1fr; } .side, .center { display: none; } .panel { border-left: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="bar" aria-label="Mock states">Mock states:
+      <a href="?state=ask">1 Which agent</a> · <a href="?state=which">2 Which Jee Fong</a> ·
+      <a href="?state=cards">3 Cards</a> · <a href="?state=applied">4 Applied</a> · <a href="?state=lite">5 Lite</a> ·
+      <a href="?state=edit">6 Edit time</a> · <a href="?state=error">7 Error</a>
+    </nav>
+    <div class="app">
+      <aside class="side"><h1>Inbox</h1>
+        <div class="row"><div class="name">Jee Fong</div><div class="sub">Thanks for the update!</div></div>
+        <div class="row"><div class="name">Jee Fong Lim</div><div class="sub">Can I change my order?</div></div>
+        <div class="row"><div class="name">Aisyah Rahman</div><div class="sub">Received the quote</div></div>
+      </aside>
+      <main class="center">Select a chat</main>
+      <section class="panel" aria-label="Ask Ezy">
+        <div class="ph"><div class="t"><b>Ask Ezy</b><div class="sub">Ask about your chats and customers, or improve your AI agent.</div></div>
+          <button class="btn">Start over</button></div>
+        <div class="flow" id="flow"></div>
+        <div class="foot"><div class="in">Ask about your chats, customers or AI agent</div><button class="btn primary" aria-label="Send">↑</button></div>
+      </section>
+    </div>
+    <template id="t-ask">
+      <div class="me">I want to create a new agent that greets Jee Fong at 9am every day</div>
+      <div class="ezy card"><div>I can do that with a <b>scheduled task</b>: one message at 09:00 every day. Should a new agent send it, or your Sales Agent?</div>
+        <div class="chips"><button class="chip">New agent</button><button class="chip">Sales Agent</button></div></div>
+    </template>
+    <template id="t-which">
+      <div class="me">I want to create a new agent that greets Jee Fong at 9am every day</div>
+      <div class="ezy card"><div>I can do that with a <b>scheduled task</b>. Should a new agent send it, or your Sales Agent?</div>
+        <div class="chips"><button class="chip on">New agent</button><button class="chip" disabled>Sales Agent</button></div></div>
+      <div class="me">New agent</div>
+      <div class="ezy card"><div>Two chats match "Jee Fong". Which one?</div>
+        <div class="chips"><button class="chip">Jee Fong · …0084</button><button class="chip">Jee Fong Lim · …5521</button></div></div>
+    </template>
+    <template id="t-cards">
+      <div class="me">Jee Fong · …0084</div>
+      <div class="ezy">Here is the plan. Nothing changes until you apply it.</div>
+      <div class="card"><h3><span>Morning greeter</span><span class="tag">New agent</span></h3>
+        <dl><dt>Type</dt><dd>Custom agent</dd><dt>Number</dt><dd>Anchor MY (+60 12-345 6789)</dd>
+        <dt>Does</dt><dd>Sends scheduled messages only. It does not answer chats.</dd></dl>
+        <div class="read">It starts switched off. Turn it on in Admin → Members when you are ready.</div></div>
+      <div class="card"><h3><span>Morning greeting</span><span class="tag">Scheduled task</span></h3>
+        <dl><dt>Agent</dt><dd>Morning greeter (new)</dd><dt>Send to</dt><dd>Jee Fong (…0084)</dd>
+        <dt>When</dt><dd>09:00 every day · Asia/Kuala_Lumpur</dd><dt>Instruction</dt><dd>Greet Jee Fong warmly and wish a good day. One or two short sentences.</dd></dl>
+        <div><div class="read">Preview (not sent)</div><div class="preview">Good morning Jee Fong! Wishing you a great day ahead. 😊</div></div></div>
+      <div class="actions"><button class="btn primary">Apply both</button><button class="btn">Discard</button></div>
+      <div class="read">Ezy read: AI agents · chats named Jee Fong · a preview of the message</div>
+    </template>
+    <template id="t-applied">
+      <div class="card"><h3><span>Morning greeter</span><span class="tag">New agent</span></h3><div class="ok">Created (switched off).</div></div>
+      <div class="card"><h3><span>Morning greeting</span><span class="tag">Scheduled task</span></h3>
+        <dl><dt>Send to</dt><dd>Jee Fong (…0084)</dd><dt>When</dt><dd>09:00 every day · next: tomorrow 09:00</dd></dl>
+        <div class="ok">Saved. It sends once the agent is on.</div>
+        <div class="actions"><button class="btn">Undo</button></div>
+        <div class="actions"><a class="link" href="#">Open the agent</a><a class="link" href="#">Open scheduled tasks</a></div></div>
+      <div class="chips"><button class="chip">↳ Turn the agent on</button><button class="chip">↳ Change the time</button></div>
+    </template>
+    <template id="t-lite">
+      <div class="me">I want to create a new agent that greets Jee Fong at 9am every day</div>
+      <div class="ezy card"><div class="note">EzyChat Lite has one AI agent, so I can't add a new one.</div>
+        <div>Your Sales Agent can send the greeting with a scheduled task instead. Use Sales Agent?</div>
+        <div class="chips"><button class="chip">Use Sales Agent</button><button class="chip">Not now</button></div></div>
+    </template>
+    <template id="t-edit">
+      <div class="me">Move Jee Fong's morning greeting to 8:30</div>
+      <div class="card"><h3><span>Morning greeting</span><span class="tag">Change</span></h3>
+        <dl><dt>Agent</dt><dd>Morning greeter</dd><dt>Send to</dt><dd>Jee Fong (…0084)</dd>
+        <dt>When</dt><dd><span class="old">09:00</span> → <b>08:30</b> every day</dd></dl></div>
+      <div class="actions"><button class="btn primary">Apply</button><button class="btn">Discard</button></div>
+    </template>
+    <template id="t-error">
+      <div class="me">Greet the group "Supplier KL" at 9am every weekday with the Sales Agent</div>
+      <div class="ezy card"><div class="err">The Sales Agent can't send to "Supplier KL": that group is on another number (Anchor SG).</div>
+        <div>Which should I use?</div>
+        <div class="chips"><button class="chip">An agent of Anchor SG</button><button class="chip">Another chat</button></div></div>
+    </template>
+    <script>
+      const q = new URLSearchParams(location.search);
+      if (q.get('theme') === 'dark') document.documentElement.classList.add('dark');
+      const state = q.get('state') || 'ask';
+      const t = document.getElementById('t-' + state) || document.getElementById('t-ask');
+      document.getElementById('flow').append(t.content.cloneNode(true));
+    </script>
+  </body>
+</html>

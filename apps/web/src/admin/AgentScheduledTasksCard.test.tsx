@@ -176,9 +176,9 @@ function stubServer(opts: Server = {}) {
   });
 }
 
-function renderCard() {
+function renderCard(entry = '/admin/members/ai/3') {
   renderWithQuery(
-    <MemoryRouter initialEntries={['/admin/members/ai/3']}>
+    <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route
           path="/admin/members/ai/3"
@@ -263,6 +263,17 @@ describe('Agent page → Scheduled tasks', () => {
     expect(screen.getByText(/never to new numbers or lists of people/)).toBeTruthy();
     expect(screen.queryByTestId('scheduled-paused')).toBeNull();
     expect(screen.queryByTestId('scheduled-show-all')).toBeNull();
+  });
+
+  it('comes into view from an "Open scheduled tasks" link (#scheduled-tasks)', async () => {
+    stubServer();
+    const scroll = vi.fn();
+    vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(scroll);
+    renderCard('/admin/members/ai/3#scheduled-tasks');
+    await screen.findByText('Morning bookings');
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'start' }));
+    expect(screen.getByTestId('agent-scheduled-tasks').id).toBe('scheduled-tasks');
+    vi.mocked(Element.prototype.scrollIntoView).mockRestore();
   });
 
   it('shows the empty state with an Add button', async () => {

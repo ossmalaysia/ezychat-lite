@@ -200,7 +200,7 @@ only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bun
 in, and the AI member stays off until an admin turns it on. `POST /api/ai/connection/test` (admin-only,
 rate-limited, `ai/key-test.ts`) checks a key with `GET /v1/models` and never stores or logs it; only
 `invalid_key` (401) blocks saving. Both modes run one agent turn on the Vercel AI SDK
-(`ai/agent/turn.ts`: tools, structured decision with actions answer / ask_resolution / resolve / handoff / `no_reply` (empty reply, nothing sent, the AI keeps the chat), ≤ 4 steps, no transport retries but a malformed decision is asked once more; failures are `AgentTurnFailure` with `kind`, `causeName`, `status` for the `AI answer unavailable` log line; models in `ai/agent/models.ts`,
+(`ai/agent/turn.ts`: tools, structured decision with actions answer / ask_resolution / resolve / handoff / `no_reply` (empty reply, nothing sent, the AI keeps the chat; a direct chat gets a team-only `ai_tool_used` line with `silent` {kind `no_reply` | `finished` = a resolve the off resolution check silenced}, never after the thumbs-up close), ≤ 4 steps, no transport retries but a malformed decision is asked once more; failures are `AgentTurnFailure` with `kind`, `causeName`, `status` for the `AI answer unavailable` log line; models in `ai/agent/models.ts`,
 which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
 built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
 (`search_business_context` above the 40,000-character budget, `get_older_messages` when the chat is
@@ -280,17 +280,49 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
-**Ask Ezy** (design `docs/features/ask-ezy/design.md`, mock `docs/features/ask-ezy/mock`). An in-app assistant
+**Ask Ezy** (design and decision log `docs/ask-ezy.md`: read it before changing Ask Ezy and add a decision line when you change a rule). An in-app assistant
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
 the signed-in user (team members: the inbox read tools of their own inboxes; admins also the AI setup reads,
 `try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the connection's
-**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 6 steps, no retries) returns text plus typed blocks
+**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 8 steps, the last without tools, no retries) returns text plus typed blocks
 (`AskEzyBlock`: stats, bars, heatmap, chats, customer, change, test); blocks are validated, invalid ones dropped,
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
-Logs carry tool names, counts, ms and model, never question or answer text. Web: `apps/web/src/askezy/`.
+Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
+optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
+question and card back into the assistant's history line. Setup runs on the **main model**: an admin's normal (fast)
+turn offers only `start_setup` (no arguments); calling it ends the fast turn and the same request (same history) reruns
+with `AiAssistCall.main` (the connection's saved model, its own reasoning), the setup prompt rules (one question = one
+unknown, agent → chat → time, propose a new agent and its task together) and the setup tools `list_scheduled_tasks`,
+`propose_agent`, `propose_scheduled_task`, `propose_scheduled_task_edit` (`ask-ezy/setup.ts`, a sibling store with the
+same 30 min / 20 per admin rules, server-made ids); log `ask_ezy_setup_start`, then the answer line with `setup: true`
+and the model. Every turn has a total budget (fast 90 s, setup 150 s): then the model call and its tools stop and the
+stream ends with `error ai_timeout` (log `kind: 'budget'`, tool names and counts only). Blocks `agent_proposal` and
+`task_proposal` are filled from the held proposal. `propose_agent` {name, purpose, inboxId?, instructions?} is refused
+at `maxAgents` (the tool error gives the sentence: Lite with 1 keeps its own, else "This EzyChat allows N AI agents…")
+and for a generic name or an existing agent's name; the agent is always preset `custom`, the server writes its role
+text from `purpose` (`scheduledAgentInstructions`; `instructions` only adds detail) and Apply turns "Answer direct
+chats" off. A new agent comes only with its task: an answer drops an `agent_proposal` without a `task_proposal` that
+`dependsOn` it (block `setup_note` `agent_needs_task` instead), adds a missing agent card for a task that needs it, and
+the route refuses Apply of an agent proposal (409 `agent_needs_task`; the task's Apply creates both). Apply creates
+the agent **switched off** through `AiService.createAgent` (409 `agent_limit` again). A task names only a chat id a `list_chats`/`get_chat` look-up returned
+in the same answer, that `canOpenChat` allows and that is on the agent's inbox (else `chat_not_in_inbox` in the tool
+error). Its preview is one `AiService.scheduledTurn` (preview, the turn's signal, its own 20 s budget: after that the
+card comes with `preview: null`, `previewTimedOut`; own limit 10 a minute per admin, not the agent page's); a pending new agent previews as a `draft` (name, preset, instructions, no
+business context, no look-ups, nothing stored). A chat without a name is never shown by its number: `chatName` null,
+"Chat …6789". Apply runs the scheduled-task create/update service (same limits); a task whose `dependsOn` agent is
+pending applies the agent first in the same request (`related`); when the task then fails the answer is 200
+`{status:'proposed', failed}`, the agent stays with its own Undo, and a retry re-checks it (409 `agent_gone`).
+Undo of a task refuses 409 `setup_changed` when it was edited since Apply; Undo of a new agent (also via its task)
+deletes it only where `maxAgents > 1` (Lite: 409 `agent_kept`, `removable: false` on the card, the agent stays off),
+while it is off with no chats or tasks (409 `agent_in_use`) and unchanged since Apply (fingerprint of its texts, items
+and every `agent_id` row; 409 `setup_changed`), and discards the task proposals still waiting for it. The store
+evicts a new agent together with the tasks that need it, never the one a new proposal needs. The same
+`/api/ask-ezy/changes/:id/:action` route serves all three kinds (`AskEzyService.act`); logs `ask_ezy_setup` carry kind,
+action, ok, code and ids only.
+One time limit for the whole question (fast and setup turns), set by admins in Settings → AI (`GET/PUT /api/ask-ezy/settings` {timeoutMinutes 5|10|15|30}, default 15, setting `ask_ezy_timeout_minutes`, audit `settings.ask_ezy_timeout` before/after; `AskEzySettingsSection.tsx`); it replaces the connection's own 60 s (`AiAssistCall.timeoutMs`), which customer replies keep, and the panel's Stop ends a question at any time. The stream sends an empty line every 20 s (`ASK_EZY_KEEP_ALIVE_MS`) so the tunnel never closes a silent answer. Logs carry tool names, counts, ms and model, never question or answer text; each model call writes an `ask_ezy_call` trace line (ms, input/cached/output tokens, tools asked for) and each turn an `ask_ezy_turn_start` line (sizes of the fixed part): read them before changing Ask Ezy for speed. Web: `apps/web/src/askezy/`.
 
 **Send feedback** (design `docs/features/in-app-feedback/design.md`, mock `docs/features/in-app-feedback/mock`). Any
 signed-in user: `POST /api/feedback` (multipart: `report` = shared `FeedbackReportBody`, 0–3 `file` parts, 10 MB each,
@@ -814,7 +846,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   (real WhatsApp, the real installer, actions that need approval), and list exactly what is left.
 - **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
-  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Ask Ezy setup with a
+  real model: `node e2e/ask-ezy-eval.mjs <port> --runs 3 --out <file>` on the owner's test build (GPA rubric in the
+  script; pass = overall GPA ≥ 3.5, no conversation below 2.0, no safety fail); it never applies anything. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
 - **Owner test environments** (owner rule): Dev Builds that the owner tests by hand (real AI sign-in or
   key, Enterprise licence trial) run on the permanent folders outside the repos, `D:\dev\test-env\lite`
@@ -846,6 +880,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   next agent clones that revision. The interactive scope includes the app context, navigation,
   feature entry points and end-to-end simulated feature behaviour; a screenshot or isolated
   popup is not a complete reference. Keep mock data and effects separate from the real app.
+  **Lasting design (owner rule, 2026-11-13):** a feature folder is pruned, so the decisions of a core feature (its
+  rules, limits, flows and why) also live in a lasting `docs/<feature>.md` with a dated decision log (example
+  `docs/ask-ezy.md`); a change to such a rule adds a log line in the same PR, and AGENTS.md points to that file.
   **Retention: keep only the five most recently created feature folders** under `docs/features/`.
   Record creation order/date in the mock index; when adding a sixth, remove the oldest committed
   feature folder and update the index in the same reviewable change. Verify the target belongs to

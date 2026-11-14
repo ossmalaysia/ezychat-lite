@@ -389,3 +389,7 @@ Hard stops: 1. critical change without a real WhatsApp test; 3. security rule: p
 Migration: packages/server/src/db/migrations/038_message_forwarding.sql — adds-only
 
 Decision: **risk:human**
+
+## 2026-11-13 · PR #367 · `27a98b5` · approved by the owner
+
+> merge it for both

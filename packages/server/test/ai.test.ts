@@ -641,10 +641,34 @@ it('sends nothing for no_reply, keeps the chat, and answers the next real questi
   expect(t.wa.sent).toHaveLength(1);
   expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'open', assignedTo: ai.id });
   expect(handover).not.toHaveBeenCalled();
+  // The team sees that the AI read the message and chose silence (a line, never a message).
+  expect(getChats(t.ctx).events(jid).at(-1)).toMatchObject({
+    type: 'ai_tool_used',
+    actorId: ai.id,
+    payload: { sourceLabel: 'WhatsApp', silent: { kind: 'no_reply' } },
+  });
   // The "thanks" batch counts as handled: only the new question is answered next.
   await incoming('next', 'What is delivery?');
   await vi.advanceTimersByTimeAsync(1200);
   expect(t.wa.sent).toHaveLength(2);
+});
+
+it('marks a silent close as "finished" when the agent asks no resolution question', async () => {
+  t.ctx.services.ai!.setResolutionCheck(defaultAgent(t.ctx.db)!.id, false, actor);
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(t.wa.sent).toHaveLength(1);
+  // "ya" to the AI's own question looked like a goodbye: resolve without the check = silence.
+  vi.mocked(provider.generate).mockResolvedValueOnce({ reply: 'All the best!', action: 'resolve' });
+  await incoming('ya', 'ya');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(t.wa.sent).toHaveLength(1);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(getChats(t.ctx).events(jid).at(-1)).toMatchObject({
+    type: 'ai_tool_used',
+    payload: { silent: { kind: 'finished' } },
+  });
 });
 
 describe('a closing message after the AI resolved the chat', () => {
@@ -672,6 +696,12 @@ describe('a closing message after the AI resolved the chat', () => {
     ]);
     expect(t.wa.sent).toHaveLength(sent);
     expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+    // The close shows its own lines: no "did not reply" line on top.
+    expect(
+      getChats(t.ctx)
+        .events(jid)
+        .some((e) => e.payload.silent),
+    ).toBe(false);
     const line = aiLogs
       .map((l) => JSON.parse(l))
       .find((l) => l.msg === 'AI resolved the chat again after thanks');

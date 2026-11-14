@@ -255,14 +255,18 @@ describe('Settings → AI connection (inline)', () => {
     const initial = status();
     initial.settings.mode = 'chatgpt';
     initial.connection = { state: 'connected', loginUrl: null, error: null, email: null };
-    setup(initial, (url, init) =>
+    const { fetchMock } = setup(initial, (url, init) =>
       url === '/api/ai/chatgpt/test' && init?.method === 'POST'
         ? json({ ok: true, model: 'gpt-6.1-sol', reply: 'OK', error: null })
         : undefined,
     );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Test connection' }));
-    await screen.findByText('gpt-6.1-sol replied: OK');
+    expect(await screen.findByText('gpt-6.1-sol replied: OK')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/ai/chatgpt/test',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('shows one banner when the sign-in expired, with Sign in and Sign out', async () => {
@@ -308,9 +312,10 @@ describe('Settings → AI connection (inline)', () => {
   });
 
   it('shows the rate-limit message when starting sign-in is refused (429)', async () => {
+    const tab = { opener: {}, location: { href: '' }, close: vi.fn() };
     vi.stubGlobal(
       'open',
-      vi.fn(() => ({ opener: {}, location: { href: '' }, close: vi.fn() })),
+      vi.fn(() => tab),
     );
     const initial = status();
     initial.settings.mode = 'chatgpt';
@@ -321,7 +326,10 @@ describe('Settings → AI connection (inline)', () => {
     );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Sign in with ChatGPT' }));
-    await screen.findByText('Too many attempts. Try again in 30 s.');
+    expect(await screen.findByText('Too many attempts. Try again in 30 s.')).toBeTruthy();
+    // The blank tab opened for the sign-in page is closed again, never sent anywhere.
+    expect(tab.close).toHaveBeenCalledOnce();
+    expect(tab.location.href).toBe('');
   });
 
   it('shows the rate-limit message when the pasted address is refused (429)', async () => {
@@ -332,7 +340,7 @@ describe('Settings → AI connection (inline)', () => {
       loginUrl: 'https://auth.openai.com/oauth/authorize?state=test',
       error: null,
     };
-    setup(initial, (url, init) =>
+    const { fetchMock } = setup(initial, (url, init) =>
       url === '/api/ai/chatgpt/callback' && init?.method === 'POST'
         ? json({ error: { code: 'rate_limited', message: 'Too many attempts, retry in 30s' } }, 429)
         : undefined,
@@ -343,21 +351,30 @@ describe('Settings → AI connection (inline)', () => {
       'http://localhost:1455/x',
     );
     await user.click(screen.getByRole('button', { name: 'Finish sign-in' }));
-    await screen.findByText('Too many attempts. Try again in 30 s.');
+    expect(await screen.findByText('Too many attempts. Try again in 30 s.')).toBeTruthy();
+    const callback = fetchMock.mock.calls.find(([url]) => url === '/api/ai/chatgpt/callback');
+    expect(JSON.parse(String(callback?.[1]?.body))).toEqual({
+      url: 'http://localhost:1455/x',
+    });
   });
 
   it('shows a failed connection test', async () => {
     const initial = status();
     initial.settings.mode = 'chatgpt';
     initial.connection = { state: 'connected', loginUrl: null, error: null, email: 'a@b.co' };
-    setup(initial, (url, init) =>
+    const { fetchMock } = setup(initial, (url, init) =>
       url === '/api/ai/chatgpt/test' && init?.method === 'POST'
         ? json({ ok: false, model: null, reply: null, error: 'Model not available' })
         : undefined,
     );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Test connection' }));
-    await screen.findByText(/Model not available/);
+    expect(await screen.findByText(/Model not available/)).toBeTruthy();
+    expect(screen.queryByText(/replied:/)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/ai/chatgpt/test',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('keeps an unsaved draft while the language changes', async () => {
@@ -424,11 +441,14 @@ describe('Settings → AI connection (inline)', () => {
     const input = await screen.findByLabelText('OpenAI API key');
     await user.type(input, 'sk-some-key-123');
     await user.click(screen.getByRole('button', { name: 'Test key' }));
-    await screen.findByText(/Could not reach OpenAI to check the key/);
+    expect(await screen.findByText(/Could not reach OpenAI to check the key/)).toBeTruthy();
     error = 'rate_limited';
     await user.type(input, '4');
     await user.click(screen.getByRole('button', { name: 'Test key' }));
-    await screen.findByText(/OpenAI is busy or this key has reached its limit/);
+    expect(
+      await screen.findByText(/OpenAI is busy or this key has reached its limit/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Could not reach OpenAI to check the key/)).toBeNull();
   });
 
   it('saves a restricted key anyway, but offers no Save anyway for a rejected key', async () => {
@@ -655,10 +675,11 @@ describe('Settings → AI connection: Claude API key', () => {
   });
 
   it('points a Claude key in the OpenAI field to the Claude option', async () => {
-    setup({ ...status(), hasApiKey: false });
+    const { fetchMock } = setup({ ...status(), hasApiKey: false });
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText('OpenAI API key'), 'sk-ant-claude-key');
     await user.click(screen.getByRole('button', { name: 'Test key' }));
-    await screen.findByText(/This is a Claude \(Anthropic\) key/);
+    expect(await screen.findByText(/This is a Claude \(Anthropic\) key/)).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/ai/connection/test')).toBe(false);
   });
 });
