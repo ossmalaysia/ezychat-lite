@@ -78,7 +78,9 @@ export function AgentDreamCard({ agentId, name }: Readonly<{ agentId: number; na
   const data = q.data;
   const settings = data?.settings;
   const times =
-    settings && !TIMES.includes(settings.runTime) ? [...TIMES, settings.runTime].sort() : TIMES;
+    settings && !TIMES.includes(settings.runTime)
+      ? [...TIMES, settings.runTime].sort((a, b) => a.localeCompare(b))
+      : TIMES;
 
   const runLine = (r: DreamRun) => {
     if (r.status === 'running') return t('ai.dream.run.running');

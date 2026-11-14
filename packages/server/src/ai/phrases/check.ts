@@ -15,6 +15,15 @@ const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * A team reply as the build may read it: emails, long numbers and the names of the chats' people
  * replaced, so the AI learns the team's wording, never a customer's details.
  */
+/** Every email and phone-like number in a text (the same patterns the cleaner replaces). */
+export const contactsIn = (text: string): string[] => [
+  ...(text.match(EMAIL) ?? []),
+  ...(text.match(LONG_NUMBER) ?? []),
+];
+
+/** True when a text keeps an email or a phone-like number. */
+export const holdsContact = (text: string) => contactsIn(text).length > 0;
+
 export function cleanTeamReply(text: string, names: readonly string[]): string {
   let out = text.replace(EMAIL, '[email]').replace(LONG_NUMBER, '[number]');
   for (const name of names) {

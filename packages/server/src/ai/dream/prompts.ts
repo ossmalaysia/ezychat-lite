@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DREAM_CHANGES_PER_RUN, DREAM_LESSONS_PER_CHAT, DreamTarget } from '@ezychat/shared';
 import { ungroundedNumbers } from '../draft-check.js';
+import { holdsContact } from '../phrases/check.js';
 import type { TakeoverChat } from './collect.js';
 
 /**
@@ -69,18 +70,7 @@ export interface DreamSetup {
   items: DreamSetupItem[];
 }
 
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
-// Seven or more digits, also with spaces, dashes or a leading + (phone and account numbers).
-const LONG_NUMBER = /\+?\d[\d\s-]{5,}\d/;
-
-/** True when a text keeps an email or a phone-like number. */
-export const holdsContact = (text: string) => EMAIL.test(text) || LONG_NUMBER.test(text);
-
-/** Every email and phone-like number in a text. */
-export const contactsIn = (text: string): string[] =>
-  [...text.matchAll(new RegExp(EMAIL, 'g')), ...text.matchAll(new RegExp(LONG_NUMBER, 'g'))].map(
-    (m) => m[0],
-  );
+export { contactsIn, holdsContact } from '../phrases/check.js';
 
 /** The chat as the lesson call reads it: local ids and roles only, never stored ids or the chat key. */
 export function lessonInput(chat: TakeoverChat): string {
