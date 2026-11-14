@@ -788,6 +788,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- An MCP server that is configured (`~/.claude.json` `mcpServers`) but has no tools in the session and is not in the
+  "failed to connect" list usually needs a sign-in: check its port (`Get-NetTCPConnection`) and one `tools/list`
+  request; a 401 means the owner must run `/mcp` → the server → Authenticate (never sign in for them).
 - The web app's main file sits near the PWA precache limit: `vite build` fails with "Assets exceeding the limit" when
   `assets/index-*.js` passes `maximumFileSizeToCacheInBytes` (3 MiB since 2026-11-14, 2.13 MB used). Check the size of
   that file after adding a page; split rarely used areas with `React.lazy` rather than raising the limit again.
