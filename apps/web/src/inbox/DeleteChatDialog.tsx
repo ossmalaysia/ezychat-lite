@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { errorMessage } from '../api/client';
 import { useChatDeletePreview, useDeleteChat } from '../api/chat-delete';
 
 /**
@@ -62,7 +63,7 @@ export function DeleteChatDialog({
         </AlertDialogHeader>
         {del.isError && (
           <Banner tone="danger">
-            {del.error instanceof Error ? del.error.message : t('deleteChat.failed')}
+            {del.error ? errorMessage(del.error) : t('deleteChat.failed')}
           </Banner>
         )}
         <AlertDialogFooter>

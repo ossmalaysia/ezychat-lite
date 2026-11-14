@@ -187,7 +187,8 @@ describe('Delete chat', () => {
     await u.click(await screen.findByRole('menuitem', { name: 'Delete chat' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete this chat?' });
     await u.click(within(dialog).getByRole('button', { name: 'Delete chat' }));
-    expect(await within(dialog).findByText('Too many attempts, retry in 5s')).toBeTruthy();
+    // the app's translated message, never the server's English text
+    expect(await within(dialog).findByText('Too many attempts. Try again in 5 s.')).toBeTruthy();
     expect(toastSuccess).not.toHaveBeenCalled();
     await u.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
