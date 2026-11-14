@@ -360,7 +360,7 @@ describe('AI agent page', () => {
       'Scheduled tasks',
       'Try it',
       'Role',
-      'Hand-over rules',
+      'Hand-off rules',
     ]);
     // The safety rules are a closed section after the cards, not a card.
     expect(screen.getByTestId('safety-rules').textContent).toContain('Always-on safety rules');
@@ -519,9 +519,9 @@ describe('AI agent page', () => {
     expect(lastBody(fetchMock)).toMatchObject({ enabled: false });
   });
 
-  it('keeps the role and hand-over rules in a closed Advanced section', async () => {
+  it('keeps the role and hand-off rules in a closed Advanced section', async () => {
     setup();
-    const summary = await screen.findByText('Advanced: role and hand-over rules');
+    const summary = await screen.findByText('Advanced: role and hand-off rules');
     const details = summary.closest('details')!;
     expect(details.open).toBe(false);
     expect(within(details).getByText('Using recommended settings')).toBeTruthy();
@@ -532,7 +532,7 @@ describe('AI agent page', () => {
   it('says Customised and offers the template, which asks before replacing the texts', async () => {
     setup(world({ agents: [agentStatus(5, {}, { instructions: 'Only answer in haiku.' })] }));
     const user = userEvent.setup();
-    const summary = await screen.findByText('Advanced: role and hand-over rules');
+    const summary = await screen.findByText('Advanced: role and hand-off rules');
     expect(within(summary.closest('details')!).getByText('Customised')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Use the Sales template' }));
     const confirm = await screen.findByRole('alertdialog');
@@ -572,7 +572,7 @@ describe('AI agent page', () => {
       const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
       expect(role.startsWith(FAQ.instructions)).toBe(true);
       expect(role).toContain('You answer for a clinic');
-      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toContain(
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toContain(
         'describes symptoms',
       );
       const picker = screen.getByRole('radiogroup', { name: 'Starting point' });
@@ -732,7 +732,7 @@ describe('AI agent page', () => {
       expect(role.startsWith('CLAIMS\n')).toBe(true);
       expect(role).toContain('save it as a new row in the tab "Claims"');
       expect(role).not.toContain(SALES.instructions.split('\n')[0]);
-      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toContain(
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toContain(
         'approved, rejected or paid',
       );
       const picker = screen.getByRole('radiogroup', { name: 'Starting point' });
@@ -908,10 +908,10 @@ describe('AI agent page', () => {
   it('saves edits, then clears the stored draft', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
-    const rules = await screen.findByLabelText('Hand-over rules');
+    const rules = await screen.findByLabelText('Hand-off rules');
     await user.clear(rules);
     await user.type(rules, '- The customer asks for a wholesale price');
-    expect(screen.getByText(/Always handed over, whatever you write here/)).toBeTruthy();
+    expect(screen.getByText(/Always handed off, whatever you write here/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
     expect(lastBody(fetchMock).handoffRules).toBe('- The customer asks for a wholesale price');
@@ -932,7 +932,7 @@ describe('AI agent page', () => {
     await user.click(within(card).getByRole('button', { name: 'Change' }));
     await user.click(within(card).getByRole('radio', { name: /FAQ/ }));
     expect(screen.getByTestId('preset-badge').textContent).toBe('FAQ agent');
-    expect(within(card).getByText('The role and hand-over rules are your own texts.')).toBeTruthy();
+    expect(within(card).getByText('The role and hand-off rules are your own texts.')).toBeTruthy();
     expect(within(card).getByRole('button', { name: 'Use the FAQ template' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
@@ -1003,7 +1003,7 @@ describe('AI agent page', () => {
         'Starting point',
         'Name',
         'Role',
-        'Hand-over rules',
+        'Hand-off rules',
       ]);
       expect(screen.getByRole('heading', { name: 'New AI agent' })).toBeTruthy();
       expect(
@@ -1198,7 +1198,7 @@ describe('AI agent page', () => {
         .getByText(title, { selector: '[data-slot="card-title"]' })
         .closest('[data-slot="card"]')!;
 
-    it("rewrites the hand-over rules with the agent's route and preset, without saving", async () => {
+    it("rewrites the hand-off rules with the agent's route and preset, without saving", async () => {
       const { fetchMock } = setup(
         world({
           agents: [agentStatus(5, { preset: 'faq' }, { handoffRules: 'Hand off complaints.' })],
@@ -1212,7 +1212,7 @@ describe('AI agent page', () => {
       const user = userEvent.setup();
       await screen.findByText('Business context');
       await user.click(
-        within(card('Hand-over rules') as HTMLElement).getByRole('button', {
+        within(card('Hand-off rules') as HTMLElement).getByRole('button', {
           name: 'Edit with AI',
         }),
       );
@@ -1224,7 +1224,7 @@ describe('AI agent page', () => {
       expect(JSON.parse(String(sent[1]!.body))).toMatchObject({ preset: 'faq' });
       await user.click(within(dialog).getByRole('button', { name: 'Apply to hand-off rules' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toBe(
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toBe(
         'Hand off complaints.\nHand off refunds.',
       );
       expect(screen.getByText('Unsaved')).toBeTruthy();
