@@ -38,6 +38,9 @@ export default defineConfig({
       ],
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // The app's main file passed the 2 MiB default (2.13 MB): it is downloaded anyway, this only lets the
+        // service worker cache it for offline use. Splitting the admin pages out is in docs/backlog.md.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
       manifest: {
         id: '/',

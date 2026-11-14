@@ -51,6 +51,7 @@ export const CHAT_TABLES = [
   'sql_account_seen_items',
   'sql_account_quotes',
   'sql_account_activity',
+  'github_activity',
   'messages',
 ] as const;
 
