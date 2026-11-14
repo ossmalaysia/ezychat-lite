@@ -38,3 +38,4 @@ Every release review run, newest last. Never pruned.
 | 2026-11-13 | #365 | `6831bfa` | core | 45 | risk:human | docs/features/ask-ezy-setup/review.md |
 | 2026-11-13 | #365 | `178ea90` | — | — | human-approved | docs/features/ask-ezy-setup/review.md |
 | 2026-11-13 | #367 | `27a98b5` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-11 | #347 | `3ad49fd` | critical | 25 | risk:human | docs/release-review/log.md |

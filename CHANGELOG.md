@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).
+- GitHub connector (beta, Lite): AI agents can look up issues and pull requests in the GitHub repositories you choose for each agent. They can say an issue's status, labels and latest comments. Sign in with GitHub using a code you enter on GitHub (through the "EzyChat by Anchor Sprint" app), or paste a fine-grained token if your organisation doesn't allow apps. It is read only: EzyChat never changes anything on GitHub and never reads code.
 
 ### Fixed
 
@@ -338,6 +339,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One customer, same details in every inbox.** With two or more WhatsApp numbers, a customer who chats with
   both now shows the same saved name, company, email, other phone and address in each inbox: an edit in one
   inbox updates the other, and a new chat of a known customer starts with their details. Tags stay per inbox.
+
 ### Fixed
 
 - **Your own address stays when EzyChat Lite's number moves into EzyChat Enterprise.** When Enterprise already had
