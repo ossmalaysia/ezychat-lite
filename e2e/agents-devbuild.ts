@@ -16,6 +16,8 @@
 // "Amount:" calls add_sheet_row on the tab Claims and repeats what it said; a claim without an amount
 // asks for it; anything else gets no_reply. Check: e2e/devbuild-claims-check.mjs.
 // Scheduled tasks: see mockDecision (SKIP, LEAK); check: e2e/devbuild-scheduled-check.mjs.
+// Dream mode: DREAMQ / MARK-DREAM (see mockDecision) and the lesson and merge calls (mockDraft); check:
+// e2e/devbuild-dream-check.mjs.
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -32,6 +34,7 @@ import type { AssistOutput } from '../packages/server/src/ai/agent/assist.js';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
+import { DREAM_LESSON_RULES, DREAM_MERGE_RULES } from '../packages/server/src/ai/dream/prompts.js';
 import { buildApp } from '../packages/server/src/app.js';
 import { attachRealtime } from '../packages/server/src/realtime/index.js';
 
@@ -205,6 +208,15 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
     return { reply: 'Thank you! I will close this chat now.', action: 'resolve' };
   // Nothing to say (like a bare "ok"): the chat shows the team-only "did not reply" line.
   if (last.includes('SILENT')) return { reply: '', action: 'no_reply' };
+  // Dream mode: DREAMQ hands over until the Business context holds MARK-DREAM (learned from the team), then answers.
+  if (last.includes('DREAMQ'))
+    return input.businessKnowledge.includes('MARK-DREAM')
+      ? { reply: 'Yes: MARK-DREAM.', action: 'answer' }
+      : {
+          reply: 'A team member will help you shortly.',
+          action: 'handoff',
+          handoffReason: 'missing_facts',
+        };
   if (last.includes('HUMAN'))
     return {
       reply: 'A team member will help you shortly.',
@@ -241,6 +253,34 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
  */
 function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
   signal.throwIfAborted();
+  // Dream mode step 1: every team message is one fact lesson, in the team's own words.
+  if (prompt.instructions === DREAM_LESSON_RULES) {
+    const chat = JSON.parse(prompt.input) as {
+      messages: { id: number; from: string; text: string }[];
+    };
+    return {
+      lessons: chat.messages
+        .filter((m) => m.from === 'team')
+        .map((m) => ({ kind: 'fact', text: m.text, teamMessageIds: [m.id] })),
+    };
+  }
+  // Dream mode step 2: all lessons as one new Business context item.
+  if (prompt.instructions === DREAM_MERGE_RULES) {
+    const merge = JSON.parse(prompt.input) as { lessons: { id: number; text: string }[] };
+    if (!merge.lessons.length) return { changes: [] };
+    return {
+      changes: [
+        {
+          target: 'context_text',
+          itemId: null,
+          name: 'Learned from the team',
+          after: merge.lessons.map((l) => l.text).join('\n'),
+          summary: 'What the team taught',
+          lessonIds: merge.lessons.map((l) => l.id),
+        },
+      ],
+    };
+  }
   // A phrase-list build: each business-context sentence as a fact phrase, the team's replies as
   // their own phrases (a cleaned reply with [name] must be dropped), and two greetings.
   const build = JSON.parse(prompt.input) as { teamReplies?: string[]; businessKnowledge: string };
