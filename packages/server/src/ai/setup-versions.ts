@@ -4,11 +4,11 @@ import type { DB } from '../db/index.js';
 export type SetupTarget = 'instructions' | 'handoff_rules' | 'context_text';
 
 /** How a change was made: in the app, by an AI assistant over MCP, or the text it replaced. */
-export type SetupVia = 'app' | 'mcp' | 'baseline';
+export type SetupVia = 'app' | 'mcp' | 'dream' | 'baseline';
 
 export interface SetupChangeSource {
   userId: number | null;
-  via: 'app' | 'mcp';
+  via: 'app' | 'mcp' | 'dream';
   /** MCP access token that made the change. */
   tokenId?: number | null;
   /** Why the assistant made the change (MCP requires one). */

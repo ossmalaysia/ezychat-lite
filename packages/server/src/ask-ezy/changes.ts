@@ -10,7 +10,12 @@ import {
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { HttpError } from '../http/errors.js';
-import { listSetupVersions } from '../ai/setup-versions.js';
+import {
+  applySetupText,
+  currentSetupText,
+  undoSetupText,
+  type SetupTextChange,
+} from '../ai/setup-apply.js';
 
 /** A change Ezy proposed and the admin has not applied yet (kept in memory, per user). */
 export interface PendingChange {
@@ -84,21 +89,8 @@ export function createChangeStore(ctx: AppContext, now: () => number = Date.now)
   };
 
   /** The text the target has now (null when a context item no longer exists). */
-  const currentText = (c: Pick<PendingChange, 'agentId' | 'target' | 'itemId'>): string | null => {
-    if (c.target === 'context_text') {
-      if (c.itemId === null) return null;
-      try {
-        const doc = ai().document(c.agentId, c.itemId);
-        return doc.kind === 'text' && !doc.truncated ? doc.text : null;
-      } catch {
-        return null;
-      }
-    }
-    const status = ai().agentStatus(c.agentId);
-    return c.target === 'instructions'
-      ? status.settings.instructions
-      : (status.settings.handoffRules ?? '');
-  };
+  const currentText = (c: Pick<PendingChange, 'agentId' | 'target' | 'itemId'>) =>
+    currentSetupText(ctx, c);
 
   const actor = (user: User, ip: string | null, why: string) => ({
     userId: user.id,
@@ -107,35 +99,14 @@ export function createChangeStore(ctx: AppContext, now: () => number = Date.now)
     reason: `Ask Ezy: ${why}`.slice(0, 500),
   });
 
-  /** Saves `text` into the change's target; returns the new item id for an added item. */
-  const save = (user: User, ip: string | null, c: PendingChange, text: string, why: string) => {
-    const service = ai();
-    const who = actor(user, ip, why);
-    if (c.target === 'context_text') {
-      if (c.itemId !== null) {
-        service.updateText(c.agentId, c.itemId, { text }, who);
-        return c.itemId;
-      }
-      const before = new Set(service.agentStatus(c.agentId).documents.map((d) => d.id));
-      const after = service.addText(c.agentId, { name: c.itemName ?? 'Ask Ezy', text }, who);
-      return after.documents.find((d) => !before.has(d.id))?.id ?? null;
-    }
-    const status = service.agentStatus(c.agentId);
-    service.saveAgent(
-      c.agentId,
-      {
-        displayName: status.agent.displayName,
-        enabled: status.agent.enabled,
-        instructions: c.target === 'instructions' ? text : status.settings.instructions,
-        handoffRules: c.target === 'handoff_rules' ? text : (status.settings.handoffRules ?? ''),
-      },
-      who,
-    );
-    return null;
-  };
-
-  const latestVersion = (c: PendingChange) =>
-    listSetupVersions(ctx.db, c.agentId, c.target, c.itemId, 1)[0]?.id;
+  const setupChange = (c: PendingChange): SetupTextChange => ({
+    agentId: c.agentId,
+    target: c.target,
+    itemId: c.itemId,
+    name: c.itemName ?? 'Ask Ezy',
+    before: c.before,
+    after: c.after,
+  });
 
   const own = (id: string, user: User): PendingChange => {
     prune();
@@ -217,14 +188,11 @@ export function createChangeStore(ctx: AppContext, now: () => number = Date.now)
     apply(id: string, user: User, ip: string | null): AskEzyChangeResult {
       const c = own(id, user);
       if (c.status === 'applied') return { status: 'applied', version: c.version };
-      const isNewItem = c.target === 'context_text' && c.itemId === null;
-      // Someone saved this text after Ezy read it: never overwrite their change.
-      if (!isNewItem && currentText(c) !== c.before)
-        throw new HttpError(409, 'setup_changed', 'The setup changed since Ezy read it');
-      const itemId = save(user, ip, c, c.after, c.reason);
-      if (isNewItem) c.itemId = itemId;
+      // Someone saved this text after Ezy read it: never overwrite their change (409 setup_changed).
+      const { itemId, versionId } = applySetupText(ctx, setupChange(c), actor(user, ip, c.reason));
+      c.itemId = itemId;
       c.status = 'applied';
-      c.version = latestVersion(c);
+      c.version = versionId ?? undefined;
       return { status: 'applied', version: c.version };
     },
 
@@ -244,14 +212,8 @@ export function createChangeStore(ctx: AppContext, now: () => number = Date.now)
         return { status: 'proposed' };
       }
       if (c.status !== 'applied') return { status: c.status };
-      if (currentText(c) !== c.after)
-        throw new HttpError(409, 'setup_changed', 'The setup changed after the change was applied');
-      if (c.target === 'context_text' && c.before === '' && c.itemId !== null) {
-        ai().removeDocument(c.agentId, c.itemId, actor(user, ip, 'undo'));
-        c.itemId = null;
-      } else {
-        save(user, ip, c, c.before, 'undo');
-      }
+      undoSetupText(ctx, setupChange(c), actor(user, ip, 'undo'));
+      if (c.target === 'context_text' && c.before === '') c.itemId = null;
       c.status = 'proposed';
       c.version = undefined;
       return { status: 'proposed' };

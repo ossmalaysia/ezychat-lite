@@ -197,7 +197,9 @@ const getAiSetupVersion: ToolDef<typeof McpGetAiSetupVersionInput> = {
 };
 
 function changedIn(via: string): string {
-  return via === 'mcp' ? 'AI assistant (MCP)' : via === 'app' ? 'app' : 'original text';
+  if (via === 'mcp') return 'AI assistant (MCP)';
+  if (via === 'dream') return 'Dream mode';
+  return via === 'app' ? 'app' : 'original text';
 }
 
 export const AI_SETUP_TOOLS: readonly ToolDef[] = [

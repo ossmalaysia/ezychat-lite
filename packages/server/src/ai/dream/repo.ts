@@ -152,7 +152,9 @@ export class DreamRepo {
   enabledAgents(): { agentId: number; runTime: string; autoApply: boolean }[] {
     return (
       this.db
-        .prepare('SELECT agent_id, run_time, auto_apply FROM ai_dream_settings WHERE enabled = 1 ORDER BY agent_id')
+        .prepare(
+          'SELECT agent_id, run_time, auto_apply FROM ai_dream_settings WHERE enabled = 1 ORDER BY agent_id',
+        )
         .all() as { agent_id: number; run_time: string; auto_apply: number }[]
     ).map((r) => ({ agentId: r.agent_id, runTime: r.run_time, autoApply: r.auto_apply === 1 }));
   }
@@ -216,8 +218,7 @@ export class DreamRepo {
 
   change(id: number): ChangeRow | null {
     const row = this.db.prepare('SELECT * FROM ai_dream_changes WHERE id = ?').get(id) as
-      | RawChange
-      | undefined;
+      RawChange | undefined;
     return row ? toChange(row) : null;
   }
 

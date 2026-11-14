@@ -208,11 +208,12 @@ const DEFAULT_SETTINGS: AiSettings = {
   instructions: DEFAULT_AI_INSTRUCTIONS,
   handoffRules: DEFAULT_AI_HANDOFF_RULES,
 };
-type Actor = {
-  userId: number;
+export type Actor = {
+  /** null: dream mode applied a change by itself (no person). */
+  userId: number | null;
   ip: string | null;
-  /** Changes from an AI assistant over MCP carry the token and the assistant's reason. */
-  via?: 'app' | 'mcp';
+  /** Changes from an AI assistant over MCP carry the token and the assistant's reason; dream mode its summary. */
+  via?: 'app' | 'mcp' | 'dream';
   tokenId?: number;
   reason?: string;
 };

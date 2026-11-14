@@ -15,7 +15,9 @@ function addAgent(name: string): number {
     .run(`ai-${name}`, name);
   return Number(
     db
-      .prepare('INSERT INTO ai_agents (user_id, inbox_id, created_at, updated_at) VALUES (?, 1, 1, 1)')
+      .prepare(
+        'INSERT INTO ai_agents (user_id, inbox_id, created_at, updated_at) VALUES (?, 1, 1, 1)',
+      )
       .run(user.lastInsertRowid).lastInsertRowid,
   );
 }
@@ -67,7 +69,11 @@ describe('DreamRepo', () => {
     const agent = addAgent('Sales');
     for (let slot = 1; slot <= 31; slot++) {
       const run = repo.claimRun(agent, slot, slot)!;
-      repo.finishRun(run, { status: 'done', reason: null, chatsRead: 2, takeovers: 1, saved: 1, dropped: 0 }, slot);
+      repo.finishRun(
+        run,
+        { status: 'done', reason: null, chatsRead: 2, takeovers: 1, saved: 1, dropped: 0 },
+        slot,
+      );
       repo.addChange(run, agent, change());
     }
     const first = repo.history(agent, null);
@@ -97,7 +103,12 @@ describe('DreamRepo', () => {
     const run = repo.claimRun(agent, 1, 1)!;
     const id = repo.addChange(run, agent, change());
     repo.setStatus(id, 'applied', { versionId: 7, decidedBy: null, now: 9 });
-    expect(repo.change(id)).toMatchObject({ status: 'applied', versionId: 7, decidedBy: null, decidedAt: 9 });
+    expect(repo.change(id)).toMatchObject({
+      status: 'applied',
+      versionId: 7,
+      decidedBy: null,
+      decidedAt: 9,
+    });
   });
 
   it('removes settings, runs and changes with the agent', () => {

@@ -5,6 +5,7 @@ import { createAiService } from '../src/ai/service.js';
 import { audit } from '../src/db/audit.js';
 import { setMcpEnabled } from '../src/mcp/settings.js';
 import { makeTestApp, type TestApp } from './helpers.js';
+import { applySetupText, DREAM_ACTOR } from '../src/ai/setup-apply.js';
 
 const ACCEPT = 'application/json, text/event-stream';
 const API_KEY = 'test-api-key-123456';
@@ -155,6 +156,29 @@ describe('AI setup over MCP', () => {
     expect(prices).toMatchObject({ kind: 'text', editable: true });
     const item = (await call('get_ai_context_item', { id: prices.id })).data();
     expect(item.text).toContain('RM120');
+  });
+
+  it('names a change dream mode applied by itself in the history', async () => {
+    const agentId = (t.ctx.db.prepare('SELECT id FROM ai_agents LIMIT 1').get() as { id: number })
+      .id;
+    const before = t.ctx.services.ai!.status().settings.handoffRules ?? '';
+    applySetupText(
+      t.ctx,
+      {
+        agentId,
+        target: 'handoff_rules',
+        itemId: null,
+        name: null,
+        before,
+        after: 'Hand over refunds.',
+      },
+      DREAM_ACTOR('Refunds to the team'),
+    );
+    const history = (await call('get_ai_setup_history', { target: 'handoff_rules' })).data();
+    expect(history.versions[0]).toMatchObject({
+      changedIn: 'Dream mode',
+      reason: 'Dream mode: Refunds to the team',
+    });
   });
 
   it('changes the hand-off rules, keeping the old text, the reason and an audit row', async () => {

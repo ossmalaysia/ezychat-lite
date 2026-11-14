@@ -584,9 +584,9 @@ describe('mergeLiteInbox', () => {
     await merge(t.dir, lite.dir);
     const db = open(t.dir);
     try {
-      expect(db.prepare('SELECT enabled, run_time, auto_apply FROM ai_dream_settings').all()).toEqual([
-        { enabled: 0, run_time: '03:30', auto_apply: 1 },
-      ]);
+      expect(
+        db.prepare('SELECT enabled, run_time, auto_apply FROM ai_dream_settings').all(),
+      ).toEqual([{ enabled: 0, run_time: '03:30', auto_apply: 1 }]);
       expect(db.prepare('SELECT COUNT(*) AS n FROM ai_dream_runs').get()).toEqual({ n: 0 });
       expect(db.prepare('SELECT COUNT(*) AS n FROM ai_dream_changes').get()).toEqual({ n: 0 });
     } finally {
