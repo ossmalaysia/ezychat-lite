@@ -35,5 +35,6 @@ export * from './i18n/index.js';
 export * from './feedback.js';
 export * from './usage.js';
 export * from './scheduled-tasks.js';
+export * from './dream.js';
 export * from './new-chat.js';
 export * from './forward.js';
