@@ -57,6 +57,10 @@ initializers.push(initPhrases);
 import { initScheduled } from './scheduled/service.js';
 initializers.push(initScheduled);
 
+// Dream mode (docs/superpowers/specs/2026-11-14-dream-mode-design.md): nightly learning; after the AI service.
+import { initDream } from './ai/dream/service.js';
+initializers.push(initDream);
+
 import { initGoogleCalendar } from './connectors/google-calendar/service.js';
 initializers.push(initGoogleCalendar);
 

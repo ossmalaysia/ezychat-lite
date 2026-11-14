@@ -1,102 +1,19 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { collectTakeovers, questionsAnsweredByAi } from '../src/ai/dream/collect.js';
-import { getChats } from '../src/wa-bridge/index.js';
-import { makeTestApp, type TestApp } from './helpers.js';
+import type { TestApp } from './helpers.js';
+import { DAY, MIN, dreamApp } from './dream-helpers.js';
 
 const open: TestApp[] = [];
 afterEach(async () => {
   while (open.length) await open.pop()!.close();
 });
 
-const MIN = 60_000;
-const DAY = 24 * 60 * MIN;
 const T0 = 10 * DAY;
 
 async function setup() {
-  const t = await makeTestApp();
-  open.push(t);
-  const auth = t.ctx.services.auth!;
-  const admin = auth.createUser({
-    username: 'jazz',
-    displayName: 'Jazz',
-    role: 'admin',
-    password: 'password123',
-    mustChangePassword: false,
-  });
-  const ai = t.ctx.services.ai!;
-  ai.saveMember(
-    {
-      displayName: 'Aina',
-      enabled: false,
-      instructions: 'Be kind.',
-      handoffRules: 'Hand over refunds.',
-    },
-    { userId: admin.id, ip: null },
-  );
-  const agent = t.ctx.db.prepare('SELECT id, user_id FROM ai_agents LIMIT 1').get() as {
-    id: number;
-    user_id: number;
-  };
-  let n = 0;
-  const chat = (jid: string, name: string, type: 'dm' | 'group' = 'dm') =>
-    getChats(t.ctx).upsertFromWa({ jid, type, name }, 1);
-  const msg = (
-    jid: string,
-    at: number,
-    who: 'customer' | 'ai' | 'team' | 'phone',
-    body: string | null,
-    extra: { forwarded?: boolean; deleted?: boolean; scheduled?: boolean; type?: string } = {},
-  ) => {
-    const id = `M${++n}`;
-    t.ctx.db
-      .prepare(
-        `INSERT INTO messages (id, chat_jid, from_me, sent_by_user_id, type, body, status, timestamp, created_at,
-           media_status, forwarding_score, deleted_at, scheduled_task_id)
-         VALUES (?, ?, ?, ?, ?, ?, 'sent', ?, ?, 'none', ?, ?, ?)`,
-      )
-      .run(
-        id,
-        jid,
-        who === 'customer' ? 0 : 1,
-        who === 'ai' ? agent.user_id : who === 'team' ? admin.id : null,
-        extra.type ?? 'text',
-        body,
-        at,
-        at,
-        extra.forwarded ? 1 : null,
-        extra.deleted ? at : null,
-        null,
-      );
-    return id;
-  };
-  const handoff = (jid: string, at: number) =>
-    t.ctx.db
-      .prepare(
-        "INSERT INTO audit_log (user_id, action, ip, meta, at) VALUES (?, 'ai.handoff', NULL, ?, ?)",
-      )
-      .run(
-        agent.user_id,
-        JSON.stringify({
-          chatJid: jid,
-          assignedTo: null,
-          reason: 'missing_facts',
-          agentId: agent.id,
-        }),
-        at,
-      );
-  const replyOverAi = (jid: string, at: number) =>
-    t.ctx.db
-      .prepare(
-        "INSERT INTO chat_events (chat_jid, type, actor_id, payload, at) VALUES (?, 'assigned', ?, ?, ?)",
-      )
-      .run(
-        jid,
-        admin.id,
-        JSON.stringify({ assignedTo: admin.id, previous: agent.user_id, reason: 'reply' }),
-        at,
-      );
-  const window = { agentId: agent.id, from: T0 - DAY, to: T0 + DAY };
-  return { t, agent, admin, chat, msg, handoff, replyOverAi, window };
+  const s = await dreamApp();
+  open.push(s.t);
+  return { ...s, window: { agentId: s.agent.id, from: T0 - DAY, to: T0 + DAY } };
 }
 
 const A = '60111111111@s.whatsapp.net';

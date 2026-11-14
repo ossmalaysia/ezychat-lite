@@ -149,14 +149,20 @@ export class DreamRepo {
     return { before, after };
   }
 
-  enabledAgents(): { agentId: number; runTime: string; autoApply: boolean }[] {
+  /** Agents with dream mode on, with when their settings last changed (a night set up after it does not run). */
+  enabledAgents(): { agentId: number; runTime: string; autoApply: boolean; updatedAt: number }[] {
     return (
       this.db
         .prepare(
-          'SELECT agent_id, run_time, auto_apply FROM ai_dream_settings WHERE enabled = 1 ORDER BY agent_id',
+          'SELECT agent_id, run_time, auto_apply, updated_at FROM ai_dream_settings WHERE enabled = 1 ORDER BY agent_id',
         )
-        .all() as { agent_id: number; run_time: string; auto_apply: number }[]
-    ).map((r) => ({ agentId: r.agent_id, runTime: r.run_time, autoApply: r.auto_apply === 1 }));
+        .all() as { agent_id: number; run_time: string; auto_apply: number; updated_at: number }[]
+    ).map((r) => ({
+      agentId: r.agent_id,
+      runTime: r.run_time,
+      autoApply: r.auto_apply === 1,
+      updatedAt: r.updated_at,
+    }));
   }
 
   /** Inserts the night's run as `running` unless the slot has one; null = already claimed. */

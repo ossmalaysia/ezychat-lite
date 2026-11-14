@@ -56,7 +56,9 @@ describe('DreamRepo', () => {
     const saved = repo.saveSettings(agent, { enabled: true, runTime: '03:30' }, 5);
     expect(saved.before).toEqual({ enabled: false, runTime: '02:00', autoApply: false });
     expect(saved.after).toEqual({ enabled: true, runTime: '03:30', autoApply: false });
-    expect(repo.enabledAgents()).toEqual([{ agentId: agent, runTime: '03:30', autoApply: false }]);
+    expect(repo.enabledAgents()).toEqual([
+      { agentId: agent, runTime: '03:30', autoApply: false, updatedAt: 5 },
+    ]);
   });
 
   it('claims a nightly slot only once', () => {

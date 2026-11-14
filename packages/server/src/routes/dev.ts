@@ -13,7 +13,8 @@ import type { WaGroupParticipant } from '@ezychat/wa';
 import type { FakeWaAdapter } from '@ezychat/wa';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
-import { errors, parse } from '../http/errors.js';
+import { HttpError, errors, parse } from '../http/errors.js';
+import { agentById } from '../ai/agents.js';
 import {
   PRIMARY_INBOX_ID,
   chatKey,
@@ -288,6 +289,16 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
       { type: FAKE_API_TYPE },
     );
     return reply.status(201).send(inbox);
+  });
+
+  /** POST /api/dev/dream-run: runs an agent's dream mode now (e2e and Dev Build checks; nothing waits for 02:00). */
+  app.post('/dev/dream-run', { preHandler: requireAdmin(ctx) }, async (req) => {
+    const { agentId } = parse(z.object({ agentId: z.number().int().positive() }), req.body ?? {});
+    const dream = ctx.services.dream;
+    if (!dream) throw new HttpError(503, 'ai_unavailable', 'Dream mode is not running');
+    if (!agentById(ctx.db, agentId))
+      throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
+    return { runId: await dream.runNow(agentId) };
   });
 
   /** POST /api/dev/fake-window: moves a chat's last customer message to `hoursAgo` (open/close its window). */
