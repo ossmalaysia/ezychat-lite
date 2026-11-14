@@ -4,8 +4,9 @@ The single design system for **EzyChat Lite and EzyChat Enterprise** (production
 and status page, feature mocks, extension screens, screenshots and generated images). Enterprise has no design
 system of its own: it uses the published `@ezychat/web` components and these rules (see [Editions](#editions)).
 A living reference that renders the real tokens and components, light and dark, is the mock page
-[`/design-system`](features/mobile-redesign/mock/src/design-system/DesignSystemPage.tsx) (run the
-[mobile-redesign mock](features/mobile-redesign/mock/README.md), open `http://localhost:7489/design-system`).
+[`/design-system`](https://github.com/ossmalaysia/ezychat-lite/blob/829a4b384346e0281d45bc90d76c5f8ade8b77e3/docs/features/mobile-redesign/mock/src/design-system/DesignSystemPage.tsx) (the
+[mobile-redesign mock](https://github.com/ossmalaysia/ezychat-lite/tree/829a4b384346e0281d45bc90d76c5f8ade8b77e3/docs/features/mobile-redesign/mock), archived under the five-folder rule: check
+out that revision and run it, then open `http://localhost:7489/design-system`).
 
 EzyChat is a tool people keep open all day to answer customers. The design language is
 **quiet, dense, and work-focused**: neutral surfaces, colour only where it carries meaning
@@ -176,7 +177,7 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   pending clock. Don't use a spinner or a toast for it, and don't block the
   composer. A size refusal (WhatsApp's limit, the tunnel's 100 MB) is said before uploading as an error toast that
   names the limit and where it works, and in the failed bubble with the same words. — screenshots in
-  `docs/features/mcp-file-upload/screens/`
+  [`docs/features/mcp-file-upload/screens/`](https://github.com/ossmalaysia/ezychat-lite/tree/ee978fa4f6ce76f5d46795bfe719521c5ad9c147/docs/features/mcp-file-upload/screens) (archived)
 - **Small screens:** Dialog → Drawer (bottom sheet) below `sm` (`ResponsiveDialog`); tables → stacked cards below
   `lg`; admin side nav → top Tabs/Sheet below `md`; the inbox switches to its phone layout below `md` (768px, see
   [Mobile patterns](#mobile-patterns)). Filters that are segmented tabs on desktop are chips on phones.
@@ -186,7 +187,7 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
 ## Mobile patterns
 
 For phones (below 768 px, the width at which the inbox becomes one column). Every rule has a mock screen in
-[`features/mobile-redesign/mock/screenshots`](features/mobile-redesign/mock/screenshots) (`<shot>-m360-light.png`;
+[`features/mobile-redesign/mock/screenshots`](https://github.com/ossmalaysia/ezychat-lite/tree/829a4b384346e0281d45bc90d76c5f8ade8b77e3/docs/features/mobile-redesign/mock/screenshots) (archived) (`<shot>-m360-light.png`;
 390 px, dark, Malay and Chinese variants beside it). Desktop keeps its own layout; never let a phone pattern leak
 into it. The owner made these the rules for both editions on 2026-11-07; the app follows them once the mobile redesign is
 built (the mock shows each one).

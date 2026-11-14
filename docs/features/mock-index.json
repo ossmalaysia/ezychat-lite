@@ -72,28 +72,6 @@
       "note": "Requester (Frankie) 2026-11-10: \"Open PR and build\" after the screenshots, decisions Q1-Q3 and the spike; repository owner (Jazz) not yet asked, so latestConfirmed stays forward-message. Connector list entry: anchorsprint/ezychat-connectors PR #6."
     },
     {
-      "feature": "mcp-file-upload",
-      "creationOrder": 40,
-      "createdAt": "2026-11-08",
-      "design": "docs/features/mcp-file-upload/design.md",
-      "mock": null,
-      "status": "design-only",
-      "coverage": "No mock (a small change; the owner asked for screenshots and states only): design.md with the security review and the composer states; screenshots at 1280/360 in screens/ (uploading progress, sent as a file, over WhatsApp's limit, tunnel 100 MB) made by screens/shots.mjs against a Dev Build.",
-      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Removes partner-role (36) for retention; template-store stays (live tooling)."
-    },
-    {
-      "feature": "mobile-redesign",
-      "creationOrder": 39,
-      "createdAt": "2026-11-07",
-      "design": "docs/features/mobile-redesign/design.md",
-      "mock": "docs/features/mobile-redesign/mock/index.html",
-      "status": "proposal",
-      "baselineFeature": "forward-message",
-      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-      "coverage": "Full app clone of the confirmed forward-message reference; phone layout (below 768 px) of the inbox: one-row list header with the WhatsApp-number switcher as the title, search on demand, filter chips (All, Unread with count, Mine, Unassigned, Groups, Tag, Resolved), number switcher bottom sheet with unread and connection per number, tag filter sheet, New chat floating button (shrinks on scroll), swipe right = Assign to me / left = Resolve with Undo, press-and-hold row action sheet, one-row chat header with a chip strip (assignee, tags, + Tag, Notes, group AI badge), assign sheet, chat Tags sheet (tick, create, Done), more-actions sheet, number badge on photos, toasts at the bottom; Lite and one-number agent; desktop 1280 unchanged; 360 and 390 px touch, light/dark, en/ms/zh-CN (mobile-shots.mjs); before shots of the baseline at 360 px (audit-shots.mjs); living design-system reference page /design-system (tokens from index.css, type, space, radius, elevation, components and states, mobile patterns, editions; light/dark, desktop and 360 px). Tags on group chats as on direct chats (owner 2026-11-07): header chip, row sheet, Group info and Customer details Tags row with one shared editor, list rows, the tag filter returning groups (stand-in route group-tags.ts writes the real customer_tags table); desktop Group info and Customer details tags.",
-      "note": "Phase 1 only (the owner's three items + quick wins). Phase 2 (composer, message actions, Customer details / Group info sheets, keyboard) is described in design.md, not mocked. Inherits forward-message's coverage gaps (message edit/delete and Safety-on-message screens). Removes scheduled-tasks (35) for retention; template-store stays (live tooling). Also updates docs/design-system.md (Mobile patterns, Editions, fixes) as part of the same confirmation."
-    },
-    {
       "feature": "new-chat",
       "creationOrder": 37,
       "createdAt": "2026-11-06",
@@ -764,6 +742,36 @@
       "archivedAt": "2026-11-14",
       "archivedRevision": "81696946f1f562e93cf10a09ed0a4bfc21aa5fa5",
       "archivedBy": "app-navigation (five-folder retention: ask-ezy-setup arrived from main as the sixth counted folder; template-store kept as tooling; app-navigation is the confirmed baseline now)"
+    },
+    {
+      "feature": "mobile-redesign",
+      "creationOrder": 39,
+      "createdAt": "2026-11-07",
+      "design": "docs/features/mobile-redesign/design.md",
+      "mock": "docs/features/mobile-redesign/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "forward-message",
+      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "coverage": "Full app clone of the confirmed forward-message reference; phone layout (below 768 px) of the inbox: one-row list header with the WhatsApp-number switcher as the title, search on demand, filter chips (All, Unread with count, Mine, Unassigned, Groups, Tag, Resolved), number switcher bottom sheet with unread and connection per number, tag filter sheet, New chat floating button (shrinks on scroll), swipe right = Assign to me / left = Resolve with Undo, press-and-hold row action sheet, one-row chat header with a chip strip (assignee, tags, + Tag, Notes, group AI badge), assign sheet, chat Tags sheet (tick, create, Done), more-actions sheet, number badge on photos, toasts at the bottom; Lite and one-number agent; desktop 1280 unchanged; 360 and 390 px touch, light/dark, en/ms/zh-CN (mobile-shots.mjs); before shots of the baseline at 360 px (audit-shots.mjs); living design-system reference page /design-system (tokens from index.css, type, space, radius, elevation, components and states, mobile patterns, editions; light/dark, desktop and 360 px). Tags on group chats as on direct chats (owner 2026-11-07): header chip, row sheet, Group info and Customer details Tags row with one shared editor, list rows, the tag filter returning groups (stand-in route group-tags.ts writes the real customer_tags table); desktop Group info and Customer details tags.",
+      "note": "Phase 1 only (the owner's three items + quick wins). Phase 2 (composer, message actions, Customer details / Group info sheets, keyboard) is described in design.md, not mocked. Inherits forward-message's coverage gaps (message edit/delete and Safety-on-message screens). Removes scheduled-tasks (35) for retention; template-store stays (live tooling). Also updates docs/design-system.md (Mobile patterns, Editions, fixes) as part of the same confirmation.",
+      "archived": true,
+      "archivedAt": "2026-11-14",
+      "archivedRevision": "829a4b384346e0281d45bc90d76c5f8ade8b77e3",
+      "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
+    },
+    {
+      "feature": "mcp-file-upload",
+      "creationOrder": 40,
+      "createdAt": "2026-11-08",
+      "design": "docs/features/mcp-file-upload/design.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock (a small change; the owner asked for screenshots and states only): design.md with the security review and the composer states; screenshots at 1280/360 in screens/ (uploading progress, sent as a file, over WhatsApp's limit, tunnel 100 MB) made by screens/shots.mjs against a Dev Build.",
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Removes partner-role (36) for retention; template-store stays (live tooling).",
+      "archived": true,
+      "archivedAt": "2026-11-14",
+      "archivedRevision": "ee978fa4f6ce76f5d46795bfe719521c5ad9c147",
+      "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
     }
   ]
 }

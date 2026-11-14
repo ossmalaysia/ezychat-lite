@@ -753,7 +753,7 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   MP4 (`sendAs` video/file; omitted, a video above the number's video limit goes as a file). Each takes exactly one of
   a link, base64 (about 6 MB, `MCP_SEND_MAX_BASE64_BYTES`: what fits the 8 MB JSON) or `uploadId`; links and uploads
   have no cap of our own: up to the target number's `mediaLimits` (an upload: the largest of the owner's inboxes), within
-  the free disk, streamed to disk and sent by path (Forward's 413 codes). `POST /mcp/uploads` (design `docs/features/mcp-file-upload/design.md`): the `/mcp` `onRequest` checks
+  the free disk, streamed to disk and sent by path (Forward's 413 codes). `POST /mcp/uploads` (design [`docs/features/mcp-file-upload/design.md`](https://github.com/ossmalaysia/ezychat-lite/blob/ee978fa4f6ce76f5d46795bfe719521c5ad9c147/docs/features/mcp-file-upload/design.md), archived): the `/mcp` `onRequest` checks
   first, then `inbox:send` and a declared size, all before the body is read; raw body (`X-File-Name`) or multipart
   (one `file` part), never parsed or buffered, streamed to `<data>/uploads/` (0700/0600, random names, emptied on
   start), typed from the bytes (JPEG/PNG/WebP/PDF/.docx/MP4, else 415); an upload belongs to its token, is sent once
