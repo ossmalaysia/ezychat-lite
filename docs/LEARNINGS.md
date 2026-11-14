@@ -1472,7 +1472,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A step that silently drops a model's result (dream mode's checks, draft and phrase filters) logs which check dropped
   it, by name and fixed detail only, never the text: with counts alone the owner's first real-model test ("Dropped by
   the checks: 1") could not be diagnosed. A dev "run now" must not share the nightly window: dream mode's started
-  after the last night, so a second test run found no chats.
+  after the last night, so a second test run found no chats. A check on "what a change adds" must compare tokens, not
+  lines: business items are often one long line, so an edit made every old price "new" and the grounding check dropped a
+  correct change; numbers, contacts and names already in the old text are not new.
 - Ask Ezy unit tests mock the model and often `scheduledTurn` too, so only a Dev Build runs the real tool path: a new
   Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
   their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
