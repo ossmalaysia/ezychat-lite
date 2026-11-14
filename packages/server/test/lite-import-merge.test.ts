@@ -555,6 +555,45 @@ describe('mergeLiteInbox', () => {
     }
   });
 
+  it('imports dream mode switched off, without its runs or changes', async () => {
+    const t = seedTarget();
+    const lite = seedLite();
+    const db0 = open(lite.dir);
+    try {
+      db0
+        .prepare(
+          "INSERT INTO ai_dream_settings (agent_id, enabled, run_time, auto_apply, updated_at) VALUES (?, 1, '03:30', 1, 1)",
+        )
+        .run(lite.ids.agent);
+      const run = Number(
+        db0
+          .prepare(
+            "INSERT INTO ai_dream_runs (agent_id, slot, status, started_at) VALUES (?, 1, 'done', 1)",
+          )
+          .run(lite.ids.agent).lastInsertRowid,
+      );
+      db0
+        .prepare(
+          `INSERT INTO ai_dream_changes (run_id, agent_id, target, before, after, summary, source_message_ids, checks,
+             status, created_at) VALUES (?, ?, 'context_text', '', 'x', 's', '[]', '[]', 'waiting', 1)`,
+        )
+        .run(run, lite.ids.agent);
+    } finally {
+      db0.close();
+    }
+    await merge(t.dir, lite.dir);
+    const db = open(t.dir);
+    try {
+      expect(
+        db.prepare('SELECT enabled, run_time, auto_apply FROM ai_dream_settings').all(),
+      ).toEqual([{ enabled: 0, run_time: '03:30', auto_apply: 1 }]);
+      expect(db.prepare('SELECT COUNT(*) AS n FROM ai_dream_runs').get()).toEqual({ n: 0 });
+      expect(db.prepare('SELECT COUNT(*) AS n FROM ai_dream_changes').get()).toEqual({ n: 0 });
+    } finally {
+      db.close();
+    }
+  });
+
   it('brings Google Drive settings, folders and saved files only with the same Google account', async () => {
     const t = seedTarget({ driveAccount: 'Owner@Example.com' });
     const lite = seedLite({ driveAccount: 'owner@example.com' });
@@ -909,6 +948,8 @@ describe('mergeLiteInbox refusals and rollback', () => {
     );
     // and 044 (GitHub connector)
     db.exec('DROP TABLE github_agent_settings; DROP TABLE github_activity;');
+    // and 045 (dream mode)
+    db.exec('DROP TABLE ai_dream_changes; DROP TABLE ai_dream_runs; DROP TABLE ai_dream_settings;');
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

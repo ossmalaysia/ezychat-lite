@@ -15,16 +15,42 @@ const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * A team reply as the build may read it: emails, long numbers and the names of the chats' people
  * replaced, so the AI learns the team's wording, never a customer's details.
  */
+/** Every email and phone-like number in a text (the same patterns the cleaner replaces). */
+export const contactsIn = (text: string): string[] => [
+  ...(text.match(EMAIL) ?? []),
+  ...(text.match(LONG_NUMBER) ?? []),
+];
+
+/** True when a text keeps an email or a phone-like number. */
+export const holdsContact = (text: string) => contactsIn(text).length > 0;
+
 export function cleanTeamReply(text: string, names: readonly string[]): string {
   let out = text.replace(EMAIL, '[email]').replace(LONG_NUMBER, '[number]');
   for (const name of names) {
-    if (name.trim().length < 3) continue;
-    out = out.replace(
-      new RegExp(`(?<![\\p{L}\\p{N}])${escape(name.trim())}(?![\\p{L}\\p{N}])`, 'giu'),
-      '[name]',
-    );
+    const re = nameMatcher(name);
+    if (re) out = out.replace(re, '[name]');
   }
   return out;
+}
+
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/** A name long enough to stand for a person: CJK from 2 characters, other scripts from 3. */
+export const isPersonName = (name: string) => {
+  const n = name.trim();
+  return !/^\+?\d/.test(n) && n.length >= (CJK.test(n) ? 2 : 3);
+};
+
+/**
+ * Finds a name in text: as a whole word in scripts with spaces, anywhere in CJK text (no spaces between words, so
+ * "陈明您好" holds "陈明"). null for a name too short to match safely.
+ */
+export function nameMatcher(name: string): RegExp | null {
+  const n = name.trim();
+  if (!isPersonName(n)) return null;
+  return CJK.test(n)
+    ? new RegExp(escape(n), 'gu')
+    : new RegExp(`(?<![\\p{L}\\p{N}])${escape(n)}(?![\\p{L}\\p{N}])`, 'giu');
 }
 
 export const normalisePhrase = (text: string) =>

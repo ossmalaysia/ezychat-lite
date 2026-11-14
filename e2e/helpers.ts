@@ -155,3 +155,24 @@ export async function signIn(page: Page, username: string, password: string): Pr
 export function inboxHeading(page: Page) {
   return page.getByRole('heading', { name: 'Chats', exact: true });
 }
+
+/** The first AI agent (a switched-off one is added when there is none; no model is called). */
+export async function firstAgent(page: Page): Promise<{ id: number; resolutionCheck?: boolean }> {
+  type Agent = { id: number; resolutionCheck?: boolean };
+  const list = async () =>
+    ((await (await page.request.get('/api/ai/agents')).json()) as { agents: Agent[] }).agents;
+  if (!(await list()).length) {
+    await page.request.post('/api/ai/agents', {
+      headers: { Origin: new URL(page.url()).origin },
+      data: {
+        displayName: 'Help desk',
+        enabled: false,
+        preset: 'faq',
+        instructions: 'Answer questions about the shop.',
+        handoffRules: 'Hand over refunds.',
+      },
+    });
+  }
+  await expect.poll(async () => (await list()).length, { timeout: 30_000 }).toBeGreaterThan(0);
+  return (await list())[0]!;
+}

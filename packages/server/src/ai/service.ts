@@ -147,6 +147,28 @@ import { SAFETY_CHECK_RULES, SafetyAiOutput } from '../safety/ai-check.js';
 import { fixEnglishEnabled } from '../fix-english/setting.js';
 import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
+import type { z } from 'zod';
+import type { TakeoverChat } from './dream/collect.js';
+
+/** A Business context text item previewed, not saved (id null = a new item). */
+export interface PreviewItem {
+  id: number | null;
+  name: string;
+  text: string;
+}
+import {
+  DREAM_LESSON_RULES,
+  DREAM_MERGE_RULES,
+  DreamLessonsOutput,
+  DreamMergeOutput,
+  acceptLessons,
+  acceptProposals,
+  lessonInput,
+  mergeInput,
+  type DreamLesson,
+  type DreamProposal,
+  type DreamSetup,
+} from './dream/prompts.js';
 
 /**
  * The chat as the model sees it: who spoke (AI, a teammate, the customer) and what was said. Every
@@ -208,11 +230,12 @@ const DEFAULT_SETTINGS: AiSettings = {
   instructions: DEFAULT_AI_INSTRUCTIONS,
   handoffRules: DEFAULT_AI_HANDOFF_RULES,
 };
-type Actor = {
-  userId: number;
+export type Actor = {
+  /** null: dream mode applied a change by itself (no person). */
+  userId: number | null;
   ip: string | null;
-  /** Changes from an AI assistant over MCP carry the token and the assistant's reason. */
-  via?: 'app' | 'mcp';
+  /** Changes from an AI assistant over MCP carry the token and the assistant's reason; dream mode its summary. */
+  via?: 'app' | 'mcp' | 'dream';
   tokenId?: number;
   reason?: string;
 };
@@ -322,7 +345,14 @@ export interface AiService {
   logout(): Promise<void>;
   models(): Promise<AiModelList>;
   testConnection(): Promise<AiTestResult>;
-  tryAnswer(body: AiTryBody): Promise<AiTryResult>;
+  /** `items` (server only, never from a request): previews Business context text items not saved yet. */
+  tryAnswer(body: AiTryBody & { items?: readonly PreviewItem[] }): Promise<AiTryResult>;
+  /** Dream mode replay: Try it with a proposed setup; nothing is saved, stored or sent. */
+  previewWithSetup(
+    agentId: number,
+    override: { instructions?: string; handoffRules?: string; items?: readonly PreviewItem[] },
+    question: string,
+  ): Promise<AiTryResult>;
   /** Edit with AI: a suggested rewrite of one AI agent text; nothing is saved. */
   /** `signal`: the admin cancelled (closed the popup) — stop the AI call. */
   /** `agentId`: whose business items inform the edit (null/absent = the default agent). */
@@ -365,6 +395,14 @@ export interface AiService {
    * is sent or stored. Throws 409 `fix_english_off` / 503 `ai_unavailable`.
    */
   fixGrammar(jid: string, text: string, signal: AbortSignal): Promise<FixGrammarResult>;
+  /** Dream mode step 1: what the team's replies in one take-over chat teach (Model for suggestions). */
+  dreamLessons(agentId: number, chat: TakeoverChat, signal: AbortSignal): Promise<DreamLesson[]>;
+  /** Dream mode step 2: lessons merged into at most 5 setup changes (the connection's main model). */
+  dreamMerge(
+    agentId: number,
+    lessons: readonly DreamLesson[],
+    signal: AbortSignal,
+  ): Promise<{ proposals: DreamProposal[]; setup: DreamSetup }>;
   /**
    * WhatsApp Safety's AI check (docs/features/whatsapp-safety/design.md): one structured call on the
    * connection's fast model with the fixed `SAFETY_CHECK_RULES` and the message as data (text, file
@@ -430,6 +468,8 @@ export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
 /** A grammar check slower than this is dropped: the teammate has typed on or sent by then. */
 export const FIX_GRAMMAR_TIMEOUT_MS = 10_000;
+/** One dream mode model call (a night has time; a stuck call must still end). */
+export const DREAM_CALL_TIMEOUT_MS = 120_000;
 /** WhatsApp Safety's AI check: past this the rules' result stands. */
 export const SAFETY_CHECK_TIMEOUT_MS = 15_000;
 /** One phrase-list build (a larger structured answer, in the background). */
@@ -580,6 +620,43 @@ export function createAiService(
       return { settings: { ...current, model: choice }, fast: false };
     return { settings: current, fast: true };
   };
+  /** Dream mode runs only on a ready connection with the gate open, for an existing agent. */
+  const dreamAgent = (agentId: number): AgentRow => {
+    if (service.draftConnection() !== 'ready' || !gateOpen())
+      throw new HttpError(503, 'ai_unavailable', 'The AI connection is not ready');
+    const agent = agentOrDefault(agentId);
+    if (!agent || agent.id !== agentId)
+      throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
+    return agent;
+  };
+  /** One dream mode model call: no tools, no retries; logs counts, ms and model, never the text. */
+  const dreamCall = async <T>(
+    event: 'dream_lessons' | 'dream_merge',
+    choice: { settings: AiSettings; fast: boolean },
+    instructions: string,
+    input: string,
+    schema: z.ZodType<T>,
+    maxOutputTokens: number,
+    signal: AbortSignal,
+  ): Promise<T> => {
+    const started = Date.now();
+    let model: string | null = null;
+    let ok = false;
+    try {
+      const answer = await provider.draft!(
+        choice.settings,
+        aiApiKey(ctx.settings),
+        { instructions, input, cacheId: `${installId()}#dream` },
+        { schema, fast: choice.fast, maxOutputTokens },
+        AbortSignal.any([signal, AbortSignal.timeout(DREAM_CALL_TIMEOUT_MS)]),
+      );
+      model = answer.model;
+      ok = true;
+      return answer.output;
+    } finally {
+      log.info({ event, ok, ms: Date.now() - started, model }, 'Dream mode model call');
+    }
+  };
   const resolvedSuggestModel = (current: AiSettings): string => {
     const { settings: chosen, fast } = draftChoice(current);
     return fast ? fastModel(current) : agentModel(chosen);
@@ -712,6 +789,30 @@ export function createAiService(
             )
             .all(agentId) as Array<Omit<AiContextItem, 'internal'> & { internal: number }>
         ).map((item) => ({ ...item, internal: item.internal === 1 }));
+  /** Saved items with previewed texts: an item with an `id` gets the new text, one without is added. */
+  const withPreviewItems = (
+    saved: AiContextItem[],
+    preview: readonly PreviewItem[] | undefined,
+  ): AiContextItem[] => {
+    if (!preview?.length) return saved;
+    const byId = new Map(preview.filter((p) => p.id !== null).map((p) => [p.id, p]));
+    const added = preview
+      .filter((p) => p.id === null)
+      .map((p, i) => ({
+        id: -1 - i,
+        name: p.name,
+        kind: 'text' as const,
+        text: p.text,
+        internal: false,
+        createdAt: Date.now(),
+      }));
+    return [
+      ...saved.map((item) =>
+        byId.has(item.id) ? { ...item, text: byId.get(item.id)!.text } : item,
+      ),
+      ...added,
+    ];
+  };
   /** One agent's items as the page lists them (no text). */
   const documentsOf = (agentId: number | null): AiMemberStatus['documents'] =>
     agentId === null
@@ -2669,7 +2770,7 @@ export function createAiService(
           error: 'Set up the AI connection in Settings → AI first.',
         };
       // The draft name and instructions, with the saved Business context items.
-      const saved = contextItems(agent?.id ?? null);
+      const saved = withPreviewItems(contextItems(agent?.id ?? null), body.items);
       const items = splitKnowledge(saved);
       const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
       const knowledge = relevantKnowledge(items.business, body.question);
@@ -3141,6 +3242,59 @@ export function createAiService(
           'Fix English grammar check',
         );
       }
+    },
+    previewWithSetup(agentId, override, question) {
+      const status = service.agentStatus(agentId);
+      return service.tryAnswer({
+        question,
+        agentId,
+        knowledge: {
+          displayName: status.agent.displayName,
+          instructions: override.instructions ?? status.settings.instructions,
+          handoffRules: override.handoffRules ?? status.settings.handoffRules ?? '',
+        },
+        ...(override.items ? { items: override.items } : {}),
+      });
+    },
+    async dreamLessons(agentId, chat, signal) {
+      const agent = dreamAgent(agentId);
+      const output = await dreamCall(
+        'dream_lessons',
+        draftChoice(settingsFor(agent)),
+        DREAM_LESSON_RULES,
+        lessonInput(chat),
+        DreamLessonsOutput,
+        2_000,
+        signal,
+      );
+      return acceptLessons(output, chat);
+    },
+    async dreamMerge(agentId, lessons, signal) {
+      const agent = dreamAgent(agentId);
+      const status = service.agentStatus(agentId);
+      const items = status.documents
+        .filter((d) => d.kind === 'text')
+        .flatMap((d) => {
+          const doc = service.document(agentId, d.id);
+          return doc.kind === 'text' && !doc.truncated
+            ? [{ id: d.id, name: d.name, text: doc.text, internal: d.internal }]
+            : [];
+        });
+      const setup: DreamSetup = {
+        instructions: status.settings.instructions,
+        handoffRules: status.settings.handoffRules ?? '',
+        items,
+      };
+      const output = await dreamCall(
+        'dream_merge',
+        { settings: settingsFor(agent), fast: false },
+        DREAM_MERGE_RULES,
+        mergeInput(lessons, setup),
+        DreamMergeOutput,
+        6_000,
+        signal,
+      );
+      return { proposals: acceptProposals(output, lessons, setup), setup };
     },
     async checkSafety(chatJid, input, signal) {
       if (service.draftConnection() !== 'ready' || !gateOpen()) return null;

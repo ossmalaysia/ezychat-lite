@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "dream-mode",
+      "creationOrder": 46,
+      "createdAt": "2026-11-14",
+      "design": "docs/superpowers/specs/2026-11-14-dream-mode-design.md",
+      "mock": "docs/features/dream-mode/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-14",
+      "confirmation": "Owner (Jazz) confirmed the quick mock on 2026-11-14 (\"look good\") on the review page with the screenshots, with Apply by itself limited to Business context facts as shown, and added: forwarded messages are never a learning source.",
+      "coverage": "Quick mock only (not an app clone): the agent page with the Dream mode card off, on with changes waiting, on with Apply by itself, paused (AI not connected), and the See change dialog; 1280/360, light and dark for the main states (mock/shots.mjs, mock/screens/).",
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (app-navigation). Retention: removes cloud-auth-storage (design-only folder of 2026-11-08, already listed as archived; nothing links to it); template-store stays (live tooling)."
+    },
+    {
       "feature": "app-navigation",
       "creationOrder": 43,
       "createdAt": "2026-11-13",

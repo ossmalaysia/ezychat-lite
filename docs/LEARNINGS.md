@@ -34,7 +34,10 @@ into AGENTS.md.
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
-  and trim before a plain-value regex instead of allowing spaces twice.
+  and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code
+  and is flagged again: export a helper from the file that has it, without editing that line. `.sort()` without a
+  compare function (S2871) is Critical and fails the reliability gate on its own. The Sonar project key is
+  `ossmalaysia_wa-team-inbox` (the PR check's link shows it).
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
   character; an editor or the agent's file-writing tool may turn the escape into the character, so scan new test
   files for U+200E/F, U+202A–202E, U+2066–2069, U+FEFF before pushing) and on a JSON key containing "password" (S2068,
@@ -359,6 +362,7 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   `git show :2:<file> > /tmp/o` wrote empty files, the `merge-file --union` result was empty, and #240 merged with
   `docs/LEARNINGS.md` and `docs/dev-build-checks.md` at 0 lines. After any scripted resolution, run
   `git diff --numstat origin/main -- <files>` before the commit: a docs file that loses every line is never right.
+  Count lines with `wc -l` (Bash), not PowerShell `Measure-Object -Line`: it skips blank lines (2,262 read as 2,173).
   `--union` on a table that one side reformatted keeps both copies of every changed row: insert the new rows by hand.
 - An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
   renumber or change them on that branch (later parts take the next number), or the official release cannot
@@ -459,7 +463,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A PR with a merge conflict (`mergeable_state: dirty`) gets no `pull_request` CI at all, silently: when a
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
-  older commit (or "uncommitted") count as ✗ missing in the release review; a Dev Build row counts only with the
+  older commit (or "uncommitted") count as ✗ missing in the release review (it reads the PR on GitHub, so push
+  the records first, and put every record in one push: each push restarts CI); a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
   SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
   before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
@@ -609,6 +614,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A release PR opened before later merges is rebuilt on a fresh `origin/main` (bump, `version:sync`, lockfile,
   changelog heading), never rebased; copy a single new `dev-build-checks.md` row by hand: `git apply --3way`
   of a table row garbled the whole file. Before a release, check `main`'s own CI and run e2e + links on it.
+- `gh run view --log-failed` prints nothing while other jobs of the run still go: read the failed job at once with
+  `gh api repos/<owner>/<repo>/actions/jobs/<jobId>/logs` (job id from `gh run view <id> --json jobs`).
 - A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
   on the same code, then `gh run rerun <id> --failed`; fix the flaky test in its own PR. After that fix
   merges, rebase and push each red PR: a rerun tests the PR's old merge commit, without the fix. A mac DMG job
@@ -788,6 +795,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- An MCP server that is configured (`~/.claude.json` `mcpServers`) but has no tools in the session and is not in the
+  "failed to connect" list usually needs a sign-in: check its port (`Get-NetTCPConnection`) and one `tools/list`
+  request; a 401 means the owner must run `/mcp` → the server → Authenticate (never sign in for them).
 - The web app's main file sits near the PWA precache limit: `vite build` fails with "Assets exceeding the limit" when
   `assets/index-*.js` passes `maximumFileSizeToCacheInBytes` (3 MiB since 2026-11-14, 2.13 MB used). Check the size of
   that file after adding a page; split rarely used areas with `React.lazy` rather than raising the limit again.
@@ -934,6 +944,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   without asking; run checks one at a time with low workers (`npm run e2e -- --workers=1`, `vitest --maxWorkers=2`).
 - Stopping a background `npx tsx …` task on Windows can leave its node child listening: free the port by
   stopping the process that owns it (`Get-NetTCPConnection -LocalPort`), then delete the runner's temp data.
+  The sign: the "fresh" server's task fails at once (port taken) and the check's ids continue from the last run.
 
 - In a cloud container whose bundled Chromium build differs from the repo's Playwright, run e2e with
   `PLAYWRIGHT_BROWSERS_PATH=<tmp>` holding a `chromium-<wanted build>` symlink to the installed one; never edit
@@ -1468,6 +1479,15 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- A step that silently drops a model's result (dream mode's checks, draft and phrase filters) logs which check dropped
+  it, by name and fixed detail only, never the text: with counts alone the owner's first real-model test ("Dropped by
+  the checks: 1") could not be diagnosed. A dev "run now" must not share the nightly window: dream mode's started
+  after the last night, so a second test run found no chats. A check on "what a change adds" must compare tokens, not
+  lines: business items are often one long line, so an edit made every old price "new" and the grounding check dropped a
+  correct change; numbers, contacts and names already in the old text are not new.
+- Removing customer names from text the AI learns from: a whole-word match (`(?<![\p{L}\p{N}])name(?!…)`) never finds
+  a Chinese name, because CJK text has no spaces ("陈明您好"), and a 3-character minimum drops most of them. Use
+  `phrases/check.ts#nameMatcher` / `isPersonName` (CJK: anywhere, from 2 characters) for every new name filter.
 - Ask Ezy unit tests mock the model and often `scheduledTurn` too, so only a Dev Build runs the real tool path: a new
   Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
   their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
@@ -1654,7 +1674,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   received (`e2e/agents-devbuild.ts`: name, guardrails first, `MARK-…` words per knowledge part) proves
   isolation and order end to end; a data-moving migration is also checked from the installed release
   (`ELECTRON_RUN_AS_NODE=1 "<install>\EzyChat Lite.exe" …\server.cjs --data <temp>`), then the branch on
-  the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`).
+  the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`). A mock that decides from `prompt.input` alone never
+  sees the hand-off rules or the instructions: they are in `prompt.instructions`, so match on both. A check that seeds
+  a "source" message inside a chat the feature reads makes that message a real input: seed it in a chat outside the
+  feature's scope (dream mode learned a forward's source text sent as a team reply in a take-over chat).
 - When one thing becomes many (one AI member → one agent per inbox), every extension slot keyed by
   kind (`agentSections` with `agent: 'sales'`) must also get the instance id, and the screen review must
   include an Enterprise Dev Build: its Connectors card named the inbox-1 agent on every agent page, which

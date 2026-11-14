@@ -1,5 +1,4 @@
-import type { Page } from '@playwright/test';
-import { expect, expectNoHorizontalScroll, inboxHeading, test } from './helpers';
+import { expect, expectNoHorizontalScroll, firstAgent, inboxHeading, test } from './helpers';
 
 /**
  * Agent page → Closing chats, "Ask if the question is answered" (#230): the switch saves at once,
@@ -8,26 +7,6 @@ import { expect, expectNoHorizontalScroll, inboxHeading, test } from './helpers'
  * restores the value it found.
  */
 const DESKTOP = 'desktop-chromium';
-
-async function firstAgent(page: Page): Promise<{ id: number; resolutionCheck?: boolean }> {
-  type Agent = { id: number; resolutionCheck?: boolean };
-  const list = async () =>
-    ((await (await page.request.get('/api/ai/agents')).json()) as { agents: Agent[] }).agents;
-  if (!(await list()).length) {
-    await page.request.post('/api/ai/agents', {
-      headers: { Origin: new URL(page.url()).origin },
-      data: {
-        displayName: 'Help desk',
-        enabled: false,
-        preset: 'faq',
-        instructions: 'Answer questions about the shop.',
-        handoffRules: 'Hand over refunds.',
-      },
-    });
-  }
-  await expect.poll(async () => (await list()).length, { timeout: 30_000 }).toBeGreaterThan(0);
-  return (await list())[0]!;
-}
 
 test('Ask if the question is answered: saves at once and survives a reload (desktop)', async ({
   page,

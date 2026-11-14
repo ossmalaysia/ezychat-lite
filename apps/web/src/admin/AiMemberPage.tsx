@@ -72,6 +72,7 @@ import { AgentDirectCard } from './AgentDirectCard';
 import { AgentGroupsCard, LITE_INBOX_NAME } from './AgentGroupsCard';
 import { AgentScheduledTasksCard } from './AgentScheduledTasksCard';
 import { AgentResolutionCard } from './AgentResolutionCard';
+import { AgentDreamCard } from './AgentDreamCard';
 import { BusinessTemplateCard } from './BusinessTemplateCard';
 import { businessTemplate, type GalleryTemplate } from './business-templates';
 import { connectionReady, hasKnowledge, presetDefaults, type PresetTexts } from './ai-status';
@@ -806,6 +807,12 @@ function AgentEditor({
 
           {/* Connectors this agent uses; their settings live on each connector's page. */}
           <AgentConnectorsCard
+            agentId={agent.agent.id}
+            name={agent.settings.displayName || t('ai.page.defaultTitle')}
+          />
+
+          {/* Dream mode: each night the agent learns from the team's take-over replies (off by default). */}
+          <AgentDreamCard
             agentId={agent.agent.id}
             name={agent.settings.displayName || t('ai.page.defaultTitle')}
           />

@@ -1,0 +1,607 @@
+<!doctype html>
+<!--
+  Quick mock: Dream mode for an AI agent (docs/features/dream-mode/design.md). Owner asked to see the screen
+  first (2026-11-14). Open directly in a browser; ?state=<id>&theme=dark picks a state. Demo data only.
+  Screenshots: node docs/features/dream-mode/mock/shots.mjs
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mock: Dream mode</title>
+    <style>
+      /* Tokens copied from apps/web/src/index.css (Calm Desk). */
+      :root {
+        --radius: 10px;
+        --background: #f8fafc;
+        --foreground: #0f172a;
+        --card: #ffffff;
+        --muted: #f1f5f9;
+        --muted-foreground: #475569;
+        --accent: #f0fdfa;
+        --border: #e2e8f0;
+        --primary: #0f766e;
+        --primary-foreground: #ffffff;
+        --success: #15803d;
+        --warning: #b45309;
+        --danger: #dc2626;
+        --add: #dcfce7;
+        --remove: #fee2e2;
+        --overlay: rgb(15 23 42 / 0.45);
+      }
+      :root.dark {
+        --background: #0b1220;
+        --foreground: #f1f5f9;
+        --card: #111827;
+        --muted: #1f2937;
+        --muted-foreground: #94a3b8;
+        --accent: #12302d;
+        --border: #243042;
+        --primary: #14b8a6;
+        --primary-foreground: #04201d;
+        --success: #4ade80;
+        --warning: #fbbf24;
+        --danger: #ef4444;
+        --add: #12351f;
+        --remove: #3b1414;
+        --overlay: rgb(0 0 0 / 0.6);
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font:
+          14px/1.5 Inter,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      .bar {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        border-bottom: 1px dashed var(--border);
+        font-size: 12px;
+      }
+      .bar a {
+        color: var(--primary);
+      }
+      .app {
+        display: flex;
+        min-height: calc(100vh - 37px);
+      }
+      .rail {
+        width: 64px;
+        flex: none;
+        border-right: 1px solid var(--border);
+        background: var(--background);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 12px 0;
+      }
+      .rail .it {
+        width: 56px;
+        display: grid;
+        justify-items: center;
+        gap: 2px;
+        font-size: 11px;
+        color: var(--muted-foreground);
+        padding: 4px 0;
+      }
+      .rail .pill {
+        width: 48px;
+        height: 32px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+      }
+      .rail .it.on .pill {
+        background: var(--accent);
+        color: var(--primary);
+      }
+      .rail .it.on {
+        color: var(--foreground);
+        font-weight: 600;
+      }
+      .rail .grow {
+        flex: 1;
+      }
+      svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .main {
+        flex: 1;
+        min-width: 0;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--card);
+      }
+      .top .back {
+        color: var(--muted-foreground);
+      }
+      .top h1 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .chip {
+        font-size: 12px;
+        border-radius: 999px;
+        padding: 2px 8px;
+        background: var(--accent);
+        color: var(--primary);
+        font-weight: 600;
+      }
+      .page {
+        padding: 24px;
+        max-width: 820px;
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+      .card.collapsed {
+        color: var(--muted-foreground);
+        display: flex;
+        justify-content: space-between;
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .hint {
+        color: var(--muted-foreground);
+        margin: 0;
+      }
+      .line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .line .lbl {
+        font-weight: 600;
+      }
+      .line .lbl small {
+        display: block;
+        font-weight: 400;
+        color: var(--muted-foreground);
+      }
+      .sw {
+        width: 40px;
+        height: 22px;
+        border-radius: 999px;
+        background: var(--border);
+        position: relative;
+        flex: none;
+      }
+      .sw::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.15s;
+      }
+      .sw.on {
+        background: var(--primary);
+      }
+      .sw.on::after {
+        left: 20px;
+      }
+      select,
+      .sel {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--foreground);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        min-height: 40px;
+      }
+      .btn {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--foreground);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font: inherit;
+        min-height: 40px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+      }
+      .btn.link {
+        border: 0;
+        background: none;
+        color: var(--primary);
+        padding: 8px 6px;
+      }
+      .note {
+        background: var(--muted);
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: var(--muted-foreground);
+      }
+      .note.warn {
+        background: color-mix(in srgb, var(--warning) 12%, var(--card));
+        color: var(--foreground);
+      }
+      .sep {
+        height: 1px;
+        background: var(--border);
+      }
+      .run {
+        display: grid;
+        gap: 8px;
+      }
+      .run-head {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+      .run-head b {
+        font-size: 14px;
+      }
+      .run-head span {
+        color: var(--muted-foreground);
+        font-size: 13px;
+      }
+      .chg {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        display: grid;
+        gap: 6px;
+      }
+      .chg .what {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .st {
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 2px 8px;
+      }
+      .st.applied {
+        background: color-mix(in srgb, var(--success) 15%, transparent);
+        color: var(--success);
+      }
+      .st.wait {
+        background: color-mix(in srgb, var(--warning) 15%, transparent);
+        color: var(--warning);
+      }
+      .st.undone {
+        background: var(--muted);
+        color: var(--muted-foreground);
+      }
+      .chg .txt {
+        font-weight: 600;
+      }
+      .chg .why {
+        color: var(--muted-foreground);
+        font-size: 13px;
+      }
+      .chg .acts {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .quiet {
+        color: var(--muted-foreground);
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: var(--overlay);
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        z-index: 10;
+      }
+      .dialog {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 20px;
+        width: min(560px, 100%);
+        display: grid;
+        gap: 12px;
+        max-height: calc(100vh - 32px);
+        overflow: auto;
+      }
+      .dialog h3 {
+        margin: 0;
+        font-size: 17px;
+      }
+      .diff {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 13px;
+      }
+      .diff div {
+        padding: 6px 10px;
+      }
+      .diff .rm {
+        background: var(--remove);
+        text-decoration: line-through;
+      }
+      .diff .ad {
+        background: var(--add);
+      }
+      .src {
+        display: grid;
+        gap: 6px;
+      }
+      .src .q {
+        background: var(--muted);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      .src .q b {
+        display: block;
+        font-size: 12px;
+        color: var(--muted-foreground);
+        font-weight: 600;
+      }
+      .checks {
+        display: grid;
+        gap: 4px;
+        font-size: 13px;
+      }
+      .checks .ok {
+        color: var(--success);
+      }
+      .row-end {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      @media (max-width: 767px) {
+        .rail {
+          display: none;
+        }
+        .page {
+          padding: 16px;
+        }
+        .top {
+          padding: 12px 16px;
+        }
+        .tabs {
+          position: sticky;
+          bottom: 0;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          border-top: 1px solid var(--border);
+          background: var(--card);
+          padding: 6px 0;
+          font-size: 11px;
+          text-align: center;
+          color: var(--muted-foreground);
+        }
+        .tabs .on {
+          color: var(--primary);
+          font-weight: 600;
+        }
+      }
+      @media (min-width: 768px) {
+        .tabs {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar" id="bar"></div>
+    <div class="app">
+      <nav class="rail" aria-label="Main">
+        <div class="it">
+          <span class="pill"
+            ><svg viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></span
+          >Chats
+        </div>
+        <div class="it">
+          <span class="pill"
+            ><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16v-5M12 16V8M17 16v-3" /></svg></span
+          >Reports
+        </div>
+        <div class="it">
+          <span class="pill"
+            ><svg viewBox="0 0 24 24">
+              <path d="m12 3 1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z" /></svg></span
+          >Ask Ezy
+        </div>
+        <div class="it on">
+          <span class="pill"
+            ><svg viewBox="0 0 24 24">
+              <path
+                d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"
+              /></svg></span
+          >Members
+        </div>
+        <div class="grow"></div>
+        <div class="it">
+          <span class="pill"
+            ><svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 4.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 13.2H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 5l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10.4 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+              /></svg></span
+          >Settings
+        </div>
+      </nav>
+      <main class="main">
+        <header class="top">
+          <span class="back">← Members</span>
+          <h1>Sales Agent</h1>
+          <span class="chip">AI agent · On</span>
+        </header>
+        <div class="page" id="page"></div>
+        <nav class="tabs">
+          <div>Chats</div>
+          <div>Reports</div>
+          <div>Ask Ezy</div>
+          <div class="on">Settings</div>
+        </nav>
+      </main>
+    </div>
+    <div id="layer"></div>
+
+    <script>
+      const STATES = {
+        off: 'Off (first time)',
+        waiting: 'On · changes wait for you',
+        auto: 'On · Apply by itself',
+        change: 'See change (dialog)',
+        paused: 'Paused (AI not connected)',
+      };
+      const q = new URLSearchParams(location.search);
+      const state = STATES[q.get('state')] ? q.get('state') : 'waiting';
+      if (q.get('theme') === 'dark') document.documentElement.classList.add('dark');
+      document.getElementById('bar').innerHTML =
+        '<b>Mock: Dream mode</b> · ' +
+        Object.entries(STATES)
+          .map(([id, l]) =>
+            id === state
+              ? `<b>${l}</b>`
+              : `<a href="?state=${id}${q.get('theme') ? '&theme=' + q.get('theme') : ''}">${l}</a>`,
+          )
+          .join(' · ');
+
+      const sw = (on) =>
+        `<span class="sw${on ? ' on' : ''}" role="switch" aria-checked="${on}"></span>`;
+      const moon = '<svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>';
+      const collapsed = (t) => `<div class="card collapsed"><span>${t}</span><span>›</span></div>`;
+
+      const on = state !== 'off';
+      const auto = state === 'auto';
+
+      const chg = (status, area, text, why, acts) => `
+        <div class="chg">
+          <div class="what"><span class="st ${status}">${{ applied: 'Applied', wait: 'Waiting for you', undone: 'Undone' }[status]}</span><span class="quiet">${area}</span></div>
+          <div class="txt">${text}</div>
+          <div class="why">${why}</div>
+          <div class="acts">${acts}</div>
+        </div>`;
+
+      const history = auto
+        ? `
+          <div class="run">
+            <div class="run-head"><b>Last night · 14 Nov, 02:00</b><span>Read 38 chats · 4 taken over by the team · 3 changes</span></div>
+            ${chg('applied', 'Business context · Opening hours', 'Saturday: 9 am to 1 pm', 'Learned from Jazz’s reply in 2 chats where you handed over', '<button class="btn link">See change</button><button class="btn link">Undo</button>')}
+            ${chg('applied', 'Business context · Prices', 'Delivery to Johor: RM 15', 'Learned from Mei’s reply in 1 chat', '<button class="btn link">See change</button><button class="btn link">Undo</button>')}
+            ${chg('wait', 'Hand-off rules', 'Hand over refund requests to the team', 'Instructions and hand-off rules always wait for you · 3 chats', '<button class="btn primary">Apply</button><button class="btn link">See change</button><button class="btn link">Dismiss</button>')}
+          </div>
+          <div class="sep"></div>
+          <div class="run">
+            <div class="run-head"><b>13 Nov, 02:00</b><span>Read 41 chats · nothing new to learn</span></div>
+          </div>`
+        : `
+          <div class="run">
+            <div class="run-head"><b>Last night · 14 Nov, 02:00</b><span>Read 38 chats · 4 taken over by the team · 3 suggestions</span></div>
+            ${chg('wait', 'Business context · Opening hours', 'Saturday: 9 am to 1 pm', 'Learned from Jazz’s reply in 2 chats where you handed over', '<button class="btn primary">Apply</button><button class="btn link">See change</button><button class="btn link">Dismiss</button>')}
+            ${chg('wait', 'Business context · Prices', 'Delivery to Johor: RM 15', 'Learned from Mei’s reply in 1 chat', '<button class="btn primary">Apply</button><button class="btn link">See change</button><button class="btn link">Dismiss</button>')}
+            ${chg('wait', 'Hand-off rules', 'Hand over refund requests to the team', 'The team took over 3 refund chats', '<button class="btn primary">Apply</button><button class="btn link">See change</button><button class="btn link">Dismiss</button>')}
+          </div>
+          <div class="sep"></div>
+          <div class="run">
+            <div class="run-head"><b>13 Nov, 02:00</b><span>Read 41 chats · 1 change</span></div>
+            ${chg('undone', 'Instructions', 'Answer in Malay when the customer writes in Malay', 'Applied by Jazz · undone by Jazz on 13 Nov', '<button class="btn link">See change</button>')}
+          </div>`;
+
+      const dream = !on
+        ? `
+          <div class="card">
+            <h2>${moon} Dream mode</h2>
+            <p class="hint">Each night, Sales Agent reads the day’s chats. It learns from the replies your team wrote after taking a chat over, and suggests better answers, facts and hand-off rules. Nothing is sent to customers.</p>
+            <div class="line"><span class="lbl">Dream mode<small>Off</small></span>${sw(false)}</div>
+          </div>`
+        : `
+          <div class="card">
+            <h2>${moon} Dream mode</h2>
+            <p class="hint">Each night, Sales Agent reads the day’s chats and learns from the replies your team wrote after taking a chat over. Nothing is sent to customers.</p>
+            ${state === 'paused' ? '<div class="note warn">Paused: the AI is not connected. Dream mode runs again after you connect it in Settings → AI.</div>' : ''}
+            <div class="line"><span class="lbl">Dream mode<small>On</small></span>${sw(true)}</div>
+            <div class="line"><span class="lbl">Runs every night at<small>Business time (Asia/Kuala_Lumpur)</small></span><select><option>02:00</option></select></div>
+            <div class="line"><span class="lbl">Apply by itself<small>${auto ? 'On: new facts go into Business context at once. Instructions and hand-off rules still wait for you.' : 'Off: every change waits for you to apply it.'}</small></span>${sw(auto)}</div>
+            <div class="sep"></div>
+            <h2 style="font-size:15px">History</h2>
+            ${state === 'paused' ? '<div class="run"><div class="run-head"><b>Last night · 14 Nov, 02:00</b><span>Did not run: the AI is not connected</span></div></div>' : history}
+          </div>`;
+
+      document.getElementById('page').innerHTML = [
+        collapsed('Role and instructions'),
+        collapsed('Hand-off rules'),
+        collapsed('Business context · 6 items'),
+        dream,
+        collapsed('Closing chats'),
+        collapsed('Scheduled tasks'),
+      ].join('');
+
+      if (state === 'change')
+        document.getElementById('layer').innerHTML = `
+          <div class="overlay"><div class="dialog" role="dialog" aria-label="Change from Dream mode">
+            <h3>Business context · Opening hours</h3>
+            <p class="hint" style="margin:0">Dream mode suggests this change from last night (14 Nov, 02:00).</p>
+            <div class="diff">
+              <div class="rm">Monday to Friday: 9 am to 6 pm. Closed on weekends.</div>
+              <div class="ad">Monday to Friday: 9 am to 6 pm. Saturday: 9 am to 1 pm. Closed on Sunday.</div>
+            </div>
+            <div class="src">
+              <b>Why: what the team wrote after taking over</b>
+              <div class="q"><b>Customer · 13 Nov</b>Are you open this Saturday?</div>
+              <div class="q"><b>Jazz (team) · 13 Nov</b>Yes, Saturday we open 9 am to 1 pm.</div>
+              <div class="q"><b>Customer · 12 Nov</b>Can I come on Saturday morning?</div>
+            </div>
+            <div class="checks">
+              <b>Checks before it is applied</b>
+              <span class="ok">✓ Replay: Sales Agent now answers both questions without handing over</span>
+              <span class="ok">✓ No other test answer got worse (12 checked)</span>
+              <span class="ok">✓ No names, phone numbers or emails in the new text</span>
+            </div>
+            <div class="row-end"><button class="btn">Dismiss</button><button class="btn primary">Apply</button></div>
+          </div></div>`;
+    </script>
+  </body>
+</html>

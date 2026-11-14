@@ -15,6 +15,7 @@ import { agentById, defaultAgent, listAgents, type AgentRow } from '../agents.js
 import { chatAgent } from '../groups.js';
 import { replySuggestionsEnabled } from '../reply-suggestions-setting.js';
 import { acceptPhrases, cleanTeamReply, planPhraseMerge } from './check.js';
+import { inboxCustomerNames } from '../customer-names.js';
 import { PhraseRepo } from './repo.js';
 
 /** Team replies since the last build that start the next one. */
@@ -27,8 +28,6 @@ const DAY = 24 * HOUR;
 /** Team replies the build reads (newest), and their longest part. */
 const TEAM_REPLIES = 200;
 const TEAM_REPLY_CHARACTERS = 300;
-/** Newest direct chats whose people's names no phrase may hold. */
-const NAMED_CHATS = 2_000;
 
 /** Per-agent build state (setting `ai_phrases_state:<agentId>`). */
 interface BuildState {
@@ -181,21 +180,7 @@ export function createPhraseService(ctx: AppContext, deps: PhraseDeps = {}): Phr
       profileName: string | null;
     }[];
     // Every customer name of the inbox, not only of the chats replied to: no phrase may hold one.
-    const people = ctx.db
-      .prepare(
-        `SELECT c.name AS chatName, p.name AS profileName
-           FROM chats c LEFT JOIN customer_profiles p ON p.chat_jid = c.jid
-          WHERE c.inbox_id = ? AND c.type = 'dm'
-          ORDER BY c.last_message_at DESC LIMIT ?`,
-      )
-      .all(agent.inboxId, NAMED_CHATS) as { chatName: string | null; profileName: string | null }[];
-    const names = [
-      ...new Set(
-        [...rows, ...people]
-          .flatMap((r) => [r.chatName, r.profileName])
-          .flatMap((n) => (n ? [n, ...n.split(/\s+/)] : [])),
-      ),
-    ].filter((n) => n.trim().length >= 3 && !/^\+?\d/.test(n));
+    const names = inboxCustomerNames(ctx.db, agent.inboxId, rows);
     const replies = rows
       .map((r) => cleanTeamReply(r.body, names).slice(0, TEAM_REPLY_CHARACTERS).trim())
       .filter(Boolean)
