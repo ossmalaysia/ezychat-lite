@@ -60,6 +60,9 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   safety_items: { merged: true },
   ai_scheduled_tasks: { merged: true },
   ai_scheduled_runs: { skip: 'run history: the imported tasks start switched off, with no runs' },
+  ai_dream_settings: { merged: true },
+  ai_dream_runs: { skip: 'run history: dream mode arrives switched off, with no runs' },
+  ai_dream_changes: { skip: "suggestions name the Lite install's setup texts; the target's own setup is kept" },
   safety_downloads: { merged: true },
   safety_numbers: { merged: true },
   sql_account_agent_settings: { merged: true },
@@ -524,6 +527,14 @@ export function mergeTables(input: MergeInput): MergeOutcome {
         updated_at: now,
       });
       maps.scheduledTasks.set(Number(task.id), Number(added.lastInsertRowid));
+    }
+  });
+  // Dream mode: copied switched off (an admin turns it on in the new inbox); no runs, no changes.
+  phase(() => {
+    const addDream = inserter(target, 'ai_dream_settings');
+    for (const s of rows(lite, 'SELECT * FROM ai_dream_settings ORDER BY agent_id')) {
+      const agentId = maps.agent(s.agent_id);
+      if (agentId !== null) addDream({ ...s, agent_id: agentId, enabled: 0, updated_at: now });
     }
   });
   phase(() => {
