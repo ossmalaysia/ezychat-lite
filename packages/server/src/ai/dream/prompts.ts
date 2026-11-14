@@ -76,6 +76,12 @@ const LONG_NUMBER = /\+?\d[\d\s-]{5,}\d/;
 /** True when a text keeps an email or a phone-like number. */
 export const holdsContact = (text: string) => EMAIL.test(text) || LONG_NUMBER.test(text);
 
+/** Every email and phone-like number in a text. */
+export const contactsIn = (text: string): string[] =>
+  [...text.matchAll(new RegExp(EMAIL, 'g')), ...text.matchAll(new RegExp(LONG_NUMBER, 'g'))].map(
+    (m) => m[0],
+  );
+
 /** The chat as the lesson call reads it: local ids and roles only, never stored ids or the chat key. */
 export function lessonInput(chat: TakeoverChat): string {
   return JSON.stringify({

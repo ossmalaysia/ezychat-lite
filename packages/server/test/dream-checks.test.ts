@@ -157,6 +157,37 @@ describe('checkChange', () => {
     expect(failed(r)).toContain('grounding');
   });
 
+  it('keeps the old numbers and contact details of a line it edits', async () => {
+    const s = await setup();
+    const before = 'Kopi O RM2.50, open 7am to 3pm daily. Call 03-1234 5678.';
+    const r = await checkChange(
+      s.t.ctx,
+      s.input({
+        before,
+        teamText: 'yes saturday we open from 9am to 1pm',
+        proposal: {
+          ...s.input().proposal,
+          after: 'Kopi O RM2.50, open 7am to 3pm daily, Saturday 9am to 1pm. Call 03-1234 5678.',
+        },
+      }),
+      new AbortController().signal,
+    );
+    expect(failed(r)).toEqual([]);
+    const newPhone = await checkChange(
+      s.t.ctx,
+      s.input({
+        before,
+        teamText: 'yes saturday we open from 9am to 1pm',
+        proposal: {
+          ...s.input().proposal,
+          after: `${before} Saturday 9am to 1pm, WhatsApp 012-999 8888.`,
+        },
+      }),
+      new AbortController().signal,
+    );
+    expect(failed(newPhone)).toContain('privacy');
+  });
+
   it('fails a fact when the source question still hands over', async () => {
     const s = await setup();
     s.setDecide((input) =>

@@ -4,7 +4,7 @@ import { ungroundedNumbers } from '../draft-check.js';
 import { findLeak } from '../leak-check.js';
 import type { PreviewItem } from '../service.js';
 import type { TakeoverChat } from './collect.js';
-import { holdsContact, type DreamProposal } from './prompts.js';
+import { contactsIn, type DreamProposal } from './prompts.js';
 
 /**
  * The checks every dream mode change passes before it is saved (design §6): privacy, leak, grounding, then replay
@@ -78,9 +78,22 @@ export async function checkChange(
     });
 
   const checks: DreamCheck[] = [
-    { name: 'privacy', ok: !holdsContact(added) && !holdsName(added, input.names) },
+    // An edited line keeps what the old text already had: only new contact details and names fail.
+    {
+      name: 'privacy',
+      ok:
+        !contactsIn(added).some((c) => !input.before.includes(c)) &&
+        !holdsName(
+          added,
+          input.names.filter((n) => !holdsName(input.before, [n])),
+        ),
+    },
     { name: 'leak', ok: !findLeak(added, internal) },
-    { name: 'grounding', ok: ungroundedNumbers(added, input.teamText).length === 0 },
+    // A number is grounded in the team's reply or in the old text (an edited line keeps its prices).
+    {
+      name: 'grounding',
+      ok: ungroundedNumbers(added, `${input.teamText}\n${input.before}`).length === 0,
+    },
   ];
   if (checks.some((c) => !c.ok)) return { ok: false, checks };
 
