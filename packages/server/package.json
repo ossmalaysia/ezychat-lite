@@ -64,7 +64,7 @@
     "qrcode": "^1.5.4",
     "sherpa-onnx-node": "2.0.1",
     "socket.io": "^4.8.4",
-    "unpdf": "^1.9.1",
+    "unpdf": "^2.1.0",
     "web-push": "^3.6.7",
     "yauzl": "^3.4.0",
     "zod": "^4.6.7"
