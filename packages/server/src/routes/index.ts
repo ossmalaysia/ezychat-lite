@@ -25,6 +25,7 @@ import clientErrors from './client-errors.js';
 import ai from './ai.js';
 import aiGroups from './ai-groups.js';
 import scheduledTasks from './scheduled-tasks.js';
+import aiDream from './ai-dream.js';
 import directory from './directory.js';
 import integrations from './integrations.js';
 import oauth from './oauth.js';
@@ -72,6 +73,7 @@ export const routeModules: RouteModule[] = [
   ai,
   aiGroups,
   scheduledTasks,
+  aiDream,
   directory,
   integrations,
   oauth,
