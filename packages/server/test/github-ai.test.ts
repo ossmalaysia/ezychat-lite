@@ -254,6 +254,67 @@ describe('GitHub AI tools', () => {
     ).toContain('Nothing matches');
   });
 
+  it('lists issues even when the latest updates are all pull requests', async () => {
+    const svc = await setUp();
+    for (let n = 0; n < 40; n++)
+      svc.fake!.issues.push({
+        repo: 'acme/helpdesk',
+        number: 100 + n,
+        title: `Dependency bump ${n}`,
+        state: 'open',
+        labels: [],
+        body: '',
+        user: 'dependabot[bot]',
+        pr: { merged: false },
+        updatedAt: '2026-11-12T10:00:00Z',
+        comments: [],
+      });
+    const { tools } = await turn();
+    const out = JSON.parse(await call(tools, 'github_list_issues', { repo: 'acme/helpdesk' })) as {
+      results: Array<{ number: number; kind: string }>;
+    };
+    // The repo's two open issues, newest update first; none of the 40 pull requests.
+    expect(out.results.map((r) => [r.number, r.kind])).toEqual([
+      [12, 'issue'],
+      [15, 'issue'],
+    ]);
+    expect(queries()).toEqual(['repo:acme/helpdesk is:issue state:open']);
+    expect(searches()[0]).toContain('sort=updated&order=desc');
+    // All states: no state filter.
+    await call(tools, 'github_list_issues', { repo: 'acme/helpdesk', state: 'all' });
+    expect(queries()[1]).toBe('repo:acme/helpdesk is:issue');
+  });
+
+  it('finds a label with a colon beyond the first page of results', async () => {
+    const svc = await setUp();
+    // Listed before issue 12: GitHub's best match puts them first.
+    for (let n = 0; n < 15; n++)
+      svc.fake!.issues.unshift({
+        repo: 'acme/helpdesk',
+        number: 200 + n,
+        title: `Login question ${n}`,
+        state: 'open',
+        labels: ['question'],
+        body: '',
+        user: 'support-lina',
+        updatedAt: '2026-11-12T10:00:00Z',
+        comments: [],
+      });
+    svc.fake!.issues.find((i) => i.number === 12)!.labels = ['type: bug'];
+    const { tools } = await turn();
+    const numbers = async (name: string, input: object) =>
+      (
+        JSON.parse(await call(tools, name, input)) as { results: Array<{ number: number }> }
+      ).results.map((r) => r.number);
+    const args = { repo: 'acme/helpdesk', label: 'type: bug' };
+    expect(await numbers('github_search_issues', { query: 'login', ...args })).toEqual([12]);
+    expect(await numbers('github_list_issues', args)).toEqual([12]);
+    expect(queries()).toEqual([
+      'login repo:acme/helpdesk is:issue label:"type: bug"',
+      'repo:acme/helpdesk is:issue state:open label:"type: bug"',
+    ]);
+  });
+
   it('caches a look-up for 2 minutes and stops after the per-turn limit', async () => {
     await setUp();
     const { tools } = await turn();

@@ -19,14 +19,7 @@ import type {
 import type { AppContext } from '../../context.js';
 import { connectorToolRunner } from '../tool-run.js';
 import { GitHubError } from './client.js';
-import {
-  allowedRepo,
-  buildSearchQuery,
-  cleanLabel,
-  repoOfApiUrl,
-  searchLabel,
-  type SearchKind,
-} from './query.js';
+import { allowedRepo, buildSearchQuery, repoOfApiUrl, type SearchKind } from './query.js';
 
 export const GITHUB_SEARCH_ISSUES = 'github_search_issues';
 export const GITHUB_LIST_ISSUES = 'github_list_issues';
@@ -202,6 +195,8 @@ export function githubAgentTools(
       label?: string;
       author?: string;
     },
+    // The issue list: newest update first. A search keeps GitHub's best match.
+    newestFirst = false,
   ) => {
     const repos = await scope(name, args.repo);
     if (!repos) return NOT_AVAILABLE;
@@ -217,7 +212,11 @@ export function githubAgentTools(
     try {
       answer = await service.lookup(
         '/search/issues',
-        { q, per_page: String(GITHUB_SEARCH_RESULTS) },
+        {
+          q,
+          per_page: String(GITHUB_SEARCH_RESULTS),
+          ...(newestFirst ? { sort: 'updated', order: 'desc' } : {}),
+        },
         input.signal,
       );
     } catch (error) {
@@ -226,14 +225,8 @@ export function githubAgentTools(
       throw error;
     }
     const allowed = new Map(repos.map((r) => [r.fullName.toLowerCase(), r.fullName]));
-    // A label the query could not carry (it has a colon) filters here.
-    const label = cleanLabel(args.label)?.toLowerCase();
-    const wanted = label && !searchLabel(args.label) ? label : null;
     // Defence in depth: a result outside the allowed repos is never shown.
     const results = (answer.items ?? [])
-      .filter(
-        (item) => !wanted || (item.labels ?? []).some((l) => labelName(l).toLowerCase() === wanted),
-      )
       .flatMap((item) => {
         const repo = allowed.get(repoOfApiUrl(item.repository_url)?.toLowerCase() ?? '');
         return repo ? [summary(item, repo)] : [];
@@ -276,34 +269,22 @@ export function githubAgentTools(
         state: z.enum(['open', 'closed', 'all']).optional(),
         label: z.string().max(100).optional().describe('A label name, e.g. bug'),
       }),
+      // The search API with is:issue: the issues API also returns pull requests, so a page of
+      // recent pull requests would hide every issue.
       execute: (args) =>
-        run(GITHUB_LIST_ISSUES, async () => {
-          const repos = await scope(GITHUB_LIST_ISSUES, args.repo);
-          if (!repos) return NOT_AVAILABLE;
-          const repo = repos[0]!.fullName;
-          const label = cleanLabel(args.label);
-          const items = await service.lookup<ApiIssue[]>(
-            `/repos/${repo}/issues`,
+        run(GITHUB_LIST_ISSUES, () =>
+          search(
+            GITHUB_LIST_ISSUES,
+            'issue',
             {
-              state: args.state ?? 'open',
-              sort: 'updated',
-              per_page: '30',
-              ...(label ? { labels: label } : {}),
+              query: '',
+              repo: args.repo,
+              state: args.state === 'all' ? undefined : (args.state ?? 'open'),
+              label: args.label,
             },
-            input.signal,
-          );
-          const results = (Array.isArray(items) ? items : [])
-            .filter((i) => !i.pull_request)
-            .slice(0, GITHUB_SEARCH_RESULTS)
-            .map((i) => summary(i, repo));
-          note('searched');
-          log.info(
-            { event: 'github_lookup', tool: GITHUB_LIST_ISSUES, results: results.length },
-            'GitHub look-up',
-          );
-          if (!results.length) return NOTHING_FOUND;
-          return fitted({ results, note: UNTRUSTED_NOTE }, () => results.pop() !== undefined);
-        }),
+            true,
+          ),
+        ),
     });
   }
 

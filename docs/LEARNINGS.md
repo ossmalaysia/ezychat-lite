@@ -214,6 +214,9 @@ into AGENTS.md.
   tokens from local caches.
 - A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
   we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- A fake of a list or search API must page like the real one (`per_page`, `sort`, mixed item kinds): a fake that
+  returned everything hid "filter after one page" bugs (GitHub's issue list hid issues behind 30 pull requests).
+  Filter in the request (search qualifiers), never in a page after it.
 - A new button in the chat list header must fit the 360 px list beside Ask Ezy, Admin and the account menu: make it
   icon-only with `aria-label` + `title`, and measure the header children's right edges in the screen script (a mock
   made before a later header button looks fine and still overflows in the app).

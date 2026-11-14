@@ -272,7 +272,19 @@ export class FakeGitHub {
     };
   }
 
-  private search(kind: 'app' | 'token', token: string, q: string): Response {
+  /** One page of issues as GitHub serves it: `sort=updated` newest first, `per_page` (30) each. */
+  private static paged(items: FakeIssue[], params: URLSearchParams): FakeIssue[] {
+    const sorted =
+      params.get('sort') === 'updated'
+        ? [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        : items;
+    const perPage = Number(params.get('per_page') ?? '30');
+    const page = Number(params.get('page') ?? '1');
+    return sorted.slice((page - 1) * perPage, page * perPage);
+  }
+
+  private search(kind: 'app' | 'token', token: string, params: URLSearchParams): Response {
+    const q = params.get('q') ?? '';
     const repos: string[] = [];
     const words: string[] = [];
     let type: 'issue' | 'pr' | null = null;
@@ -305,7 +317,7 @@ export class FakeGitHub {
     return json(200, {
       total_count: items.length,
       incomplete_results: false,
-      items: items.map((i) => FakeGitHub.issueJson(i)),
+      items: FakeGitHub.paged(items, params).map((i) => FakeGitHub.issueJson(i)),
     });
   }
 
@@ -335,8 +347,7 @@ export class FakeGitHub {
     }
     if (path === '/user/repos')
       return json(200, firstPage(this.listed(who.kind, token).map(repoJson)));
-    if (path === '/search/issues')
-      return this.search(who.kind, token, url.searchParams.get('q') ?? '');
+    if (path === '/search/issues') return this.search(who.kind, token, url.searchParams);
     const found = /^\/repos\/([^/]+\/[^/]+)\/issues(?:\/(\d+)(\/comments)?)?$/.exec(path);
     if (!found || !this.readable(who.kind, token, found[1]!))
       return json(404, { message: 'Not Found' });
@@ -345,14 +356,12 @@ export class FakeGitHub {
     if (!found[2]) {
       const state = url.searchParams.get('state') ?? 'open';
       const labels = url.searchParams.get('labels');
+      const listed = inRepo
+        .filter((i) => state === 'all' || i.state === state)
+        .filter((i) => !labels || i.labels.includes(labels));
       return json(
         200,
-        firstPage(
-          inRepo
-            .filter((i) => state === 'all' || i.state === state)
-            .filter((i) => !labels || i.labels.includes(labels))
-            .map((i) => FakeGitHub.issueJson(i)),
-        ),
+        FakeGitHub.paged(listed, url.searchParams).map((i) => FakeGitHub.issueJson(i)),
       );
     }
     const issue = inRepo.find((i) => i.number === Number(found[2]));

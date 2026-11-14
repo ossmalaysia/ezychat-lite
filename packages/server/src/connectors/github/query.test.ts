@@ -5,7 +5,6 @@ import {
   buildSearchQuery,
   cleanLabel,
   repoOfApiUrl,
-  searchLabel,
   searchWords,
 } from './query.js';
 
@@ -89,12 +88,15 @@ describe('GitHub search query', () => {
 
   it('cleans labels and refuses odd authors', () => {
     expect(cleanLabel('  bug" repo:evil/x \\ ')).toBe('bug repo:evil/x');
-    // A label with a colon never reaches the query (the tool filters by it instead).
-    expect(build('x', { label: 'a" repo:evil/x "b' })).toBe(
-      'x repo:acme/helpdesk repo:acme/website is:issue',
+    // A label with a colon stays inside its quotes: one label name, never a qualifier.
+    expect(build('x', { label: 'type: bug' })).toBe(
+      'x repo:acme/helpdesk repo:acme/website is:issue label:"type: bug"',
     );
-    expect(searchLabel('type: bug')).toBeNull();
-    expect(searchLabel('bug')).toBe('bug');
+    const odd = build('x', { label: 'a" repo:evil/x "b' });
+    expect(odd).toBe('x repo:acme/helpdesk repo:acme/website is:issue label:"a repo:evil/x b"');
+    // Outside the one quoted label value, only the allowed repos.
+    expect(odd.match(/"/g)).toHaveLength(2);
+    expect(reposOf(odd.replace(/label:"[^"]*"/, ''))).toEqual(ALLOWED);
     expect(cleanLabel('')).toBeNull();
     expect(cleanLabel(undefined)).toBeNull();
     expect(cleanLabel('x'.repeat(80))).toHaveLength(50);
