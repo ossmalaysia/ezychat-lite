@@ -214,6 +214,9 @@ into AGENTS.md.
   tokens from local caches.
 - A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
   we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- A fake of a list or search API must page like the real one (`per_page`, `sort`, mixed item kinds): a fake that
+  returned everything hid "filter after one page" bugs (GitHub's issue list hid issues behind 30 pull requests).
+  Filter in the request (search qualifiers), never in a page after it.
 - A new button in the chat list header must fit the 360 px list beside Ask Ezy, Admin and the account menu: make it
   icon-only with `aria-label` + `title`, and measure the header children's right edges in the screen script (a mock
   made before a later header button looks fine and still overflows in the app).
@@ -338,6 +341,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- `gh pr merge --match-head-commit` takes the full 40-character SHA only (a short one fails "Could not coerce …
+  to GitObjectID"): pass `gh pr view <n> --json headRefOid --jq .headRefOid`, the head the merge check scored.
 - Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
   Merge them into one combined branch one by one (typecheck after each), run the full checks once, open one PR. After
   a line-by-line union of CHANGELOG, move every PR's entries back under `[Unreleased]`: a PR cut before a release
@@ -776,7 +781,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   that file after adding a page; split rarely used areas with `React.lazy` rather than raising the limit again.
 - Dependabot `@ai-sdk/openai` / `@ai-sdk/anthropic` bumps fail the typecheck alone (LanguageModelV4 mismatch): take them
   with the matching `ai` bump. A major version inside a Dependabot group (jsdom 31) can pass the typecheck and break
-  tests: run the failing test files and hold back that one package, not the whole group.
+  tests: run the failing test files and hold back that one package, not the whole group. A bump of a package that the
+  root `overrides` pins fails `npm ci` on every OS ("Missing … from lock file") until the override moves too; jsdom 31
+  then left 18 web tests with dialogs that never close. Run the web tests from `apps/web` (`npx vitest run`): the root
+  project is named `web`, and `--project @ezychat/web` matches nothing and starts no test.
 - On Windows `git worktree remove --force` can unregister a worktree and still leave its folder (`node_modules`):
   check `git worktree list`, then delete the leftover folder if it is yours.
 - Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
@@ -894,7 +902,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   owner to-do, and before the release tag check `gh secret list` in both repos (names only).
 - Playwright on this PC has no downloaded Chromium: launch `{ channel: 'chrome' }` (installed Chrome).
   A `tsx` run outside npm needs `NODE_OPTIONS=--conditions=ezychat-source`: a `--conditions` flag before
-  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`.
+  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`. PowerShell
+  `Start-Process -ArgumentList` does not quote its items: a `--data` under `%TEMP%` (`C:\Users\Jazz Tong\…`)
+  splits at the space and the server exits "unexpected argument"; use a temp folder without a space (`D:\tmp\…`).
+  A dev script with a 0-chat result must first assert its setup worked (the chat exists), or every
+  "stays gone" check passes on nothing.
 - In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
   appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
   find the PID first, then kill it in a separate call.
@@ -1479,6 +1491,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `chats/hidden-sql.ts`; a socket emit for one chat goes through `toVisibleChat` and returns nothing instead of calling
   `io.to([])` (an empty room list broadcasts to every socket). Code that copies or re-keys a `chats` row builds its
   column list from `PRAGMA table_info`, and `chats/merge.ts` carries the hidden columns, so a later column is never lost.
+- Removing a chat's rows does not stop a send already in flight: WhatsApp echoes it back as a live `fromMe` message,
+  which starts the chat again unless ingest drops that id. A file named after a key (avatar `sha256(key).jpg`) moves
+  or goes with its row on a re-key. Safety checks fail closed: an unknown value (a hidden chat's number) never
+  matches, and a hold buffer that is full drops what cannot wait instead of handling everything at once.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and

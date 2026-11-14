@@ -866,6 +866,8 @@ export function createAiService(
       .run(jid);
     cancel(jid);
   };
+  // Hidden chats (Log out) are released too, unlike a teammate's in `unassignLost`: kept, they would
+  // come back with the same number still assigned to an AI that no longer answers them.
   const ownedOpenChats = (userId: number) =>
     (
       ctx.db

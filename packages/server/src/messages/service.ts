@@ -348,6 +348,17 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   /** chat jid → in-flight send promise (used to de-duplicate echoes of our own sends). */
   const inflight = new Map<string, Promise<unknown>>();
   const reconciliations = new Map<string, () => void>();
+  /**
+   * Stored ids (→ when) of sends that reached WhatsApp after their row was removed (Delete chat while
+   * the send was in flight): their echo is dropped, so it never starts the deleted chat again.
+   */
+  const goneSends = new Map<string, number>();
+  const GONE_SEND_MS = 10 * 60_000;
+  const rememberGoneSend = (id: string) => {
+    const t = now();
+    for (const [k, at] of goneSends) if (t - at > GONE_SEND_MS) goneSends.delete(k);
+    goneSends.set(id, t);
+  };
 
   /**
    * Rows → Messages, with each inbound group sender's customer profile and every message's
@@ -615,7 +626,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     manualRetries.delete(job.localId);
     try {
       const row = repo.get(job.localId);
-      if (!row) return;
+      if (!row) {
+        // the chat was deleted while WhatsApp was sending: its echo must not bring the chat back
+        rememberGoneSend(r.id);
+        return;
+      }
       const waId = r.id; // the stored message key (sendJob added the inbox suffix)
       ctx.db.transaction(() => {
         if (waId !== job.localId) {
@@ -1257,6 +1272,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         await guard;
         if (repo.exists(id)) return null;
       }
+      if (m.fromMe && goneSends.has(id)) return null;
       const t = now();
       chats.ensure(inboxId, chatWaJid, { name: !isGroup && !m.fromMe ? m.senderName : null }, t);
       const chatBefore = chats.get(chatJid)!;
