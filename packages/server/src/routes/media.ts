@@ -88,7 +88,14 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
         ),
       )
       .header('accept-ranges', 'bytes')
-      .header('cache-control', safety === 'flagged' ? 'no-store' : 'private, max-age=86400');
+      // A message's file never changes (its id is fixed): the phone may keep it 30 days. A file
+      // WhatsApp Safety flagged, or one its AI check may still lock, is never kept anywhere.
+      .header(
+        'cache-control',
+        safety === 'flagged' || ctx.services.safety?.cacheable(msgId) === false
+          ? 'no-store'
+          : 'private, max-age=2592000, immutable',
+      );
 
     const range = parseRange(req.headers.range, size);
     if (range === 'invalid') {
@@ -104,6 +111,27 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
     }
     reply.header('content-length', String(size));
     return reply.send(createReadStream(media.path));
+  });
+
+  app.get('/media/:msgId/thumb', async (req, reply) => {
+    const { msgId } = parse(IdParams, req.params);
+    requireMessageAccess(ctx, req.user!, msgId);
+    // A flagged image shows no preview: its safety notice and the file route decide what happens.
+    if ((ctx.services.safety?.levelOf(msgId) ?? 'none') !== 'none') throw errors.notFound('Media');
+    const jpeg = messages.mediaThumb(msgId);
+    if (!jpeg) throw errors.notFound('Media');
+    return reply
+      .header('content-type', 'image/jpeg')
+      .header('x-content-type-options', 'nosniff')
+      .header('content-security-policy', "default-src 'none'; sandbox")
+      .header('content-disposition', 'inline')
+      .header(
+        'cache-control',
+        ctx.services.safety?.cacheable(msgId) === false
+          ? 'no-store'
+          : 'private, max-age=2592000, immutable',
+      )
+      .send(jpeg);
   });
 
   app.post('/media/:msgId/redownload', async (req, reply) => {

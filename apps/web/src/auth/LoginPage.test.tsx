@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { activateLocale } from '@/i18n';
 import { localeStore } from '@/i18n/locale-store';
-import { LoginPage } from './LoginPage';
+import { LoginPage, safeFrom } from './LoginPage';
 
 function renderLogin() {
   const qc = new QueryClient({
@@ -139,4 +139,15 @@ describe('LoginPage', () => {
     );
     expect(screen.getByRole('combobox', { name: 'Bahasa' })).toBeTruthy();
   }, 20_000);
+});
+
+describe('safeFrom', () => {
+  it('returns to the page the person wanted, never outside the app or to the Account page', () => {
+    expect(safeFrom({ from: '/admin/reports' })).toBe('/admin/reports');
+    expect(safeFrom({ from: '//evil.example' })).toBe('/');
+    expect(safeFrom({ from: 'https://evil.example' })).toBe('/');
+    expect(safeFrom(null)).toBe('/');
+    // a phone signs out on the Account page: the next sign-in (maybe someone else) opens Chats
+    expect(safeFrom({ from: '/account' })).toBe('/');
+  });
 });

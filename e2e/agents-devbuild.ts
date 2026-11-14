@@ -9,8 +9,13 @@
 // Partner connectors (start it with the env lines of `node e2e/partner-mcp/cli.mjs`): STOCK, INVOICE and
 // QUOTE call the partner tools (see mockDecision); check: e2e/devbuild-partner-check.mjs.
 // Reply suggestions: drafts from the best-matching business-context sentence (LEAK copies internalKnowledge).
-// Fix English: grammar fixes from a fixed list of slips (have/has, ship/shipped, you/your, a/an, i, capitals).
+// Fix English: grammar fixes from a fixed list of slips (have/has, ship/shipped, you/your, a/an, i, capitals),
+// and a full stop after a final "email" every time (even after one), like a model that re-adds a fix.
 // Hand-off rules: consultation, CHECKIN, RESOLVE and HUMAN (see mockDecision); check: e2e/devbuild-handoff-check.mjs.
+// Group agents (--max-agents 2): in a group that reads every message, a message with "Policy no:" and
+// "Amount:" calls add_sheet_row on the tab Claims and repeats what it said; a claim without an amount
+// asks for it; anything else gets no_reply. Check: e2e/devbuild-claims-check.mjs.
+// Scheduled tasks: see mockDecision (SKIP, LEAK); check: e2e/devbuild-scheduled-check.mjs.
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
 // e2e/devbuild-suggestions-check.mjs, e2e/devbuild-calendar-check.mjs.
 import { mkdtemp, readFile } from 'node:fs/promises';
@@ -18,7 +23,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { FakeWaAdapter } from '@ezychat/wa';
 import type { AiDecision } from '@ezychat/shared';
-import type { AiPrompt, AiRewritePrompt } from '../packages/server/src/ai/provider-types.js';
+import type {
+  AiAssistCall,
+  AiPrompt,
+  AiRewritePrompt,
+} from '../packages/server/src/ai/provider-types.js';
+import type { AssistOutput } from '../packages/server/src/ai/agent/assist.js';
 import { createContext, runInitializers, shutdownServices } from '../packages/server/src/main.js';
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
@@ -33,6 +43,7 @@ const arg = (name: string) => {
 const port = Number(arg('--port') ?? 7491);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid port');
 const maxInboxes = arg('--max-inboxes') === undefined ? undefined : Number(arg('--max-inboxes'));
+const maxAgents = arg('--max-agents') === undefined ? undefined : Number(arg('--max-agents'));
 const dataDir = await mkdtemp(join(tmpdir(), 'ezychat-agents-devbuild-'));
 const logger = await createLogger({ dataDir, stdout: false });
 const { version } = JSON.parse(
@@ -58,6 +69,7 @@ const ctx = await createContext(
     webDistDir: resolve('apps/web/dist'),
     version,
     ...(maxInboxes === undefined ? {} : { maxInboxes }),
+    ...(maxAgents === undefined ? {} : { maxAgents }),
   },
   { wa: new FakeWaAdapter(), log: logger.log },
 );
@@ -86,6 +98,42 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
     [...(input.conversation ?? [])].reverse().find((turn) => turn.speaker === 'customer')?.text ??
     '';
   const chatKey = JSON.stringify(input.conversation?.[0] ?? '');
+  // A group that reads every message: claims go to the sheet, everything else gets no reply.
+  const situation = (
+    input as { currentSituation?: { group?: { newMessages?: unknown; messageToAnswer?: string } } }
+  ).currentSituation?.group;
+  // A scheduled task's turn: SKIP → nothing to tell; LEAK → repeats the Internal items (the leak
+  // check must stop it); otherwise one message naming the task and the business words it was given.
+  const scheduled = (
+    input as { currentSituation?: { scheduledTask?: { name: string; instruction: string } } }
+  ).currentSituation?.scheduledTask;
+  if (scheduled) {
+    if (scheduled.instruction.includes('SKIP')) return { reply: '', action: 'no_reply' };
+    if (scheduled.instruction.includes('LEAK'))
+      return { reply: input.internalKnowledge, action: 'answer' };
+    const marks = input.businessKnowledge.match(/MARK-[A-Z0-9]+/g) ?? [];
+    return {
+      reply: `Scheduled "${scheduled.name}": ${scheduled.instruction} business=${marks.join(',') || 'none'}`,
+      action: 'answer',
+    };
+  }
+  if (situation?.newMessages !== undefined) {
+    const text = String(situation.messageToAnswer ?? '');
+    const policy = /Policy no:\s*(\S+)/i.exec(text)?.[1];
+    const amount = /Amount:\s*(?:RM\s*)?([\d.,]+)/i.exec(text)?.[1];
+    const what = /What happened:\s*(.+)/i.exec(text)?.[1]?.trim();
+    if (policy && amount) {
+      const values: Record<string, string> = { 'Policy no': policy, Amount: amount };
+      if (what) values['What happened'] = what;
+      const output = await runTool(prompt, 'add_sheet_row', { tab: 'Claims', values }, signal);
+      return {
+        reply: output === null ? 'sheet=not-offered' : `Recorded: ${output}`,
+        action: 'answer',
+      };
+    }
+    if (policy) return { reply: `What is the claim amount for ${policy}?`, action: 'answer' };
+    return { reply: '', action: 'no_reply' };
+  }
   if (last.includes('BOOK')) {
     const output = await runTool(prompt, 'check_free_times', {}, signal);
     if (output === null) return { reply: 'calendar=not-offered', action: 'answer' };
@@ -155,6 +203,8 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
     return { reply: '', action: 'no_reply' };
   if (last.includes('RESOLVE'))
     return { reply: 'Thank you! I will close this chat now.', action: 'resolve' };
+  // Nothing to say (like a bare "ok"): the chat shows the team-only "did not reply" line.
+  if (last.includes('SILENT')) return { reply: '', action: 'no_reply' };
   if (last.includes('HUMAN'))
     return {
       reply: 'A team member will help you shortly.',
@@ -220,6 +270,10 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
         .replace(/\bbeen ship\b/gi, 'been shipped')
         .replace(/\b(check|confirm) you (email|order|address)\b/gi, '$1 your $2')
         .replace(/\ba (update|order|email|invoice)\b/gi, 'an $1')
+        // Like a real model, it checks every draft afresh: "check email" gets "your" and a full
+        // stop, and a draft ending in "email." gets one more (the double append Fix English drops).
+        .replace(/\bcheck email\b/gi, 'check your email')
+        .replace(/(\bemail)(\.*)\s*$/i, '$1$2.')
         .replace(/\bi\b/g, 'I')
         .replace(
           /(^|[.!?]\s+)([a-z])/g,
@@ -275,10 +329,95 @@ function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
   };
 }
 
+/**
+ * Ask Ezy's mock model (Dev Build check: e2e/devbuild-ask-ezy-setup-check.mjs). A scripted conversation that
+ * calls the REAL tools: "greets Jee Fong" → asks which agent; "New agent" → looks the chats up and asks which
+ * Jee Fong; "Jee Fong · …1234" → proposes a new agent + a 09:00 task; "Move … 8:30" → proposes a time change.
+ */
+type ToolFn = (input: object, options: object) => Promise<unknown>;
+const runAssistTool = async (call: AiAssistCall, name: string, args: object) => {
+  const fn = (call.tools[name] as { execute?: ToolFn } | undefined)?.execute;
+  if (!fn) return { error: `${name}=not-offered` };
+  const out = await fn(args, { toolCallId: name, messages: [], context: {} });
+  return (typeof out === 'string' ? JSON.parse(out) : out) as Record<string, unknown>;
+};
+type FoundChat = { jid: string; name: string | null; phone: string | null };
+const ending = (c: FoundChat) => (c.phone ? c.phone.slice(-4) : '');
+async function mockAssist(call: AiAssistCall) {
+  const last = [...call.messages].reverse().find((m) => m.role === 'user');
+  const text = typeof last?.content === 'string' ? last.content : '';
+  const answer = (t: string, blocks: AssistOutput['blocks'] = []) => ({
+    output: { text: t, blocks, followUps: [] },
+    toolCalls: [],
+    steps: 1,
+    model: call.main ? 'mock-main' : 'mock-fast',
+  });
+  const question = (t: string, choices: string[]) =>
+    answer(t, [{ type: 'question', json: JSON.stringify({ text: t, choices }) }]);
+  const jeeFongs = async () =>
+    ((await runAssistTool(call, 'list_chats', { query: 'Jee Fong' })).chats as FoundChat[]) ?? [];
+  // Like a real model on the fast turn: a setup request hands over to the main-model setup turn.
+  if (!call.main && call.tools.start_setup) {
+    await runAssistTool(call, 'start_setup', {});
+    return { ...answer('Setting up…'), model: 'mock-fast' };
+  }
+  if (/greets? Jee Fong/i.test(text))
+    return question('Should a new agent send it, or your Sales Agent?', [
+      'New agent',
+      'Sales Agent',
+    ]);
+  if (text.trim() === 'New agent') {
+    const found = await jeeFongs();
+    return question(
+      'Which Jee Fong?',
+      found.map((c) => `${c.name ?? 'Chat'} · …${ending(c)}`),
+    );
+  }
+  const picked = /…(\d{4})$/.exec(text.trim());
+  if (picked) {
+    const chat = (await jeeFongs()).find((c) => ending(c) === picked[1]);
+    if (!chat) return answer('chat=not-found');
+    const agent = await runAssistTool(call, 'propose_agent', {
+      name: 'Morning greeter',
+      purpose: 'Sends Jee Fong a warm good-morning greeting every day at 9am.',
+    });
+    if (!agent.proposalId) return answer(`agent=${String(agent.error ?? 'failed')}`);
+    const task = await runAssistTool(call, 'propose_scheduled_task', {
+      agentProposalId: agent.proposalId,
+      chatJid: chat.jid,
+      name: 'Morning greeting',
+      time: '09:00',
+      dayRule: 'daily',
+      instruction: 'Greet Jee Fong warmly and wish a good day. One or two short sentences.',
+    });
+    if (!task.proposalId) return answer(`task=${String(task.error ?? 'failed')}`);
+    return answer('Here is the plan. Nothing changes until you apply it.', [
+      { type: 'agent_proposal', json: JSON.stringify({ id: agent.proposalId }) },
+      { type: 'task_proposal', json: JSON.stringify({ id: task.proposalId }) },
+    ]);
+  }
+  if (/move .*8:30/i.test(text)) {
+    const list = await runAssistTool(call, 'list_scheduled_tasks', {});
+    const tasks = (list.tasks as Array<{ taskId: number; name: string }>) ?? [];
+    const target = tasks.find((t) => t.name === 'Morning greeting');
+    if (!target) return answer('task=not-found');
+    const edit = await runAssistTool(call, 'propose_scheduled_task_edit', {
+      taskId: target.taskId,
+      time: '08:30',
+    });
+    if (!edit.proposalId) return answer(`edit=${String(edit.error ?? 'failed')}`);
+    return answer('Here is the change.', [
+      { type: 'task_proposal', json: JSON.stringify({ id: edit.proposalId }) },
+    ]);
+  }
+  return answer('mock-ask-ezy: no script for this question');
+}
+
 await ctx.services.ai!.shutdown();
 ctx.services.ai = createAiService(ctx, {
   provider: {
     generate: (_settings, _key, prompt, signal) => mockDecision(prompt, signal),
+    assist: async (_settings, _key, call) => mockAssist(call),
     draft: async (_settings, _key, prompt, options, signal) => ({
       output: options.schema.parse(mockDraft(prompt, signal)),
       model: 'mock-model',

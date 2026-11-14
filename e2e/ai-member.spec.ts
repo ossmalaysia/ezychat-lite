@@ -77,7 +77,7 @@ test('admin sets up the AI connection inline and builds an AI agent page on desk
 
     // Name and role (the role lives in the closed Advanced section).
     await page.getByLabel('Agent name', { exact: true }).fill('Help desk');
-    const advanced = page.getByText('Advanced: role and hand-over rules', { exact: true });
+    const advanced = page.getByText('Advanced: role and hand-off rules', { exact: true });
     // Closed for a saved agent; a restored unsaved draft (the second viewport) opens it.
     if (!(await page.getByLabel('Role (instructions)', { exact: true }).isVisible()))
       await advanced.click();

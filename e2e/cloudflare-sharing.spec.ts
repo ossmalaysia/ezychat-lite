@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { expect, expectNoHorizontalScroll, test } from './helpers';
+import { expect, expectNoHorizontalScroll, openAccountItem, test } from './helpers';
 
 test.describe('guided setup and app sharing at phone width', () => {
   test.use({ viewport: { width: 360, height: 780 } });
@@ -62,8 +62,7 @@ test.describe('guided setup and app sharing at phone width', () => {
 
   test('shares the public project and downloads a real Instagram PNG', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Share this app', exact: true }).click();
+    await openAccountItem(page, 'Share this app');
     const dialog = page.getByRole('dialog', { name: 'Share this app', exact: true });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel('Public app link', { exact: true })).toHaveValue(

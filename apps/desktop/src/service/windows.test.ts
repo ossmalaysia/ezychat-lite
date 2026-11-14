@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -8,6 +9,7 @@ import {
   psQuote,
   quoteWinArg,
   windowsInstallScript,
+  windowsUninstallPrechecks,
   windowsUninstallScript,
   windowsControlScript,
   windowsResetAdminScript,
@@ -140,6 +142,47 @@ describe('Windows LocalSystem runtime protection', () => {
     },
     30_000,
   );
+
+  // Electron is a GUI program: PowerShell waits for it and sets $LASTEXITCODE only when its output is
+  // piped. Without the pipe the reset ran in the background and its new password was lost.
+  it.skipIf(process.platform !== 'win32')(
+    'reset-admin waits for the Electron runtime and keeps the new password in the output',
+    () => {
+      const temp = mkdtempSync(join(tmpdir(), 'ezychat-reset-admin-'));
+      const entry = join(temp, 'server.cjs');
+      const inner = join(temp, 'task.ps1');
+      const outer = join(temp, 'run.ps1');
+      const log = join(temp, 'out.log');
+      try {
+        writeFileSync(
+          entry,
+          "setTimeout(() => { console.log('New admin password for jazz: Abc-123'); process.exit(0); }, 300);",
+        );
+        const script = windowsResetAdminScript({
+          exe: createRequire(import.meta.url)('electron') as string,
+          entry,
+          dataDir: join(temp, 'data'),
+        });
+        // The runtime check needs Program Files; this test checks only how the runtime is started.
+        writeFileSync(inner, script.replace(/^Assert-ProtectedRuntime .*$/m, ''));
+        writeFileSync(
+          outer,
+          `& ${psQuote(inner)} *>&1 | Out-File -LiteralPath ${psQuote(log)} -Encoding utf8`,
+        );
+        execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', outer], {
+          windowsHide: true,
+          stdio: 'pipe',
+          timeout: 30_000,
+        });
+        const output = readFileSync(log, 'utf8');
+        expect(output).toContain('New admin password for jazz: Abc-123');
+        expect(output).not.toContain('failed with exit code');
+      } finally {
+        rmSync(temp, { recursive: true, force: true });
+      }
+    },
+    45_000,
+  );
 });
 
 describe('winswXml', () => {
@@ -178,6 +221,11 @@ describe('winswXml', () => {
 describe('psQuote', () => {
   it('wraps in single quotes and doubles embedded quotes', () => {
     expect(psQuote("C:\\it's")).toBe("'C:\\it''s'");
+  });
+
+  it('doubles the typographic single quotes PowerShell also ends a literal at', () => {
+    expect(psQuote('C:\\Users\\O\u2019Brien')).toBe("'C:\\Users\\O\u2019\u2019Brien'");
+    expect(psQuote('a\u2018b\u201Ac\u201Bd')).toBe("'a\u2018\u2018b\u201A\u201Ac\u201B\u201Bd'");
   });
 });
 
@@ -228,6 +276,57 @@ describe('windowsUninstallScript', () => {
     expect(iUninst).toBeGreaterThan(iStop);
     expect(iMove).toBeGreaterThan(iUninst);
     expect(s).toContain('/reset');
+  });
+
+  it('refuses before touching the service when the target already holds an app.db', () => {
+    const s = windowsUninstallScript({
+      id: 'wa-team-inbox',
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+      moveTo: "C:\\Users\\O'Neil\\data",
+    });
+    const iCheck = s.indexOf("(Join-Path 'C:\\Users\\O''Neil\\data' 'app.db')");
+    expect(iCheck).toBeGreaterThan(-1);
+    expect(iCheck).toBeLessThan(s.indexOf(' stop'));
+    expect(s).toContain('the service was left as it is.');
+  });
+
+  it('the prechecks alone change nothing (the elevated dry run of the Dev Build check)', () => {
+    const opts = {
+      id: 'wa-team-inbox',
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+      moveTo: 'C:\\Users\\me\\data',
+    };
+    const pre = windowsUninstallPrechecks(opts).join('\r\n');
+    for (const write of [' stop', ' uninstall', 'Remove-Item', 'Move-Item', 'icacls', 'New-Item'])
+      expect(pre).not.toContain(write);
+    expect(pre).toContain('Assert-Locked');
+    expect(windowsUninstallScript(opts).startsWith(pre)).toBe(true);
+  });
+
+  it('refuses a link at or above the target and the machine folder, again before each write', () => {
+    const s = windowsUninstallScript({
+      id: 'wa-team-inbox',
+      serviceDir: 'C:\\ProgramData\\wa-team-inbox\\service',
+      dataDir: 'C:\\ProgramData\\wa-team-inbox',
+      moveTo: 'C:\\Users\\me\\data',
+      runDir: 'C:\\ProgramData\\wa-team-inbox-run',
+    });
+    expect(s).toContain('$p = [System.IO.Path]::GetDirectoryName($p)');
+    const target = "Assert-NoLinkUp 'C:\\Users\\me\\data'";
+    const checks = s.split(target).length - 1;
+    expect(checks).toBe(3);
+    const iStop = s.indexOf(' stop');
+    expect(s.indexOf(target)).toBeLessThan(iStop);
+    expect(s.indexOf("Assert-NoLinkUp 'C:\\ProgramData\\wa-team-inbox'")).toBeLessThan(iStop);
+    expect(s.indexOf("Assert-NoLinkUp 'C:\\ProgramData\\wa-team-inbox-run'")).toBeLessThan(iStop);
+    // Right before the move and right before the ACL reset.
+    expect(s.lastIndexOf(target)).toBeLessThan(s.indexOf('icacls'));
+    expect(s.indexOf(target, iStop)).toBeLessThan(s.indexOf('Move-Item'));
+    // The reset acts on links themselves and its failure is not silent.
+    expect(s).toContain('/reset /T /C /L /Q');
+    expect(s).toContain('icacls /reset failed');
   });
 });
 

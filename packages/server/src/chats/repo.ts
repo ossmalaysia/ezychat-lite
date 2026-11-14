@@ -7,8 +7,11 @@ import {
   TAG_FILTER,
   tagsByChat,
 } from '../customers/sql.js';
+import { seedFromLinked } from '../customers/linked.js';
+import { avatarHashes } from '../avatars/sql.js';
 import type { DB } from '../db/index.js';
 import { chatKey, parseChatKey } from '../inboxes/keys.js';
+import { visibleChat } from './hidden-sql.js';
 
 /** Columns of the `chats` table itself (e.g. `SELECT * FROM chats`). */
 export interface ChatColumns {
@@ -29,6 +32,10 @@ export interface ChatColumns {
   wa_jid: string | null;
   /** epoch ms of the customer's last live message (migration 019; the reply window starts there). */
   last_inbound_at?: number | null;
+  /** epoch ms the chat was hidden on Log out (migration 043); null = visible. Read `chats/hide.ts`. */
+  hidden_at?: number | null;
+  /** digits of the inbox's own number when the chat was hidden (migration 043). */
+  hidden_number?: string | null;
 }
 
 /**
@@ -41,10 +48,39 @@ export interface ChatRow extends ChatColumns {
   profile_name: string | null;
   /** Customer tags in saved order. */
   profile_tags: string[];
+  /** Short hash of the stored profile photo (`avatars`), when the server keeps one. */
+  avatar_hash?: string | null;
 }
 
 /** Chat columns plus the customer profile name; FROM `chats c`. Tags are attached by withTags(). */
 const CHAT_SELECT = `SELECT c.*, ${PROFILE_NAME_COLUMN} FROM chats c ${PROFILE_JOIN}`;
+
+/** Chats of inboxes that are not removed. */
+const ACTIVE_INBOX = 'c.inbox_id IN (SELECT id FROM inboxes WHERE removed_at IS NULL)';
+
+/** Which chats a caller may read: `inboxIds` omitted = every inbox, empty = none; `chatJids` replaces it. */
+export interface ChatScope {
+  inboxIds?: readonly number[];
+  /** An agent limited to chosen chats; empty = none. */
+  chatJids?: readonly string[];
+}
+
+/**
+ * Adds the caller's scope to a query on `chats c` (the one rule for `list` and `unreadCount`). False when nothing
+ * is in scope, so the caller answers empty without a query.
+ */
+function scopeWhere(f: ChatScope, where: string[], params: Record<string, unknown>): boolean {
+  if (f.chatJids?.length === 0 || (f.inboxIds?.length === 0 && !f.chatJids)) return false;
+  if (f.chatJids) {
+    // chosen chats of active inboxes only (a removed inbox is for admins)
+    where.push(`c.jid IN (SELECT value FROM json_each(@chatJids)) AND ${ACTIVE_INBOX}`);
+    params.chatJids = JSON.stringify(f.chatJids);
+  } else if (f.inboxIds) {
+    where.push('c.inbox_id IN (SELECT value FROM json_each(@inboxIds))');
+    params.inboxIds = JSON.stringify(f.inboxIds);
+  }
+  return true;
+}
 
 export interface ChatEventRow {
   id: number;
@@ -93,7 +129,8 @@ export function rowToChat(r: ChatRow): Chat {
     waJid,
     type: r.type,
     name: profileName ?? waName,
-    avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar`,
+    // `?v=` changes only when the photo changes, so the browser may keep it (immutable)
+    avatarUrl: `/api/chats/${encodeURIComponent(r.jid)}/avatar${r.avatar_hash ? `?v=${r.avatar_hash}` : ''}`,
     unreadCount: r.unread_count,
     lastMessageAt: r.last_message_at,
     lastMessagePreview: r.last_message_preview,
@@ -168,13 +205,21 @@ export function existingChatKeys(db: DB, waJid: string): string[] {
 export class ChatRepo {
   constructor(private readonly db: DB) {}
 
-  /** Attaches each chat's customer tags with one batched query. */
+  /** Attaches each chat's customer tags and stored photo hash, one batched query each. */
   private withTags(rows: JoinedRow[]): ChatRow[] {
     const tags = tagsByChat(
       this.db,
       rows.filter((r) => r.type === 'dm').map((r) => r.jid),
     );
-    return rows.map((r) => ({ ...r, profile_tags: tags.get(r.jid) ?? [] }));
+    const photos = avatarHashes(
+      this.db,
+      rows.map((r) => r.jid),
+    );
+    return rows.map((r) => ({
+      ...r,
+      profile_tags: tags.get(r.jid) ?? [],
+      avatar_hash: photos.get(r.jid) ?? null,
+    }));
   }
 
   get(jid: string): ChatRow | null {
@@ -206,15 +251,29 @@ export class ChatRepo {
 
   openCount(): number {
     return (
-      this.db.prepare("SELECT COUNT(*) AS count FROM chats WHERE status = 'open'").get() as {
+      this.db
+        .prepare("SELECT COUNT(*) AS count FROM chats WHERE status = 'open' AND hidden_at IS NULL")
+        .get() as {
         count: number;
       }
     ).count;
   }
 
+  /**
+   * Open chats with unread messages in the caller's scope (the same rule as `list`), of active inboxes only: a
+   * removed inbox's chats are read only, so nobody can answer them.
+   */
+  unreadCount(f: ChatScope): number {
+    const where = ["c.status = 'open'", 'c.unread_count > 0', ACTIVE_INBOX];
+    const params: Record<string, unknown> = {};
+    if (!scopeWhere(f, where, params)) return 0;
+    const sql = `SELECT COUNT(*) AS count FROM chats c WHERE ${where.join(' AND ')}`;
+    return (this.db.prepare(sql).get(params) as { count: number }).count;
+  }
+
   openChats(): ChatColumns[] {
     return this.db
-      .prepare("SELECT * FROM chats WHERE status = 'open' ORDER BY jid")
+      .prepare("SELECT * FROM chats WHERE status = 'open' AND hidden_at IS NULL ORDER BY jid")
       .all() as ChatColumns[];
   }
 
@@ -245,12 +304,14 @@ export class ChatRepo {
     const supplied = init.name?.trim() || '';
     const meaningful = supplied && supplied !== waJid && supplied !== jidUser(waJid);
     const name = contact?.saved_name || (meaningful ? supplied : contact?.push_name || supplied);
-    this.db
+    const { changes } = this.db
       .prepare(
         `INSERT INTO chats (jid, type, name, unread_count, status, updated_at, phone, inbox_id, wa_jid)
          VALUES (?, ?, ?, 0, 'open', ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
       )
       .run(key, type, name, now, type === 'dm' ? this.phoneFor(waJid) : null, inboxId, waJid);
+    // A new chat of a customer we already know in another inbox starts with their profile.
+    if (changes && type === 'dm') seedFromLinked(this.db, key);
     return this.get(key)!;
   }
 
@@ -277,20 +338,25 @@ export class ChatRepo {
     limit: number;
     /** Inboxes the caller may open; omitted = every inbox, empty = none. */
     inboxIds?: readonly number[];
+    /** Only these chats (an agent limited to chosen chats); empty = none. */
+    chatJids?: readonly string[];
     /** Narrows to one inbox (the inbox filter). */
     inbox?: number;
   }): ChatRow[] {
-    if (f.inboxIds && f.inboxIds.length === 0) return [];
     if (f.inbox !== undefined && f.inboxIds && !f.inboxIds.includes(f.inbox)) return [];
-    const where: string[] = [];
+    // a chat hidden on Log out is listed for nobody (admins too)
+    const where: string[] = [visibleChat('c')];
     const params: Record<string, unknown> = { limit: f.limit };
     if (f.inbox !== undefined) {
       where.push('c.inbox_id = @inbox');
       params.inbox = f.inbox;
-    } else if (f.inboxIds) {
-      where.push('c.inbox_id IN (SELECT value FROM json_each(@inboxIds))');
-      params.inboxIds = JSON.stringify(f.inboxIds);
     }
+    // One inbox already narrows below the caller's inboxes (checked above); chosen chats still apply.
+    const scope = {
+      inboxIds: f.inbox === undefined ? f.inboxIds : undefined,
+      chatJids: f.chatJids,
+    };
+    if (!scopeWhere(scope, where, params)) return [];
     if (f.status) {
       where.push('c.status = @status');
       params.status = f.status;
@@ -326,7 +392,7 @@ export class ChatRepo {
       params.cjid = f.cursor.jid;
     }
     const sql = `${CHAT_SELECT} LEFT JOIN contacts ct ON ct.jid = COALESCE(c.wa_jid, c.jid)
-      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+      WHERE ${where.join(' AND ')}
       ORDER BY COALESCE(c.last_message_at, 0) DESC, c.jid ASC LIMIT @limit`;
     return this.withTags(this.db.prepare(sql).all(params) as JoinedRow[]);
   }
@@ -402,7 +468,8 @@ export class ChatRepo {
     return (
       this.db
         .prepare(
-          "SELECT jid FROM contacts UNION SELECT COALESCE(wa_jid, jid) FROM chats WHERE type = 'dm'",
+          // never an archived chat's `~old<n>` JID (it is no WhatsApp address)
+          "SELECT jid FROM contacts UNION SELECT COALESCE(wa_jid, jid) FROM chats WHERE type = 'dm' AND COALESCE(wa_jid, jid) NOT LIKE '%~old%'",
         )
         .all() as Array<{ jid: string }>
     ).map((r) => r.jid);

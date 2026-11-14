@@ -1,4 +1,5 @@
 import type { DB } from '../db/index.js';
+import { HIDDEN_CHAT_KEYS, visibleChat } from './hidden-sql.js';
 
 /** Read-only inbox counts for owner analysis (MCP `get_stats`). */
 export interface InboxStats {
@@ -104,6 +105,14 @@ export function inboxCondition(c: string, inboxIds?: readonly number[]): string 
   return `${c}.inbox_id IN (${inboxIds.join(', ')})`;
 }
 
+/**
+ * SQL condition: chat alias `c` is a visible chat (never one hidden on Log out) of one of `inboxIds`
+ * (omitted = every inbox, empty = none). Every count of chats or their messages uses it.
+ */
+export function chatScope(c: string, inboxIds?: readonly number[]): string {
+  return `${visibleChat(c)} AND ${inboxCondition(c, inboxIds)}`;
+}
+
 export function computeInboxStats(
   db: DB,
   opts: {
@@ -114,7 +123,7 @@ export function computeInboxStats(
     inboxIds?: readonly number[];
   },
 ): InboxStats {
-  const inScope = inboxCondition('c', opts.inboxIds);
+  const inScope = chatScope('c', opts.inboxIds);
   const byStatus = db
     .prepare(`SELECT status, COUNT(*) AS n FROM chats c WHERE ${inScope} GROUP BY status`)
     .all() as Array<{ status: string; n: number }>;
@@ -148,7 +157,9 @@ export function computeInboxStats(
             COALESCE(SUM(from_me = 0), 0) AS inbound,
             COALESCE(SUM(from_me = 1), 0) AS outbound
      FROM messages WHERE timestamp >= ? AND timestamp < ? AND type != 'system'${
-       opts.inboxIds ? ` AND chat_jid IN (SELECT c.jid FROM chats c WHERE ${inScope})` : ''
+       opts.inboxIds
+         ? ` AND chat_jid IN (SELECT c.jid FROM chats c WHERE ${inScope})`
+         : ` AND chat_jid NOT IN (${HIDDEN_CHAT_KEYS})`
      }`,
   );
   // Local days are 23-25 h long, so +1.5 days from today's midnight always lands in tomorrow and

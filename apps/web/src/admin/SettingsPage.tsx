@@ -23,6 +23,7 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { ReplySuggestionsSection } from './ReplySuggestionsSection';
+import { AskEzySettingsSection } from './AskEzySettingsSection';
 import { FixEnglishSection } from './FixEnglishSection';
 import { PhraseDictionarySection } from './PhraseDictionarySection';
 import { AiVoiceSection } from './AiVoiceSection';
@@ -30,6 +31,8 @@ import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
 import { IntegrationsSection } from './IntegrationsSection';
 import { ExtensionBoundary, useExtensionTranslation, useWebExtensions } from '../extensions';
 import { InfoTip } from '@/components/app/InfoTip';
+import { UsageStatsCard } from './UsageStatsSwitch';
+import { NewChatSection } from './NewChatSection';
 
 const TABS = ['general', 'ai', 'integrations', 'device', 'maintenance'] as const;
 type SettingsTab = (typeof TABS)[number];
@@ -289,11 +292,16 @@ export function SettingsPage() {
               </Button>
             </SaveBar>
           </form>
+
+          {/* New chat (docs/features/new-chat/design.md): who may start one, and the daily limit. */}
+          <NewChatSection />
+          <UsageStatsCard />
         </TabsContent>
 
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
           <ReplySuggestionsSection />
+          <AskEzySettingsSection />
           <PhraseDictionarySection />
           <FixEnglishSection />
           {/* Optional features collapsed under one heading, closed by default. */}

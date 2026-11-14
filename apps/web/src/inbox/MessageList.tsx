@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDay } from '../lib/format';
 import { EventItem, NoteItem } from './EventItem';
+import type { MessageChangeProps } from './message-changes';
 import { MessageBubble } from './MessageBubble';
 import type { TimelineItem } from './timeline';
 import type { Directory } from './useDirectory';
+import type { JumpTarget } from './useQuoteJump';
 
 export interface MessageListProps {
   items: TimelineItem[];
@@ -29,10 +31,24 @@ export interface MessageListProps {
   reactDisabledReason?: string | null;
   /** Direct chats: the customer's display name, for quotes. */
   contactName?: string;
+  /** Edit and delete sent messages (rights per message, handlers). */
+  changes?: MessageChangeProps;
+  /** Tap a quote: find and scroll to its original (see `useQuoteJump`). */
+  onOpenQuote?(quotedId: string): void;
+  /** Scroll to this message and highlight it briefly once it is rendered. */
+  jumpTo?: JumpTarget | null;
   footer?: React.ReactNode;
 }
 
 const NEAR_BOTTOM_PX = 150;
+/** How long a message reached from a quote stays highlighted. */
+export const HIGHLIGHT_MS = 1600;
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
+}
 
 function DaySeparator({ date }: { date: number }) {
   useTranslation(); // re-render the localized day label on language change
@@ -60,6 +76,9 @@ export function MessageList({
   onReact,
   reactDisabledReason,
   contactName,
+  changes,
+  onOpenQuote,
+  jumpTo = null,
   footer,
 }: MessageListProps) {
   const { t } = useTranslation('inbox');
@@ -137,6 +156,28 @@ export function MessageList({
     return () => io.disconnect();
   }, [hasOlder, loadingOlder, onLoadOlder]);
 
+  // Jump from a quote: once the original is rendered, centre it, focus it and highlight it.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const handledJump = useRef<string | null>(null);
+  useEffect(() => {
+    const request = jumpTo ? `${jumpTo.seq}:${jumpTo.id}` : null;
+    if (!jumpTo || handledJump.current === request) return;
+    const root = scrollRef.current;
+    const el = Array.from(root?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).find(
+      (node) => node.dataset.messageId === jumpTo.id,
+    );
+    if (!el) return; // not rendered yet: the next items change tries again
+    handledJump.current = request;
+    el.scrollIntoView?.({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    el.focus({ preventScroll: true });
+    setHighlightId(jumpTo.id);
+  }, [jumpTo, items]);
+  useEffect(() => {
+    if (!highlightId) return;
+    const timer = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlightId, jumpTo]);
+
   const onMediaLoad = useCallback(() => {
     if (nearBottom.current) scrollToBottom();
     if (scrollRef.current) prev.current.height = scrollRef.current.scrollHeight;
@@ -146,6 +187,7 @@ export function MessageList({
     <div className="relative min-h-0 flex-1">
       <div
         ref={scrollRef}
+        data-chat-scroll
         onScroll={onScroll}
         className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-background py-2"
         aria-label={t('messageList.label')}
@@ -210,6 +252,9 @@ export function MessageList({
                     onReact={onReact}
                     reactDisabledReason={reactDisabledReason}
                     contactName={contactName}
+                    changes={changes}
+                    onOpenQuote={onOpenQuote}
+                    highlighted={highlightId === m.id}
                   />
                 );
               }

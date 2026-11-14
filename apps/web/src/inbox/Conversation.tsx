@@ -19,6 +19,7 @@ import {
   useSendReaction,
   useSendMedia,
   useInboxStatus,
+  useInboxes,
   useSendText,
   type MessagesData,
 } from '../api/queries';
@@ -29,6 +30,7 @@ import { useGroupChatAi } from '../api/ai-groups';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
+import { videoNeedsFile } from '../lib/file-transfer';
 import { Banner, EmptyState } from '@/components/app';
 import { FileDropZone } from '@/components/app/FileDropZone';
 import {
@@ -50,6 +52,7 @@ import { ConversationHeader } from './ConversationHeader';
 import { chatTitle } from './chat-title';
 import { MessageList } from './MessageList';
 import { quotedAuthor, quotedPreview } from './MessageBubble';
+import { useQuoteJump } from './useQuoteJump';
 import { NotesPanel } from './NotesPanel';
 import { GroupPanel } from './GroupPanel';
 import { useNavigationGuardRef } from './navigation-guard';
@@ -61,7 +64,17 @@ import { useInboxOfChat } from './useVisibleInboxes';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 import { ReplyWindowNote, WindowClosedPanel } from './ReplyWindow';
 import { SafetyChatBar } from './SafetyMessage';
-import { useInboxCanTag, useReplyWindowHours, useWindowClosed } from './reply-window';
+import {
+  inboxCapabilities,
+  useInboxCanTag,
+  useReplyWindowHours,
+  useWindowClosed,
+} from './reply-window';
+import { DeleteMessageDialog, EditMessageDialog } from './MessageActions';
+import { ForwardDialog } from './ForwardDialog';
+import { DeleteChatDialog } from './DeleteChatDialog';
+import { NO_RIGHTS, messageRights, type MessageChangeProps } from './message-changes';
+import { useChosenChatsOnly } from '../auth/chat-scope';
 
 export interface ConversationProps {
   jid: string;
@@ -81,6 +94,8 @@ const NO_PHRASES: readonly ReplyPhraseListItem[] = [];
 
 export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const { t } = useTranslation(['inbox', 'common']);
+  // Ask Ezy reads across chats: not for an agent limited to chosen chats
+  const chosenOnly = useChosenChatsOnly();
   // Phones get the short placeholder (one line); the "/" quick-reply hint fits from sm.
   const wideComposer = useMediaQuery('(min-width: 640px)');
   const qc = useQueryClient();
@@ -111,6 +126,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     customerGuard.current ? customerGuard.current(next) : next();
   const [confirm, setConfirm] = useState<{ name: string; resolve(ok: boolean): void } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  // Delete chat (admins): the confirmation, closed when another chat opens.
+  const [deletingChat, setDeletingChat] = useState(false);
+  useEffect(() => setDeletingChat(false), [jid]);
 
   const chat = chatQ.data?.chat;
   // The composer follows the chat's own inbox: another phone offline never blocks this one.
@@ -272,10 +290,38 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
     [doReact, jid, t],
   );
 
+  // Edit and delete sent messages: only on a connection that can (a linked phone).
+  const { data: inboxList } = useInboxes();
+  const inboxId = chat?.inboxId;
+  const caps = useMemo(
+    () => inboxCapabilities(inboxList?.inboxes.find((i) => i.id === inboxId) ?? {}),
+    [inboxList, inboxId],
+  );
+  const [editing, setEditing] = useState<Message | null>(null);
+  const [deleting, setDeleting] = useState<Message | null>(null);
+  // Forward: one dialog per opening (a fresh request id each time).
+  const [forwarding, setForwarding] = useState<{ message: Message; opening: number } | null>(null);
+  const openForward = useCallback(
+    (m: Message) => setForwarding((f) => ({ message: m, opening: (f?.opening ?? 0) + 1 })),
+    [],
+  );
+  useEffect(() => {
+    setEditing(null);
+    setDeleting(null);
+    setForwarding(null);
+  }, [jid]);
+  // The time windows are read when a bubble renders; the server checks them again.
+  const rightsOf = useCallback((m: Message) => messageRights(m, me, caps, Date.now()), [me, caps]);
+
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = messagesQ;
   const loadOlder = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const { target: jumpTarget, open: jumpToQuote } = useQuoteJump(jid, messagesById, {
+    hasNextPage: !!hasNextPage,
+    fetchNextPage: () => fetchNextPage(),
+  });
+  const openQuote = useCallback((id: string) => void jumpToQuote(id), [jumpToQuote]);
 
   if (chatQ.isPending) {
     return (
@@ -324,6 +370,14 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   // Quotes in a direct chat name the customer like the header does (groups name each sender).
   const contactName = chat.type === 'dm' ? chatTitle(chat, t) : undefined;
   const startedByAssistant = assistantStartedChat(chat, messages, !!hasNextPage);
+  const changes: MessageChangeProps = {
+    rightsOf,
+    disabledReason: blocked || queued ? t('message.change.notConnected') : null,
+    onEdit: setEditing,
+    onDelete: setDeleting,
+    onForward: openForward,
+    isAdmin: me?.role === 'admin',
+  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
@@ -373,6 +427,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             setCustomerOpen(true);
             setNotesOpen(false);
           }}
+          onDelete={me?.role === 'admin' ? () => setDeletingChat(true) : undefined}
         />
         <SafetyChatBar jid={jid} />
         {startedByAssistant && (
@@ -401,6 +456,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           onReact={onReact}
           reactDisabledReason={blocked || queued ? t('message.reactions.notConnected') : null}
           contactName={contactName}
+          changes={changes}
+          onOpenQuote={openQuote}
+          jumpTo={jumpTarget}
         />
         <div className="safe-bottom border-t bg-surface">
           <TypingIndicator entries={typing[jid] ?? []} meId={me?.id ?? null} />
@@ -452,9 +510,9 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                     : null
                 }
                 onCancelReply={() => setReplyTo(null)}
-                askEzy={chat.type === 'dm' ? { chatJid: chat.jid, name: chatTitle(chat, t) } : null}
+                askEzy={chosenOnly ? null : { chatJid: chat.jid, name: chatTitle(chat, t) }}
                 aiSuggest={
-                  chat.type === 'dm' && suggestState !== 'off'
+                  suggestState !== 'off'
                     ? {
                         chatJid: chat.jid,
                         lastCustomerMessageId: lastInboundId,
@@ -464,6 +522,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                       }
                     : null
                 }
+                mediaLimits={caps.mediaLimits}
                 fixEnglish={{
                   chatJid: chat.jid,
                   chatName: chat.name,
@@ -498,12 +557,16 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                   // Only the first file of a send quotes the message being replied to.
                   const quotedId = index === 0 ? replyTo?.id : undefined;
                   if (index === 0) setReplyTo(null);
+                  // A video above this number's video limit goes as a file (owner 2026-11-07).
+                  const asFile = videoNeedsFile(file, caps.mediaLimits);
+                  if (asFile) toast.info(t('composer.sentAsFile', { name: file.name }));
                   try {
                     await sendMedia.mutateAsync({
                       file,
                       caption,
                       clientId: newClientId(),
                       quotedId,
+                      ...(asFile ? { asFile: true } : {}),
                     });
                   } catch (e) {
                     onSendError(e);
@@ -553,6 +616,32 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           guardRef={customerGuard}
         />
       )}
+      <EditMessageDialog message={editing} onClose={() => setEditing(null)} />
+      {me?.role === 'admin' && (
+        <DeleteChatDialog
+          jid={jid}
+          name={chatTitle(chat, t)}
+          open={deletingChat}
+          onClose={() => setDeletingChat(false)}
+          onDeleted={() => {
+            setDeletingChat(false);
+            onBack();
+          }}
+        />
+      )}
+      {forwarding && (
+        <ForwardDialog
+          key={forwarding.opening}
+          message={forwarding.message}
+          sourceInboxId={chat.inboxId}
+          onClose={() => setForwarding(null)}
+        />
+      )}
+      <DeleteMessageDialog
+        message={deleting}
+        rights={deleting ? rightsOf(deleting) : NO_RIGHTS}
+        onClose={() => setDeleting(null)}
+      />
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && closeConfirm(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>

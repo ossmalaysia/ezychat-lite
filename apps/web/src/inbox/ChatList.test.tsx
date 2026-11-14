@@ -170,18 +170,16 @@ it('highlights chats you own and keeps teammates and unassigned rows calm', () =
   ).toBeNull();
 });
 
-it('still retries profile images when WhatsApp reconnects', () => {
-  chats([{ ...chat(0), avatarUrl: '/api/chats/0/avatar' }]);
-  const tree = (ready: boolean, revision: number) => (
-    <ProfileImageContext.Provider value={{ ready, revision }}>
-      {list()}
-    </ProfileImageContext.Provider>
+it('shows profile images once WhatsApp is ready, at the URL the server gave', () => {
+  chats([{ ...chat(0), avatarUrl: '/api/chats/0/avatar?v=ab12cd' }]);
+  const tree = (ready: boolean) => (
+    <ProfileImageContext.Provider value={{ ready }}>{list()}</ProfileImageContext.Provider>
   );
-  const view = render(tree(false, 0));
+  const view = render(tree(false));
   expect(view.container.querySelector('img')).toBeNull();
-  view.rerender(tree(true, 1));
+  view.rerender(tree(true));
   expect(view.container.querySelector('img')?.getAttribute('src')).toBe(
-    '/api/chats/0/avatar?connection=1',
+    '/api/chats/0/avatar?v=ab12cd',
   );
 });
 
@@ -257,6 +255,34 @@ it('explains an empty tag filter and offers to show all open chats', () => {
   expect(screen.getByText('No chats are tagged “VIP”.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Show all open chats' }));
   expect(onResetFilters).toHaveBeenCalledOnce();
+});
+
+it('tells an agent limited to chosen chats who gives them chats when none is open', () => {
+  chats([]);
+  const me = {
+    id: 5,
+    username: 'ravi',
+    displayName: 'Ravi',
+    role: 'agent' as const,
+    chatScope: 'chosen' as const,
+    mustChangePassword: false,
+    disabled: false,
+    createdAt: 0,
+    locale: null,
+  };
+  render(list({ directory: buildDirectory(me, false, []) }));
+  expect(screen.getByText('No chats yet')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Show all open chats' })).toBeNull();
+  // a tag filter still says what it filtered on
+  cleanup();
+  render(
+    list({
+      directory: buildDirectory(me, false, []),
+      filters: { assigned: 'any', status: 'open', tag: 'VIP' },
+      onResetFilters: vi.fn(),
+    }),
+  );
+  expect(screen.getByText('No chats are tagged “VIP”.')).toBeTruthy();
 });
 
 function inbox(id: number, name: string, tone: Inbox['tone'], removed = false): Inbox {

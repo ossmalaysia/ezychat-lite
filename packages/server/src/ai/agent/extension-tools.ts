@@ -66,6 +66,27 @@ export const CORE_AGENT_TOOL_NAMES: readonly string[] = [
   // Google Calendar connector (connectors/google-calendar/tools.ts)
   'check_free_times',
   'book_appointment',
+  // Google Sheets connector (connectors/google-sheets/tools.ts)
+  'read_sheet_rows',
+  'add_sheet_row',
+  // Google Drive connector (connectors/google-drive/tools.ts)
+  'save_file_to_drive',
+  'list_drive_files',
+  'read_drive_file',
+  // Offered by older releases; stays reserved.
+  'add_lead_row',
+  // SQL Account connector (connectors/sql-account/tools.ts)
+  'sql_check_stock',
+  'sql_my_account',
+  'sql_document_status',
+  'sql_my_payments',
+  'sql_quotation_preview',
+  'sql_create_quotation',
+  // GitHub connector (connectors/github/tools.ts)
+  'github_search_issues',
+  'github_list_issues',
+  'github_read_issue',
+  'github_search_pull_requests',
 ];
 /** An extension that has not handed over its tools by then is left out of the turn. */
 export const AGENT_TOOLS_SETUP_MS = 10_000;

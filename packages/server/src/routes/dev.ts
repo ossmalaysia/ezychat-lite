@@ -5,6 +5,7 @@ import {
   FakeGroupBody,
   FakeIncomingBody,
   FakeLinkBody,
+  FakeMessageChangeBody,
   FakeReactionBody,
   type Message,
 } from '@ezychat/shared';
@@ -29,6 +30,8 @@ import { getInboxService } from '../inboxes/service.js';
 /** fake WA only: `quotedId` is a stored message id of the same chat (the member replies to it). */
 const FakeIncomingDevBody = FakeIncomingBody.extend({
   quotedId: z.string().min(1).max(512).optional(),
+  /** The message arrives as WhatsApp "Forwarded" with this score (5+ = "Forwarded many times"). */
+  forwardingScore: z.number().int().min(1).max(1000).optional(),
 });
 
 const FakeWindowBody = z.object({
@@ -109,6 +112,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         ...(body.senderJid ? { senderJid: body.senderJid } : {}),
         ...(body.mentionedJids !== undefined ? { mentionedJids: body.mentionedJids } : {}),
         ...(body.quotedId ? { quotedId: waMessageId(body.quotedId) } : {}),
+        ...(body.forwardingScore ? { forwardingScore: body.forwardingScore } : {}),
         type: body.type ?? 'text',
         // A simulated voice note or photo: the fake adapter serves these bytes as the download.
         media: body.media
@@ -159,6 +163,39 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
   });
 
   /**
+   * POST /api/dev/fake-edit and /api/dev/fake-revoke: the fake phone of the message's inbox delivers
+   * an edit or a delete for everyone of a stored message, in that message's chat, as WhatsApp would.
+   */
+  for (const kind of ['edit', 'revoke'] as const)
+    app.post(`/dev/fake-${kind}`, { preHandler: requireUser(ctx) }, async (req) => {
+      const body = parse(FakeMessageChangeBody, req.body ?? {});
+      const message = ctx.db
+        .prepare('SELECT chat_jid, wa_remote_jid, sender_jid FROM messages WHERE id = ?')
+        .get(body.messageId) as
+        { chat_jid: string; wa_remote_jid: string | null; sender_jid: string | null } | undefined;
+      if (!message) throw errors.notFound('Message');
+      if (kind === 'edit' && body.body === undefined) throw errors.validation('body is required');
+      const wa = fakeOf(inboxOfKey(body.messageId));
+      const chatJid = message.wa_remote_jid ?? parseChatKey(message.chat_jid).waJid;
+      const change = {
+        chatJid,
+        targetId: waMessageId(body.messageId),
+        fromMe: body.fromMe ?? false,
+        // a group change comes from the message's own author unless another member is named
+        ...(chatJid.endsWith('@g.us') && !body.fromMe
+          ? { senderJid: body.senderJid ?? message.sender_jid }
+          : body.senderJid
+            ? { senderJid: body.senderJid }
+            : {}),
+      };
+      const sent =
+        kind === 'edit'
+          ? wa.simulateEdit({ ...change, body: body.body! })
+          : wa.simulateRevoke(change);
+      return { messageId: body.messageId, chatJid: message.chat_jid, timestamp: sent.timestamp };
+    });
+
+  /**
    * POST /api/dev/fake-group: a group with members for the Group info panel. Every 4th generated
    * member has a known name, every 7th only a WhatsApp ID (number hidden), every 11th a username.
    */
@@ -175,7 +212,7 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
         phoneJid: me,
         lidJid: null,
         username: null,
-        role: 'superadmin',
+        role: body.meRole,
       });
     const add = (m: {
       phone?: string;
@@ -207,12 +244,21 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     wa.setGroupInfo({
       jid: body.groupJid,
       name: body.name,
-      description: null,
+      description: body.description ?? null,
       createdAt: Date.now() - 200 * 86_400_000,
       ownerJid: participants[1]?.phoneJid ?? participants[1]?.jid ?? null,
       size: participants.length,
       participants,
+      settings: {
+        announce: false,
+        locked: true,
+        memberAdd: 'admins',
+        approval: body.joinRequests.length > 0,
+        ...body.settings,
+      },
     });
+    for (const phone of body.joinRequests) wa.addJoinRequest(body.groupJid, phone);
+    for (const phone of body.privacyRefuses) wa.setPrivacyRefuses(phone);
     getChats(ctx).upsertContacts(contacts);
     getChats(ctx).upsertFromWa({ jid: body.groupJid, type: 'group', name: body.name }, inboxId);
     wa.simulateGroupChanged(body.groupJid);

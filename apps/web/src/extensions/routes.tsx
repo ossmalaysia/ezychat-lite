@@ -1,7 +1,23 @@
 import type { ReactNode } from 'react';
-import { Route, useLocation } from 'react-router-dom';
+import { Route, matchPath, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/app/ErrorBoundary';
-import type { WebExtension } from './types';
+import { extensionPath, type WebExtension, type WebExtensionAdminSection } from './types';
+
+/** The core section an extension admin route declares for this path (e.g. `members`). */
+export function extensionSectionOf(
+  extensions: readonly WebExtension[],
+  pathname: string,
+): WebExtensionAdminSection | undefined {
+  for (const ext of extensions)
+    for (const route of ext.routes ?? [])
+      if (
+        route.admin &&
+        route.section &&
+        matchPath({ path: extensionPath(ext.name, route.path, true), end: true }, pathname)
+      )
+        return route.section;
+  return undefined;
+}
 
 /** Wraps one extension element so a crash inside it never blanks the rest of the app. */
 export function ExtensionBoundary({ children }: { children: ReactNode }) {

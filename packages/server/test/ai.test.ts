@@ -223,6 +223,43 @@ it('drops a reply written with details a teammate corrected meanwhile, and answe
   expect(t.wa.sent).toHaveLength(1);
 });
 
+it('drops a reply written while the customer edited their message, and answers the new text', async () => {
+  clock();
+  await incoming('ask', 'Is delivery free?');
+  vi.mocked(provider.generate).mockImplementationOnce(async () => {
+    // The customer edits the question while the model is still writing.
+    t.wa.simulateEdit({ chatJid: jid, targetId: 'ask', body: 'What are your opening hours?' });
+    return { reply: 'Delivery costs RM10.', action: 'answer' };
+  });
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  await vi.advanceTimersByTimeAsync(100);
+  const calls = vi.mocked(provider.generate).mock.calls;
+  expect(calls).toHaveLength(2);
+  expect(calls[1]![2].input).toContain('What are your opening hours?');
+  expect(calls[1]![2].input).not.toContain('Is delivery free?');
+  expect(t.wa.sent.map((m) => m.text)).not.toContain('Delivery costs RM10.');
+  expect(aiLogs.join('\n')).toContain('customer_message_changed');
+});
+
+it('never shows the model a deleted message and does not answer a deleted question', async () => {
+  clock();
+  await incoming('first', 'My IC number is 900101-07-1234');
+  t.wa.simulateRevoke({ chatJid: jid, targetId: 'first' });
+  await incoming('second', 'What are your opening hours?');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  const { input } = vi.mocked(provider.generate).mock.calls[0]![2];
+  expect(input).not.toContain('900101');
+  expect(input).toContain('opening hours');
+
+  const other = 'deleted@s.whatsapp.net';
+  await incoming('gone', 'Can I order now?', 'live', other);
+  t.wa.simulateRevoke({ chatJid: other, targetId: 'gone' });
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+  expect(
+    vi.mocked(provider.generate).mock.calls.some(([, , p]) => p.input.includes('Can I order')),
+  ).toBe(false);
+});
+
 it('does no work while the access gate is closed and picks the chat up again when it opens', async () => {
   clock();
   t.ctx.access.close({ code: 'license_required' });
@@ -409,8 +446,9 @@ it('cancels an older answer as soon as live media arrives and never lets delayed
   download(Buffer.from('fake-image'));
   await image;
   await vi.advanceTimersByTimeAsync(1200);
+  // reading a file that is not an image checks its type with real file I/O (ai/files.ts)
+  await vi.waitFor(() => expect(t.wa.sent).toHaveLength(1));
   expect(provider.generate).toHaveBeenCalledTimes(2);
-  expect(t.wa.sent).toHaveLength(1);
   expect(t.wa.sent[0]?.text).not.toBe('Outdated answer');
   expect(
     t.ctx.db
@@ -607,10 +645,47 @@ it('sends nothing for no_reply, keeps the chat, and answers the next real questi
   expect(t.wa.sent).toHaveLength(1);
   expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'open', assignedTo: ai.id });
   expect(handover).not.toHaveBeenCalled();
+  // The team sees that the AI read the message and chose silence (a line, never a message).
+  expect(getChats(t.ctx).events(jid).at(-1)).toMatchObject({
+    type: 'ai_tool_used',
+    actorId: ai.id,
+    payload: { sourceLabel: 'WhatsApp', silent: { kind: 'no_reply' } },
+  });
   // The "thanks" batch counts as handled: only the new question is answered next.
   await incoming('next', 'What is delivery?');
   await vi.advanceTimersByTimeAsync(1200);
   expect(t.wa.sent).toHaveLength(2);
+});
+
+it('marks a silent close as "finished" when the agent asks no resolution question', async () => {
+  t.ctx.services.ai!.setResolutionCheck(defaultAgent(t.ctx.db)!.id, false, actor);
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(t.wa.sent).toHaveLength(1);
+  // A goodbye that is no plain "yes/thanks" after the AI's answer: resolve without the check = silence.
+  vi.mocked(provider.generate).mockResolvedValueOnce({ reply: 'All the best!', action: 'resolve' });
+  await incoming('later', 'ok I will think about it');
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(t.wa.sent).toHaveLength(1);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('open');
+  expect(getChats(t.ctx).events(jid).at(-1)).toMatchObject({
+    type: 'ai_tool_used',
+    payload: { silent: { kind: 'finished' } },
+  });
+});
+
+it('closes with a 👍 when the customer only says "ya" after the AI answer (resolution check off)', async () => {
+  t.ctx.services.ai!.setResolutionCheck(defaultAgent(t.ctx.db)!.id, false, actor);
+  clock();
+  await incoming();
+  await vi.advanceTimersByTimeAsync(10_000);
+  vi.mocked(provider.generate).mockResolvedValueOnce({ reply: 'All the best!', action: 'resolve' });
+  await incoming('ya', 'ya');
+  await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS + 1200);
+  expect(t.wa.sent).toHaveLength(1);
+  expect(t.wa.reactions.map((r) => r.emoji)).toEqual(['👍']);
+  expect(getChats(t.ctx).get(jid)?.status).toBe('resolved');
 });
 
 describe('a closing message after the AI resolved the chat', () => {
@@ -638,6 +713,12 @@ describe('a closing message after the AI resolved the chat', () => {
     ]);
     expect(t.wa.sent).toHaveLength(sent);
     expect(getChats(t.ctx).get(jid)).toMatchObject({ status: 'resolved', assignedTo: null });
+    // The close shows its own lines: no "did not reply" line on top.
+    expect(
+      getChats(t.ctx)
+        .events(jid)
+        .some((e) => e.payload.silent),
+    ).toBe(false);
     const line = aiLogs
       .map((l) => JSON.parse(l))
       .find((l) => l.msg === 'AI resolved the chat after thanks');
@@ -1572,8 +1653,9 @@ describe('customer images', () => {
       clock();
       await incomingMedia('photo', options);
       await vi.advanceTimersByTimeAsync(AI_FALLBACK_MS);
+      // a file that is not an image is typed with real file I/O (ai/files.ts)
+      await vi.waitFor(() => expect(lastHandoff()).toBe('unsupported_message'));
       expect(provider.generate).not.toHaveBeenCalled();
-      expect(lastHandoff()).toBe('unsupported_message');
     });
   }
 

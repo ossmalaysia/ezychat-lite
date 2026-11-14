@@ -34,6 +34,8 @@ export function enrichmentPrompt(
         .map((m) => ({
           speaker: m.fromMe ? 'team' : 'customer',
           text: (m.body ?? '').slice(0, 2000),
+          // WhatsApp's forwarded mark is not in the text: without it the "skip forwarded" rule cannot apply.
+          ...(m.forwarded ? { forwarded: true } : {}),
         })),
       currentSituation: {
         customer: profile

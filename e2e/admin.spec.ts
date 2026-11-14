@@ -1,10 +1,19 @@
-import { ADMIN, expect, inboxHeading, test, projectTag, signIn, signOutFromInbox } from './helpers';
+import {
+  ADMIN,
+  expect,
+  hasRail,
+  inboxHeading,
+  test,
+  projectTag,
+  signIn,
+  signOutFromInbox,
+} from './helpers';
 
 test.describe('admin: members', () => {
   // Fresh session: this flow signs out, which must not revoke the shared admin storage state.
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('admin logs out from desktop and phone menus without disconnecting WhatsApp', async ({
+  test('admin signs out from the rail menu and the phone Account page without disconnecting WhatsApp', async ({
     page,
   }) => {
     for (const viewport of [
@@ -16,12 +25,18 @@ test.describe('admin: members', () => {
       await expect(inboxHeading(page)).toBeVisible();
       const before = await (await page.request.get('/api/wa/status')).json();
       await page.goto('/admin/settings');
-      if (viewport.width < 768)
-        await page.getByRole('button', { name: 'Admin menu', exact: true }).click();
-      const footer = page
-        .getByLabel('Admin tools and support', { exact: true })
-        .filter({ visible: true });
-      await footer.getByRole('button', { name: 'Log out', exact: true }).click();
+      if (viewport.width < 768) {
+        // Phone: Settings tab → Your account → Sign out
+        await page.getByTestId('tab-settings').click();
+        await page
+          .getByTestId('settings-home')
+          .getByRole('link', { name: ADMIN.displayName })
+          .click();
+        await page.getByTestId('account-sign-out').click();
+      } else {
+        await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Sign out' }).click();
+      }
       await expect(page).toHaveURL(/\/login$/);
       expect((await page.request.get('/api/users')).status()).toBe(401);
       await signIn(page, ADMIN.username, ADMIN.password);
@@ -81,11 +96,15 @@ test.describe('admin: members', () => {
     await page.getByRole('button', { name: 'Save password' }).click();
     await expect(inboxHeading(page)).toBeVisible();
 
-    // Agents have no admin entry and are bounced from /admin.
-    await page.getByRole('button', { name: 'Account menu' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Admin settings' })).toHaveCount(0);
-    await page.keyboard.press('Escape');
+    // Agents have no admin entry (no Settings place, no Admin settings item) and are bounced from /admin.
+    await expect(page.getByTestId('nav-settings')).toHaveCount(0);
+    await expect(page.getByTestId('tab-settings')).toHaveCount(0);
+    if (await hasRail(page)) {
+      await page.getByRole('button', { name: 'Account menu' }).click();
+      await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
+      await expect(page.getByRole('menuitem', { name: 'Admin settings' })).toHaveCount(0);
+      await page.keyboard.press('Escape');
+    }
 
     await page.goto('/admin/members');
     await expect(page).not.toHaveURL(/\/admin/);

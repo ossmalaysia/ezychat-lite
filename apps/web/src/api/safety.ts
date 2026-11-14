@@ -7,6 +7,7 @@ import {
   type ReportPeriod,
   type SafetyAction,
   type SafetyActionBody,
+  type SafetyChatAction,
 } from '@ezychat/shared';
 import { api } from './client';
 
@@ -17,7 +18,8 @@ import { api } from './client';
 export const safetyKeys = {
   state: ['safety'] as const,
   chat: (jid: string) => ['safety', 'chat', jid] as const,
-  report: (days: ReportPeriod) => ['safety', 'report', days] as const,
+  report: (days: ReportPeriod, inbox: number | null = null) =>
+    ['safety', 'report', days, inbox] as const,
 };
 
 export function useSafety() {
@@ -37,10 +39,13 @@ export function useSafetyChat(jid: string) {
   });
 }
 
-export function useSafetyReport(days: ReportPeriod) {
+/** `inbox` null = every inbox together. */
+export function useSafetyReport(days: ReportPeriod, inbox: number | null = null) {
+  const scope = inbox === null ? '' : `&inbox=${inbox}`;
   return useQuery({
-    queryKey: safetyKeys.report(days),
-    queryFn: ({ signal }) => api(`/reports/safety?days=${days}`, { schema: SafetyReport, signal }),
+    queryKey: safetyKeys.report(days, inbox),
+    queryFn: ({ signal }) =>
+      api(`/reports/safety?days=${days}${scope}`, { schema: SafetyReport, signal }),
     staleTime: 60_000,
   });
 }
@@ -69,6 +74,24 @@ export function useSafetyAction() {
     onSuccess: (state) => {
       qc.setQueryData(safetyKeys.state, state);
       // The chat bars and the report follow (blocked, reported).
+      void qc.invalidateQueries({ queryKey: ['safety'] });
+    },
+  });
+}
+
+/** Admins: block or unblock any direct chat's number (the Customer panel), flagged or not. */
+export function useSafetyChatAction(jid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ action, spam }: { action: SafetyChatAction; spam?: boolean }) =>
+      api(`/safety/chats/${encodeURIComponent(jid)}/${action}`, {
+        method: 'POST',
+        body: action === 'block' ? { spam: spam === true } : {},
+        schema: SafetyChatState,
+      }),
+    onSuccess: (state) => {
+      qc.setQueryData(safetyKeys.chat(jid), state);
+      // Admin → Safety (blocked numbers) and the report follow.
       void qc.invalidateQueries({ queryKey: ['safety'] });
     },
   });

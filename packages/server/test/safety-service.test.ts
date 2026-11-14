@@ -103,6 +103,14 @@ afterEach(async () => {
 });
 
 describe('WhatsApp Safety: the ZIP lure', () => {
+  it('a lure the customer deletes shows no finding on the message; admins keep the item', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    expect(message(id).safety?.level).toBe('high');
+    t.wa.simulateRevoke({ chatJid: LURE, targetId: id });
+    expect(message(id)).toMatchObject({ deletedBy: 'sender', body: null, safety: null });
+    expect((await state()).items.map((i) => i.messageId)).toEqual([id]);
+  });
+
   it('flags it High, locks the file in quarantine and shows the finding on the message', async () => {
     const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
     const m = message(id);
@@ -336,6 +344,28 @@ describe('WhatsApp Safety: AI check', () => {
     expect(message(lure).safety?.level).toBe('high');
   });
 
+  it('lets the phone keep a file only once the AI check is done', async () => {
+    let release!: (answer: SafetyAiAnswer) => void;
+    Object.assign(t.ctx.services.ai!, {
+      checkSafety: () => new Promise<SafetyAiAnswer>((resolve) => (release = resolve)),
+    });
+    const { id } = await incoming(LURE, {
+      file: { name: 'Order.xlsm', mime: 'application/octet-stream', bytes: Buffer.from('x') },
+    });
+    await tick();
+    // The AI may still raise it to High and lock it: no phone may keep a copy meanwhile.
+    expect(t.ctx.services.safety!.cacheable(id)).toBe(false);
+    expect((await download(id, admin.cookie)).headers['cache-control']).toBe('no-store');
+    release({ level: 'none', category: 'none', reason: '' });
+    await tick();
+    expect(t.ctx.services.safety!.cacheable(id)).toBe(true);
+    expect((await download(id, agent.cookie)).headers['cache-control']).toBe(
+      'private, max-age=2592000, immutable',
+    );
+    const plain = await incoming(KNOWN, { text: 'Hello' });
+    expect(t.ctx.services.safety!.cacheable(plain.id)).toBe(true);
+  });
+
   it('raises a text the rules missed to High and the AI agent leaves it alone', async () => {
     withAi({ level: 'high', category: 'phishing', reason: 'Pretends to be a bank.' });
     const { id } = await incoming(LURE, {
@@ -424,6 +454,48 @@ describe('Reports → WhatsApp Safety', () => {
     ).toHaveLength(30);
   });
 
+  it('counts every inbox together or one inbox', async () => {
+    const { id } = await incoming(LURE, { text: LURE_TEXT, file: lureZip() });
+    await download(id, agent.cookie);
+    const item = (await state()).items.find((i) => i.chatJid === LURE)!;
+    await act(item.id, 'report', { block: true });
+    // A second inbox with one scam message from another number.
+    const db = t.ctx.db;
+    db.prepare(
+      "INSERT INTO inboxes (id, name, tone, auth_dir, created_at, removed_at) VALUES (2, 'Catering', 'info', 'x', 0, NULL)",
+    ).run();
+    const other = '60199999999@s.whatsapp.net#2';
+    db.prepare(
+      `INSERT INTO chats (jid, wa_jid, type, name, unread_count, status, updated_at, inbox_id)
+       VALUES (?, '60199999999@s.whatsapp.net', 'dm', 'X', 0, 'open', 0, 2)`,
+    ).run(other);
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO safety_items (message_id, chat_jid, inbox_id, rules, score, rule_level, critical,
+         level, status, existing_customer, has_file, created_at, updated_at)
+       VALUES ('m-x', ?, 2, '["financeUrgency"]', 50, 'warning', 0, 'warning', 'open', 0, 0, ?, ?)`,
+    ).run(other, now, now);
+    const get = async (url: string) => {
+      const r = await t.app.inject({ method: 'GET', url, headers: authHeaders(admin.cookie) });
+      return r.statusCode === 200 ? SafetyReport.parse(r.json()) : r.statusCode;
+    };
+    const pick = (r: SafetyReport | number) =>
+      typeof r === 'number'
+        ? r
+        : [
+            r.inboxId,
+            r.totals.flagged,
+            r.totals.refusedDownloads,
+            r.totals.numbersBlocked,
+            r.senders.length,
+          ];
+    expect(pick(await get('/api/reports/safety?days=7'))).toEqual([null, 2, 1, 1, 2]);
+    expect(pick(await get('/api/reports/safety?days=7&inbox=1'))).toEqual([1, 1, 1, 1, 1]);
+    // The blocked number has no chat in inbox 2, so inbox 2 counts no block.
+    expect(pick(await get('/api/reports/safety?days=7&inbox=2'))).toEqual([2, 1, 0, 0, 1]);
+    expect(await get('/api/reports/safety?days=7&inbox=9')).toBe(404);
+  });
+
   it('names each finding by its most telling kind', () => {
     expect(kindOf(['scamNumber'], null, false)).toBe('scamNumber');
     expect(kindOf(['doubleExtension'], null, true)).toBe('hiddenProgram');
@@ -432,5 +504,146 @@ describe('Reports → WhatsApp Safety', () => {
     expect(kindOf(['macroFile'], null, true)).toBe('macroFile');
     expect(kindOf(['financeUrgency'], null, false)).toBe('paymentTrick');
     expect(kindOf(['financeUrgency'], 'impersonation', true)).toBe('other');
+  });
+});
+
+describe('Block any chat (Customer panel)', () => {
+  const SPAM = '601164988966@s.whatsapp.net';
+  const chatAct = (jid: string, action: string, cookie: string, payload: object = {}) =>
+    t.app.inject({
+      method: 'POST',
+      url: `/api/safety/chats/${encodeURIComponent(jid)}/${action}`,
+      headers: authHeaders(cookie),
+      payload,
+    });
+  const bar = async (jid: string) => {
+    const r = await t.app.inject({
+      method: 'GET',
+      url: `/api/safety/chats/${encodeURIComponent(jid)}`,
+      headers: authHeaders(admin.cookie),
+    });
+    return SafetyChatState.parse(r.json());
+  };
+
+  it('blocks an unflagged chat on WhatsApp, marks it as spam on request, then unblocks it', async () => {
+    await incoming(SPAM, { text: 'Digital Software Branding: grow your business!' });
+    expect(await bar(SPAM)).toMatchObject({ blocked: null, scam: false, canBlock: true });
+
+    const r = await chatAct(SPAM, 'block', admin.cookie, { spam: true });
+    expect(r.statusCode).toBe(200);
+    expect(t.wa.blocked.has(SPAM)).toBe(true);
+    expect(SafetyChatState.parse(r.json())).toMatchObject({ scam: true, blocked: { auto: false } });
+    expect(t.ctx.services.safety!.isBlocked(SPAM, 1)).toBe(true);
+    // Admin → Safety lists it with the other blocked numbers.
+    expect((await state()).blocked).toEqual([
+      expect.objectContaining({ waJid: SPAM, auto: false, itemId: null }),
+    ]);
+
+    const un = await chatAct(SPAM, 'unblock', admin.cookie);
+    expect(un.statusCode).toBe(200);
+    expect(t.wa.blocked.has(SPAM)).toBe(false);
+    expect(SafetyChatState.parse(un.json())).toMatchObject({ blocked: null, scam: true });
+    expect(t.ctx.services.safety!.isBlocked(SPAM, 1)).toBe(false);
+
+    const audit = t.ctx.db
+      .prepare("SELECT action, meta FROM audit_log WHERE action LIKE 'safety.chat.%' ORDER BY id")
+      .all() as Array<{ action: string; meta: string }>;
+    expect(audit.map((a) => a.action)).toEqual(['safety.chat.block', 'safety.chat.unblock']);
+    expect(JSON.parse(audit[0]!.meta)).toEqual({ chatJid: SPAM, spam: true });
+  });
+
+  it('blocks without marking spam when not asked', async () => {
+    await incoming(SPAM, { text: 'hello' });
+    const r = await chatAct(SPAM, 'block', admin.cookie);
+    expect(SafetyChatState.parse(r.json())).toMatchObject({
+      scam: false,
+      blocked: { auto: false },
+    });
+  });
+
+  it('is for admins only, and refuses a group or an unknown chat', async () => {
+    await incoming(SPAM, { text: 'hello' });
+    expect((await chatAct(SPAM, 'block', agent.cookie)).statusCode).toBe(403);
+    expect(t.wa.blocked.has(SPAM)).toBe(false);
+    expect((await chatAct(SPAM, 'mute', admin.cookie)).statusCode).toBe(400);
+    expect((await chatAct('60100000000@s.whatsapp.net', 'block', admin.cookie)).statusCode).toBe(
+      404,
+    );
+    t.ctx.db
+      .prepare(
+        "INSERT INTO chats (jid, wa_jid, type, name, inbox_id, status, updated_at) VALUES ('1203@g.us', '1203@g.us', 'group', 'Team', 1, 'open', 0)",
+      )
+      .run();
+    const group = await chatAct('1203@g.us', 'block', admin.cookie);
+    expect(group.statusCode).toBe(409);
+  });
+});
+
+describe('Block any chat: per inbox and the flagged items', () => {
+  const X = '60177000111@s.whatsapp.net';
+  const chatAct = (jid: string, action: string, payload: object = {}) =>
+    t.app.inject({
+      method: 'POST',
+      url: `/api/safety/chats/${encodeURIComponent(jid)}/${action}`,
+      headers: authHeaders(admin.cookie),
+      payload,
+    });
+  const bar = async (jid: string) =>
+    SafetyChatState.parse(
+      (
+        await t.app.inject({
+          method: 'GET',
+          url: `/api/safety/chats/${encodeURIComponent(jid)}`,
+          headers: authHeaders(admin.cookie),
+        })
+      ).json(),
+    );
+
+  it('a block on one inbox is not a block of the same customer on another inbox', async () => {
+    await incoming(X, { text: 'hello sales' });
+    // The same customer also writes to inbox 2 (chat key `<waJid>#2`).
+    t.ctx.db
+      .prepare(
+        "INSERT INTO inboxes (id, name, tone, auth_dir, created_at, removed_at) VALUES (2, 'Support', 'info', 'x', 0, NULL)",
+      )
+      .run();
+    t.ctx.db
+      .prepare(
+        "INSERT INTO chats (jid, wa_jid, type, name, inbox_id, status, updated_at) VALUES (?, ?, 'dm', 'X', 2, 'open', 0)",
+      )
+      .run(`${X}#2`, X);
+    expect((await chatAct(X, 'block')).statusCode).toBe(200);
+
+    const safety = t.ctx.services.safety!;
+    expect(safety.isBlocked(X, 1)).toBe(true);
+    expect(safety.isBlocked(X, 2)).toBe(false);
+    // The other inbox's chat is not shown as blocked, cannot unblock it, and cannot block again
+    // until the block on inbox 1 is undone.
+    expect(await bar(`${X}#2`)).toMatchObject({ blocked: null, canBlock: false });
+    expect((await chatAct(`${X}#2`, 'unblock')).statusCode).toBe(409);
+    expect(t.wa.blocked.has(X)).toBe(true);
+  });
+
+  it('an older block with no inbox still counts for every inbox', () => {
+    t.ctx.db
+      .prepare(
+        'INSERT INTO safety_numbers (wa_jid, blocked_at, blocked_inbox_id) VALUES (?, 1, NULL)',
+      )
+      .run(X);
+    expect(t.ctx.services.safety!.isBlocked(X, 1)).toBe(true);
+    expect(t.ctx.services.safety!.isBlocked(X, 2)).toBe(true);
+  });
+
+  it('blocking and unblocking from the chat moves its flagged item like Admin → Safety does', async () => {
+    await incoming(X, { text: LURE_TEXT, file: lureZip() });
+    const item = (await state()).items[0]!;
+    expect(item.status).toBe('open');
+
+    await chatAct(X, 'block', { spam: true });
+    expect((await state()).items[0]).toMatchObject({ status: 'blocked', blocked: true });
+
+    await chatAct(X, 'unblock');
+    // Marked as spam: back to Reported, like Unblock in Admin → Safety.
+    expect((await state()).items[0]).toMatchObject({ status: 'reported', blocked: false });
   });
 });

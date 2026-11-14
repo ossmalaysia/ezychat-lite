@@ -2,7 +2,7 @@ import { createRef } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MEDIA_UPLOAD_LIMIT_BYTES } from '@ezychat/shared';
+import { TUNNEL_UPLOAD_LIMIT_BYTES } from '@ezychat/shared';
 import { Composer, type ComposerHandle } from './Composer';
 
 const toastError = vi.hoisted(() => vi.fn());
@@ -138,18 +138,51 @@ describe('Composer attachments', () => {
     expect(onAttach).not.toHaveBeenCalled();
   });
 
-  it('refuses a file over the upload limit and an eleventh file with a message', () => {
+  it('refuses a file over 100 MB through the internet address, and an eleventh file', () => {
     const ref = createRef<ComposerHandle>();
     render(<Composer ref={ref} quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
     const big = new File(['x'], 'video.mov', { type: 'video/quicktime' });
-    Object.defineProperty(big, 'size', { value: MEDIA_UPLOAD_LIMIT_BYTES + 1 });
+    Object.defineProperty(big, 'size', { value: TUNNEL_UPLOAD_LIMIT_BYTES + 1 });
+    const location = window.location;
+    vi.stubGlobal('location', { ...location, hostname: 'inbox.example.com' });
     act(() => ref.current!.addFiles([big]));
-    expect(toastError).toHaveBeenCalledWith('video.mov is larger than 64 MB and can’t be sent.');
+    vi.unstubAllGlobals();
+    expect(toastError).toHaveBeenCalledWith(
+      'video.mov is larger than 100 MB. Through the internet address only files up to 100 MB can be sent; larger files work on the computer that runs EzyChat or on the local network.',
+    );
     expect(screen.queryByTestId('attachment-tray')).toBeNull();
     const many = Array.from({ length: 11 }, (_, i) => new File(['f'], `f${i}.txt`));
     act(() => ref.current!.addFiles(many));
     expect(screen.getByTestId('attachment-tray').textContent).toContain('10 files to send');
     expect(toastError).toHaveBeenLastCalledWith('Up to 10 files at a time: f10.txt was not added.');
+  });
+
+  it('takes a file of any size on this computer: no size cap of the app’s own', () => {
+    const ref = createRef<ComposerHandle>();
+    render(<Composer ref={ref} quickReplies={[]} onSend={vi.fn()} onAttach={vi.fn()} />);
+    const big = new File(['x'], 'catalogue.pdf', { type: 'application/pdf' });
+    Object.defineProperty(big, 'size', { value: 3 * 1024 ** 3 });
+    act(() => ref.current!.addFiles([big]));
+    expect(toastError).not.toHaveBeenCalled();
+    expect(screen.getByTestId('attachment-tray').textContent).toContain('catalogue.pdf');
+  });
+
+  it("refuses a file above what the chat's WhatsApp number takes, naming that limit", () => {
+    const ref = createRef<ComposerHandle>();
+    render(
+      <Composer
+        ref={ref}
+        quickReplies={[]}
+        onSend={vi.fn()}
+        onAttach={vi.fn()}
+        mediaLimits={{ image: 5 * 1024 * 1024, document: 100 * 1024 * 1024 }}
+      />,
+    );
+    const photo = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(photo, 'size', { value: 6 * 1024 * 1024 });
+    act(() => ref.current!.addFiles([photo]));
+    expect(toastError).toHaveBeenCalledWith('photo.jpg is larger than 5.0 MB and can’t be sent.');
+    expect(screen.queryByTestId('attachment-tray')).toBeNull();
   });
 
   it('takes no files while sending is blocked, and asks before sending them', async () => {

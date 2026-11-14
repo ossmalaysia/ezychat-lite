@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { WaStatus } from '@ezychat/shared';
 import { FakeWaAdapter, WaUnavailableError } from '../index.js';
@@ -165,12 +168,75 @@ describe('FakeWaAdapter', () => {
     expect(wa.sent).toHaveLength(1);
   });
 
+  it('sendText under a given messageId reuses it, and skipNextDelivery withholds one receipt', async () => {
+    const wa = new FakeWaAdapter();
+    await wa.connect();
+    const statuses: string[] = [];
+    wa.on('messageStatus', (u) => statuses.push(`${u.id}:${u.status}`));
+    wa.skipNextDelivery();
+    const res = await wa.sendText('601111@s.whatsapp.net', 'again', { messageId: 'WA-SAME' });
+    await new Promise((r) => setImmediate(r));
+    expect(res.id).toBe('WA-SAME');
+    expect(wa.sent.at(-1)?.id).toBe('WA-SAME');
+    expect(statuses).toEqual(['WA-SAME:sent']);
+    const media = await wa.sendMedia(
+      '601111@s.whatsapp.net',
+      { buffer: Buffer.from('x'), mime: 'image/png', fileName: 'a.png' },
+      { messageId: 'WA-MEDIA' },
+    );
+    expect(media.id).toBe('WA-MEDIA');
+  });
+
   it('sendMedia records file', async () => {
     const wa = new FakeWaAdapter();
     await wa.connect();
     const file = { buffer: Buffer.from('abc'), mime: 'image/png', fileName: 'a.png' };
     const res = await wa.sendMedia('601111@s.whatsapp.net', file);
     expect(wa.sent[0]).toEqual({ chatJid: '601111@s.whatsapp.net', file, id: res.id });
+  });
+
+  it('records the Forwarded mark, reads a file given by path, and marks a forwarded incoming message', async () => {
+    const wa = new FakeWaAdapter();
+    await wa.connect();
+    await wa.sendText('601111@s.whatsapp.net', 'fwd', { forwarded: { score: 2 } });
+    expect(wa.sent[0]).toMatchObject({ text: 'fwd', forwarded: { score: 2 } });
+    const dir = mkdtempSync(join(tmpdir(), 'fake-wa-'));
+    try {
+      const path = join(dir, 'v.mp4');
+      writeFileSync(path, 'from disk');
+      const file = {
+        get buffer(): Buffer {
+          throw new Error('the buffer of a file given by path is never read');
+        },
+        path,
+        mime: 'video/mp4',
+        fileName: 'v.mp4',
+        caption: 'hall',
+        asDocument: true,
+      };
+      const res = await wa.sendMedia('601111@s.whatsapp.net', file, { forwarded: { score: 1 } });
+      expect(wa.sent[1]).toEqual({
+        chatJid: '601111@s.whatsapp.net',
+        id: res.id,
+        forwarded: { score: 1 },
+        file: {
+          buffer: Buffer.from('from disk'),
+          path,
+          mime: 'video/mp4',
+          fileName: 'v.mp4',
+          caption: 'hall',
+          asDocument: true,
+        },
+      });
+      expect(await wa.downloadMedia(res.id)).toEqual(Buffer.from('from disk'));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+    const got: WaIncomingMessage[] = [];
+    wa.on('message', (m: WaIncomingMessage) => got.push(m));
+    wa.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'x', forwardingScore: 5 });
+    wa.simulateIncoming({ chatJid: '601111@s.whatsapp.net', body: 'y' });
+    expect(got.map((m) => m.forwardingScore)).toEqual([5, undefined]);
   });
 
   it('simulateStatus merges and emits', () => {
@@ -359,5 +425,86 @@ describe('FakeWaAdapter options for several inboxes', () => {
     ]);
     await tick();
     expect(statuses).toEqual(['sent', 'delivered']);
+  });
+});
+
+describe('FakeWaAdapter edits and deletes', () => {
+  it('records edits and deletes it sends, without an echo; offline refuses them', async () => {
+    const wa = new FakeWaAdapter();
+    const events: string[] = [];
+    wa.on('messageEdited', () => events.push('edited'));
+    wa.on('messageDeleted', () => events.push('deleted'));
+    await expect(
+      wa.editText('601@s.whatsapp.net', { id: 'M1', fromMe: true }, 'x'),
+    ).rejects.toBeInstanceOf(WaUnavailableError);
+    await wa.connect();
+    const edit = await wa.editText('601@s.whatsapp.net', { id: 'M1', fromMe: true }, 'new');
+    const del = await wa.deleteForEveryone('601@s.whatsapp.net', { id: 'M2', fromMe: true });
+    await wa.deleteForMe('601@s.whatsapp.net', { id: 'M3', fromMe: false }, 123);
+    expect(edit.id).toMatch(/-EDIT-/);
+    expect(del.id).toMatch(/-REVOKE-/);
+    expect(wa.changes).toEqual([
+      {
+        kind: 'edit',
+        chatJid: '601@s.whatsapp.net',
+        target: { id: 'M1', fromMe: true },
+        text: 'new',
+      },
+      {
+        kind: 'deleteForEveryone',
+        chatJid: '601@s.whatsapp.net',
+        target: { id: 'M2', fromMe: true },
+      },
+      {
+        kind: 'deleteForMe',
+        chatJid: '601@s.whatsapp.net',
+        target: { id: 'M3', fromMe: false },
+        timestamp: 123,
+      },
+    ]);
+    expect(events).toEqual([]);
+  });
+
+  it('simulates edits and deletes from the customer, a group member and the phone', () => {
+    const wa = new FakeWaAdapter();
+    const seen: Array<{ kind: string; sender: string | null; fromMe: boolean; source: string }> =
+      [];
+    wa.on('messageEdited', (e, meta) =>
+      seen.push({
+        kind: `edit:${e.body}`,
+        sender: e.senderJid,
+        fromMe: e.fromMe,
+        source: meta.source,
+      }),
+    );
+    wa.on('messageDeleted', (r, meta) =>
+      seen.push({ kind: 'delete', sender: r.senderJid, fromMe: r.fromMe, source: meta.source }),
+    );
+    const e = wa.simulateEdit({ chatJid: '601@s.whatsapp.net', targetId: 'M1', body: 'b' });
+    expect(e).toMatchObject({ targetId: 'M1', chatJidAlt: null, senderJidAlt: null });
+    expect(typeof e.timestamp).toBe('number');
+    wa.simulateRevoke({ chatJid: '1203@g.us', targetId: 'G1', senderJid: '602@s.whatsapp.net' });
+    wa.simulateRevoke({ chatJid: '1203@g.us', targetId: 'G2' }, 'history');
+    wa.simulateRevoke({
+      chatJid: '601@s.whatsapp.net',
+      targetId: 'M2',
+      fromMe: true,
+      timestamp: 5,
+    });
+    expect(seen).toEqual([
+      { kind: 'edit:b', sender: '601@s.whatsapp.net', fromMe: false, source: 'live' },
+      { kind: 'delete', sender: '602@s.whatsapp.net', fromMe: false, source: 'live' },
+      { kind: 'delete', sender: null, fromMe: false, source: 'history' },
+      { kind: 'delete', sender: null, fromMe: true, source: 'live' },
+    ]);
+  });
+
+  it('a linked phone can edit and delete; the default capabilities say so', async () => {
+    const { LINKED_PHONE_CAPABILITIES } = await import('../types.js');
+    expect(LINKED_PHONE_CAPABILITIES).toMatchObject({
+      editMessage: true,
+      deleteForEveryone: true,
+      deleteForMe: true,
+    });
   });
 });

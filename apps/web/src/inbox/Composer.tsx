@@ -16,7 +16,6 @@ import {
 import {
   completionReady,
   matchPhrase,
-  MEDIA_UPLOAD_LIMIT_BYTES,
   type GroupMember,
   type QuickReply,
   type ReplyPhraseListItem,
@@ -49,12 +48,13 @@ import {
   checkAttachments,
   filesFromTransfer,
   formatBytes,
+  isTunnelHost,
+  type MediaLimits,
 } from '@/lib/file-transfer';
 import {
   FixEnglishButton,
   FixEnglishCard,
   FixEnglishMarks,
-  applyFixes,
   useFixEnglish,
   type FixIssue,
 } from './FixEnglish';
@@ -96,7 +96,7 @@ export interface ComposerProps {
   replyTo?: { id: string; author: string; preview: string } | null;
   onCancelReply?(): void;
   /**
-   * AI reply suggestions in this chat (direct chats only; null = off). `unavailable` shows the
+   * AI reply suggestions in this chat (direct chats and groups; null = off). `unavailable` shows the
    * button disabled. The chips clear when `lastCustomerMessageId` changes (a new customer message).
    */
   ref?: React.Ref<ComposerHandle>;
@@ -108,13 +108,15 @@ export interface ComposerProps {
     /** The team's phrase list, matched on every key (docs/features/ai-phrase-dictionary). */
     phrases?: readonly ReplyPhraseListItem[];
   } | null;
-  /** Ask Ezy (docs/features/ask-ezy/design.md): direct chats only; opens Ezy scoped to this chat. */
+  /** Ask Ezy (docs/features/ask-ezy/design.md): direct chats and groups; opens Ezy scoped to this chat. */
   askEzy?: { chatJid: string; name: string } | null;
   /**
    * Tag group members with `@` (docs/features/group-mentions/design.md): a group whose connection
    * can tag. `members` is null while loading; `onOpen` runs when the picker opens. Null: no picker.
    */
   mentions?: { members: GroupMember[] | null; error: boolean; onOpen(): void } | null;
+  /** What this chat's WhatsApp number takes per kind of file (bytes); absent = the upload limit. */
+  mediaLimits?: MediaLimits | null;
   /**
    * Fix English (docs/features/grammar-fix/design.md): spelling and grammar marks in this chat
    * (any chat type; null or a status with both checks off = nothing shown).
@@ -178,6 +180,7 @@ export function Composer({
   askEzy = null,
   fixEnglish = null,
   mentions = null,
+  mediaLimits = null,
   ref,
 }: ComposerProps) {
   const { t } = useTranslation('inbox');
@@ -217,13 +220,20 @@ export function Composer({
 
   function addFiles(incoming: readonly File[]) {
     if (disabled || incoming.length === 0) return;
-    const { accepted, rejected } = checkAttachments(incoming, filesRef.current.length);
+    const { accepted, rejected } = checkAttachments(
+      incoming,
+      filesRef.current.length,
+      mediaLimits,
+      {
+        tunnel: isTunnelHost(window.location.hostname),
+      },
+    );
     for (const r of rejected)
       toast.error(
         t(`composer.files.${r.reason}`, {
           name: r.file.name,
           max: MAX_ATTACHMENTS,
-          limit: formatBytes(MEDIA_UPLOAD_LIMIT_BYTES),
+          limit: formatBytes(r.limit ?? 0),
         }),
       );
     if (accepted.length) queueFiles([...filesRef.current, ...accepted]);
@@ -300,7 +310,7 @@ export function Composer({
   function pickFix(issue: FixIssue, replacement: string) {
     pendingCaret.current = issue.start + replacement.length;
     setCard(null);
-    setText(applyFixes(text, [issue], replacement));
+    setText(fix.apply(text, [issue], replacement));
   }
 
   function addWord(issue: FixIssue) {
@@ -311,7 +321,7 @@ export function Composer({
   function fixAll() {
     const count = fix.fixable.length;
     if (!count) return;
-    const next = applyFixes(text, fix.fixable);
+    const next = fix.apply(text, fix.fixable);
     pendingCaret.current = next.length;
     setCard(null);
     setFixUndo({ before: text, after: next, count });

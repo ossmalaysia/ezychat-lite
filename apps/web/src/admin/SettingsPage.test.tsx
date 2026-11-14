@@ -17,9 +17,11 @@ vi.mock('./AiConnectionSection', () => ({
 }));
 vi.mock('./PhraseDictionarySection', () => ({ PhraseDictionarySection: () => null }));
 vi.mock('./FixEnglishSection', () => ({ FixEnglishSection: () => <p>Fix English card</p> }));
+vi.mock('./NewChatSection', () => ({ NewChatSection: () => <p>New chats card</p> }));
 vi.mock('./ReplySuggestionsSection', () => ({
   ReplySuggestionsSection: () => <p>Reply suggestions card</p>,
 }));
+vi.mock('./AskEzySettingsSection', () => ({ AskEzySettingsSection: () => <p>Ask Ezy card</p> }));
 vi.mock('./AiVoiceSection', () => ({ AiVoiceSection: () => <p>Voice messages card</p> }));
 vi.mock('./CustomerEnrichmentSection', () => ({
   CustomerEnrichmentSection: () => <p>Customer enrichment card</p>,
@@ -79,6 +81,7 @@ it('shows the AI connection inline on the AI tab (no popup)', () => {
   renderAt('/admin/settings/ai');
   expect(screen.getByText('Inline AI connection')).toBeTruthy();
   expect(screen.getByText('Reply suggestions card')).toBeTruthy();
+  expect(screen.getByText('Ask Ezy card')).toBeTruthy();
   expect(screen.getByText('Voice messages card')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Configure AI connection' })).toBeNull();
   expect(patch.mutate).not.toHaveBeenCalled();
@@ -102,11 +105,13 @@ it('preserves edited fields through a background refresh while updating untouche
   const port = screen.getByRole('spinbutton', { name: 'Port' }) as HTMLInputElement;
   await user.clear(port);
   await user.type(port, '7550');
-  await user.click(screen.getByRole('switch'));
+  await user.click(screen.getByRole('switch', { name: /local network/ }));
   settings = { port: 7440, lanEnabled: false, historyDays: 10 };
   view.rerender(tree('/admin/settings/general'));
   expect(port.value).toBe('7550');
-  expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true');
+  expect(screen.getByRole('switch', { name: /local network/ }).getAttribute('aria-checked')).toBe(
+    'true',
+  );
   expect(
     (
       screen.getByRole('spinbutton', {
@@ -210,7 +215,7 @@ it('shows the restart banner only on the General tab', async () => {
   patch.mutate.mockImplementationOnce((_b, o) => o.onSuccess({ restartRequired: true }));
   renderAt();
   const user = userEvent.setup();
-  await user.click(screen.getByRole('switch'));
+  await user.click(screen.getByRole('switch', { name: /local network/ }));
   await user.click(screen.getByRole('button', { name: 'Save settings' }));
   expect(screen.getByText('Restart required')).toBeTruthy();
   await user.click(screen.getByRole('tab', { name: 'AI' }));
@@ -237,7 +242,7 @@ it('marks unsaved general settings next to Save', async () => {
   renderAt();
   const user = userEvent.setup();
   expect(screen.queryByText('Unsaved')).toBeNull();
-  await user.click(screen.getByRole('switch'));
+  await user.click(screen.getByRole('switch', { name: /local network/ }));
   expect(screen.getByText('Unsaved')).toBeTruthy();
 });
 

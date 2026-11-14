@@ -10,6 +10,9 @@ export const SCREEN_ROUTES = [
   ['inbox', '/'],
   ['conversation', `/chats/${encodeURIComponent(SMOKE_CHAT)}`],
   ['conversation-customer', `/chats/${encodeURIComponent(SMOKE_CHAT)}?customer=1`],
+  // App navigation: the account page, and /admin (phones: the Settings list; desktop: App settings).
+  ['account', '/account'],
+  ['admin-home', '/admin'],
   ['admin-reports', '/admin/reports'],
   ['admin-members', '/admin/members'],
   ['admin-members-ai', '/admin/members/ai'],

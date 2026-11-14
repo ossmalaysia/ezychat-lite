@@ -10,6 +10,7 @@ import {
   type AiAgentSummary,
   type AiDocument,
   type AiMemberStatus,
+  type AgentTemplateCatalog,
 } from '@ezychat/shared';
 import { AiMemberPage } from './AiMemberPage';
 import {
@@ -42,6 +43,8 @@ interface World {
   inboxes: { id: number; name: string; aiAgentId: number | null }[];
   /** The connection uses a Claude API key instead of an OpenAI one. */
   claude?: boolean;
+  /** The signed template list (GET /api/ai/templates); none answers 404 (the app's own show). */
+  templates?: AgentTemplateCatalog;
 }
 function agentStatus(
   id = 5,
@@ -57,6 +60,8 @@ function agentStatus(
     preset: 'sales',
     inboxId: 1,
     documentCount: documents.length,
+    answerDirect: true,
+    groupCount: 0,
     ...patch,
   };
   return {
@@ -129,6 +134,8 @@ function setup(
     const id = agentMatch ? Number(agentMatch[1]) : 0;
     const rest = agentMatch?.[2] ?? '';
     if (url === '/api/ai') return json(memberStatus(w));
+    if (url === '/api/ai/templates' || url === '/api/ai/templates/refresh')
+      return w.templates ? json(w.templates) : notFound();
     if (url === '/api/ai/agents' && method === 'GET') return json(list());
     if (url === '/api/ai/agents' && method === 'POST') {
       const body = JSON.parse(String(init!.body)) as AiAgentBody;
@@ -226,8 +233,12 @@ function setup(
   );
   return { fetchMock, world: w };
 }
+/** Requests that change something (the gallery's check for new templates changes nothing). */
 const writes = (fetchMock: ReturnType<typeof vi.fn>) =>
-  fetchMock.mock.calls.filter((call) => call[1]?.method && call[1].method !== 'GET');
+  fetchMock.mock.calls.filter(
+    (call) =>
+      call[1]?.method && call[1].method !== 'GET' && call[0] !== '/api/ai/templates/refresh',
+  );
 const writeLines = (fetchMock: ReturnType<typeof vi.fn>) =>
   writes(fetchMock).map((call) => `${call[1]!.method} ${call[0]}`);
 const lastBody = (fetchMock: ReturnType<typeof vi.fn>) =>
@@ -346,9 +357,10 @@ describe('AI agent page', () => {
       'Connectors',
       'Closing chats',
       'Groups',
+      'Scheduled tasks',
       'Try it',
       'Role',
-      'Hand-over rules',
+      'Hand-off rules',
     ]);
     // The safety rules are a closed section after the cards, not a card.
     expect(screen.getByTestId('safety-rules').textContent).toContain('Always-on safety rules');
@@ -507,9 +519,9 @@ describe('AI agent page', () => {
     expect(lastBody(fetchMock)).toMatchObject({ enabled: false });
   });
 
-  it('keeps the role and hand-over rules in a closed Advanced section', async () => {
+  it('keeps the role and hand-off rules in a closed Advanced section', async () => {
     setup();
-    const summary = await screen.findByText('Advanced: role and hand-over rules');
+    const summary = await screen.findByText('Advanced: role and hand-off rules');
     const details = summary.closest('details')!;
     expect(details.open).toBe(false);
     expect(within(details).getByText('Using recommended settings')).toBeTruthy();
@@ -520,7 +532,7 @@ describe('AI agent page', () => {
   it('says Customised and offers the template, which asks before replacing the texts', async () => {
     setup(world({ agents: [agentStatus(5, {}, { instructions: 'Only answer in haiku.' })] }));
     const user = userEvent.setup();
-    const summary = await screen.findByText('Advanced: role and hand-over rules');
+    const summary = await screen.findByText('Advanced: role and hand-off rules');
     expect(within(summary.closest('details')!).getByText('Customised')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Use the Sales template' }));
     const confirm = await screen.findByRole('alertdialog');
@@ -560,7 +572,7 @@ describe('AI agent page', () => {
       const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
       expect(role.startsWith(FAQ.instructions)).toBe(true);
       expect(role).toContain('You answer for a clinic');
-      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toContain(
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toContain(
         'describes symptoms',
       );
       const picker = screen.getByRole('radiogroup', { name: 'Starting point' });
@@ -622,6 +634,185 @@ describe('AI agent page', () => {
         'Only answer in haiku.',
       );
       expect(screen.queryByText(/Save also adds the Business context item/)).toBeNull();
+    });
+
+    /** Answers the two group switches of a new agent; `fail` refuses "Answer in groups". */
+    const groupSwitches =
+      (fail = false): Respond =>
+      (url, init) => {
+        if (init?.method !== 'PUT' || !/^\/api\/ai\/agents\/\d+\/(groups|direct)$/.test(url))
+          return undefined;
+        if (fail) return json({ error: { code: 'internal', message: 'Failed' } }, 500);
+        const enabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
+        const direct = url.endsWith('/direct');
+        return json({
+          enabled: direct ? true : enabled,
+          inboxName: 'Claims line',
+          groups: [],
+          loopGuard: 10,
+          answerDirect: direct ? enabled : true,
+          directAvailable: true,
+          heldDirect: 0,
+        });
+      };
+
+    it('applies a template from the signed list and checks for new ones when the gallery opens', async () => {
+      const text = {
+        agentName: 'Venue assistant',
+        name: 'Event venue',
+        description: 'Answers about halls and packages.',
+        keywords: '',
+        focus: 'BUSINESS\nYou answer for an event venue.',
+        handoffRules: '- The customer wants to book a date',
+        contextName: 'Venue details',
+        contextText: 'Halls:\nPackages:',
+      };
+      const templates: AgentTemplateCatalog = {
+        status: {
+          state: 'loaded',
+          generatedAt: '2026-11-04T10:00:00.000Z',
+          sequence: 2,
+          checkedAt: 1,
+        },
+        categories: [{ id: 'events', name: { en: 'Events' } }],
+        templates: [
+          {
+            entry: {
+              id: 'venue',
+              version: 1,
+              schemaVersion: 1,
+              minAppVersion: '0.1.0',
+              editions: ['lite'],
+              category: 'events',
+              icon: 'party-popper',
+              preset: 'sales',
+              texts: { en: text },
+            },
+            connectors: [],
+          },
+        ],
+      };
+      const w = world({ maxAgents: 2, agents: [agentStatus()], templates });
+      const { fetchMock } = setup(w, '/admin/members/ai/new?preset=sales');
+      const user = userEvent.setup();
+      await applyTemplate(user, 'Event venue');
+      expect(fetchMock.mock.calls.map((call) => `${call[1]?.method ?? 'GET'} ${call[0]}`)).toEqual(
+        expect.arrayContaining(['GET /api/ai/templates', 'POST /api/ai/templates/refresh']),
+      );
+      const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
+      expect(role.startsWith(SALES.instructions)).toBe(true);
+      expect(role.endsWith('You answer for an event venue.')).toBe(true);
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Venue assistant',
+      );
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+      ]);
+      expect(lastBody(fetchMock)).toEqual({ name: 'Venue details', text: 'Halls:\nPackages:' });
+    });
+
+    it('creates a Claims agent as a group-only Custom agent with its Claim rules', async () => {
+      const { fetchMock } = setup(
+        world({ maxAgents: 2, agents: [agentStatus()] }),
+        '/admin/members/ai/new?preset=sales',
+        groupSwitches(),
+      );
+      const user = userEvent.setup();
+      const card = await applyTemplate(user, 'Claims agent');
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Claims assistant',
+      );
+      const role = (screen.getByLabelText('Role (instructions)') as HTMLTextAreaElement).value;
+      // Its own text only: no sales or FAQ starting text before it.
+      expect(role.startsWith('CLAIMS\n')).toBe(true);
+      expect(role).toContain('save it as a new row in the tab "Claims"');
+      expect(role).not.toContain(SALES.instructions.split('\n')[0]);
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toContain(
+        'approved, rejected or paid',
+      );
+      const picker = screen.getByRole('radiogroup', { name: 'Starting point' });
+      expect(
+        (within(picker).getByRole('radio', { name: /Custom/ }) as HTMLButtonElement).dataset.state,
+      ).toBe('checked');
+      expect(within(card).getByTestId('group-setup').textContent).toContain(
+        'Save also makes it a group agent',
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+        'PUT /api/ai/agents/8/groups',
+        'PUT /api/ai/agents/8/direct',
+      ]);
+      const bodies = writes(fetchMock).map((call) => JSON.parse(String(call[1]!.body)));
+      expect(bodies[0]).toMatchObject({ preset: 'custom', instructions: role });
+      expect(bodies[1].name).toBe('Claim rules');
+      expect(bodies[1].text.split('\n')).toContain('Submission deadline:');
+      expect(bodies.slice(2)).toEqual([{ enabled: true }, { enabled: false }]);
+    });
+
+    it('keeps the new Claims agent when its group settings fail', async () => {
+      const { fetchMock } = setup(
+        world({ maxAgents: 2, agents: [agentStatus()] }),
+        '/admin/members/ai/new?preset=sales',
+        groupSwitches(true),
+      );
+      const user = userEvent.setup();
+      await applyTemplate(user, 'Claims agent');
+      await user.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/8'),
+      );
+      // Answer direct chats stays on when Answer in groups could not be turned on.
+      expect(writeLines(fetchMock)).toEqual([
+        'POST /api/ai/agents',
+        'POST /api/ai/agents/8/documents/text',
+        'PUT /api/ai/agents/8/groups',
+      ]);
+    });
+
+    it('only tells an existing agent which switches to change (its chats stay)', async () => {
+      const { fetchMock } = setup(world(), undefined, groupSwitches());
+      const user = userEvent.setup();
+      const card = await applyTemplate(user, 'Claims agent');
+      // Unedited Sales texts: replaced at once, and the saved name is kept.
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect((screen.getByLabelText('Agent name') as HTMLInputElement).value).toBe(
+        'Sales Assistant',
+      );
+      expect(within(card).getByTestId('group-setup').textContent).toContain(
+        'turn on Answer in groups and turn off Answer direct chats',
+      );
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() =>
+        expect(writeLines(fetchMock)).toEqual([
+          'PUT /api/ai/agents/5',
+          'POST /api/ai/agents/5/documents/text',
+        ]),
+      );
+      // The steps stay in view after Save.
+      expect(within(card).getByTestId('group-setup')).toBeTruthy();
+    });
+
+    it('drops the group note when another template replaces Claims', async () => {
+      setup(world({ maxAgents: 2 }), '/admin/members/ai/new?preset=sales');
+      const user = userEvent.setup();
+      const card = await applyTemplate(user, 'Claims agent');
+      expect(within(card).getByTestId('group-setup')).toBeTruthy();
+      await applyTemplate(user, 'Clinic');
+      // The Claims texts are not a type's starting text, so it asks first.
+      const confirm = await screen.findByRole('alertdialog');
+      await user.click(within(confirm).getByRole('button', { name: 'Apply template' }));
+      await waitFor(() => expect(within(card).queryByTestId('group-setup')).toBeNull());
     });
   });
 
@@ -717,10 +908,10 @@ describe('AI agent page', () => {
   it('saves edits, then clears the stored draft', async () => {
     const { fetchMock } = setup();
     const user = userEvent.setup();
-    const rules = await screen.findByLabelText('Hand-over rules');
+    const rules = await screen.findByLabelText('Hand-off rules');
     await user.clear(rules);
     await user.type(rules, '- The customer asks for a wholesale price');
-    expect(screen.getByText(/Always handed over, whatever you write here/)).toBeTruthy();
+    expect(screen.getByText(/Always handed off, whatever you write here/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
     expect(lastBody(fetchMock).handoffRules).toBe('- The customer asks for a wholesale price');
@@ -741,7 +932,7 @@ describe('AI agent page', () => {
     await user.click(within(card).getByRole('button', { name: 'Change' }));
     await user.click(within(card).getByRole('radio', { name: /FAQ/ }));
     expect(screen.getByTestId('preset-badge').textContent).toBe('FAQ agent');
-    expect(within(card).getByText('The role and hand-over rules are your own texts.')).toBeTruthy();
+    expect(within(card).getByText('The role and hand-off rules are your own texts.')).toBeTruthy();
     expect(within(card).getByRole('button', { name: 'Use the FAQ template' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
@@ -812,7 +1003,7 @@ describe('AI agent page', () => {
         'Starting point',
         'Name',
         'Role',
-        'Hand-over rules',
+        'Hand-off rules',
       ]);
       expect(screen.getByRole('heading', { name: 'New AI agent' })).toBeTruthy();
       expect(
@@ -840,8 +1031,8 @@ describe('AI agent page', () => {
         preset: 'faq',
         instructions: FAQ.instructions,
         handoffRules: FAQ.handoffRules,
-        // Every inbox has an agent: the new one answers none until it is bound.
-        inboxId: null,
+        // Every inbox has an agent: the new one shares the first inbox (it works in groups there).
+        inboxId: 1,
       });
       expect(sessionStorage.getItem('wati.ai-draft.new-faq')).toBeNull();
     });
@@ -877,18 +1068,12 @@ describe('AI agent page', () => {
       expect(screen.queryByTestId('agent-extension-sections')).toBeNull();
     });
 
-    it('says how to get an inbox when every inbox has an agent (Enterprise)', async () => {
+    it('starts a new agent on a shared inbox when every inbox has an agent (Enterprise)', async () => {
       setup(enterprise({ maxAgents: 3 }), '/admin/members/ai/new');
-      const hint = await screen.findByTestId('no-free-inbox');
-      expect(hint.textContent).toContain(
-        'Every inbox has an AI agent. Add an inbox to give this agent its own number.',
-      );
-      expect(within(hint).getByRole('link', { name: 'Add an inbox' }).getAttribute('href')).toBe(
-        '/admin/inboxes',
-      );
-      expect(within(screen.getByTestId('agent-inbox')).getByRole('combobox').textContent).toBe(
-        'None (the agent does not answer any chat)',
-      );
+      const select = within(await screen.findByTestId('agent-inbox')).getByRole('combobox');
+      await waitFor(() => expect(select.textContent).not.toBe(''));
+      expect(select.textContent).not.toBe('None (the agent does not answer any chat)');
+      expect(screen.queryByTestId('no-free-inbox')).toBeNull();
     });
 
     it('switches the starting texts directly while unedited, and asks once edited', async () => {
@@ -954,43 +1139,17 @@ describe('AI agent page', () => {
       ).toBeTruthy();
     });
 
-    it('moving to an inbox with another agent warns, frees it, then saves the binding', async () => {
+    it('moving to an inbox with a direct-chat agent warns and saves without moving that agent', async () => {
       const { fetchMock } = setup(enterprise());
       const user = userEvent.setup();
       const select = within(await screen.findByTestId('agent-inbox')).getByRole('combobox');
       await waitFor(() => expect(select.textContent).toBe('Sales line'));
       await user.click(select);
       await user.click(await screen.findByRole('option', { name: 'Support line (has Help Desk)' }));
-      expect(screen.getByText(/Help Desk answers Support line now/)).toBeTruthy();
+      expect(screen.getByText(/Help Desk answers the direct chats of Support line/)).toBeTruthy();
       await user.click(screen.getByRole('button', { name: 'Save' }));
-      await waitFor(() =>
-        expect(writeLines(fetchMock)).toEqual(['PATCH /api/inboxes/2', 'PUT /api/ai/agents/5']),
-      );
-      expect(JSON.parse(String(writes(fetchMock)[0]![1]!.body))).toEqual({ aiAgentId: null });
+      await waitFor(() => expect(writeLines(fetchMock)).toEqual(['PUT /api/ai/agents/5']));
       expect(lastBody(fetchMock)).toMatchObject({ inboxId: 2 });
-    });
-
-    it('gives the inbox back to the other agent when the save after freeing it fails', async () => {
-      const { fetchMock } = setup(enterprise(), '/admin/members/ai/5', (url, init) =>
-        url === '/api/ai/agents/5' && init?.method === 'PUT'
-          ? json({ error: { code: 'inbox_has_agent', message: 'Inbox has agent' } }, 409)
-          : undefined,
-      );
-      const user = userEvent.setup();
-      const select = within(await screen.findByTestId('agent-inbox')).getByRole('combobox');
-      await waitFor(() => expect(select.textContent).toBe('Sales line'));
-      await user.click(select);
-      await user.click(await screen.findByRole('option', { name: 'Support line (has Help Desk)' }));
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-      expect(
-        await screen.findByText('This inbox already has an AI agent. Choose another inbox.'),
-      ).toBeTruthy();
-      expect(writeLines(fetchMock)).toEqual([
-        'PATCH /api/inboxes/2',
-        'PUT /api/ai/agents/5',
-        'PATCH /api/inboxes/2',
-      ]);
-      expect(lastBody(fetchMock)).toEqual({ aiAgentId: 6 });
     });
 
     it('keeps the agent and shows why when Delete is refused', async () => {
@@ -1039,7 +1198,7 @@ describe('AI agent page', () => {
         .getByText(title, { selector: '[data-slot="card-title"]' })
         .closest('[data-slot="card"]')!;
 
-    it("rewrites the hand-over rules with the agent's route and preset, without saving", async () => {
+    it("rewrites the hand-off rules with the agent's route and preset, without saving", async () => {
       const { fetchMock } = setup(
         world({
           agents: [agentStatus(5, { preset: 'faq' }, { handoffRules: 'Hand off complaints.' })],
@@ -1053,7 +1212,7 @@ describe('AI agent page', () => {
       const user = userEvent.setup();
       await screen.findByText('Business context');
       await user.click(
-        within(card('Hand-over rules') as HTMLElement).getByRole('button', {
+        within(card('Hand-off rules') as HTMLElement).getByRole('button', {
           name: 'Edit with AI',
         }),
       );
@@ -1065,7 +1224,7 @@ describe('AI agent page', () => {
       expect(JSON.parse(String(sent[1]!.body))).toMatchObject({ preset: 'faq' });
       await user.click(within(dialog).getByRole('button', { name: 'Apply to hand-off rules' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect((screen.getByLabelText('Hand-over rules') as HTMLTextAreaElement).value).toBe(
+      expect((screen.getByLabelText('Hand-off rules') as HTMLTextAreaElement).value).toBe(
         'Hand off complaints.\nHand off refunds.',
       );
       expect(screen.getByText('Unsaved')).toBeTruthy();

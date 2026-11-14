@@ -24,19 +24,28 @@ import dev from './dev.js';
 import clientErrors from './client-errors.js';
 import ai from './ai.js';
 import aiGroups from './ai-groups.js';
+import scheduledTasks from './scheduled-tasks.js';
 import directory from './directory.js';
 import integrations from './integrations.js';
 import oauth from './oauth.js';
 import inboxes from './inboxes.js';
+import aiTemplates from './ai-templates.js';
 import templates from './templates.js';
+import newChat from './new-chat.js';
 import replySuggestions from './reply-suggestions.js';
 import askEzy from './ask-ezy.js';
 import fixEnglish from './fix-english.js';
 import connectors from './connectors.js';
+import connectorGoogleSheets from './connector-google-sheets.js';
+import connectorSqlAccount from './connector-sql-account.js';
+import connectorGoogleDrive from './connector-google-drive.js';
+import connectorGitHub from './connector-github.js';
 import connectorList from './connector-list.js';
 import connectorMcp from './connector-mcp.js';
 import reports from './reports.js';
 import safety from './safety.js';
+import liteImport from './lite-import.js';
+import feedback from './feedback.js';
 
 export type RouteModule = (app: FastifyInstance, ctx: AppContext) => Promise<void>;
 
@@ -62,19 +71,28 @@ export const routeModules: RouteModule[] = [
   clientErrors,
   ai,
   aiGroups,
+  scheduledTasks,
   directory,
   integrations,
   oauth,
   inboxes,
+  aiTemplates,
   templates,
+  newChat,
   replySuggestions,
   askEzy,
   fixEnglish,
   connectors,
+  connectorGoogleSheets,
+  connectorSqlAccount,
+  connectorGoogleDrive,
+  connectorGitHub,
   connectorList,
   connectorMcp,
   reports,
   safety,
+  liteImport,
+  feedback,
 ];
 
 /**

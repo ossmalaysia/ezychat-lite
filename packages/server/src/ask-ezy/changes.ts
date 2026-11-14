@@ -5,6 +5,7 @@ import {
   type AskEzyChangeResult,
   type AskEzyChangeStatus,
   type AskEzyChangeTarget,
+  type AskEzyTest,
   type User,
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
@@ -27,6 +28,8 @@ export interface PendingChange {
   status: AskEzyChangeStatus;
   version?: number;
   createdAt: number;
+  /** The test Ezy ran on this text (try_ai_reply with its draft): the card shows it, the model does not repeat it. */
+  test?: AskEzyTest;
 }
 
 export interface ProposeInput {
@@ -36,6 +39,7 @@ export interface ProposeInput {
   name?: string;
   text: string;
   reason: string;
+  test?: AskEzyTest;
 }
 
 /** A pending change lives this long; Apply after that asks to ask Ezy again. */
@@ -198,6 +202,7 @@ export function createChangeStore(ctx: AppContext, now: () => number = Date.now)
         reason: input.reason,
         status: 'proposed',
         createdAt: now(),
+        ...(input.test ? { test: input.test } : {}),
       };
       changes.set(change.id, change);
       return change;

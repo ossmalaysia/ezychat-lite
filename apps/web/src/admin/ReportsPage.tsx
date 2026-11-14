@@ -4,12 +4,22 @@ import { ArrowDownRight, ArrowUpRight, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import type { Report, ReportPeriod, ReportTotals } from '@ezychat/shared';
+import type { Inbox, Report, ReportPeriod, ReportTotals } from '@ezychat/shared';
 import { useReport } from '../api/queries';
+import { useVisibleInboxes } from '../inbox/useVisibleInboxes';
+import { formatPhone } from '../lib/jid';
 import { Banner, PageHeader, SegmentedControl } from '@/components/app';
+import { InfoTip } from '@/components/app/InfoTip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ErrorState } from './adminUi';
@@ -45,13 +55,18 @@ const isKnownReason = (reason: string): reason is HandoffReason =>
 /**
  * Admin → Reports (design: docs/features/reports/design.md): how busy the WhatsApp numbers are
  * (busy days, busy times, new customers) and how fast the team and the AI answer, for 7, 30 or 90
- * days. Counted from this computer's database only; nothing is sent anywhere.
+ * days. Counted from this computer's database only; nothing is sent anywhere. With two or more
+ * WhatsApp numbers the admin sees them all together or picks one.
  */
 export function ReportsPage() {
   const { t } = useTranslation('admin');
   const [days, setDays] = useState<ReportPeriod>(30);
+  const [picked, setPicked] = useState<number | null>(null);
+  const inboxes = useVisibleInboxes();
+  // An inbox that was removed (or is no longer listed) falls back to every inbox together.
+  const inbox = picked !== null && inboxes.some((i) => i.id === picked) ? picked : null;
   const periodId = useId();
-  const report = useReport(days);
+  const report = useReport(days, inbox);
   return (
     <div className="flex flex-col gap-4" data-testid="reports-page">
       <PageHeader
@@ -60,6 +75,7 @@ export function ReportsPage() {
         description={t('reports.description')}
         actions={
           <>
+            <ReportInboxPicker inboxes={inboxes} value={inbox} onChange={setPicked} />
             <span id={periodId} className="sr-only">
               {t('reports.period')}
             </span>
@@ -78,12 +94,55 @@ export function ReportsPage() {
       />
       {report.isPending && <ReportSkeleton />}
       {report.isError && <ErrorState error={report.error} onRetry={() => void report.refetch()} />}
-      {report.isSuccess && <ReportBody report={report.data} />}
+      {report.isSuccess && <ReportBody report={report.data} inbox={inbox} />}
     </div>
   );
 }
 
-function ReportBody({ report }: { report: Report }) {
+const ALL_INBOXES = 'all';
+
+/** Every inbox together or one of them; shown only with two or more WhatsApp numbers. */
+function ReportInboxPicker({
+  inboxes,
+  value,
+  onChange,
+}: {
+  inboxes: readonly Inbox[];
+  value: number | null;
+  onChange(inbox: number | null): void;
+}) {
+  const { t } = useTranslation('inbox');
+  if (inboxes.length < 2) return null;
+  return (
+    <Select
+      value={value === null ? ALL_INBOXES : String(value)}
+      onValueChange={(v) => onChange(v === ALL_INBOXES ? null : Number(v))}
+    >
+      <SelectTrigger
+        aria-label={t('inboxFilter.label')}
+        data-testid="reports-inbox"
+        className="h-11! w-full min-w-0 bg-surface text-base *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate sm:w-64 md:text-sm"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent position="popper">
+        <SelectItem value={ALL_INBOXES} className="min-h-11 md:min-h-8">
+          {t('inboxFilter.all', { total: inboxes.length })}
+        </SelectItem>
+        {inboxes.map((i) => {
+          const number = formatPhone({ phone: i.number });
+          return (
+            <SelectItem key={i.id} value={String(i.id)} className="min-h-11 md:min-h-8">
+              {number ? t('inboxFilter.option', { name: i.name, number }) : i.name}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ReportBody({ report, inbox }: { report: Report; inbox: number | null }) {
   const { t } = useTranslation('admin');
   const f = useReportFormat();
   if (!report.daily.some((d) => d.inbound > 0 || d.outbound > 0))
@@ -112,6 +171,7 @@ function ReportBody({ report }: { report: Report }) {
         </Banner>
       )}
       <Totals report={report} />
+      <AiCompletion report={report} />
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <ChartCard
           testId="card-weekdays"
@@ -231,8 +291,139 @@ function ReportBody({ report }: { report: Report }) {
         </ChartCard>
       </div>
       <Team report={report} />
-      <SafetyReportSection days={report.days} />
+      <SafetyReportSection days={report.days} inbox={inbox} />
     </>
+  );
+}
+
+/**
+ * Whole percent of closed AI chats the AI completed; null when none closed. Never rounds to 100 % while the team
+ * helped in one, or to 0 % while the AI completed one, so the headline never contradicts the parts below it.
+ */
+export function completionRate(totals: ReportTotals): number | null {
+  const { aiClosed: closed, aiCompleted: done } = totals;
+  if (closed === 0) return null;
+  if (done === closed || done === 0) return done === 0 ? 0 : 100;
+  return Math.min(99, Math.max(1, Math.round((done / closed) * 100)));
+}
+
+/**
+ * AI completion rate: of the AI chats closed in the period, the share with no hand-off and no reply from a person
+ * (rule in `ReportTotals`). Left out when no AI chat closed in the period and the AI holds none now (scheduled
+ * messages alone never show it).
+ */
+function AiCompletion({ report }: { report: Report }) {
+  const { t } = useTranslation('admin');
+  const { totals: now, previous, days, aiOpen } = report;
+  if (now.aiClosed === 0 && aiOpen === 0) return null;
+  const rate = completionRate(now);
+  const before = previous ? completionRate(previous) : null;
+  const points = rate !== null && before !== null ? rate - before : null;
+  const helped = now.aiClosed - now.aiCompleted;
+  return (
+    <Card className="min-w-0 gap-3 px-4 py-4" data-testid="card-ai-completion">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1">
+          <h2 className="text-base font-semibold">{t('reports.aiRateTitle')}</h2>
+          <InfoTip
+            title={t('reports.aiRateTipTitle')}
+            body={t('reports.aiRateTipBody')}
+            steps={[
+              t('reports.aiRateTipStep1'),
+              t('reports.aiRateTipStep2'),
+              t('reports.aiRateTipStep3'),
+            ]}
+          />
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{t('reports.aiRateFinding')}</p>
+      </div>
+      {rate === null ? (
+        <>
+          <p className="text-3xl font-semibold">–</p>
+          <p className="border-t border-dashed pt-3 text-sm text-muted-foreground">
+            {t('reports.aiRateNone', { count: days })}{' '}
+            {aiOpen > 0 && (
+              <>
+                <b className="text-foreground tabular-nums">{aiOpen}</b> {t('reports.aiRateOpen')}
+              </>
+            )}
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="text-3xl font-semibold tabular-nums" data-testid="ai-rate">
+              {t('reports.aiRatePct', { pct: rate })}
+            </p>
+            {points === 0 && (
+              <p className="text-xs text-muted-foreground">{t('reports.same', { count: days })}</p>
+            )}
+            {points !== null && points !== 0 && (
+              <p
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs',
+                  points > 0 ? 'text-success' : 'text-danger',
+                )}
+              >
+                {points > 0 ? (
+                  <ArrowUpRight className="size-3.5" aria-hidden />
+                ) : (
+                  <ArrowDownRight className="size-3.5" aria-hidden />
+                )}
+                {t(points > 0 ? 'reports.aiRateUp' : 'reports.aiRateDown', {
+                  points: Math.abs(points),
+                  count: days,
+                })}
+              </p>
+            )}
+          </div>
+          <div
+            role="img"
+            aria-label={t('reports.aiRateBar', {
+              completed: now.aiCompleted,
+              closed: now.aiClosed,
+            })}
+            className="flex h-3 overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="bg-primary"
+              style={{ width: `${(now.aiCompleted / now.aiClosed) * 100}%` }}
+            />
+            <div
+              className="bg-muted-foreground/40"
+              style={{ width: `${(helped / now.aiClosed) * 100}%` }}
+            />
+          </div>
+          <ul className="flex flex-col gap-1 text-sm sm:flex-row sm:flex-wrap sm:gap-x-5">
+            {/* Dot on the first line; the count and its words wrap as one sentence on a phone. */}
+            <li className="flex items-start gap-1.5">
+              <span className="mt-1.5 size-2.5 shrink-0 rounded-sm bg-primary" aria-hidden />
+              <span>
+                <b className="tabular-nums">{now.aiCompleted}</b> {t('reports.aiRateCompleted')}
+              </span>
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span
+                className="mt-1.5 size-2.5 shrink-0 rounded-sm bg-muted-foreground/40"
+                aria-hidden
+              />
+              <span>
+                <b className="tabular-nums">{helped}</b>{' '}
+                {t('reports.aiRateHelped', {
+                  handoffs: now.aiClosedAfterHandoff,
+                  replies: now.aiClosedAfterReply,
+                })}
+              </span>
+            </li>
+            {aiOpen > 0 && (
+              <li className="text-muted-foreground">
+                <b className="text-foreground tabular-nums">{aiOpen}</b> {t('reports.aiRateOpen')}
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+    </Card>
   );
 }
 

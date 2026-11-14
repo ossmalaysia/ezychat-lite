@@ -15,6 +15,7 @@ import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
 import { computeInboxStats, type InboxStats } from '../chats/stats.js';
 import { cachedReport } from '../reports/report.js';
 import { canOpen, scopeFor, scopeIds, type InboxScope } from '../inboxes/access.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { chatKey } from '../inboxes/keys.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { ToolError } from './tools.js';
@@ -110,7 +111,9 @@ const sum = <T>(rows: readonly T[], pick: (r: T) => number) =>
 export function findChats(ctx: AppContext, jid: string, reader: Reader): Chat[] {
   const chats = getChats(ctx);
   const scope = scopeFor(ctx, reader);
-  const inScope = (c: Chat | null): c is Chat => c !== null && canOpen(scope, c.inboxId);
+  // a chat hidden on Log out is no chat for a tool either
+  const inScope = (c: Chat | null): c is Chat =>
+    c !== null && canOpen(scope, c.inboxId) && !isChatHidden(ctx.db, c.jid);
   const exact = chats.get(jid);
   if (jid.includes('#')) return inScope(exact) ? [exact] : [];
   if (exact?.jid === jid && inScope(exact)) return [exact];

@@ -258,6 +258,24 @@ describe('answers in a group', { timeout: 30_000 }, () => {
     expect(prompt.input).not.toMatch(/60111111111|60122222222|60000000000/);
   });
 
+  it('leaves a message deleted for everyone out of the group conversation', async () => {
+    await setUp();
+    const gone = await inGroup('Wrong group, sorry', { from: ARJUN, name: 'Arjun' });
+    t.wa.simulateRevoke({ chatJid: G, targetId: gone, senderJid: ARJUN });
+    await vi.waitFor(() =>
+      expect(
+        t.ctx.db.prepare('SELECT deleted_at FROM messages WHERE id = ?').get(gone),
+      ).toMatchObject({ deleted_at: expect.any(Number) }),
+    );
+    await tag();
+    await settle();
+    expect(sentToGroup().map((s) => s.text)).toEqual(['We open at 8am, Farah.']);
+    const input = JSON.parse(prompts[0]!.input) as { conversation: Array<{ text: string }> };
+    expect(input.conversation.map((turn) => turn.text)).toEqual([
+      expect.stringContaining('what time'),
+    ]);
+  });
+
   it('answers any member who quotes an AI answer, without a tag', async () => {
     await setUp();
     await tag();
@@ -584,7 +602,16 @@ describe('routes', { timeout: 30_000 }, () => {
       enabled: true,
       inboxName: t.ctx.inboxes.repo.get(1)!.name,
       groups: [
-        { jid: G, name: 'Kopi Lovers Club', memberCount: null, enabled: true, paused: false },
+        {
+          jid: G,
+          name: 'Kopi Lovers Club',
+          memberCount: null,
+          enabled: true,
+          paused: false,
+          agentId,
+          agentName: 'Aina',
+          listen: false,
+        },
       ],
       loopGuard: AI_GROUP_LOOP_GUARD,
       answerDirect: true,
@@ -604,13 +631,16 @@ describe('routes', { timeout: 30_000 }, () => {
 
     const status = await call('GET', group, agent.cookie);
     expect(status.statusCode).toBe(200);
+    // "Answer in groups" off turned the AI off in its groups (agent cleared, never moved).
     expect(status.json()).toEqual({
-      enabled: true,
+      enabled: false,
       agentId,
       agentName: 'Aina',
       agentEnabled: true,
       agentAnswersGroups: false,
       paused: false,
+      listen: false,
+      agents: [],
     });
     const put = await call('PUT', group, admin.cookie, { enabled: false });
     expect(put.json()).toMatchObject({ enabled: false, agentEnabled: true });
@@ -645,7 +675,14 @@ describe('routes', { timeout: 30_000 }, () => {
     ]);
     expect(audits.at(-1)).toEqual([
       'ai.group_switch',
-      { chatJid: G, groupName: 'Kopi Lovers Club', enabled: false },
+      {
+        chatJid: G,
+        groupName: 'Kopi Lovers Club',
+        enabled: false,
+        agentId: null,
+        listen: false,
+        before: { enabled: false, agentId: null, listen: false },
+      },
     ]);
   });
 
@@ -707,7 +744,14 @@ describe('migration 024', { timeout: 30_000 }, () => {
     const table = t.ctx.db.prepare('PRAGMA table_info(ai_group_chats)').all() as Array<{
       name: string;
     }>;
-    expect(table.map((c) => c.name)).toEqual(['chat_jid', 'enabled', 'updated_at', 'updated_by']);
+    expect(table.map((c) => c.name)).toEqual([
+      'chat_jid',
+      'enabled',
+      'updated_at',
+      'updated_by',
+      'agent_id',
+      'listen',
+    ]);
   });
 });
 

@@ -25,3 +25,17 @@ Every release review run, newest last. Never pruned.
 | 2026-10-30 | #230 | `1a244ab` | core | 75 | risk:auto | docs/release-review/log.md |
 | 2026-10-31 | #236 | `2c05465` | — | — | human-approved | docs/release-review/log.md |
 | 2026-10-31 | #239 | `f2c82dc` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-01 | #244 | `2b3e562` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-01 | #244 | `2b3e562` | critical | 40 | risk:human | docs/release-review/log.md |
+| 2026-11-02 | #204 | `8565861` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-02 | #256 | `4483177` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-03 | #269 | `3b38840` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-04 | #284 | `8180019` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-04 | #286 | `197b966` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-05 | #290 | `fb8080a` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-07 | #326 | `91fdf68` | critical | 25 | risk:human | docs/release-review/log.md |
+| 2026-11-12 | #352 | `7687613` | critical | 35 | risk:human | docs/features/chat-hide-delete/review.md |
+| 2026-11-13 | #365 | `6831bfa` | core | 45 | risk:human | docs/features/ask-ezy-setup/review.md |
+| 2026-11-13 | #365 | `178ea90` | — | — | human-approved | docs/features/ask-ezy-setup/review.md |
+| 2026-11-13 | #367 | `27a98b5` | — | — | human-approved | docs/release-review/log.md |
+| 2026-11-11 | #347 | `3ad49fd` | critical | 25 | risk:human | docs/release-review/log.md |

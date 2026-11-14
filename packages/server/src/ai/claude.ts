@@ -142,11 +142,12 @@ async function withClaudeKey<T>(
   apiKey: string | null,
   signal: AbortSignal,
   run: (model: LanguageModel, modelId: string, bounded: AbortSignal) => Promise<T>,
+  timeoutMs = 60_000,
 ): Promise<T> {
   if (!apiKey) throw new Error('Add a Claude API key in Settings → AI.');
   signal.throwIfAborted();
   const modelId = claudeModelId(settings);
-  const bounded = AbortSignal.any([signal, AbortSignal.timeout(60_000)]);
+  const bounded = AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
   try {
     return await run(claudeKeyModel({ apiKey, modelId }), modelId, bounded);
   } catch (error) {
@@ -193,17 +194,23 @@ export function extractCustomerClaude(
 }
 
 /** Claude API key mode: one reply-draft call (completions use the fast model). */
-/** Claude key mode: one Ask Ezy turn (all steps share the 60 s bound). */
+/** Claude key mode: one Ask Ezy turn (all steps share Ask Ezy's own bound, else 60 s). */
 export function assistClaude(
   settings: AiSettings,
   apiKey: string | null,
   call: AiAssistCall,
   signal: AbortSignal,
 ) {
-  return withClaudeKey(settings, apiKey, signal, async (model, id, bounded) => ({
-    ...(await runAssist({ ...call, model, signal: bounded })),
-    model: id,
-  }));
+  return withClaudeKey(
+    settings,
+    apiKey,
+    signal,
+    async (model, id, bounded) => ({
+      ...(await runAssist({ ...call, model, signal: bounded })),
+      model: id,
+    }),
+    call.timeoutMs,
+  );
 }
 
 export function draftClaude<T>(

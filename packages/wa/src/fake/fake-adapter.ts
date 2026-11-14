@@ -1,14 +1,24 @@
+import { boundedMediaBuffer, validateMediaDownloadOptions } from '../media-download.js';
 import { EventEmitter } from 'node:events';
+import { readFileSync } from 'node:fs';
 import type { WaStatus } from '@ezychat/shared';
 import {
   WaUnavailableError,
   type SendResult,
   type WaAdapter,
   type WaAdapterEvents,
+  type WaMediaDownloadOptions,
   type WaCapabilities,
   type WaContactAlias,
   type WaGroupInfo,
+  type WaGroupInvite,
+  type WaGroupJoinRequest,
+  type WaGroupSettings,
+  type WaParticipantResult,
   type WaIncomingMessage,
+  type WaMessageEdit,
+  type WaMessageRevoke,
+  type WaMessageTarget,
   type WaReaction,
   type WaReactionTarget,
   type WaSendFile,
@@ -28,6 +38,8 @@ export interface FakeSentRecord {
   reply?: WaSendOptions;
   /** Text sends: the members tagged (WhatsApp mentions). */
   mentions?: string[];
+  /** Sent as WhatsApp "Forwarded" with this score (`WaSendOptions.forwarded`). */
+  forwarded?: { score: number };
 }
 
 /**
@@ -45,6 +57,7 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private inCounter = 0;
   private outCounter = 0;
   private nextSendError: Error | null = null;
+  private skipDelivery = false;
   private readonly media = new Map<string, Buffer>();
   private readonly groups = new Map<string, WaGroupInfo>();
   private readonly abouts = new Map<string, string>();
@@ -55,6 +68,12 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   readonly sent: FakeSentRecord[] = [];
   readonly reactions: Array<{ chatJid: string; target: WaReactionTarget; emoji: string }> = [];
+  /** Every edit, delete for everyone and delete for me sent (`editText`, `deleteFor…`). */
+  readonly changes: Array<
+    | { kind: 'edit'; chatJid: string; target: WaMessageTarget; text: string }
+    | { kind: 'deleteForEveryone'; chatJid: string; target: WaMessageTarget }
+    | { kind: 'deleteForMe'; chatJid: string; target: WaMessageTarget; timestamp: number }
+  > = [];
   readonly reads: Array<{ chatJid: string; messageIds: string[] }> = [];
   readonly presences: Array<{ chatJid: string; presence: 'composing' | 'paused' }> = [];
   /** Every template sent (adapters given `templates`). */
@@ -182,28 +201,47 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
   private afterSend(chatJid: string, id: string): SendResult {
     const timestamp = Date.now();
     this.emitTyped('messageStatus', { id, chatJid, status: 'sent' });
-    setImmediate(() => this.emitTyped('messageStatus', { id, chatJid, status: 'delivered' }));
+    if (this.skipDelivery) this.skipDelivery = false;
+    else setImmediate(() => this.emitTyped('messageStatus', { id, chatJid, status: 'delivered' }));
     return { id, timestamp };
   }
 
   async sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
-    const id = `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
+    const id = opts?.messageId ?? `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
     this.sent.push({
       chatJid,
       text,
       id,
       ...(opts?.quotedId ? { reply: opts } : {}),
       ...(opts?.mentions?.length ? { mentions: [...opts.mentions] } : {}),
+      ...(opts?.forwarded ? { forwarded: { ...opts.forwarded } } : {}),
     });
     return this.afterSend(chatJid, id);
   }
 
+  /** A file given by `path` is read from disk, as the real adapter streams it (its `buffer` untouched). */
   async sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {
     this.beforeSend();
-    const id = `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
-    this.sent.push({ chatJid, file, id, ...(opts?.quotedId ? { reply: opts } : {}) });
-    this.media.set(id, file.buffer);
+    const id = opts?.messageId ?? `${this.idPrefix}-OUT-${FAKE_RUN}-${++this.outCounter}`;
+    const buffer = file.path ? readFileSync(file.path) : file.buffer;
+    const recorded: WaSendFile = {
+      buffer,
+      mime: file.mime,
+      fileName: file.fileName,
+      ...(file.caption !== undefined ? { caption: file.caption } : {}),
+      ...(file.voiceNote ? { voiceNote: file.voiceNote } : {}),
+      ...(file.path ? { path: file.path } : {}),
+      ...(file.asDocument ? { asDocument: true } : {}),
+    };
+    this.sent.push({
+      chatJid,
+      file: recorded,
+      id,
+      ...(opts?.quotedId ? { reply: opts } : {}),
+      ...(opts?.forwarded ? { forwarded: { ...opts.forwarded } } : {}),
+    });
+    this.media.set(id, buffer);
     return this.afterSend(chatJid, id);
   }
 
@@ -221,6 +259,27 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return { id, timestamp };
   }
 
+  /** Unlike reactions, WhatsApp's echo of our own edit or delete is never reported (as Baileys). */
+  async editText(chatJid: string, target: WaMessageTarget, text: string): Promise<SendResult> {
+    this.beforeSend();
+    this.changes.push({ kind: 'edit', chatJid, target: { ...target }, text });
+    return { id: `${this.idPrefix}-EDIT-${FAKE_RUN}-${++this.outCounter}`, timestamp: Date.now() };
+  }
+
+  async deleteForEveryone(chatJid: string, target: WaMessageTarget): Promise<SendResult> {
+    this.beforeSend();
+    this.changes.push({ kind: 'deleteForEveryone', chatJid, target: { ...target } });
+    return {
+      id: `${this.idPrefix}-REVOKE-${FAKE_RUN}-${++this.outCounter}`,
+      timestamp: Date.now(),
+    };
+  }
+
+  async deleteForMe(chatJid: string, target: WaMessageTarget, timestamp: number): Promise<void> {
+    this.beforeSend();
+    this.changes.push({ kind: 'deleteForMe', chatJid, target: { ...target }, timestamp });
+  }
+
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {
     this.reads.push({ chatJid, messageIds: [...messageIds] });
   }
@@ -231,6 +290,15 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
 
   async downloadMedia(messageId: string): Promise<Buffer | null> {
     return this.media.get(messageId) ?? null;
+  }
+
+  async downloadMediaBounded(
+    messageId: string,
+    options: WaMediaDownloadOptions,
+  ): Promise<Buffer | null> {
+    validateMediaDownloadOptions(options);
+    const buffer = this.media.get(messageId);
+    return buffer ? boundedMediaBuffer(buffer, options) : null;
   }
 
   async getProfilePicture(_jid: string): Promise<string | null> {
@@ -278,6 +346,167 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     if (this._status.state !== 'open') throw new WaUnavailableError();
     if (blocked) this.blocked.add(jid);
     else this.blocked.delete(jid);
+  }
+
+  // ---- group management: changes the fake group in place and emits `groupChanged` like WhatsApp ----
+
+  /** Every group-management call in order (tests assert on it). */
+  readonly groupAdminCalls: Array<{ method: string; groupJid: string; args: unknown[] }> = [];
+  private readonly inviteCodes = new Map<string, string>();
+  private readonly joinRequests = new Map<string, WaGroupJoinRequest[]>();
+  /** Phone JIDs whose privacy settings refuse direct adds (`invite_needed`). */
+  private readonly privacyRefuses = new Set<string>();
+  /** Invites sent with `sendGroupInvite`. */
+  readonly groupInvites: Array<{ groupJid: string; toJid: string; invite: WaGroupInvite }> = [];
+  /** Make the next group-management call reject with this error. */
+  private nextGroupError: Error | null = null;
+  private inviteCounter = 0;
+
+  private groupCall(method: string, groupJid: string, ...args: unknown[]): WaGroupInfo {
+    if (this._status.state !== 'open') throw new WaUnavailableError();
+    this.groupAdminCalls.push({ method, groupJid, args });
+    if (this.nextGroupError) {
+      const err = this.nextGroupError;
+      this.nextGroupError = null;
+      throw err;
+    }
+    const g = this.groups.get(groupJid);
+    if (!g) throw new Error('Fake group not found');
+    return g;
+  }
+
+  private changed(groupJid: string): void {
+    this.emitTyped('groupChanged', { groupJid });
+  }
+
+  private newInviteCode(): string {
+    return `FAKEINVITE${String(++this.inviteCounter).padStart(12, '0')}`;
+  }
+
+  async setGroupSubject(groupJid: string, subject: string): Promise<void> {
+    this.groupCall('setGroupSubject', groupJid, subject).name = subject;
+    this.changed(groupJid);
+  }
+
+  async setGroupDescription(groupJid: string, description: string | null): Promise<void> {
+    this.groupCall('setGroupDescription', groupJid, description).description = description || null;
+    this.changed(groupJid);
+  }
+
+  async updateGroupMembers(
+    groupJid: string,
+    jids: [string],
+    action: 'add' | 'remove' | 'promote' | 'demote',
+  ): Promise<WaParticipantResult[]> {
+    const g = this.groupCall('updateGroupMembers', groupJid, jids, action);
+    const results = jids.map((jid): WaParticipantResult => {
+      const i = g.participants.findIndex(
+        (p) => p.jid === jid || p.phoneJid === jid || p.lidJid === jid,
+      );
+      const p = i >= 0 ? g.participants[i] : undefined;
+      if (action === 'add') {
+        if (p) return { jid, status: 'already' };
+        if (this.privacyRefuses.has(jid))
+          return {
+            jid,
+            status: 'invite_needed',
+            invite: { code: this.newInviteCode(), expiresAt: Date.now() + 3 * 86_400_000 },
+          };
+        g.participants.push({ jid, phoneJid: jid, lidJid: null, username: null, role: 'member' });
+        g.size = Math.max(g.size + 1, g.participants.length);
+        return { jid, status: 'ok' };
+      }
+      if (!p) return { jid, status: 'not_member' };
+      if (p.role === 'superadmin') return { jid, status: 'not_allowed' };
+      if (action === 'remove') {
+        g.participants.splice(i, 1);
+        g.size = Math.max(g.size - 1, g.participants.length);
+      } else if (action === 'promote') {
+        if (p.role === 'admin') return { jid, status: 'already' };
+        p.role = 'admin';
+      } else {
+        if (p.role === 'member') return { jid, status: 'already' };
+        p.role = 'member';
+      }
+      return { jid, status: 'ok' };
+    });
+    if (results.some((r) => r.status === 'ok')) this.changed(groupJid);
+    return results;
+  }
+
+  async sendGroupInvite(groupJid: string, toJid: string, invite: WaGroupInvite): Promise<void> {
+    this.groupCall('sendGroupInvite', groupJid, toJid, invite);
+    this.groupInvites.push({ groupJid, toJid, invite: { ...invite } });
+  }
+
+  async getGroupInviteLink(groupJid: string): Promise<string> {
+    this.groupCall('getGroupInviteLink', groupJid);
+    let code = this.inviteCodes.get(groupJid);
+    if (!code) {
+      code = this.newInviteCode();
+      this.inviteCodes.set(groupJid, code);
+    }
+    return `https://chat.whatsapp.com/${code}`;
+  }
+
+  async resetGroupInviteLink(groupJid: string): Promise<string> {
+    this.groupCall('resetGroupInviteLink', groupJid);
+    const code = this.newInviteCode();
+    this.inviteCodes.set(groupJid, code);
+    this.changed(groupJid);
+    return `https://chat.whatsapp.com/${code}`;
+  }
+
+  async setGroupSettings(groupJid: string, settings: Partial<WaGroupSettings>): Promise<void> {
+    const g = this.groupCall('setGroupSettings', groupJid, settings);
+    g.settings = { ...g.settings, ...settings };
+    this.changed(groupJid);
+  }
+
+  async listGroupJoinRequests(groupJid: string): Promise<WaGroupJoinRequest[]> {
+    this.groupCall('listGroupJoinRequests', groupJid);
+    return structuredClone(this.joinRequests.get(groupJid) ?? []);
+  }
+
+  async decideGroupJoinRequest(
+    groupJid: string,
+    jid: string,
+    approve: boolean,
+  ): Promise<WaParticipantResult> {
+    const g = this.groupCall('decideGroupJoinRequest', groupJid, jid, approve);
+    const list = this.joinRequests.get(groupJid) ?? [];
+    const i = list.findIndex((r) => r.jid === jid);
+    if (i < 0) return { jid, status: 'not_member' };
+    const [req] = list.splice(i, 1);
+    if (approve)
+      g.participants.push({
+        jid: req!.jid,
+        phoneJid: req!.phoneJid,
+        lidJid: req!.jid.endsWith('@lid') ? req!.jid : null,
+        username: null,
+        role: 'member',
+      });
+    if (approve) g.size = Math.max(g.size + 1, g.participants.length);
+    this.changed(groupJid);
+    return { jid, status: 'ok' };
+  }
+
+  /** Someone asks to join (test helper; `phone` digits). */
+  addJoinRequest(groupJid: string, phone: string, at = Date.now()): void {
+    const jid = `${phone}@s.whatsapp.net`;
+    const list = this.joinRequests.get(groupJid) ?? [];
+    if (!list.some((r) => r.jid === jid)) list.push({ jid, phoneJid: jid, at });
+    this.joinRequests.set(groupJid, list);
+  }
+
+  /** Adding this number answers `invite_needed` (its privacy settings refuse direct adds). */
+  setPrivacyRefuses(phone: string): void {
+    this.privacyRefuses.add(`${phone}@s.whatsapp.net`);
+  }
+
+  /** The next group-management call rejects with `err`. */
+  failNextGroupChange(err: Error = new Error('Fake group change failure')): void {
+    this.nextGroupError = err;
   }
 
   /** checkNumber answers null for this number (every other valid number has an account). */
@@ -337,8 +566,20 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
       body: p.body,
       ...(p.mentionedJids !== undefined ? { mentionedJids: [...p.mentionedJids] } : {}),
       quotedId: p.quotedId ?? null,
+      ...(p.forwardingScore ? { forwardingScore: p.forwardingScore } : {}),
       timestamp: p.timestamp ?? Date.now(),
-      media: p.media ?? null,
+      media: p.media
+        ? {
+            ...p.media,
+            // Fake downloads are already-allocated fixtures, never untrusted network streams.
+            downloadBounded:
+              p.media.downloadBounded ??
+              (async (options: WaMediaDownloadOptions) => {
+                validateMediaDownloadOptions(options);
+                return boundedMediaBuffer(await p.media!.download(), options);
+              }),
+          }
+        : null,
     };
     this.emitTyped('message', msg, { source: 'live' });
     return msg;
@@ -375,8 +616,58 @@ export class FakeWaAdapter extends EventEmitter implements WaAdapter {
     return reaction;
   }
 
+  /**
+   * Emit an edit (live unless `source` says history). In a DM the editor defaults to the chat
+   * partner; `fromMe` means the linked phone edited.
+   */
+  simulateEdit(
+    p: Partial<WaMessageEdit> & { chatJid: string; targetId: string; body: string },
+    source: 'live' | 'history' = 'live',
+  ): WaMessageEdit {
+    const edit: WaMessageEdit = { ...this.changeAuthor(p), body: p.body };
+    this.emitTyped('messageEdited', edit, { source });
+    return edit;
+  }
+
+  /** Emit a delete for everyone (live unless `source` says history), as `simulateEdit`. */
+  simulateRevoke(
+    p: Partial<WaMessageRevoke> & { chatJid: string; targetId: string },
+    source: 'live' | 'history' = 'live',
+  ): WaMessageRevoke {
+    const revoke = this.changeAuthor(p);
+    this.emitTyped('messageDeleted', revoke, { source });
+    return revoke;
+  }
+
+  private changeAuthor(
+    p: Partial<WaMessageRevoke> & { chatJid: string; targetId: string },
+  ): WaMessageRevoke {
+    const isGroup = p.chatJid.endsWith('@g.us');
+    const fromMe = p.fromMe ?? false;
+    return {
+      targetId: p.targetId,
+      chatJid: p.chatJid,
+      chatJidAlt: p.chatJidAlt ?? null,
+      senderJid: fromMe
+        ? null
+        : p.senderJid !== undefined
+          ? p.senderJid
+          : isGroup
+            ? null
+            : p.chatJid,
+      senderJidAlt: p.senderJidAlt ?? null,
+      fromMe,
+      timestamp: p.timestamp ?? Date.now(),
+    };
+  }
+
   simulateStatus(s: Partial<WaStatus>): void {
     this.setStatus(s);
+  }
+
+  /** The next send gets its server ack but no delivered receipt (no phone took it). */
+  skipNextDelivery(): void {
+    this.skipDelivery = true;
   }
 
   failNextSend(err: Error = new Error('Fake send failure')): void {

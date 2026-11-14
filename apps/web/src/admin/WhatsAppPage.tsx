@@ -3,7 +3,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import type { WaState } from '@ezychat/shared';
-import { useWaAction, useWaStatus, type WaAction } from '../api/queries';
+import { useHiddenChats } from '../api/chat-hide';
+import { PRIMARY_INBOX_ID, useWaAction, useWaStatus, type WaAction } from '../api/queries';
 import { PhoneLink } from '../wa/PhoneLink';
 import { Banner, EmptyState, PageHeader, StatusDot, stateTone } from '@/components/app';
 import { UpgradeNote } from '@/components/app/UpgradeEnterprise';
@@ -12,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, ErrorState } from './adminUi';
+import { HiddenChatsNote, HidesLine } from './HiddenChats';
 
 /** WhatsApp connection state → translation key in the `admin` namespace. */
 export const WA_STATE_LABEL_KEY = {
@@ -45,6 +47,8 @@ export function WhatsAppPage() {
   const action = useWaAction();
   const [pending, setPending] = useState<WaAction | null>(null);
   const { t } = useTranslation('admin');
+  // Log out hides the number's chats: how many it hides, or hid (read again on every state change)
+  const hidden = useHiddenChats(PRIMARY_INBOX_ID, wa.data?.state ?? '', !!wa.data);
 
   if (wa.isPending)
     return (
@@ -104,6 +108,7 @@ export function WhatsAppPage() {
             </Banner>
           )}
           {unlinked && <Banner tone="danger">{t('whatsapp.unlinkedBody')}</Banner>}
+          {unlinked && <HiddenChatsNote info={hidden.data} />}
           {/* This page serves one number (several numbers use Inboxes); hidden without an upgrade link. */}
           <UpgradeNote reason="numbers" />
         </CardContent>
@@ -229,6 +234,8 @@ export function WhatsAppPage() {
           onClose={() => setPending(null)}
         >
           <p>{t(`whatsapp.actions.${pending}.body`)}</p>
+          {/* Log out and Re-link both unlink the phone: the number's chats are hidden. */}
+          {pending !== 'takeover' && <HidesLine info={hidden.data} />}
         </ConfirmDialog>
       )}
     </div>

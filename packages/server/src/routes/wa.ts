@@ -8,8 +8,9 @@ import { audit } from '../db/audit.js';
 import { clientIp } from '../http/client-ip.js';
 import { PRIMARY_INBOX_ID } from '../inboxes/keys.js';
 import { OFFLINE, waStatusFor } from '../inboxes/service.js';
-import { canOpen, scopeFor } from '../inboxes/access.js';
+import { canOpen, visibleInboxIds } from '../inboxes/access.js';
 import { capabilitiesOf } from '../inboxes/types.js';
+import { getChatHide } from '../chats/hide.js';
 
 export { waStatusFor };
 
@@ -44,18 +45,27 @@ export function registerWaActions(
 
   app.post(`${base}/logout`, { preHandler: adminOnly }, async (req) => {
     const { wa, inboxId } = target(req);
-    await wa.logout();
+    // the inbox's chats are hidden on `logged_out`; the audit row says the admin did it
+    const done = getChatHide(ctx).markAdminLogout(inboxId);
+    try {
+      await wa.logout();
+    } finally {
+      done();
+    }
     record(req, 'wa.logout', wa, inboxId);
     return waStatusFor(wa.status, true);
   });
 
   app.post(`${base}/relink`, { preHandler: adminOnly }, async (req) => {
     const { wa, inboxId } = target(req);
+    const done = getChatHide(ctx).markAdminLogout(inboxId);
     try {
       await wa.logout();
     } catch (err) {
       // already unlinked / socket closed: still start a fresh link
       ctx.log.warn({ err, inboxId }, 'wa logout before relink failed');
+    } finally {
+      done();
     }
     await wa.connect();
     record(req, 'wa.relink', wa, inboxId);
@@ -91,7 +101,7 @@ export function registerWaActions(
 export default async function waRoutes(app: FastifyInstance, ctx: AppContext) {
   app.get('/wa/status', { preHandler: requireUser(ctx) }, async (req) => {
     const user = req.user!;
-    if (!canOpen(scopeFor(ctx, user), PRIMARY_INBOX_ID)) return { ...OFFLINE };
+    if (!canOpen(visibleInboxIds(ctx, user), PRIMARY_INBOX_ID)) return { ...OFFLINE };
     return waStatusFor(ctx.wa.status, user.role === 'admin');
   });
   registerWaActions(app, ctx, '/wa', () => ({ wa: ctx.wa, inboxId: PRIMARY_INBOX_ID }));

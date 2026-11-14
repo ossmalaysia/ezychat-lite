@@ -31,11 +31,12 @@ async function withOpenAiKey<T>(
   cacheId: string | undefined,
   signal: AbortSignal,
   run: (model: LanguageModel, modelId: string, bounded: AbortSignal) => Promise<T>,
+  timeoutMs = 60_000,
 ): Promise<T> {
   if (!apiKey) throw new Error('Add an OpenAI API key in the AI member settings.');
   signal.throwIfAborted();
   const modelId = settings.model || OPENAI_DEFAULT_MODEL;
-  const bounded = AbortSignal.any([signal, AbortSignal.timeout(60_000)]);
+  const bounded = AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
   try {
     const model = openAiKeyModel({
       apiKey,
@@ -107,15 +108,22 @@ export function rewriteOpenAi(
   }));
 }
 
-/** API key mode: one Ask Ezy turn (all steps share the 60 s bound). */
+/** API key mode: one Ask Ezy turn (all steps share Ask Ezy's own bound, else 60 s). */
 export function assistOpenAi(
   settings: AiSettings,
   apiKey: string | null,
   call: AiAssistCall,
   signal: AbortSignal,
 ) {
-  return withOpenAiKey(settings, apiKey, call.cacheId, signal, async (model, id, bounded) => ({
-    ...(await runAssist({ ...call, model, signal: bounded })),
-    model: id,
-  }));
+  return withOpenAiKey(
+    settings,
+    apiKey,
+    call.cacheId,
+    signal,
+    async (model, id, bounded) => ({
+      ...(await runAssist({ ...call, model, signal: bounded })),
+      model: id,
+    }),
+    call.timeoutMs,
+  );
 }

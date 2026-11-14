@@ -1,9 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { ApiError } from './api/client';
+import { createQueryClient } from './api/query-client';
+import {
+  browserStorage,
+  restorePersistedQueries,
+  startQueryPersistence,
+} from './api/query-persist';
 import { RealtimeProvider } from './api/socket';
+import { clearUserCaches } from './auth/user-caches';
+import { BUILD_VERSION } from './lib/version';
 import { App } from './App';
 import { AccessGate } from './access/AccessGate';
 import { AuthProvider } from './auth/AuthProvider';
@@ -14,6 +21,7 @@ import {
   type WebExtension,
 } from './extensions';
 import { Toaster } from '@/components/ui/sonner';
+import { FeedbackHost } from '@/components/app/FeedbackDialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { installGlobalErrorReporting } from '@/lib/error-reporter';
 import { installFileDropGuard } from '@/lib/file-transfer';
@@ -32,24 +40,10 @@ export interface CreateInboxAppOptions {
   /** Product name shown wherever the UI names the app; defaults to "EzyChat Lite". */
   productName?: string;
   /**
-   * Outside links (About, Report an issue, release notes, feedback, support email). Missing
+   * Outside links (About, Report an issue, release notes, support email). Missing
    * entries keep Lite's links; an explicit `null` hides that link.
    */
   links?: Partial<AppLinks>;
-}
-
-function createQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 15_000,
-        refetchOnWindowFocus: true,
-        retry: (count, e) =>
-          !(e instanceof ApiError && e.status >= 400 && e.status < 500) && count < 2,
-      },
-      mutations: { retry: false },
-    },
-  });
 }
 
 /**
@@ -73,6 +67,16 @@ export async function createInboxApp({
   installFileDropGuard();
 
   const queryClient = createQueryClient();
+  // The last user's first screen (chat list, inboxes, user) shows at once and reloads right away;
+  // a different user signing in clears what the earlier one left (photos, files, saved lists).
+  const storage = browserStorage();
+  const buster = BUILD_VERSION ?? '';
+  restorePersistedQueries(queryClient, { storage, buster });
+  startQueryPersistence(queryClient, {
+    storage,
+    buster,
+    clearCaches: () => void clearUserCaches(),
+  });
   const render = () =>
     createRoot(root).render(
       <StrictMode>
@@ -87,6 +91,7 @@ export async function createInboxApp({
                       <LocaleSync />
                       <RealtimeProvider>
                         <App />
+                        <FeedbackHost />
                       </RealtimeProvider>
                     </AuthProvider>
                   </AccessGate>

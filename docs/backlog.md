@@ -5,15 +5,14 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Bugs
 
+- Windows updater after an antivirus block (seen 2026-11-05, Enterprise 0.1.25 → 0.1.26 with McAfee, twice): the
+  rollback that emptied Program Files is fixed (`WINDOWS_START_INSTALLER`, `WINDOWS_RESTORE_OLD_APP` in
+  `apps/desktop/src/updater/install.ts`). Still to do: show the blocked-installer result in the app's own language
+  and do not offer the same version again for some days, and an owner decision on a delay before offering new
+  releases (frequent releases are always new, low-reputation installers).
 - `e2e/devbuild-multi-inbox-check.mjs` fails from its second step on a fresh `--fake-wa --mode dev --max-inboxes 3`
   server (one inbox, adding Catering answers 409), also with `main`'s copy of the script (found 2026-10-30 in a cloud
   session while verifying PR ossmalaysia/ezychat-lite#229). Find whether the CLI start line or the limit changed.
-- **One name for hand-over.** Setup, Settings and the audit say "Hand-off rules"; the agent page says "Hand-over
-  rules", and its ms and zh catalogs still show the English words (`ai.agents.handoffTitle`). Pick one word in every
-  language (found in the concept-tips screen review, 2026-10-30).
-- **Flaky on Windows CI:** `packages/server/test/ai-agents-repo.test.ts` › "creates an agent, updates only the
-  given texts and keeps a saved blank" timed out after 30 s once on `windows-latest` (PR #220 docs-only run;
-  passed on rerun). Fix it in its own PR.
 - **Emoji reactions: receive and show done** (branch `feat/emoji-reactions`, 2026-10-23; design
   `docs/features/emoji-reactions/design.md`). Left: (1) a live smoke against real WhatsApp of the Baileys
   mapping (`mapWAReaction`, `mapStoredReactions`: live, change, removal, group, history), still
@@ -28,7 +27,25 @@ are listed here until they get a branch. Newest first; remove an item when its P
 - **Flag emoji show as letters on Windows** (2026-10-22): Chrome on Windows shows 🇲🇾 as "MY" (Windows has
   no flag glyphs). Fix with a bundled country-flag font (polyfill) for the web app.
 
+- **A live event right after the conversation loads can be lost** (seen in the message-changes e2e on mobile,
+  2026-10-28; older than that change): `upsertMessageInCache` drops an event that arrives before the first
+  messages fetch has answered, and that fetch carries the older snapshot, so the bubble stays stale until the next
+  refetch. Fix idea: keep early events per chat and apply them on top of the first page.
+
 ## Ideas and next steps
+
+- **Split the web app's main file** (2026-11-14): `assets/index-*.js` is 2.13 MB after the combined merge and passed
+  the PWA precache default (2 MiB, now raised to 3 MiB in `apps/web/vite.config.ts`). Load the admin area
+  (`AdminLayout` and its pages) with `React.lazy` so agents and phones download less.
+- **A permanent home for the living design-system page** (2026-11-14): `/design-system` lived only in the
+  mobile-redesign mock, which the five-folder rule archived. Move it out of `docs/features/` (e.g. `docs/design-system/` or
+  the app behind a dev flag) so pruning a feature folder never removes it.
+- **jsdom 31** (2026-11-14, held back from Dependabot #369 in the combined merge): with jsdom 31 the web tests of
+  dialogs that close (AiMemberPage templates, InboxesPage, MembersPage, PartnerConnectorPage, ReplyWindow; 18 tests)
+  still find the dialog. Find what jsdom 31 changed (dialog/close or focus handling) before taking it; jsdom stays 30.
+- **MCP `send_audio` / voice note** (2026-11-08, from `feat/mcp-file-upload`): uploads take JPEG/PNG/WebP/PDF/.docx/MP4
+  only. An audio tool would need the Ogg/Opus checks of `messages/voice-note.ts` for a voice note, or a plain audio
+  file type list; and more document types for `send_file` (xlsx, pptx) if the owner wants them.
 
 - **Real-model check of the hand-off rules fixes** (PR #230, merged 2026-10-30): after the next release, run
   `try_ai_reply` on the Anchor Sprint agent (v87) with "Hi Anchor Sprint, I'd like to book a free consultation (from

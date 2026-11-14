@@ -98,11 +98,12 @@ it('fetches changes missed before the first socket connection and during a recon
   await screen.findByText('Before the connection');
   serverChat = 'Arrived before joining the socket';
   await act(async () => socket.listeners.get('connect')!());
-  await screen.findByText(serverChat);
+  expect(await screen.findByText(serverChat)).toBeTruthy();
   act(() => socket.listeners.get('disconnect')!());
   serverChat = 'Arrived while offline';
   await act(async () => socket.listeners.get('connect')!());
-  await screen.findByText(serverChat);
+  expect(await screen.findByText(serverChat)).toBeTruthy();
+  expect(screen.queryByText('Arrived before joining the socket')).toBeNull();
   qc.clear();
 });
 
@@ -427,6 +428,14 @@ it('keeps the inbox list current: a status patches it, a change reloads inboxes,
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['inboxes'] });
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users'] });
   await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats'] }));
+  invalidate.mockClear();
+  // the chats this user may open changed (an agent limited to chosen chats)
+  act(() => socket.listeners.get('chats:access')!());
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['me'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users', 'directory'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chat'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['messages'] });
+  await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats'] }));
   qc.clear();
 });
 
@@ -470,6 +479,58 @@ it('replaces the reactions of a cached message when someone reacts, changes or r
   expect(cached()).toEqual([[], []]);
   qc.clear();
 });
+
+it.each(['message:reactions', 'message:updated'] as const)(
+  'keeps a %s change that arrives while a reload of its chat is running (the reload started before it)',
+  async (event) => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const jid = '601@s.whatsapp.net';
+    const before = { id: 'M1', chatJid: jid, clientId: null, body: 'Yes', reactions: [] };
+    const reactions = [{ emoji: '👍', senderJid: jid, senderName: 'Farah', fromMe: false, at: 2 }];
+    const after = { ...before, body: 'Yes, Saturday', reactions };
+    const page = (m: unknown) => ({
+      pages: [{ messages: [m], nextBefore: null }],
+      pageParams: [null],
+    });
+    // The first load shows the message; a reload starts before the change and answers after it.
+    let releaseReload!: () => void;
+    const reloadAnswer = new Promise<void>((r) => (releaseReload = r));
+    const load = vi
+      .fn()
+      .mockImplementationOnce(async () => page(before))
+      .mockImplementationOnce(async () => {
+        await reloadAnswer;
+        return page(before);
+      })
+      .mockImplementation(async () => page(after));
+    function Messages() {
+      const { data } = useQuery({ queryKey: ['messages', jid], queryFn: load });
+      const m = data?.pages[0]?.messages[0] as typeof after | undefined;
+      return <span>{m ? `${m.body}:${m.reactions.map((r) => r.emoji).join('')}` : 'none'}</span>;
+    }
+    render(
+      <QueryClientProvider client={qc}>
+        <RealtimeProvider>
+          <Messages />
+        </RealtimeProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Yes:');
+    act(() => void qc.invalidateQueries({ queryKey: ['messages', jid] }));
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    act(() =>
+      event === 'message:reactions'
+        ? socket.listeners.get(event)!({ chatJid: jid, messageId: 'M1', reactions })
+        : socket.listeners.get(event)!(after),
+    );
+    await screen.findByText(event === 'message:reactions' ? 'Yes:👍' : 'Yes, Saturday:👍');
+    // The stale reload answers afterwards: one more load follows it, so the change still shows.
+    await act(async () => releaseReload());
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+    await screen.findByText('Yes, Saturday:👍');
+    qc.clear();
+  },
+);
 
 it('refreshes a group AI state on a group line and when a teammate writes during a pause', async () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -537,5 +598,95 @@ it('refreshes a group AI state on a group line and when a teammate writes during
     }),
   );
   expect(groupCalls()).toHaveLength(2);
+  qc.clear();
+});
+
+it('reloads Group info and its admin view when a group changes', async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const group = '120363000000000001@g.us';
+  const invalidate = vi.spyOn(qc, 'invalidateQueries');
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('group:changed')!({ chatJid: group }));
+  const keys = invalidate.mock.calls.map(([f]) => JSON.stringify(f?.queryKey));
+  expect(keys).toContain(JSON.stringify(['group-admin', group]));
+  expect(keys).toContain(JSON.stringify(['group-members', group]));
+  qc.clear();
+});
+
+it('drops a chat an admin deleted from the lists and its own caches', async () => {
+  const { qk } = await vi.importActual<typeof Queries>('./queries');
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const gone = '60111@s.whatsapp.net';
+  const kept = '60222@s.whatsapp.net';
+  const filters = { assigned: 'any', status: 'open' } as const;
+  qc.setQueryData(qk.chats(filters), {
+    pages: [{ chats: [{ jid: gone }, { jid: kept }], nextCursor: null }],
+    pageParams: [null],
+  });
+  qc.setQueryData(qk.messages(gone), { pages: [], pageParams: [] });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('chat:deleted')!({ jid: gone }));
+  const list = qc.getQueryData<{ pages: Array<{ chats: Array<{ jid: string }> }> }>(
+    qk.chats(filters),
+  )!;
+  expect(list.pages[0]!.chats.map((c) => c.jid)).toEqual([kept]);
+  expect(qc.getQueryData(qk.messages(gone))).toBeUndefined();
+  qc.clear();
+});
+
+it('drops every chat of an inbox whose phone logged out (lists, opened chats, messages)', async () => {
+  const { qk } = await vi.importActual<typeof Queries>('./queries');
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const hidden = '60111@s.whatsapp.net';
+  const opened = '60333@s.whatsapp.net';
+  const other = '60222@s.whatsapp.net#2';
+  const filters = { assigned: 'any', status: 'open' } as const;
+  qc.setQueryData(qk.chats(filters), {
+    pages: [
+      {
+        chats: [
+          { jid: hidden, inboxId: 1 },
+          { jid: other, inboxId: 2 },
+        ],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [null],
+  });
+  qc.setQueryData(qk.messages(hidden), { pages: [], pageParams: [] });
+  qc.setQueryData(qk.chat(opened), { chat: { jid: opened, inboxId: 1 }, events: [] });
+  qc.setQueryData(qk.chat(other), { chat: { jid: other, inboxId: 2 }, events: [] });
+  qc.setQueryData(['hidden-chats', 1, 'open'], { visible: 2, hidden: 0, number: null });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('chats:hidden')!({ inboxId: 1 }));
+  const list = qc.getQueryData<{ pages: Array<{ chats: Array<{ jid: string }> }> }>(
+    qk.chats(filters),
+  )!;
+  expect(list.pages[0]!.chats.map((c) => c.jid)).toEqual([other]);
+  expect(qc.getQueryData(qk.messages(hidden))).toBeUndefined();
+  expect(qc.getQueryData(qk.chat(opened))).toBeUndefined();
+  expect(qc.getQueryData(qk.chat(other))).toBeDefined();
+  expect(qc.getQueryState(['hidden-chats', 1, 'open'])?.isInvalidated).toBe(true);
   qc.clear();
 });

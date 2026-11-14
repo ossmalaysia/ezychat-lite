@@ -80,7 +80,8 @@ describe('connector list', () => {
     });
     await s.refresh();
     expect(server.calls).toEqual([]);
-    expect(ConnectorGallery.parse(s.gallery()).connectors.length).toBe(15);
+    // GitHub is Lite only (the test app is Lite).
+    expect(ConnectorGallery.parse(s.gallery()).connectors).toHaveLength(17);
     expect(s.entry('google-calendar')?.kind).toBe('builtin');
     expect(s.entry('hitpay')?.kind).toBe('coming_soon');
     expect(s.entry('custom-mcp')).toBeNull();
@@ -92,10 +93,12 @@ describe('connector list', () => {
     expect(entries.map((e) => e.id)).toEqual([
       'google-calendar',
       'google-sheets',
+      'google-drive',
       'hitpay',
       'shopify',
       'autocount',
       'sql-account',
+      'github',
       'bukku',
       'xero',
       'zoho-books',
@@ -120,7 +123,27 @@ describe('connector list', () => {
     // Beta while Google reviews the sign-in app: the badge and notice come from the list.
     expect(entries[0]).toMatchObject({ stage: 'beta' });
     expect(Object.keys(entries[0]!.notice!).sort()).toEqual(['en', 'ms', 'zh-CN']);
-    expect(entries.filter((e) => e.stage === 'beta').map((e) => e.id)).toEqual(['google-calendar']);
+    expect(entries[1]).toMatchObject({ kind: 'builtin', builtinId: 'google-sheets' });
+    expect(entries.filter((e) => e.stage === 'beta').map((e) => e.id)).toEqual([
+      'google-calendar',
+      'google-sheets',
+      'google-drive',
+      'sql-account',
+      'github',
+    ]);
+    // SQL Account (built in, beta: untested against a real SQL Account API yet).
+    expect(entries.find((e) => e.id === 'sql-account')).toMatchObject({
+      kind: 'builtin',
+      builtinId: 'sql-account',
+      category: 'accounting',
+    });
+    // GitHub (built in, Lite only for the first release: owner decision Q3).
+    expect(entries.find((e) => e.id === 'github')).toMatchObject({
+      kind: 'builtin',
+      builtinId: 'github',
+      editions: ['lite'],
+      category: 'other',
+    });
   });
 
   it('downloads, checks and saves a good list with its icons', async () => {

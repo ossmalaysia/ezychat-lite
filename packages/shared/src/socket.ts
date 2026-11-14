@@ -11,6 +11,7 @@ import {
 } from './models.js';
 import type { InboxStatusPayload } from './inboxes.js';
 import type { VoiceStatus } from './voice.js';
+import type { GroupChangedPayload } from './groups.js';
 
 export interface MessageStatusPayload {
   id: string;
@@ -44,6 +45,14 @@ export const MessageReactionsPayload = z.object({
 });
 export type MessageReactionsPayload = z.infer<typeof MessageReactionsPayload>;
 
+/** An admin deleted a chat in EzyChat: drop it (and its messages) from every cache. */
+export const ChatDeletedPayload = z.object({ jid: z.string() });
+export type ChatDeletedPayload = z.infer<typeof ChatDeletedPayload>;
+
+/** A linked phone logged out: every chat of this inbox is hidden; drop them from every cache. */
+export const ChatsHiddenPayload = z.object({ inboxId: z.number().int().positive() });
+export type ChatsHiddenPayload = z.infer<typeof ChatsHiddenPayload>;
+
 export interface ServerToClientEvents {
   'notification:new': (notification: NotificationPayload) => void;
   'message:new': (m: Message) => void;
@@ -56,6 +65,10 @@ export interface ServerToClientEvents {
   'voice:status': (s: VoiceStatus) => void;
   'chat:updated': (c: Chat) => void;
   'chat:event': (e: ChatEvent) => void;
+  /** An admin deleted the chat (sent to the chat's rooms). */
+  'chat:deleted': (p: ChatDeletedPayload) => void;
+  /** The inbox's phone logged out and its chats are hidden (sent to everyone who sees the inbox). */
+  'chats:hidden': (p: ChatsHiddenPayload) => void;
   'note:new': (n: Note) => void;
   typing: (p: TypingPayload) => void;
   /** Connection status of inbox 1 (the number linked before multi-inbox). */
@@ -64,6 +77,10 @@ export interface ServerToClientEvents {
   'inbox:status': (p: InboxStatusPayload) => void;
   /** An inbox was added, renamed or removed, or its members changed: reload the inbox list. */
   'inboxes:changed': () => void;
+  /** The chats this user may open changed (an agent limited to chosen chats): reload chats. */
+  'chats:access': () => void;
+  /** A group was changed in EzyChat or on WhatsApp: refetch its Group info (inbox room only). */
+  'group:changed': (p: GroupChangedPayload) => void;
   'tunnel:status': (s: TunnelStatus) => void;
   'session:revoked': () => void;
   /** The access gate closed (an edition turned the app off); the socket is disconnected next. */

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import type { Message, MessageSafety } from '@ezychat/shared';
 import { errorMessage } from '../api/client';
-import { useSafetyAction, useSafetyChat } from '../api/safety';
+import { useSafetyChat, useSafetyChatAction } from '../api/safety';
 import { useAuth } from '../auth/AuthProvider';
 import { copyText } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
@@ -82,8 +82,11 @@ export function SafetyNotice({ safety, hasFile }: { safety: MessageSafety; hasFi
 
 /** Fetches the file first so a refusal (locked) is a message, not a saved error page. */
 async function saveFile(messageId: string, name: string): Promise<'ok' | 'locked'> {
+  // `no-store` skips the service worker's file cache: the server must check the lock and record
+  // every download of a flagged file.
   const res = await fetch(`/api/media/${encodeURIComponent(messageId)}`, {
     credentials: 'same-origin',
+    cache: 'no-store',
   });
   if (res.status === 403) return 'locked';
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -211,8 +214,9 @@ export function SafetyChatBar({ jid }: { jid: string }) {
   const { t } = useTranslation('inbox');
   const { user } = useAuth();
   const { data } = useSafetyChat(jid);
-  const action = useSafetyAction();
-  if (!data?.enabled || (!data.blocked && !data.scam && !data.maybeHacked)) return null;
+  const action = useSafetyChatAction(jid);
+  // A blocked number shows even with WhatsApp Safety off (admins block any chat from the Customer panel).
+  if (!data || (!data.blocked && !(data.enabled && (data.scam || data.maybeHacked)))) return null;
   const admin = user?.role === 'admin';
 
   if (data.maybeHacked && !data.blocked)
@@ -257,7 +261,7 @@ export function SafetyChatBar({ jid }: { jid: string }) {
               : t('safety.bar.blocked')
           : t('safety.bar.scam')}
       </span>
-      {admin && data.blocked && data.itemId !== null && (
+      {admin && data.blocked && (
         <Button
           size="sm"
           variant="outline"
@@ -265,7 +269,7 @@ export function SafetyChatBar({ jid }: { jid: string }) {
           disabled={action.isPending}
           onClick={() =>
             action.mutate(
-              { id: data.itemId!, action: 'unblock' },
+              { action: 'unblock' },
               {
                 onSuccess: () => toast.success(t('safety.bar.unblocked')),
                 onError: (e) => toast.error(errorMessage(e)),

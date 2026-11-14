@@ -11,6 +11,8 @@ npm-workspaces monorepo: `packages/{shared,wa,server}`, `apps/{web,desktop}`, al
 ## Before you start (required)
 
 1. Read `docs/LEARNINGS.md` — past mistakes and the rules that came out of them.
+   For a tech-debt review or a change in an area it lists, also read `docs/DEBT.md` (findings, fixes, open debt)
+   and record new findings and fixes there.
 2. Read `docs/design-system.md` before touching `apps/web`.
 3. Check `git status`; never overwrite uncommitted work you didn't make.
 
@@ -84,7 +86,12 @@ rejected in service mode.
 `Browsers.ubuntu('Chrome')` (`WA_BROWSER`) — "Desktop" identities are rejected by WhatsApp (428 before any QR).
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
-3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`).
+3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`), with the
+adapter's opaque data in `media_refs` so it survives a restart. An image with WhatsApp's `jpegThumbnail` (`media_thumbs`,
+`GET /api/media/:id/thumb`) shows it in the chat; its real file loads only when the image is opened. A new table needs an
+entry in the Lite merge's `TABLE_PLAN`.
+PDFs (and photos sent as files) open in the app: `inbox/PdfViewer.tsx` draws them with pdf.js from fetched bytes
+(`lib/pdf.ts`, lazy chunk + worker, 50 MB cap, `%PDF-` check); the media route still serves them as attachments.
 Voice notes: the composer records Ogg/Opus in the browser (`lib/voice-recorder.ts`, opus-recorder's
 WebAssembly encoder); `POST /chats/:jid/media` with `voiceNote=1` checks it is Ogg/Opus of at most 5 min
 (`messages/voice-note.ts`, length counted from Opus packets) and sends it with `ptt: true`, length and a
@@ -104,6 +111,17 @@ Sending: `PUT /api/messages/:id/reaction` {emoji} ('' removes; one emoji, zod-ch
 goes straight to `WaAdapter.sendReaction` (never queued; offline → 503), with the reply refusals; the
 linked number's row (reactor `me`) keeps `sent_by_user_id` (teammate, `ReactionRepo.applyOwn`) until
 WhatsApp reports another emoji from the phone. One reaction per number: the team shares it.
+Edits and deletes (design `docs/features/message-edit-delete/design.md`, migration 029, `messages/changes.ts`):
+Baileys `MESSAGE_EDIT` / `REVOKE` protocol messages (`baileys/protocol.ts`, upsert and history only) become adapter
+events `messageEdited` / `messageDeleted`; the adapter skips the echo of its own changes. A change applies only in
+the stored message's chat and only by its author (`changeAuthor`; a group admin may delete, never edit), else waits
+in `message_changes_pending` until the message arrives. Team: `PATCH /api/messages/:id` {text} (15 min) and
+`DELETE /api/messages/:id?scope=everyone` (2 days) for the teammate who sent it or an admin, `scope=me` (hidden for
+the team, `chatModify` on the phone) for admins; never queued (offline → 503), 30 a minute per user, audit ids only.
+Only with `WaCapabilities.editMessage` / `deleteForEveryone` / `deleteForMe` (absent = off, e.g. the Business API).
+A deleted row keeps its text; `rowToMessage` sends it without body, media or quote, and only admins read the
+original (`GET /api/messages/:id/edits`). Hidden rows leave `pageDesc`; the AI skips deleted messages and redrafts
+when the customer changes a message mid-reply. Dev: `POST /api/dev/fake-edit`, `/api/dev/fake-revoke`.
 
 **Inboxes (several WhatsApp numbers).** Design `docs/features/multi-inbox/design.md`. Each WhatsApp
 number is an inbox (table `inboxes`, linked phone). `InboxConnections` (`inboxes/connections.ts`) holds one
@@ -131,8 +149,13 @@ Web: `WebExtension.inboxTypes` fills the type choice and slots of Admin → Inbo
 `--mode dev --fake-wa` adds the `fake-api` type (`POST /api/dev/fake-api-inbox`, `POST /api/dev/fake-window`).
 
 **AI agents.** Design `docs/superpowers/specs/2026-10-22-custom-agents-design.md`. An install has up to
-`maxAgents = maxInboxes` AI agents (Lite 1, 409 `agent_limit`), at most one per inbox (409
-`inbox_has_agent`); table `ai_agents` (`ai/agents.ts` is its only SQL: name and on/off stay on the `kind='ai'`
+`maxAgents` AI agents (`runCli({ maxAgents })`, default `maxInboxes`; Lite 1, 409 `agent_limit`; `--max-agents` only with
+`--mode dev --fake-wa`). Several agents may share an inbox (design `docs/features/group-agents/design.md`, migration 032
+rebuilds `ai_agents` without the inbox UNIQUE), but only one answers its direct chats (409 `inbox_has_direct_agent`; a
+new agent there starts group-only); each group names its agent in `ai_group_chats.agent_id` (`PUT
+/api/ai/agents/:agentId/group-chats`, 409 `group_has_agent`; `PUT /api/chats/:jid/ai-group` {enabled, agentId?, listen?},
+400 `agent_required`). `listen` ("Reads every message") starts a turn 8 s after the last live member message of a batch
+(no tag needed, `no_reply` allowed; loop guard = 10 AI messages with no person's message between them); table `ai_agents` (`ai/agents.ts` is its only SQL: name and on/off stay on the `kind='ai'`
 `users` row, preset `sales|faq|custom`, `instructions`/`handoff_rules` NULL = preset defaults, a saved blank
 stays blank). Each agent owns its Business context items and setup versions (`agent_id`; every item SQL has
 `AND agent_id = ?`) and answers only chats of its inbox (`agentForChat`; an AI assignee outside its inbox is
@@ -150,8 +173,8 @@ and `POST /api/ai/try` (admin-only, no chat side effects); `POST /api/ai/edit` (
 draft and its Save persists it; its log line holds field, ok, ms and model only — never the request,
 the current text or the suggestion; closing the popup aborts the request and the model call. Reply suggestions
 (design `docs/features/ai-reply-suggestions/design.md`): `POST /api/chats/:jid/ai/suggestions` and `…/ai/complete`
-(any user with inbox access, direct chats only, 20 and 60 a minute) draft from the chat's agent knowledge even when
-the agent is off (`AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
+(any user with inbox access, direct chats and groups, 20 and 60 a minute) draft from the chat's agent knowledge even when
+the agent is off (a group gets member names via `groupConversation`, `currentSituation.group`, no customer details; `AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
 `CORE_RULES`); both use the "Model for suggestions" (`ai_reply_suggestions_model`: `fast` default = the connection's
 fast model, `agent/draft.ts` ChatGPT `CHATGPT_FAST_DRAFT_MODELS` with reasoning `low`, `DRAFT_FAST_MODELS` for the
 API-key modes; `agent`; or a model of the connection, `GET /api/ai/reply-suggestions/model`); a completion sees only
@@ -177,7 +200,7 @@ only in the encrypted `ai_chatgpt_direct_tokens` setting; no Codex binary is bun
 in, and the AI member stays off until an admin turns it on. `POST /api/ai/connection/test` (admin-only,
 rate-limited, `ai/key-test.ts`) checks a key with `GET /v1/models` and never stores or logs it; only
 `invalid_key` (401) blocks saving. Both modes run one agent turn on the Vercel AI SDK
-(`ai/agent/turn.ts`: tools, structured decision with actions answer / ask_resolution / resolve / handoff / `no_reply` (empty reply, nothing sent, the AI keeps the chat), ≤ 4 steps, no transport retries but a malformed decision is asked once more; failures are `AgentTurnFailure` with `kind`, `causeName`, `status` for the `AI answer unavailable` log line; models in `ai/agent/models.ts`,
+(`ai/agent/turn.ts`: tools, structured decision with actions answer / ask_resolution / resolve / handoff / `no_reply` (empty reply, nothing sent, the AI keeps the chat; a direct chat gets a team-only `ai_tool_used` line with `silent` {kind `no_reply` | `finished` = a resolve the off resolution check silenced}, never after the thumbs-up close), ≤ 4 steps, no transport retries but a malformed decision is asked once more; failures are `AgentTurnFailure` with `kind`, `causeName`, `status` for the `AI answer unavailable` log line; models in `ai/agent/models.ts`,
 which keep `store:false` + encrypted reasoning and pass only our fixed error messages). Read tools are
 built per chat in `ai/agent/tools.ts`, take no chat/person arguments, and are offered only when useful
 (`search_business_context` above the 40,000-character budget, `get_older_messages` when the chat is
@@ -211,6 +234,22 @@ assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests a
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 
+**Scheduled tasks** (design `docs/features/scheduled-tasks/design.md`, migration 036, `scheduled/` (`repo.ts` is its only
+SQL), routes `/api/ai/agents/:agentId/scheduled-tasks*`, admins). Up to `SCHEDULED_TASKS_MAX` (10) tasks per agent; each
+sends one message at one time on its days (`ai_timezone`, `scheduled/time.ts`) to ONE existing chat or group of the
+agent's inbox (400 `chat_not_in_inbox`), never a new number or a list. `scheduled/service.ts` ticks every 30 s: a slot is
+claimed once (`UNIQUE(task_id, slot)` in `ai_scheduled_runs`) and runs only within 15 minutes of its time; later it is
+recorded `missed`, never caught up; a task created or edited after a slot skips it. Paused (`agent_off`, `access_closed`,
+`ai_disconnected` via `AiService.answerReady`, `wa_disconnected`): the slot waits inside the grace. One
+`AiService.scheduledTurn` (`SCHEDULED_RULES` + `currentSituation.scheduledTask`, look-ups only, `save_file_to_drive`
+removed, Sheets `add_sheet_row` kept, answer or `no_reply`; handoff = skipped `needs_team`, no notification; leak check)
+then `messages.sendText(…, { scheduledTaskId })`: never claims the chat, `messages.scheduled_task_id` gives
+`Message.scheduledTask` ("Scheduled · <task>"), and the send queue asks `scheduled.canSend` instead of the AI's
+`canSend`. Business API window closed → skipped `window_closed`. Run now 3/task/h and 20/admin/h (429 `rate_limited`,
+409 `scheduled_paused`); preview 20/min, nothing sent or stored. Runs keep ids and reasons only (last 100); logs and
+audit `scheduled_task.*` never hold the instruction or text. Lite import copies tasks switched off, no runs. Web:
+`admin/AgentScheduledTasksCard.tsx`, `ScheduledTaskDialog.tsx`, `ScheduledRunsDialog.tsx`, `api/scheduled-tasks.ts`.
+
 **AI in groups** (design `docs/features/ai-groups/design.md`). Off by default: `ai_agents.answer_groups` (agent page
 Groups card) and `ai_group_chats` per group (Group info switch), migration 024; routes `/api/ai/agents/:agentId/groups`,
 `/api/chats/:jid/ai-group`. `ai/groups.ts` answers only a live group message that tags the inbox's own JID/LID
@@ -241,17 +280,77 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
-**Ask Ezy** (design `docs/features/ask-ezy/design.md`, mock `docs/features/ask-ezy/mock`). An in-app assistant
+**Ask Ezy** (design and decision log `docs/ask-ezy.md`: read it before changing Ask Ezy and add a decision line when you change a rule). An in-app assistant
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
 the signed-in user (team members: the inbox read tools of their own inboxes; admins also the AI setup reads,
 `try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the connection's
-**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 6 steps, no retries) returns text plus typed blocks
+**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 8 steps, the last without tools, no retries) returns text plus typed blocks
 (`AskEzyBlock`: stats, bars, heatmap, chats, customer, change, test); blocks are validated, invalid ones dropped,
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
-Logs carry tool names, counts, ms and model, never question or answer text. Web: `apps/web/src/askezy/`.
+Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
+optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
+question and card back into the assistant's history line. Setup runs on the **main model**: an admin's normal (fast)
+turn offers only `start_setup` (no arguments); calling it ends the fast turn and the same request (same history) reruns
+with `AiAssistCall.main` (the connection's saved model, its own reasoning), the setup prompt rules (one question = one
+unknown, agent → chat → time, propose a new agent and its task together) and the setup tools `list_scheduled_tasks`,
+`propose_agent`, `propose_scheduled_task`, `propose_scheduled_task_edit` (`ask-ezy/setup.ts`, a sibling store with the
+same 30 min / 20 per admin rules, server-made ids); log `ask_ezy_setup_start`, then the answer line with `setup: true`
+and the model. Every turn has a total budget (fast 90 s, setup 150 s): then the model call and its tools stop and the
+stream ends with `error ai_timeout` (log `kind: 'budget'`, tool names and counts only). Blocks `agent_proposal` and
+`task_proposal` are filled from the held proposal. `propose_agent` {name, purpose, inboxId?, instructions?} is refused
+at `maxAgents` (the tool error gives the sentence: Lite with 1 keeps its own, else "This EzyChat allows N AI agents…")
+and for a generic name or an existing agent's name; the agent is always preset `custom`, the server writes its role
+text from `purpose` (`scheduledAgentInstructions`; `instructions` only adds detail) and Apply turns "Answer direct
+chats" off. A new agent comes only with its task: an answer drops an `agent_proposal` without a `task_proposal` that
+`dependsOn` it (block `setup_note` `agent_needs_task` instead), adds a missing agent card for a task that needs it, and
+the route refuses Apply of an agent proposal (409 `agent_needs_task`; the task's Apply creates both). Apply creates
+the agent **switched off** through `AiService.createAgent` (409 `agent_limit` again). A task names only a chat id a `list_chats`/`get_chat` look-up returned
+in the same answer, that `canOpenChat` allows and that is on the agent's inbox (else `chat_not_in_inbox` in the tool
+error). Its preview is one `AiService.scheduledTurn` (preview, the turn's signal, its own 20 s budget: after that the
+card comes with `preview: null`, `previewTimedOut`; own limit 10 a minute per admin, not the agent page's); a pending new agent previews as a `draft` (name, preset, instructions, no
+business context, no look-ups, nothing stored). A chat without a name is never shown by its number: `chatName` null,
+"Chat …6789". Apply runs the scheduled-task create/update service (same limits); a task whose `dependsOn` agent is
+pending applies the agent first in the same request (`related`); when the task then fails the answer is 200
+`{status:'proposed', failed}`, the agent stays with its own Undo, and a retry re-checks it (409 `agent_gone`).
+Undo of a task refuses 409 `setup_changed` when it was edited since Apply; Undo of a new agent (also via its task)
+deletes it only where `maxAgents > 1` (Lite: 409 `agent_kept`, `removable: false` on the card, the agent stays off),
+while it is off with no chats or tasks (409 `agent_in_use`) and unchanged since Apply (fingerprint of its texts, items
+and every `agent_id` row; 409 `setup_changed`), and discards the task proposals still waiting for it. The store
+evicts a new agent together with the tasks that need it, never the one a new proposal needs. The same
+`/api/ask-ezy/changes/:id/:action` route serves all three kinds (`AskEzyService.act`); logs `ask_ezy_setup` carry kind,
+action, ok, code and ids only.
+One time limit for the whole question (fast and setup turns), set by admins in Settings → AI (`GET/PUT /api/ask-ezy/settings` {timeoutMinutes 5|10|15|30}, default 15, setting `ask_ezy_timeout_minutes`, audit `settings.ask_ezy_timeout` before/after; `AskEzySettingsSection.tsx`); it replaces the connection's own 60 s (`AiAssistCall.timeoutMs`), which customer replies keep, and the panel's Stop ends a question at any time. The stream sends an empty line every 20 s (`ASK_EZY_KEEP_ALIVE_MS`) so the tunnel never closes a silent answer. Logs carry tool names, counts, ms and model, never question or answer text; each model call writes an `ask_ezy_call` trace line (ms, input/cached/output tokens, tools asked for) and each turn an `ask_ezy_turn_start` line (sizes of the fixed part): read them before changing Ask Ezy for speed. Web: `apps/web/src/askezy/`.
+
+**Send feedback** (design `docs/features/in-app-feedback/design.md`, mock `docs/features/in-app-feedback/mock`). Any
+signed-in user: `POST /api/feedback` (multipart: `report` = shared `FeedbackReportBody`, 0–3 `file` parts, 10 MB each,
+25 MB together, type read from the bytes in `feedback/files.ts`: PNG/JPEG/WebP/PDF/MP4, text only as `.txt`/`.log`; 5 an
+hour and 20 a day per user, a retry with the same `clientReportId` is answered from memory and not counted again) and
+`GET /api/feedback/defaults` (company, app details, the exact redacted log). `feedback/service.ts` builds the app
+details on the server (`diagnostics.ts`: edition, version, Windows/macOS, mode, WhatsApp connected, AI mode, never
+keys; the screen path without ids) and, only when ticked, the last 200 lines / 64 KB of the newest log (`log.ts`:
+`redactLogLine` plus message text, names, numbers, chat ids, emails, IPs and the user folder removed; non-JSON lines
+dropped). `feedback/portal.ts` posts to `https://license.anchorsprint.app/v1/feedback` (30 s, `redirect: 'error'`,
+16 KB answer cap; `EZYCHAT_FEEDBACK_URL` only with `--mode dev --fake-wa`) and maps answers: 400/413/415/429 pass
+through, 403 `product_closed` → 503 `feedback_closed`, anything else → 502 `feedback_unreachable`. Lite sends
+`EZC-LITE` + a random `installRef` (setting `feedback_install_ref`); an edition answers `ServerExtension.feedbackAuth`
+(`product`, `installId`, `secret`, `company?`, `portalOrigin?` https or loopback http), else a non-Lite edition answers
+503 `feedback_unavailable`. Logs: type, area, file count and sizes, ms, reference only. Nothing of a report leaves the
+computer until Send. Web: `components/app/FeedbackDialog.tsx` (`openFeedback`, `FeedbackHost` in `create-app.tsx`;
+account menu, Admin Help & feedback, About, error panel); the desktop window's "Screenshot of this window" is
+`window.watiCapture` (`apps/desktop/src/capture-ipc.ts`, inbox IPC guards, PNG of the asking window only).
+
+**Usage stats** (design `docs/superpowers/specs/2026-11-04-usage-stats-design.md`). `usage/service.ts` (`ctx.services.usage`) is the only
+sender: at start, on bus events (`inbox:status`, `ai:connection-changed`, `message:status`, `access:opened`), after the
+first-admin setup and hourly it reads the app's own state for the milestones `app_installed`, `admin_created`,
+`wa_linked`, `ai_connected`, `ai_agent_on`, `first_message_sent` (each once, remembered in `usage_sent`) and
+`app_active` (once a day), and posts each as a shared `UsageEvent` to `https://license.anchorsprint.app/v1/usage`
+(10 s, `redirect: 'error'`, no retry on a 4xx). Product from the edition (`lite` → `EZC-LITE`, `enterprise` →
+`EZC-ENT`, else nothing). Never sends with `--fake-wa`, in dev (except `EZYCHAT_USAGE_ENDPOINT` with `--mode dev
+--fake-wa`), while the access gate is closed or the switch is off (`usage_stats`, `PATCH /api/settings`
+{usageStats}, audit `usage_stats.update` before/after). Logs event names, status and counts only.
 
 **Events.** `wa-bridge` maps adapter events into services (ingest, status acks, chat/contact upserts).
 Services emit on the typed in-process `Bus` (`bus.ts`); `realtime/socket.ts` fans out to Socket.IO
@@ -270,7 +369,9 @@ cascades). `rowToChat` prefers the profile name and adds `tags`/`whatsappName`; 
 from `ChatRepo.get`/`list` (profile join + one batched tag query; SQL in `customers/sql.ts`). Every
 outbound Message goes through the message service's `present()` (group `senderProfile` via
 `AliasStore.route()`). `mergeChat` must move every table keyed by `chat_jid` (profiles via
-`customers/merge.ts`). When the AI reads profiles, put them in `currentSituation`/`conversation`,
+`customers/merge.ts`). One person's direct chats in several inboxes share the contact fields (not tags):
+`customers/linked.ts#linkedChats` (same JID or PN/LID pair, never a re-pointed number) is written on every
+save and enrichment, seeds a new chat in `ChatRepo.ensure`, and fills empty chats at start-up. When the AI reads profiles, put them in `currentSituation`/`conversation`,
 never earlier in the prompt.
 
 **Customer enrichment.** `customers/enrichment.ts` uses the shared AI connection independently of
@@ -283,7 +384,7 @@ atomic profile/audit commit, and ensure the JID still routes to that same chat a
 Audit stores scores, field names and message references, never values
 or raw evidence. Tests and the mock-AI Dev Build runner never call outside providers.
 
-**Connectors** (design `docs/features/google-calendar/design.md`). Admin → Connectors (`admin/connectors/`) is a
+**Connectors** (design `docs/features/google-calendar/design.md`; rules `docs/connector-design.md`: use-case agnostic, scalable, adaptable; a connector grants access, the agent's instructions decide the use). Admin → Connectors (`admin/connectors/`) is a
 gallery (`catalog.ts`) with one page per connector; every ready connector is core, only the custom MCP connector is
 Enterprise (greyed out in Lite; an edition points a connector at its own page with `WebExtension.connectorLinks`).
 Coming-soon connectors have Vote / Ask for a connector: a WhatsApp link (`useAppLinks().connectorRequest`, `null`
@@ -308,6 +409,77 @@ using it and hands booking chats over. Chat lines are `ai_tool_used` events with
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.
 
+**Google Sheets** (design `docs/features/google-sheets/design.md`). Core built-in connector like Google Calendar,
+with its own Google sign-in (`connectors/google-account.ts`: the calendar's PKCE/loopback flow made generic; tokens in
+the encrypted `google_sheets_tokens` setting; scope `drive.file`: only files picked in Google's file picker, whose page
+`picker-page.ts` is host-only with its own CSP and needs `GOOGLE_PICKER_API_KEY`/`_APP_ID`). `connectors/google-sheets/`
+(`repo.ts` is its only SQL, migration 030, routes `/api/connectors/google-sheets/*`, admins): per agent one spreadsheet
+(picked, checked with Google) and per tab Off / Read / Add rows (`tabs`; old `lookupTab`/`leadsTab` saves are mapped on
+read, `upgrade.ts` adds a leads line to the agent's instructions once). Tools `read_sheet_rows {tab, query}` and
+`add_sheet_row {tab, values}` list only the agent's tabs with their first-row columns (cached 5 min, `POST
+…/agents/:agentId/refresh` clears it); the agent's instructions say what to record. `add_sheet_row` fills Date, Name,
+WhatsApp, Group, AI agent, Source, accepts other values only from the person's messages or a file they sent
+(`values.ts`), never twice for the same message+values, no daily cap, RAW, also in group turns (the only write there),
+never Try it. Per Add rows tab, two admin switches (off by default, `SheetTabSetting.aiValues` / `.formulas` in the
+settings JSON, audited before/after; design `docs/connector-design.md` Part D): `aiValues` skips the "the person wrote it" check (the
+tool description says only looked-up or worked-out figures); `formulas` appends `USER_ENTERED`, where only a formula the
+AI made runs (aiValues on, not in any person's message, no file given) and never one that reaches outside the sheet
+(`values.ts#formulaReachesOut`: web address, IMPORT*/IMAGE/HYPERLINK/WEBSERVICE/… → `formula_blocked`); every other
+formula-like value, auto columns included, is written as text with a leading `'` (`asText`). Admins can **create a new
+sheet** (`POST …/agents/:agentId/create`, shared `SheetLayout`; Part E): `spreadsheets.create` + one USER_ENTERED
+`values:batchUpdate` (column names, the layout's formulas, same `formulaReachesOut` check → 400 `formula_blocked`),
+then saved as the agent's; blank or from a template's optional `AgentTemplateEntry.sheet` (built-in Claims has one);
+audit `google_sheets.spreadsheet_created` with counts only. Activity and
+logs keep who and when only, never row values. `--fake-wa` without a Google app uses `FakeGoogleSheets`
+(`/api/dev/fake-google-sheets*`, demo sheet `FAKE_SPREADSHEET_ID`).
+
+**Google Drive** (design `docs/features/google-drive/design.md`). Core built-in connector like Sheets, its own Google
+sign-in (`google_drive_tokens`, scope `drive.file`: a picked folder grants only the folder, so the AI reads only files the
+admin picks; Google's picker in `folder` or multi-select `files` mode, `connectors/google-drive/picker-page.ts`).
+`connectors/google-drive/` (`repo.ts` is its only SQL, migration 034, routes `/api/connectors/google-drive/*`, admins): per
+agent one folder, Save files (off) and Read files (on) with ≤ 50 picked files inside the folder; nothing about the use
+case (instructions decide). Tools: `save_file_to_drive {file, subfolder?}` picks a label of this chat's newest inbound
+files (24 h, ≤ 10; group: the batch's senders), never a link or id from the model; never Safety High/quarantined, ≤ 25 MB,
+once per message and folder (`drive_saved_files` + Drive app property `ezychatKey`), EzyChat names the file, optional
+one-level sub-folder EzyChat creates (`drive_folders`), also in group turns, never Try it; `list_drive_files` /
+`read_drive_file` read only the picked files (Docs/Sheets exported, PDF/Word via `extractKnowledgeIsolated`, ≤ 10 MB,
+≤ 20,000 characters), never files saved from chats. Chat line `ai_tool_used` with `drive: {action:'saved'}`; Activity and
+logs keep who/when/kind/size only. `--fake-wa` without a Google app uses `FakeGoogleDrive` (`/api/dev/fake-google-drive*`).
+**SQL Account** (design `docs/features/sql-accounting/design.md`, beta, untested against a real SQL Account API).
+Core built-in connector for SQL Account (eStream) through its API service (API Link, a paid module): HTTPS only to
+`api.sql.my` (eStream's Postman collection; a saved `<32 hex>.sql.my` stays accepted) via the `connectors/mcp/net.ts` guard (no private address, no redirect, 10 s, 1 MB,
+one request at a time, 30 a minute), AWS SigV4 (`connectors/sql-account/sigv4.ts`, region `ap-southeast-5`, service
+`sqlaccount`, pinned to AWS test vectors); access key + secret key only in the encrypted `sql_account_connection`
+setting, the key end shown. `connectors/sql-account/` (`repo.ts` is its only SQL, migration 035, routes
+`/api/connectors/sql-account/*`, admins): Test connection is a signed `GET /agent`; states `no_dns`, `unreachable`,
+`private_ip`, `bad_keys`, `old_version`, `unexpected`; never another way into SQL Account. Per AI agent and per object
+(`SQL_OBJECTS` in shared `sql-account.ts`: stock items, customer, customer invoices (amount owed, off by default), sales
+invoices, quotations, sales orders, delivery orders, payments) Off / Read / Read + create (create only for quotations; never update or delete). Own-record tools take no
+customer argument: the chat is matched by a teammate link (`sql_account_links`) or a WhatsApp number exactly one SQL
+Account customer has (never a name, never a code the customer types), the server adds the code to every request and
+drops other customers' rows; no match → the tool tells the AI to hand over. Groups and Try it get the stock look-up
+only. Quotation = `sql_quotation_preview` (items from a stock look-up in the chat, quantities the customer wrote, SQL
+prices) then `sql_create_quotation` after an AI reply and a newer customer message (2 a chat, 20 an agent a day). The
+amount owed comes only from `/customerinvoice` / `customer.outstanding`, said exactly as recorded with its time. The
+phone index reads each customer's `sdsbranch` in the background (one every 4 s). Logs and Activity: tool, ok, ms, ids only. `--fake-wa` swaps in
+`FakeSqlAccount` (`fake.ts`, checks SigV4 with `FAKE_SQL_ACCESS_KEY`/`FAKE_SQL_SECRET`; `/api/dev/fake-sql-account/*`).
+
+**GitHub** (design `docs/features/github/design.md`, beta, **Lite only** for now: outside Lite the service is not
+created, routes answer 404, no tools). Read only, issues and pull requests, never code. Sign-in (one per install, encrypted
+`github_auth`): Anchor Sprint's GitHub App "EzyChat by Anchor Sprint" through the device flow with only the public Client ID
+(`GITHUB_APP_CLIENT_ID` in `packages/shared/src/github.ts`; no client secret, no private key in the app), or a fine-grained
+token (`github_pat_` only, classic `gh[pousr]_` refused). Refresh needs no secret but revokes the old access token at once
+and the refresh token is single-use: one refresh at a time, save the new pair first, retry a 401 once.
+`connectors/github/` (`repo.ts` is its only SQL, migration 044, routes `/api/connectors/github/*`, admins): per agent ≤ 20
+repos + Issues / Pull requests switches. **Security invariant: a user token reads any public repo**, so `query.ts` is the
+boundary: every search query is rebuilt (every word with a colon, OR/AND/NOT, quotes and brackets dropped; `repo:` per
+allowed repo + `is:issue`/`is:pr` added), results from other repos are dropped, and every other call checks the repo
+against the agent's allowed and still-shared list. Tools `github_search_issues`, `github_list_issues`, `github_read_issue`
+(issues API, body ≤ 4,000, 5 latest comments ≤ 1,500 each), `github_search_pull_requests`; results ≤ 12,000 characters,
+data never instructions, ≤ 6 calls a turn, failures hand over (`lookup_failed`); allowed in Try it and groups. Logs never
+keep query words, titles, bodies, repo names or tokens. `--fake-wa` uses `FakeGitHub` (`/api/dev/fake-github*`) unless
+`EZYCHAT_GITHUB_REAL=1`.
+
 **Connector list** (design `docs/features/connector-list/design.md`). The gallery comes from a signed list published
 by the public repo `anchorsprint/ezychat-connectors` (one folder per connector: `connector.yaml`, `skill.md`,
 `icon.svg`; its CI validates, builds `list-v1.json`, signs it with Ed25519 and uploads it with the icons to
@@ -328,6 +500,22 @@ enforces the entry's guards before every call (`guards.ts`: confirmFirst, valueF
 fail closed; Try it never runs a write tool) and logs ids, tool names, outcome and ms only. Test partners:
 `e2e/partner-mcp/` (`node e2e/partner-mcp/cli.mjs`; e2e project `partners` on port 7497 via `e2e/start-partners.mjs`).
 
+**Template list** (design `docs/features/template-store/design.md`). AI agent templates update without a release: the
+publishing repo `anchorsprint/ezychat-connectors` (folder `templates/`, proposal files in
+`docs/features/template-store/publisher/`) builds `templates-v1.json`, signs `ezychat-templates-v1\n` + the bytes with the
+connector list keys (domain separation) and uploads it to `dl.ezychat.ai/templates/`. Contract
+`packages/shared/src/template-list.ts` (`AgentTemplateEntry` schemaVersion 1, texts per en/ms/zh-CN with whole-English
+fallback, `version`, `defaults`, `recommendedConnectors`; JSON Schema `scripts/template-schema.mjs`). Server
+`templates/` (`ctx.services.templateList`): download at start and on `POST /api/ai/templates/refresh` (admins, once per
+30 s, 10 a minute per admin, `redirect: 'error'`, 512 KB cap), signature + sequence + per-entry checks, control/bidi
+characters removed before the schema check, last good copy in `<data>/templates/`, logs counts only;
+`GET /api/ai/templates` sends only entries this app and edition can use. `EZYCHAT_TEMPLATE_LIST_URL` / `_TEST_KEY` only
+with `--mode dev --fake-wa`. Web: the app's own templates (`admin/business-templates-data.ts`, catalogs
+`ai.businessTemplates.<id>.*`, version 1) are the fallback; `galleryTemplates` merges (a list entry replaces one only
+with a higher version, adds new ids, never removes); icons are names from the bundled `TEMPLATE_ICONS` (no image is
+downloaded). A template only fills editable boxes after Apply. `npm run templates:export` rewrites the sample folder
+(kept equal to the app by `scripts/template-store.test.mjs`).
+
 **WhatsApp Safety** (design `docs/features/whatsapp-safety/design.md`, mock `docs/features/whatsapp-safety/mock`).
 `ctx.services.safety` (`safety/service.ts`) checks every inbound message at ingest (`messages/service.ts` calls `inspect`
 before presenting it; history: name and text only). Local rules `safety/rules.ts` (real type from the first bytes, a
@@ -343,14 +531,83 @@ only on a critical rule from a number that is not an existing customer, never in
 message over (`sensitive`). Routes `/api/safety*` (admins), `/api/safety/chats/:jid` (inbox access),
 `/api/reports/safety`. Web: `inbox/SafetyMessage.tsx`, `admin/SafetyPage.tsx`, `admin/SafetyReport.tsx`.
 
-**Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90` (admins, every inbox;
-zod `Report` in `packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
+**Reports.** Design `docs/features/reports/design.md`. `GET /api/reports?days=7|30|90[&inbox=<id>]` (admins; no
+`inbox` = every inbox together, else that one inbox, removed ones included, unknown 404 through `reports/scope.ts`; the
+page's inbox choice shows with 2+ visible inboxes and also scopes `/api/reports/safety`; zod `Report` in
+`packages/shared/src/reports.ts`) is counted on request by `reports/report.ts` (direct chats
 only, business time zone `ai_timezone`; wait and reply times reuse `chats/activity.ts`). A new customer is a
 chat whose first message is the customer's and is not older than WhatsApp's link time (the inbox's first stored
 `created_at`, i.e. the history import); missed = no reply within `MISSED_LEAD_MS` (1 h); "waiting after AI
 hand-off" = open chats whose last `ai.handoff` audit row has no later reply from a person (teammate or phone).
 MCP `get_stats` carries `customers` from the same function. Web: `admin/ReportsPage.tsx` + `ReportCharts.tsx`
 (HTML/SVG in colour tokens, no chart library; every chart has Show as table).
+
+**New chat** (design `docs/features/new-chat/design.md`, mock `docs/features/new-chat/mock`). `chats/new-chat.ts`
+(`ctx.services.newChat`) is the only way to start a chat with a stranger's number: the inbox's **New** dialog
+(`GET /api/new-chat`, `POST /api/inboxes/:id/new-chat/check` (never asks WhatsApp), `POST /api/inboxes/:id/new-chat`
+{phone, name?, clientRequestId, template?}) and MCP `send_to_new_number` (`openChecked`). Admins always; agents while
+`new_chat_staff` is on (admins, `PUT /api/new-chat/settings`, audit `settings.new_chat_staff` before/after), from their
+inboxes; never an agent limited to chosen chats, the AI or another role. The flow comes from `WaCapabilities` only: no
+`replyWindowHours` → `checkNumber`, empty chat assigned to the starter, normal composer; a window with `templates` →
+`MessageService.sendFirstTemplate` sends the template directly (not queued) and creates the chat only once WhatsApp took
+it. Phone numbers: shared `normalizeLocalPhone` (a leading 0 gets the inbox's own country code, +60 fallback). Limits,
+in memory, counted before WhatsApp is asked: `new_chat_daily_limit` per linked-phone inbox (default 20, 0 = none,
+audit `settings.new_chat_daily_limit`; shared with MCP, which keeps its 20 per token on top) and 5 an hour per user.
+Audit `chat.new_number` {inboxId, chatJid, userId, via, tokenId?}; logs ids only.
+
+**Forward** (design `docs/features/forward-message/design.md`, mock `docs/features/forward-message/mock`).
+`messages/forward.ts`, `POST /api/messages/:id/forward` {to (1–5 existing chat keys), clientRequestId, sendAs} sends one
+stored message to existing chats or groups the user may open (never a new number), as the user, through the normal
+send queue of each target chat's own inbox (across inboxes when the user can open both; Lite has one); a forward claims
+the chat like a reply. Every chosen chat is checked before anything is sent; offline → 503 (never queued); a "Forwarded
+many times" source (shared `FORWARD_MANY_TIMES_SCORE`) goes to one chat. WhatsApp's mark: `messages.forwarding_score`
+(migration 038; inbound from Baileys `contextInfo.isForwarded/forwardingScore`, outbound = source + 1) gives
+`Message.forwarded`; the adapter adds `contextInfo` only with `WaCapabilities.forwardedMark` (linked phone; never the
+Business API), and the AI conversation shows inbound ones as `[forwarded] …`. Large files: the stored file goes to the
+adapter by `path` (Baileys `{ url }` + socket `mediaCache`: one upload per number for several chats), each copy gets its
+own media file, `messages.media_size` gives `Message.mediaSize`; limits come only from `WaCapabilities.mediaLimits`
+(linked phone `LINKED_PHONE_MEDIA_LIMITS`: video 64 MB until measured, documents 2 GB; Business API
+`BUSINESS_API_MEDIA_LIMITS`: video 16 MB, document 100 MB): a video above a chat's video limit goes `sendAs: 'file'`
+(document), 413 `too_large_as_video` / `too_large_for_whatsapp`. The app has no file size cap of its own (owner
+2026-11-08, "follow WhatsApp"): the composer checks the same per-inbox limits before uploading, `POST /chats/:jid/media`
+streams the file to `<data>/uploads/` (`routes/media-upload.ts`, `uploads/store.ts`) up to the chat's number's largest
+limit within the free disk (507), and `sendMedia({ path })` moves it in; the bubble shows upload progress (`apiUpload`
+XHR, `lib/upload-progress.ts`). Through the tunnel the web refuses files above `TUNNEL_UPLOAD_LIMIT_BYTES` (Cloudflare's
+100 MB) before uploading, and a 413 that is not ours becomes `tunnel_too_large`. 30 forwards a minute per user; audit
+`message.forwarded` {messageId, chatJids, messageIds}; logs ids and counts only. Web: `inbox/ForwardDialog.tsx`,
+⋮ menu and touch bar **Forward**, the Forwarded line and "Sending … to WhatsApp" in `MessageBubble`.
+
+**Delete chat** (admins; design `docs/features/chat-hide-delete/design.md` Part B, migration 042). `DELETE /api/chats/:jid`
+(admin, `chatJidParam`, 30 a minute per admin, 204; `GET …/delete-preview` gives the dialog's counts) goes only through
+`chats/delete.ts#deleteChat`: it drops the chat's queued sends (`SendQueue.drop`) and AI work (`AiService.cancelChat`),
+then one transaction runs `DELETE_PLAN` (every chat-keyed and message-keyed table, then `chats`) and writes the tombstone
+`deleted_chats` (inbox, wa_jid, deleted_at); files (media paths, quarantine copies, the chat's photo) go after the commit,
+never one another message still points at. History sync (`ingest` 'history') and `chats.syncFromWa` (WhatsApp's chat list)
+never bring a deleted chat back or import its messages older than `deleted_at`; a live message starts a new chat. Never
+touches `contacts`, `jid_aliases`, `safety_numbers` or `audit_log`. A new table with a `chat_jid` or message-id column goes
+into `DELETE_PLAN` (`test/chat-delete-coverage.test.ts` fails otherwise). Audit `chat.deleted` {chatJid, messages, files};
+socket `chat:deleted` {jid} drops it from every web cache. Web: chat header ⋮ (admins) → `inbox/DeleteChatDialog.tsx`.
+
+**Hide chats on Log out** (design `docs/features/chat-hide-delete/design.md` Part A, migration 043). `chats/hide.ts` is the
+only code that hides, shows or archives. A `logged_out` status of an adapter with `WaCapabilities.qrLink` (the admin's Log
+out or Link again, which marks itself via `markAdminLogout`, or an unlink from the phone; never a connection drop, never an
+adapter the inbox already let go of on remove or type change) runs `hideInbox`: one transaction sets `chats.hidden_at` and
+`hidden_number` (digits of `inboxes.own_jid`) on every chat of the inbox, fails its pending sends (`LOGGED_OUT_MESSAGE`),
+then drops queued jobs and AI work; audit `chats.hidden_on_logout` {inboxId, count, via}; socket `chats:hidden` {inboxId}.
+Nothing is deleted; assignees stay (an unknown number, also not in the last status, is stored NULL and never archived).
+The bridge holds chat-list, message, reaction and edit events while chats are hidden and the new link's number is unknown
+(`linkDecided`, at most `HELD_EVENTS_MAX`), and on open (or the first event that carries the number) calls `onLinked`
+**before** saving the number: the same digits arm showing; other digits archive every hidden chat (re-keyed to `chatKey(inbox, '<wa_jid>~old<n>')` in
+`CHAT_TABLES` + `avatars`, one transaction, audit `chats.archived_on_relink`), so the new number starts empty; archived
+chats never come back. `showIfHidden` (WhatsApp's chat list in the bridge, every ingested message, New chat and a group
+member's Message) shows a chat again only for the armed number; audit `chats.shown_on_relink` {inboxId, count} once per
+30 s quiet period. A hidden chat does not exist for anyone: `canOpenChat`/`usersWhoCanOpenChat` (so every 404 route, push,
+hand-off), `requireSendable` (404), `ChatRepo.list`/`openCount`/`openChats`, `chatScope` (stats, activity, Reports), Safety
+lists, `linkedChats`, tag suggestions, MCP `findChats`/send/file, scheduled tasks (skipped `chat_hidden`), AI hand-off
+candidates, AI group lists, socket chat events (`toVisibleChat`); an ingested message of a still-hidden chat is stored but
+emits no `message:received`/`inbound:notify`. Read side helpers in `chats/hidden-sql.ts` (`HIDDEN_CHAT_KEYS`,
+`isChatHidden`). Admin read `GET /api/inboxes/:id/hidden-chats` {visible, hidden, number}; web `api/chat-hide.ts`,
+`admin/HiddenChats.tsx` (Log out / Link again dialogs and the logged-out note on Admin → WhatsApp and Admin → Inboxes).
 
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
@@ -472,7 +729,13 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
 - AI assistant access (MCP: `/mcp`, `mcp/route.ts`) is off by default, answers only direct loopback or the
   tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed, owner rechecked as
   an active admin on every call). `/api` never accepts a token, so a token cannot manage tokens.
-  Inbox tools get only `InboxReadPort` (reads) and return media metadata, never links. AI setup
+  Inbox tools get only `InboxReadPort` (reads) and return media metadata, never links;
+  the one exception is `get_message_file` (`mcp/file.ts` `MessageFilePort`, scope `inbox:read`): the content of
+  one message's photo (JPEG/PNG/WebP from the bytes, ≤ 1.5 MB, MCP image content) or the text of its PDF/.docx
+  (`extractKnowledgeIsolated`, ≤ 10 MB, ≤ 20,000 characters, `text: null` for a scan), only in the token owner's
+  inboxes (else "not found"), never a link, never a file Safety rated High or one still awaiting its AI check
+  (fail closed, admins too), pending history media downloaded through `ensureMedia`, 30 a minute per token, audit
+  `mcp.read_file` {tokenId, messageId, kind, size}, never the name or content. It is not offered to Ask Ezy. AI setup
   tools (scope `ai:setup`, every admin token) go only through `AiSetupPort` (`mcp/ai-setup.ts`): they
   may change the AI instructions, hand-off rules and Business context **text** items, never files,
   the connection, key, model or on/off. Every change keeps a version (`ai_setup_versions`, app saves
@@ -482,10 +745,24 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   `api_token.update` with before/after, never through a token) and goes only through `InboxSendPort` (`mcp/send.ts`), which rechecks
   the scope: text into an **existing** chat, as the token owner, through the
   normal message service; idempotent per token + `requestId`; 10 a minute and 100 a day per token;
-  audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_to_new_number` (scope
+  audit `mcp.send` {tokenId, chatJid, messageId}, never the text. `send_image` (same scope and limits)
+  sends a JPEG/PNG/WebP (type read from the bytes) given as base64, an upload or a public https link
+  downloaded only through `guardedFetch` (SSRF guard, 60 min and 60 s idle, no loopback/private address); a retry with
+  the same `requestId` downloads nothing; audit adds `type` and `size`, never the caption, name or link. `send_file` does
+  the same for a PDF or Word .docx (sent as a document named `fileName` or the upload's name) and `send_video` for an
+  MP4 (`sendAs` video/file; omitted, a video above the number's video limit goes as a file). Each takes exactly one of
+  a link, base64 (about 6 MB, `MCP_SEND_MAX_BASE64_BYTES`: what fits the 8 MB JSON) or `uploadId`; links and uploads
+  have no cap of our own: up to the target number's `mediaLimits` (an upload: the largest of the owner's inboxes), within
+  the free disk, streamed to disk and sent by path (Forward's 413 codes). `POST /mcp/uploads` (design [`docs/features/mcp-file-upload/design.md`](https://github.com/ossmalaysia/ezychat-lite/blob/ee978fa4f6ce76f5d46795bfe719521c5ad9c147/docs/features/mcp-file-upload/design.md), archived): the `/mcp` `onRequest` checks
+  first, then `inbox:send` and a declared size, all before the body is read; raw body (`X-File-Name`) or multipart
+  (one `file` part), never parsed or buffered, streamed to `<data>/uploads/` (0700/0600, random names, emptied on
+  start), typed from the bytes (JPEG/PNG/WebP/PDF/.docx/MP4, else 415); an upload belongs to its token, is sent once
+  and expires after 1 hour; per token 30 an hour, 10 waiting, 2 at once (4 in total); 1 GB free disk kept, counting
+  declared sizes in progress (507); 60 s idle / 60 min total (408); logs ids, type and size only. `/mcp`
+  accepts bodies up to 8 MB (`MCP_BODY_LIMIT`), only after the token check in `onRequest`. `send_to_new_number` (scope
   `inbox:send_new`, ticked at creation under "Can send", default off) may start a chat with a number not
-  in the inbox only after `WaAdapter.checkNumber` confirms it (20 checks a day per token, counted before
-  the check; audit `mcp.new_chat`); its description and every result carry the WhatsApp ban warning.
+  in the inbox only after `WaAdapter.checkNumber` confirms it, through the New chat service (20 checks a day per
+  token, then the inbox's shared daily limit, counted before the check; audit `chat.new_number` via `mcp`); its description and every result carry the WhatsApp ban warning.
   Tools log tool name, counts and token id, never arguments, phone numbers or message text.
 - MCP sign-in (OAuth, `mcp/oauth.ts`, `mcp/oauth-routes.ts`, `routes/oauth.ts`): apps register at
   `/mcp/oauth/register` (https, loopback http or an app scheme only), an admin approves on the web page
@@ -499,14 +776,46 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   MCP tools are filtered; chat events go to `inbox:<id>` socket rooms (rebuilt live on access changes);
   push, assignment and AI hand-off only reach people who may open the chat's inbox. An edition limit
   never widens access: the "one inbox" shortcut also checks the stored rows.
+- Limited chat access (design `docs/features/partner-role/design.md`, migration 037): an agent with
+  `users.chat_scope = 'chosen'` opens only the chats in `member_chats` (any active inbox; they replace inbox access).
+  `scopeFor` returns an empty inbox scope for them **before** the single-inbox shortcut, so `canOpen(inboxId)` is
+  false; one chat is checked with `canOpenChat` (`requireChatAccess`, `requireMessageAccess`, assignment, typing).
+  Every per-chat, media and message-id route answers 404 outside the chosen chats; the list, search and tags read only
+  them; sockets join `chat:<jid>` rooms (and `inbox-status:<id>` for connection state), never `inbox:<id>`, rebuilt
+  on `member-chats:changed`; push, `notification:new`, AI hand-offs (group ones too) and unassigned-chat notices go
+  only to `usersWhoCanOpenChat`. No chat from a group member (403 `chat_scope_limited`) and no Ask Ezy. "Chosen"
+  with no rows means no chats, never all; a promotion to admin clears the choice.
 - Host-only extension routes (`/api/ext/<name>/host/…`) answer only a direct loopback peer with a
   loopback `Host` and no `CF-Connecting-IP`; the access gate allowlist matches the decoded path and the
   matched route, never a raw prefix alone.
+- New chat (`chats/new-chat.ts`, `/api/inboxes/:id/new-chat[/check]`, MCP `send_to_new_number`): only admins, or
+  agents while `new_chat_staff` is on, and only from inboxes they may open (else 404); agents limited to chosen chats,
+  the AI and every other role are refused (403). One number per request; counted before `checkNumber` (the admin's
+  daily limit per linked phone, shared with MCP; 5 an hour per user); a template-first inbox creates the chat only after
+  WhatsApp accepted the template. Audit `chat.new_number` and logs carry ids only, never the number's name or message
+  text. The core decides the flow from `WaCapabilities`, never from an inbox type name.
+- Forward (`messages/forward.ts`, `POST /api/messages/:id/forward`): only a signed-in person (never the AI user, MCP or
+  Ask Ezy), only from a message they may open to 1–5 **existing** chats they may open (`canOpenChat` per chat, else 404,
+  limited agents included); never a new number. Every chat is checked before anything is sent. A file Safety rated
+  High, or one still awaiting its AI check, is never forwarded (fail closed, admins too). Copies go through the normal
+  send queue as the user, from the target chat's own inbox, with the reply window, removed-inbox and per-inbox media
+  limit refusals; 30 forwards a minute per user. Audit `message.forwarded` and logs carry ids and counts only.
 - `/api/client-errors` is public but rate-limited per IP and size-capped.
 
 ## UI rules (apps/web)
 
-See `docs/design-system.md` ("Calm Desk"). Primitives are shadcn/ui in
+**One design system for all design work** (owner rule): `docs/design-system.md` ("Calm Desk") is the single
+source of design truth for EzyChat Lite and EzyChat Enterprise. It covers production screens (web, desktop
+shell, status page), feature HTML mocks, extension screens, screenshots and generated images of the app.
+
+- Read it before any design work. A screen review checks against it.
+- A new token, component, variant or pattern is added to it in the same PR that first uses it, with a do/don't
+  and a link to the mock screen that shows it. Never invent a one-off style in feature code or a mock.
+- A change that contradicts it updates it first, and needs the owner's confirmation like any mock.
+- Enterprise does not keep its own design system. It follows this file through the published `@ezychat/web`
+  components, and asks for a missing pattern with a Lite PR here first.
+
+Primitives are shadcn/ui in
 `apps/web/src/components/ui`; app composites in `components/app`. Feature code must not use raw
 `<button>`/`<dialog>`/`<select>` or Tailwind palette/hex colours (ESLint enforces); use token classes
 (`bg-primary`, `text-muted-foreground`). Every screen must work at 360px without horizontal scroll.
@@ -522,6 +831,14 @@ A Quick Tunnel is Running only after URL assignment and edge registration.
 
 Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must
 cover navigation from every admin section and recovery from malformed URLs.
+
+App navigation (design `docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
+`AppShell` wraps every signed-in page (`/`, `/chats/:jid`, `/account`, `/admin/*`, extension user routes): a rail
+from 768 px, bottom tabs below, no tabs inside an open chat. Reports and Members are rail places; every other admin
+page is under Settings (side menu on desktop, the `/admin` list on phones, `PhoneBar` back one level; unknown admin
+paths go to `/admin`, which opens App settings on desktop and the list on phones). The Chats count is `GET /api/chats/unread-count` (open chats with unread messages
+in the caller's scope, reloaded with the chat list). Never put an Admin button, Ask Ezy or the account photo back in
+a page header.
 
 ## Working rules (required)
 
@@ -587,7 +904,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   (real WhatsApp, the real installer, actions that need approval), and list exactly what is left.
 - **Dev Build check log.** Read `docs/dev-build-checks.md` before testing a feature in a Dev Build and
   add one row per check (scenario, exact steps, result, what stays untested). AI behaviour checks use
-  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Code
+  `e2e/devbuild-ai-check.mjs` and real model calls only with the owner's sign-in and agreement. Ask Ezy setup with a
+  real model: `node e2e/ask-ezy-eval.mjs <port> --runs 3 --out <file>` on the owner's test build (GPA rubric in the
+  script; pass = overall GPA ≥ 3.5, no conversation below 2.0, no safety fail); it never applies anything. Code
   changes after a check (e.g. review fixes) mean re-running the affected checks on the final commit.
 - **Local AI eval on every AI behaviour change** (owner rule): a change to the prompt, the AI decisions or
   what the server does after them gets a real-model eval score before and after it, on the owner's test
@@ -603,7 +922,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   key, Enterprise licence trial) run on the permanent folders outside the repos, `D:\dev\test-env\lite`
   (port 7491) and `D:\dev\test-env\enterprise` (port 7434), each with `start.ps1` and a README; their data
   stays between checks. `npm run e2e`, unit tests and the mock-model checks never use them (they start
-  from empty temp data). Never real app data.
+  from empty temp data). Never real app data. A Dev Build you hand to the owner on a PC that also runs a live
+  install must make irreversible steps against that install impossible (test data, or a build that refuses
+  them); a warning in chat is not enough.
 - **Run the Dev Build check yourself before saying a feature works.** Unit tests, e2e and a screen
   review are not enough: run the feature end to end in a Dev Build (and with the real outside client
   where one exists, e.g. an MCP client), log it, and only then report it as working. Until then say
@@ -627,6 +948,9 @@ cover navigation from every admin section and recovery from malformed URLs.
   next agent clones that revision. The interactive scope includes the app context, navigation,
   feature entry points and end-to-end simulated feature behaviour; a screenshot or isolated
   popup is not a complete reference. Keep mock data and effects separate from the real app.
+  **Lasting design (owner rule, 2026-11-13):** a feature folder is pruned, so the decisions of a core feature (its
+  rules, limits, flows and why) also live in a lasting `docs/<feature>.md` with a dated decision log (example
+  `docs/ask-ezy.md`); a change to such a rule adds a log line in the same PR, and AGENTS.md points to that file.
   **Retention: keep only the five most recently created feature folders** under `docs/features/`.
   Record creation order/date in the mock index; when adding a sixth, remove the oldest committed
   feature folder and update the index in the same reviewable change. Verify the target belongs to
@@ -704,9 +1028,14 @@ Conventional Commits; LF line endings; Prettier formatting; add user-visible cha
 Stage the files a change names (`git add <paths>`), never `git add -A` / `git add .`: a branch cut before an
 ignore rule landed still tracks local test data.
 After repository setup, `main` is protected: use feature branches and reviewable pull requests.
-**No tracking in Lite** (owner rule): the open-source app never sends usage data or analytics. Measure
-the funnel outside the app (website analytics, GitHub download counts, the Enterprise download server,
-the licence portal); app links to our website may carry campaign tags (`utm_*`) only.
+**Anonymous usage stats only** (owner rule, 2026-11-04; replaces "No tracking in Lite"): the app's only usage data
+is `packages/server/src/usage/` (design `docs/superpowers/specs/2026-11-04-usage-stats-design.md`): a fixed set of setup milestones
+(shared `UsageEvent`: random `usage_install_id`, product, version, OS, mode, event name; nothing else), sent
+server-side only to our licence portal relay (`/v1/usage`), which forwards to GA4. The GA keys live only in the
+portal, never in the app. On by default; admins switch it off (`usage_stats`, Settings → General and the setup
+wizard). Never names, numbers, chats, messages, emails, IPs or keys; no analytics script in the web app (CSP
+unchanged); a new field or event is an owner decision plus a portal contract change. Website links may carry
+campaign tags (`utm_*`).
 **GitHub issues are for external reports only** (owner rule): never open an issue for our own work;
 track own follow-ups in `docs/backlog.md` (bugs and next steps), a feature's `design.md`, PR descriptions or workbooks. Treat each issue as an
 external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
@@ -715,6 +1044,13 @@ details); a confirmed bug may be fixed and released.
 enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
 passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
 then leave the PR open until the owner requests the merge.
+**Healthy PR list: four days at most** (owner rule, 2026-11-14): a PR is open for at most 4 days, so branches stay
+free of merge conflicts. The goal is merged, never parked: drive every check to done in that time (CI, coverage, e2e,
+Dev Build, screen review, release review), then ask the owner for the merge as soon as all checks are done (the
+merge word per PR above still applies). Before starting a new feature, list your open PRs: those that are done go to
+the owner for the merge, the others are brought current with `main` and finished first. A PR near day 4 that waits on
+the owner (real WhatsApp, a hand test) is named in the session-end report with what is left; work that cannot finish
+is closed with a note in `docs/backlog.md`, not left open.
 **Release once a day** (owner rule): a merge does not start a release. Merged work goes out in one daily
 release of both editions (Lite, then Enterprise on that core); release in between only for an important
 change (security, data loss, a broken install or update) or when the owner asks "merge … and release".
@@ -722,7 +1058,7 @@ This is currently a solo-maintainer repository, so a second maintainer's approva
 the owner's explicit merge request is still required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
 approval when another maintainer can review changes.
-**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, tag, publish, permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
+**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, then tag + publish through `release-approve.yml` (§4, started only when the owner says "release"), permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). After both editions are out, the release day goes on the website release page `/releases` (ossmalaysia/ezychat-website, `src/lib/release-calendar.json` + translations; `docs/release.md` §6); the release is done only when that PR is merged. Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.
 Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`

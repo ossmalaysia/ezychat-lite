@@ -64,59 +64,136 @@
     "id": "google-sheets",
     "schemaVersion": 1,
     "minAppVersion": "0.0.0",
-    "kind": "coming_soon",
+    "kind": "builtin",
     "editions": ["lite", "enterprise"],
+    "builtinId": "google-sheets",
     "name": "Google Sheets",
     "summary": {
-      "en": "Read prices or stock from a sheet; add new leads.",
-      "ms": "Baca harga atau stok daripada helaian; tambah prospek baharu.",
-      "zh-CN": "从表格读取价格或库存；添加新的潜在客户。"
+      "en": "Choose per tab: Off, Read or Add rows.",
+      "ms": "Pilih bagi setiap tab: Mati, Baca atau Tambah baris.",
+      "zh-CN": "为每个工作表选择：关闭、读取或添加行。"
     },
     "description": {
-      "en": "Keep prices, stock or a FAQ in a Google Sheet and let the AI read it. It can also add each new lead as a row.",
-      "ms": "Simpan harga, stok atau soalan lazim dalam Google Sheet dan biarkan AI membacanya. Ia juga boleh menambah setiap prospek baharu sebagai satu baris.",
-      "zh-CN": "把价格、库存或常见问题放在 Google 表格中，让 AI 读取。它还可以把每个新的潜在客户添加为一行。"
+      "en": "Sign in with Google, choose a sheet, then set each tab to Off, Read or Add rows for each AI agent. The agent reads prices, stock or a FAQ from Read tabs, and adds rows your agent's instructions ask for (leads, claims, orders) to Add rows tabs.",
+      "ms": "Log masuk dengan Google, pilih helaian, kemudian tetapkan setiap tab kepada Mati, Baca atau Tambah baris bagi setiap ejen AI. Ejen membaca harga, stok atau soalan lazim daripada tab Baca, dan menambah baris yang diminta oleh arahan ejen anda (prospek, tuntutan, pesanan) ke tab Tambah baris.",
+      "zh-CN": "使用 Google 登录并选择表格，然后为每个 AI 代理把每个工作表设为关闭、读取或添加行。代理从“读取”工作表中查找价格、库存或常见问题，并按照代理指令的要求（潜在客户、理赔、订单）在“添加行”工作表中添加行。"
     },
     "category": "spreadsheets",
     "privacy": {
-      "en": "EzyChat reads only the sheet you choose and writes only the lead rows it adds.",
-      "ms": "EzyChat hanya membaca helaian yang anda pilih dan hanya menulis baris prospek yang ditambahnya.",
-      "zh-CN": "EzyChat 只读取您选择的表格，只写入它添加的潜在客户行。"
+      "en": "EzyChat can open only the spreadsheets you choose and only the tabs you turn on. It only adds new rows, never changes or deletes one, and fills them only with what the person wrote or sent, plus the date, their name and WhatsApp number. No chat history goes to Google. The sign-in is stored encrypted on this computer.",
+      "ms": "EzyChat hanya boleh membuka hamparan yang anda pilih dan hanya tab yang anda hidupkan. Ia hanya menambah baris baharu, tidak pernah mengubah atau memadam baris, dan hanya mengisinya dengan apa yang ditulis atau dihantar oleh orang itu, serta tarikh, nama dan nombor WhatsApp mereka. Tiada sejarah sembang dihantar ke Google. Log masuk disimpan secara tersulit di komputer ini.",
+      "zh-CN": "EzyChat 只能打开您选择的电子表格，且只使用您开启的工作表。它只添加新行，从不修改或删除行，内容只来自对方所写或发送的信息，以及日期、姓名和 WhatsApp 号码。聊天记录不会发送到 Google。登录信息加密保存在这台电脑上。"
     },
     "tools": [
       {
-        "name": "read_rows",
+        "name": "read_sheet_rows",
         "title": {
-          "en": "Read rows",
-          "ms": "Baca baris",
-          "zh-CN": "读取行"
+          "en": "Answer questions from the sheet",
+          "ms": "Jawab soalan daripada helaian",
+          "zh-CN": "根据表格回答问题"
         },
         "description": {
-          "en": "Looks up the rows that match the customer's question.",
-          "ms": "Mencari baris yang sepadan dengan soalan pelanggan.",
-          "zh-CN": "查找与客户问题匹配的行。"
+          "en": "Looks up prices, stock or other facts in your Read tabs before it answers.",
+          "ms": "Mencari harga, stok atau fakta lain dalam tab Baca anda sebelum menjawab.",
+          "zh-CN": "回答前先在“读取”工作表中查找价格、库存或其他信息。"
         },
         "access": "read"
       },
       {
-        "name": "add_row",
+        "name": "add_sheet_row",
         "title": {
-          "en": "Add a lead",
-          "ms": "Tambah prospek",
-          "zh-CN": "添加潜在客户"
+          "en": "Add rows",
+          "ms": "Tambah baris",
+          "zh-CN": "添加行"
         },
         "description": {
-          "en": "Adds the customer's name, number and request as a row.",
-          "ms": "Menambah nama, nombor dan permintaan pelanggan sebagai satu baris.",
-          "zh-CN": "将客户的姓名、号码和需求添加为一行。"
+          "en": "Adds rows your agent's instructions ask for to your Add rows tabs, so your team can follow up.",
+          "ms": "Menambah baris yang diminta oleh arahan ejen anda ke tab Tambah baris, supaya pasukan anda boleh membuat susulan.",
+          "zh-CN": "按照代理指令的要求在“添加行”工作表中添加行，方便您的团队跟进。"
         },
         "access": "write"
       }
     ],
-    "vote": {
-      "en": "Hi EzyChat team, please add the Google Sheets connector. We would use it for:",
-      "ms": "Hai pasukan EzyChat, sila tambah penyambung Google Sheets. Kami akan menggunakannya untuk:",
-      "zh-CN": "您好 EzyChat 团队，请添加 Google Sheets 连接器。我们会用它来："
+    "stage": "beta",
+    "notice": {
+      "en": "Google is still reviewing this connector. When you sign in, Google shows a warning that the app is not verified: click Advanced, then Go to EzyChat, to continue. Your sheet data still goes only between your computer and Google.",
+      "ms": "Google masih menyemak penyambung ini. Semasa anda log masuk, Google memaparkan amaran bahawa aplikasi belum disahkan: klik Lanjutan, kemudian Pergi ke EzyChat, untuk teruskan. Data helaian anda tetap hanya bergerak antara komputer anda dan Google.",
+      "zh-CN": "Google 仍在审核此连接器。登录时，Google 会提示该应用尚未验证：点击“高级”，然后点击“转至 EzyChat”即可继续。您的表格数据仍只在您的电脑和 Google 之间传输。"
+    }
+  },
+  {
+    "id": "google-drive",
+    "schemaVersion": 1,
+    "minAppVersion": "0.0.0",
+    "kind": "builtin",
+    "editions": ["lite", "enterprise"],
+    "builtinId": "google-drive",
+    "name": "Google Drive",
+    "summary": {
+      "en": "Save files from chats; read files you pick.",
+      "ms": "Simpan fail daripada sembang; baca fail pilihan anda.",
+      "zh-CN": "保存聊天中的文件；读取您选择的文件。"
+    },
+    "description": {
+      "en": "Sign in with Google and choose a folder for each AI agent. The agent can save files people send in a chat into that folder, and read the Drive files you pick. Each agent's instructions say what to save or read, and when.",
+      "ms": "Log masuk dengan Google dan pilih folder bagi setiap ejen AI. Ejen boleh menyimpan fail yang dihantar dalam sembang ke folder itu, dan membaca fail Drive yang anda pilih. Arahan setiap ejen menentukan apa yang disimpan atau dibaca, dan bila.",
+      "zh-CN": "使用 Google 登录并为每个 AI 代理选择一个文件夹。代理可以把聊天中收到的文件保存到该文件夹，并读取您选择的 Drive 文件。保存或读取什么、何时进行，由每个代理的指令决定。"
+    },
+    "category": "other",
+    "privacy": {
+      "en": "EzyChat opens only the folder and files you choose in Google's window, and the files it saves. It saves only files sent in that chat, never one WhatsApp Safety locked. The AI never reads back files saved from chats. No chat history goes to Google. The sign-in is stored encrypted on this computer.",
+      "ms": "EzyChat hanya membuka folder dan fail yang anda pilih dalam tetingkap Google, serta fail yang disimpannya. Ia hanya menyimpan fail yang dihantar dalam sembang itu, bukan fail yang dikunci Keselamatan WhatsApp. AI tidak membaca semula fail daripada sembang. Tiada sejarah sembang dihantar ke Google. Log masuk disimpan secara tersulit.",
+      "zh-CN": "EzyChat 只打开您在 Google 窗口中选择的文件夹和文件，以及它自己保存的文件。它只保存在该聊天中收到的文件，绝不保存被 WhatsApp 安全锁定的文件。AI 不会读取从聊天中保存的文件。聊天记录不会发送到 Google。登录信息加密保存在这台电脑上。"
+    },
+    "tools": [
+      {
+        "name": "save_file_to_drive",
+        "title": {
+          "en": "Save files",
+          "ms": "Simpan fail",
+          "zh-CN": "保存文件"
+        },
+        "description": {
+          "en": "Saves a file someone sent in this chat into the agent's folder.",
+          "ms": "Menyimpan fail yang dihantar dalam sembang ini ke folder ejen.",
+          "zh-CN": "把在此聊天中收到的文件保存到代理的文件夹。"
+        },
+        "access": "write"
+      },
+      {
+        "name": "list_drive_files",
+        "title": {
+          "en": "Find a file",
+          "ms": "Cari fail",
+          "zh-CN": "查找文件"
+        },
+        "description": {
+          "en": "Finds the right file among the files you picked.",
+          "ms": "Mencari fail yang betul antara fail yang anda pilih.",
+          "zh-CN": "在您选择的文件中找到合适的文件。"
+        },
+        "access": "read"
+      },
+      {
+        "name": "read_drive_file",
+        "title": {
+          "en": "Read files",
+          "ms": "Baca fail",
+          "zh-CN": "读取文件"
+        },
+        "description": {
+          "en": "Reads a Google Doc, Sheet, PDF, Word or text file you picked and answers from it.",
+          "ms": "Membaca Google Doc, Sheet, PDF, Word atau fail teks yang anda pilih dan menjawab daripadanya.",
+          "zh-CN": "读取您选择的 Google 文档、表格、PDF、Word 或文本文件并据此回答。"
+        },
+        "access": "read"
+      }
+    ],
+    "stage": "beta",
+    "notice": {
+      "en": "Google is still reviewing this connector. When you sign in, Google shows a warning that the app is not verified: click Advanced, then Go to EzyChat, to continue. Your files still go only between your computer and Google.",
+      "ms": "Google masih menyemak penyambung ini. Semasa anda log masuk, Google memaparkan amaran bahawa aplikasi belum disahkan: klik Lanjutan, kemudian Pergi ke EzyChat, untuk teruskan. Fail anda tetap hanya bergerak antara komputer anda dan Google.",
+      "zh-CN": "Google 仍在审核此连接器。登录时，Google 会提示该应用尚未验证：点击“高级”，然后点击“转至 EzyChat”即可继续。您的文件仍只在您的电脑和 Google 之间传输。"
     }
   },
   {
@@ -300,60 +377,58 @@
     "id": "sql-account",
     "schemaVersion": 1,
     "minAppVersion": "0.0.0",
-    "kind": "coming_soon",
+    "kind": "builtin",
     "editions": ["lite", "enterprise"],
+    "builtinId": "sql-account",
     "name": "SQL Account",
     "summary": {
-      "en": "Stock, prices and customer balances from SQL Account.",
-      "ms": "Stok, harga dan baki pelanggan daripada SQL Account.",
-      "zh-CN": "来自 SQL Account 的库存、价格和客户余额。"
+      "en": "Stock, prices and each customer's own invoices and orders from SQL Account.",
+      "ms": "Stok, harga serta invois dan pesanan milik setiap pelanggan daripada SQL Account.",
+      "zh-CN": "来自 SQL Account 的库存、价格，以及每位客户本人的发票和订单。"
     },
     "description": {
-      "en": "The AI checks stock and prices in SQL Account and tells customers their outstanding balance.",
-      "ms": "AI menyemak stok dan harga dalam SQL Account dan memberitahu pelanggan baki tertunggak mereka.",
-      "zh-CN": "AI 在 SQL Account 中查询库存和价格，并告诉客户未付余额。"
+      "en": "Needs SQL Account's API module (API Link). Connect with the access key and secret key from SQL Account, then choose for each AI agent and each kind of record: Off, Read or Read + create. Customers only ever see their own records.",
+      "ms": "Memerlukan modul API SQL Account (API Link). Sambung dengan kunci akses dan kunci rahsia daripada SQL Account, kemudian pilih bagi setiap ejen AI dan setiap jenis rekod: Tutup, Baca atau Baca + cipta. Pelanggan hanya melihat rekod mereka sendiri.",
+      "zh-CN": "需要 SQL Account 的 API 模块（API Link）。使用 SQL Account 生成的访问密钥和秘密密钥连接，然后为每个 AI 客服和每种记录选择：关闭、读取或读取 + 新建。客户只能看到自己的记录。"
     },
     "category": "accounting",
     "privacy": {
-      "en": "EzyChat sends SQL Account only what a look-up or action needs in one chat, and never the chat text.",
-      "ms": "EzyChat hanya menghantar kepada SQL Account apa yang diperlukan oleh satu semakan atau tindakan dalam satu sembang, dan tidak pernah teks sembang.",
-      "zh-CN": "EzyChat 只向 SQL Account 发送一次聊天中查询或操作所需的内容，从不发送聊天内容。"
+      "en": "EzyChat sends SQL Account only what one look-up needs (an item name, a customer code, a document number), never the chat text. The keys are stored encrypted on this computer. The AI never changes or deletes anything in SQL Account.",
+      "ms": "EzyChat hanya menghantar kepada SQL Account apa yang diperlukan untuk satu semakan (nama barang, kod pelanggan, nombor dokumen), tidak pernah teks sembang. Kunci disimpan secara tersulit di komputer ini. AI tidak pernah mengubah atau memadam apa-apa dalam SQL Account.",
+      "zh-CN": "EzyChat 只把一次查询所需的内容（商品名称、客户代码、单据号码）发送给 SQL Account，绝不发送聊天内容。密钥加密保存在这台电脑上。AI 绝不会修改或删除 SQL Account 中的任何内容。"
     },
-    "tools": [
-      {
-        "name": "stock",
-        "title": {
-          "en": "Stock and price",
-          "ms": "Stok dan harga",
-          "zh-CN": "库存和价格"
-        },
-        "description": {
-          "en": "Looks up an item's stock and selling price.",
-          "ms": "Mencari stok dan harga jualan sesuatu item.",
-          "zh-CN": "查询商品的库存和售价。"
-        },
-        "access": "read"
-      },
-      {
-        "name": "outstanding",
-        "title": {
-          "en": "Outstanding balance",
-          "ms": "Baki tertunggak",
-          "zh-CN": "未付余额"
-        },
-        "description": {
-          "en": "Checks what a customer still owes.",
-          "ms": "Menyemak jumlah yang masih terhutang oleh pelanggan.",
-          "zh-CN": "查询客户尚欠的金额。"
-        },
-        "access": "read"
-      }
-    ],
-    "vote": {
-      "en": "Hi EzyChat team, please add the SQL Account connector. We would use it for:",
-      "ms": "Hai pasukan EzyChat, sila tambah penyambung SQL Account. Kami akan menggunakannya untuk:",
-      "zh-CN": "您好 EzyChat 团队，请添加 SQL Account 连接器。我们会用它来："
+    "stage": "beta",
+    "notice": {
+      "en": "New. Needs SQL Account's API module, a paid add-on from your SQL Account dealer. Using SQL Cloud? Ask your dealer whether the API module is available.",
+      "ms": "Baharu. Memerlukan modul API SQL Account, tambahan berbayar daripada pengedar SQL Account anda. Menggunakan SQL Cloud? Tanya pengedar anda sama ada modul API tersedia.",
+      "zh-CN": "新功能。需要 SQL Account 的 API 模块（向 SQL Account 经销商购买的付费附加模块）。使用 SQL Cloud？请询问经销商是否提供 API 模块。"
     }
+  },
+  {
+    "id": "github",
+    "schemaVersion": 1,
+    "minAppVersion": "0.0.0",
+    "kind": "builtin",
+    "editions": ["lite"],
+    "builtinId": "github",
+    "name": "GitHub",
+    "summary": {
+      "en": "Look up issues and pull requests in the repositories you choose.",
+      "ms": "Semak isu dan permintaan tarik dalam repositori yang anda pilih.",
+      "zh-CN": "在您选择的仓库中查询议题和拉取请求。"
+    },
+    "description": {
+      "en": "Sign in with GitHub and choose which repositories EzyChat may read, on your own account or your organisation. Then pick, for each AI agent, the repositories it may look in. The AI answers with the status, labels and latest comments of issues and pull requests, and never changes anything on GitHub.",
+      "ms": "Log masuk dengan GitHub dan pilih repositori yang boleh dibaca oleh EzyChat, dalam akaun anda sendiri atau organisasi anda. Kemudian pilih, bagi setiap ejen AI, repositori yang boleh disemaknya. AI menjawab dengan status, label dan komen terkini bagi isu dan permintaan tarik, dan tidak pernah mengubah apa-apa di GitHub.",
+      "zh-CN": "使用 GitHub 登录，并选择 EzyChat 可以读取的仓库（您自己的账号或您的组织）。然后为每个 AI 代理选择它可以查看的仓库。AI 会告知议题和拉取请求的状态、标签和最新评论，绝不修改 GitHub 上的任何内容。"
+    },
+    "category": "other",
+    "privacy": {
+      "en": "EzyChat can read only the repositories you allow on GitHub, and each AI agent only those you pick for it. It sends GitHub only the search words and issue or pull request numbers a look-up needs, never the chat text, and never reads code. The sign-in is stored encrypted on this computer.",
+      "ms": "EzyChat hanya boleh membaca repositori yang anda benarkan di GitHub, dan setiap ejen AI hanya repositori yang anda pilih untuknya. Ia hanya menghantar kepada GitHub kata carian dan nombor isu atau permintaan tarik yang diperlukan oleh satu semakan, tidak pernah teks sembang, dan tidak pernah membaca kod. Log masuk disimpan secara tersulit di komputer ini.",
+      "zh-CN": "EzyChat 只能读取您在 GitHub 上允许的仓库，每个 AI 代理只能读取您为它选择的仓库。它只向 GitHub 发送查询所需的搜索词以及议题或拉取请求编号，从不发送聊天内容，也从不读取代码。登录信息加密保存在这台电脑上。"
+    },
+    "stage": "beta"
   },
   {
     "id": "bukku",

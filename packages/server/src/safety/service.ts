@@ -7,6 +7,8 @@ import type {
   SafetyActionBody,
   SafetyAiAnswer,
   SafetyBlockedNumber,
+  SafetyChatAction,
+  SafetyChatActionBody,
   SafetyChatState,
   SafetyItemView,
   SafetyLevel,
@@ -17,6 +19,7 @@ import type {
 } from '@ezychat/shared';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
+import { HIDDEN_CHAT_KEYS } from '../chats/hidden-sql.js';
 import { HttpError } from '../http/errors.js';
 import { capabilitiesOf } from '../inboxes/types.js';
 import { MediaStore } from '../messages/media-store.js';
@@ -75,8 +78,26 @@ export interface SafetyService {
   levelOf(messageId: string): SafetyLevel;
   /** The media route: 'locked' for an agent while the file is locked; records each download. */
   checkDownload(messageId: string, user: { id: number; role: string }): 'ok' | 'locked' | 'flagged';
+  /**
+   * Whether a phone may keep the message's file (PWA cache): nothing was found, or the AI check that may
+   * still raise it to High has answered. Until then the media route answers `no-store`.
+   */
+  cacheable(messageId: string): boolean;
   state(): SafetyState;
   chatState(chatJid: string): SafetyChatState;
+  /**
+   * Blocks or unblocks a direct chat's number on WhatsApp, from the chat itself (any chat, flagged or
+   * not). `spam` also marks the number as spam. Throws 409 for a group or when the inbox cannot block now.
+   */
+  actOnChat(
+    chatJid: string,
+    action: SafetyChatAction,
+    body: SafetyChatActionBody,
+    user: { id: number },
+    ip: string | null,
+  ): Promise<SafetyChatState>;
+  /** Whether this WhatsApp number is blocked on this inbox (the AI agent does not answer it there). */
+  isBlocked(waJid: string | null | undefined, inboxId: number): boolean;
   act(
     itemId: number,
     action: SafetyAction,
@@ -122,6 +143,13 @@ interface NumberRow {
   blocked_at: number | null;
   blocked_auto: number;
   trusted: string | null;
+  /** The inbox that blocked it; null = every inbox (blocked before 041, or imported). */
+  blocked_inbox_id: number | null;
+}
+
+/** Blocked for this inbox: WhatsApp blocks per WhatsApp number (inbox), not per customer. */
+function blockedOn(n: NumberRow | null | undefined, inboxId: number): boolean {
+  return n?.blocked_at != null && (n.blocked_inbox_id === null || n.blocked_inbox_id === inboxId);
 }
 
 export function readSafetySettings(ctx: AppContext): SafetySettings {
@@ -178,7 +206,7 @@ export function createSafetyService(
     ),
     setMediaPath: db.prepare('UPDATE messages SET media_path = ? WHERE id = ?'),
     chat: db.prepare(
-      `SELECT c.jid, c.type, c.name, c.phone, c.wa_jid, c.last_inbound_at, p.name AS profile_name
+      `SELECT c.jid, c.type, c.name, c.phone, c.wa_jid, c.inbox_id, c.last_inbound_at, p.name AS profile_name
          FROM chats c LEFT JOIN customer_profiles p ON p.chat_jid = c.jid WHERE c.jid = ?`,
     ),
   };
@@ -317,8 +345,8 @@ export function createSafetyService(
           if (result !== 'done') return;
           q.ensureNumber.run(waJid);
           db.prepare(
-            'UPDATE safety_numbers SET blocked_by = NULL, blocked_at = ?, blocked_auto = 1 WHERE wa_jid = ?',
-          ).run(now(), waJid);
+            'UPDATE safety_numbers SET blocked_by = NULL, blocked_at = ?, blocked_auto = 1, blocked_inbox_id = ? WHERE wa_jid = ?',
+          ).run(now(), input.inboxId, waJid);
           db.prepare(
             "UPDATE safety_items SET auto_blocked = 1, status = 'blocked', updated_at = ? WHERE id = ?",
           ).run(now(), item.id);
@@ -494,6 +522,12 @@ export function createSafetyService(
       return r && r.status !== 'safe' ? r.level : 'none';
     },
 
+    cacheable(messageId) {
+      const r = q.byMessage.get(messageId) as ItemRow | undefined;
+      // A finding without an AI answer may still become High and locked (or never get one): no copies.
+      return !r || r.ai_level !== null;
+    },
+
     checkDownload(messageId, user) {
       const r = q.byMessage.get(messageId) as ItemRow | undefined;
       if (!r || r.level === 'none' || !r.has_file) return 'ok';
@@ -522,6 +556,7 @@ export function createSafetyService(
              LEFT JOIN chats c ON c.jid = i.chat_jid
              LEFT JOIN customer_profiles p ON p.chat_jid = i.chat_jid
              LEFT JOIN users du ON du.id = i.deleted_by
+            WHERE i.chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
             ORDER BY i.created_at DESC, i.id DESC LIMIT 300`,
         )
         .all() as Array<
@@ -640,9 +675,18 @@ export function createSafetyService(
     },
 
     chatState(chatJid) {
-      const chat = q.chat.get(chatJid) as { type: string; wa_jid: string | null } | undefined;
+      const chat = q.chat.get(chatJid) as
+        | { type: string; wa_jid: string | null; inbox_id: number; last_inbound_at: number | null }
+        | undefined;
       const enabled = settings().enabled;
-      const empty = { enabled, scam: false, blocked: null, maybeHacked: false, itemId: null };
+      const empty = {
+        enabled,
+        scam: false,
+        blocked: null,
+        maybeHacked: false,
+        itemId: null,
+        canBlock: false,
+      };
       if (!chat || chat.type === 'group') return empty;
       const number = numberRow(chat.wa_jid);
       const latest = db
@@ -654,10 +698,10 @@ export function createSafetyService(
         enabled,
         scam: number?.scam_at != null,
         blocked:
-          number?.blocked_at != null
+          number && blockedOn(number, chat.inbox_id)
             ? {
                 by: number.blocked_auto ? null : userName(number.blocked_by),
-                at: number.blocked_at,
+                at: number.blocked_at!,
                 auto: number.blocked_auto === 1,
               }
             : null,
@@ -667,7 +711,79 @@ export function createSafetyService(
           latest.level === 'high' &&
           latest.status === 'open',
         itemId: latest?.id ?? null,
+        // Blocked on another inbox: unblock it there first (one block per number is recorded).
+        canBlock:
+          chat.wa_jid !== null &&
+          number?.blocked_at == null &&
+          canBlockNow(chat.inbox_id, chat.last_inbound_at),
       };
+    },
+
+    async actOnChat(chatJid, action, body, user, ip) {
+      const chat = q.chat.get(chatJid) as
+        | { type: string; wa_jid: string | null; inbox_id: number; last_inbound_at: number | null }
+        | undefined;
+      if (!chat) throw new HttpError(404, 'not_found', 'Chat not found');
+      if (chat.type === 'group' || !chat.wa_jid)
+        throw new HttpError(409, 'cannot_block', 'Only a direct chat can be blocked');
+      const jid = chat.wa_jid;
+      const at = now();
+      q.ensureNumber.run(jid);
+      const number = numberRow(jid);
+      // The chat's flagged items follow the number, as with Block and Unblock in Admin → Safety.
+      const items = db
+        .prepare('SELECT id, message_id FROM safety_items WHERE chat_jid = ? AND status = ?')
+        .all(chatJid, action === 'block' ? 'open' : 'blocked') as Array<{
+        id: number;
+        message_id: string;
+      }>;
+      if (action === 'block') {
+        if (number?.blocked_at != null || !canBlockNow(chat.inbox_id, chat.last_inbound_at))
+          throw new HttpError(409, 'cannot_block', 'This number cannot be blocked now');
+        await block(chat.inbox_id, jid, true);
+        db.prepare(
+          'UPDATE safety_numbers SET blocked_by = ?, blocked_at = ?, blocked_auto = 0, blocked_inbox_id = ? WHERE wa_jid = ?',
+        ).run(user.id, at, chat.inbox_id, jid);
+        if (body.spam)
+          db.prepare(
+            'UPDATE safety_numbers SET scam_by = ?, scam_at = COALESCE(scam_at, ?) WHERE wa_jid = ?',
+          ).run(user.id, at, jid);
+        for (const item of items)
+          db.prepare("UPDATE safety_items SET status = 'blocked', updated_at = ? WHERE id = ?").run(
+            at,
+            item.id,
+          );
+      } else {
+        // Only where it is blocked: unblocking from another inbox's chat would leave the real block in place.
+        if (!blockedOn(number, chat.inbox_id))
+          throw new HttpError(409, 'not_blocked', 'This number is not blocked on this inbox');
+        const result = await block(chat.inbox_id, jid, false);
+        if (result !== 'done')
+          throw new HttpError(409, 'cannot_block', 'This number cannot be unblocked here');
+        db.prepare(
+          'UPDATE safety_numbers SET blocked_by = NULL, blocked_at = NULL, blocked_auto = 0, blocked_inbox_id = NULL WHERE wa_jid = ?',
+        ).run(jid);
+        const reported = numberRow(jid)?.scam_at != null;
+        for (const item of items)
+          db.prepare('UPDATE safety_items SET status = ?, updated_at = ? WHERE id = ?').run(
+            reported ? 'reported' : 'open',
+            at,
+            item.id,
+          );
+      }
+      for (const item of items) emitUpdated(item.message_id);
+      // Which chat and what was done (like ai.handoff); never message text.
+      audit(db, {
+        userId: user.id,
+        action: `safety.chat.${action}`,
+        ip,
+        meta: { chatJid, spam: action === 'block' && body.spam === true },
+      });
+      return this.chatState(chatJid);
+    },
+
+    isBlocked(waJid, inboxId) {
+      return waJid ? blockedOn(numberRow(waJid), inboxId) : false;
     },
 
     async act(itemId, action, body, user, ip) {
@@ -695,8 +811,8 @@ export function createSafetyService(
           throw new HttpError(409, 'cannot_block', 'This number cannot be blocked now');
         await block(item.inbox_id, jid, true);
         db.prepare(
-          'UPDATE safety_numbers SET blocked_by = ?, blocked_at = ?, blocked_auto = 0 WHERE wa_jid = ?',
-        ).run(user.id, at, jid);
+          'UPDATE safety_numbers SET blocked_by = ?, blocked_at = ?, blocked_auto = 0, blocked_inbox_id = ? WHERE wa_jid = ?',
+        ).run(user.id, at, item.inbox_id, jid);
       };
       switch (action) {
         case 'safe': {
@@ -759,11 +875,11 @@ export function createSafetyService(
           break;
         case 'unblock': {
           const jid = needNumber();
-          const result = await block(item.inbox_id, jid, false);
+          const result = await block(numberRow(jid)?.blocked_inbox_id ?? item.inbox_id, jid, false);
           if (result !== 'done')
             throw new HttpError(409, 'cannot_block', 'This number cannot be unblocked here');
           db.prepare(
-            'UPDATE safety_numbers SET blocked_by = NULL, blocked_at = NULL, blocked_auto = 0 WHERE wa_jid = ?',
+            'UPDATE safety_numbers SET blocked_by = NULL, blocked_at = NULL, blocked_auto = 0, blocked_inbox_id = NULL WHERE wa_jid = ?',
           ).run(jid);
           db.prepare(
             "UPDATE safety_items SET status = CASE WHEN ? THEN 'reported' ELSE 'open' END, updated_at = ? WHERE id = ? AND status = 'blocked'",

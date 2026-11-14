@@ -1,15 +1,17 @@
 import type React from 'react';
-import { useEffect, useState } from 'react';
-import { Copy, Download, FileText, Loader2, RotateCw, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Copy, Download, FileText, ImageIcon, Loader2, RotateCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Message } from '@ezychat/shared';
 import { api } from '../api/client';
-import { upsertMessageInCache } from '../api/queries';
+import { mediaUrlFor, upsertMessageInCache } from '../api/queries';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { canCopyImage, copyImageFromUrl } from '@/lib/clipboard';
 import { setDownloadDrag } from '@/lib/file-transfer';
+import { isPdfMime } from '@/lib/pdf';
+import { PdfViewer } from './PdfViewer';
 import {
   Dialog,
   DialogClose,
@@ -35,6 +37,9 @@ const MIME_EXT: Record<string, string> = {
   'audio/mp4': 'm4a',
   'application/pdf': 'pdf',
 };
+
+/** Image files sent as documents that the server serves inline, so the image preview can show them. */
+const VIEWABLE_IMAGE = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 /** The file name a media file gets when dragged or saved out of the app. */
 export function mediaFileName(m: Pick<Message, 'id' | 'type' | 'mediaName' | 'mediaMime'>): string {
@@ -78,6 +83,8 @@ function Lightbox({
 }) {
   const { t } = useTranslation(['inbox', 'common']);
   const [copyable] = useState(canCopyImage);
+  const [loaded, setLoaded] = useState(false);
+  const backdrop = useRef<HTMLDivElement>(null);
   async function copyImage() {
     try {
       await copyImageFromUrl(src);
@@ -91,6 +98,11 @@ function Lightbox({
       <DialogContent
         showCloseButton={false}
         aria-label={t('media.preview')}
+        // A click on the empty space around the photo closes it, as on WhatsApp; keyboard users
+        // have Esc and the Close button. One handler on the dialog, none on plain elements.
+        onClick={(e) => {
+          if (e.target === backdrop.current) onOpenChange(false);
+        }}
         className="safe-top safe-bottom safe-x flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 sm:max-w-none translate-y-0 flex-col gap-0 rounded-none border-0 bg-background/95 p-0 top-0 left-0"
       >
         <DialogTitle className="sr-only">{t('media.preview')}</DialogTitle>
@@ -114,20 +126,67 @@ function Lightbox({
             </Button>
           </DialogClose>
         </div>
-        <div
-          className="flex min-h-0 flex-1 items-center justify-center p-2"
-          onClick={() => onOpenChange(false)}
-        >
+        <div ref={backdrop} className="flex min-h-0 flex-1 items-center justify-center p-2">
+          {!loaded && (
+            <Loader2
+              className="size-6 shrink-0 animate-spin text-muted-foreground"
+              role="img"
+              aria-label={t('media.loading')}
+            />
+          )}
           <img
             src={src}
             alt={alt}
-            className="max-h-full max-w-full object-contain"
-            onClick={(e) => e.stopPropagation()}
+            onLoad={() => setLoaded(true)}
+            onError={() => setLoaded(true)}
+            className={loaded ? 'max-h-full max-w-full object-contain' : 'sr-only'}
           />
         </div>
       </DialogContent>
     </Dialog>
   );
+}
+
+const IMAGE_MAX_WIDTH = 320;
+const IMAGE_MAX_HEIGHT = 288;
+const THUMB_WITHOUT_SIZE: CSSProperties = { width: 256, maxWidth: '100%' };
+
+/** The space an image takes in the chat, so nothing moves when its file arrives; undefined when its size is not known. */
+export function imageBox(
+  width: number | null | undefined,
+  height: number | null | undefined,
+): CSSProperties | undefined {
+  if (!width || !height) return undefined;
+  const w = Math.min(width, IMAGE_MAX_WIDTH);
+  const h = Math.min(Math.round((w * height) / width), IMAGE_MAX_HEIGHT);
+  return { width: w, maxWidth: '100%', aspectRatio: `${w} / ${h}` };
+}
+
+/**
+ * Calls `onNear` once when the returned element is within 300 px of the chat's visible part, so a chat
+ * full of images downloads only what the reader reaches. Without IntersectionObserver: at once.
+ */
+function useWhenNear(enabled: boolean, onNear: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      onNear();
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        onNear();
+      },
+      { root: el.closest('[data-chat-scroll]'), rootMargin: '300px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [enabled, onNear]);
+  return ref;
 }
 
 /** Renders the media part of a message (image, sticker, video, audio, document). */
@@ -139,13 +198,51 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
   // History media (received, or sent from the phone) is imported without downloading it: status 'pending'
   // on a real WhatsApp id. Only app-sent messages still uploading carry a temporary 'local-' id.
   const onDemand = m.mediaStatus === 'pending' && !m.id.startsWith('local-');
-  const autoLoad = onDemand && (m.type === 'image' || m.type === 'sticker');
+  // An image with WhatsApp's preview shows that in the chat: its real file loads only when it is opened.
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const thumbUrl =
+    m.type === 'image' && !thumbFailed && m.mediaStatus !== 'failed' && !m.id.startsWith('local-')
+      ? m.mediaThumbUrl
+      : null;
+  const autoLoad = onDemand && !thumbUrl && (m.type === 'image' || m.type === 'sticker');
   const { mutate: fetchMedia, isIdle } = redownload;
+  const box = m.type === 'image' ? imageBox(m.mediaWidth, m.mediaHeight) : undefined;
 
-  // Small media loads as soon as it is shown; large media waits for a tap.
-  useEffect(() => {
-    if (autoLoad && isIdle) fetchMedia(m.id);
-  }, [autoLoad, isIdle, fetchMedia, m.id]);
+  // Small media loads when the reader reaches it; large media waits for a tap.
+  const fetchThis = useCallback(() => fetchMedia(m.id), [fetchMedia, m.id]);
+  const nearRef = useWhenNear(autoLoad && isIdle, fetchThis);
+
+  if (thumbUrl) {
+    return (
+      <>
+        <Button
+          variant="ghost"
+          onClick={() => setOpen(true)}
+          className="block h-auto overflow-hidden rounded-lg p-0 hover:bg-transparent"
+          aria-label={t('media.openImage')}
+        >
+          <img
+            src={thumbUrl}
+            alt={m.body ?? m.mediaName ?? t('media.imageAlt')}
+            loading="lazy"
+            onLoad={onLoad}
+            onError={() => setThumbFailed(true)}
+            style={box ?? THUMB_WITHOUT_SIZE}
+            className="object-cover"
+          />
+        </Button>
+        {open && (
+          <Lightbox
+            src={m.mediaUrl ?? mediaUrlFor(m.id)}
+            alt={m.body ?? t('media.imageAlt')}
+            downloadName={mediaFileName(m)}
+            open={open}
+            onOpenChange={setOpen}
+          />
+        )}
+      </>
+    );
+  }
 
   if (onDemand && !autoLoad && !redownload.isPending) {
     return (
@@ -170,7 +267,11 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
     (!m.mediaUrl && m.status === 'pending')
   ) {
     return (
-      <div className="flex min-h-14 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+      <div
+        ref={nearRef}
+        style={box}
+        className="flex min-h-14 items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground"
+      >
         <Loader2
           className="size-4 shrink-0 animate-spin"
           role="img"
@@ -229,10 +330,13 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
               loading="lazy"
               onLoad={onLoad}
               onDragStart={dragOut(m, url)}
+              style={box}
               className={
                 m.type === 'sticker'
                   ? 'size-32 object-contain'
-                  : 'max-h-72 w-full max-w-full object-cover sm:max-w-xs'
+                  : box
+                    ? 'object-cover'
+                    : 'max-h-72 w-full max-w-full object-cover sm:max-w-xs'
               }
             />
           </Button>
@@ -258,24 +362,84 @@ export function MediaView({ message: m, onLoad }: MediaViewProps) {
       );
     case 'audio':
       return <audio src={url} controls preload="metadata" className="w-64 max-w-full" />;
-    default:
+    default: {
+      const mime = (m.mediaMime ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+      const viewer = isPdfMime(mime) ? 'pdf' : VIEWABLE_IMAGE.has(mime) ? 'image' : null;
+      if (!viewer) {
+        return (
+          <a
+            href={url}
+            download={m.mediaName ?? true}
+            onDragStart={dragOut(m, url)}
+            className="flex min-h-14 max-w-full items-center gap-3 rounded-lg border bg-muted/60 px-3 py-2 hover:bg-muted"
+          >
+            <FileText className="size-8 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">
+                {m.mediaName ?? t('media.document')}
+              </span>
+              <span className="block truncate text-xs opacity-70">
+                {t('media.fileDownload', { type: m.mediaMime ?? t('media.file') })}
+              </span>
+            </span>
+          </a>
+        );
+      }
+      const name = m.mediaName ?? t('media.document');
+      const downloadName = mediaFileName(m);
       return (
-        <a
-          href={url}
-          download={m.mediaName ?? true}
-          onDragStart={dragOut(m, url)}
-          className="flex min-h-14 max-w-full items-center gap-3 rounded-lg border bg-muted/60 px-3 py-2 hover:bg-muted"
-        >
-          <FileText className="size-8 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">
-              {m.mediaName ?? t('media.document')}
-            </span>
-            <span className="block truncate text-xs opacity-70">
-              {t('media.fileDownload', { type: m.mediaMime ?? t('media.file') })}
-            </span>
-          </span>
-        </a>
+        <>
+          <div className="flex min-h-14 max-w-full items-center gap-1 rounded-lg border bg-muted/60 pr-1 hover:bg-muted">
+            <Button
+              variant="ghost"
+              onClick={() => setOpen(true)}
+              onDragStart={dragOut(m, url)}
+              draggable
+              aria-label={t('media.openFile', { name })}
+              className="h-auto min-h-14 min-w-0 flex-1 justify-start gap-3 rounded-lg px-3 py-2 text-left font-normal hover:bg-transparent"
+            >
+              {viewer === 'pdf' ? (
+                <FileText className="size-8 shrink-0 text-muted-foreground" aria-hidden="true" />
+              ) : (
+                <ImageIcon className="size-8 shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{name}</span>
+                <span className="block truncate text-xs opacity-70">
+                  {t('media.fileOpen', { type: viewer === 'pdf' ? 'PDF' : mime })}
+                </span>
+              </span>
+            </Button>
+            <Button asChild variant="ghost" size="icon-touch">
+              <a
+                href={url}
+                download={downloadName}
+                onDragStart={dragOut(m, url)}
+                aria-label={t('media.downloadFile', { name })}
+              >
+                <Download aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+          {viewer === 'pdf' ? (
+            <PdfViewer
+              url={url}
+              name={name}
+              downloadName={downloadName}
+              open={open}
+              onOpenChange={setOpen}
+            />
+          ) : (
+            <Lightbox
+              src={url}
+              alt={name}
+              downloadName={downloadName}
+              open={open}
+              onOpenChange={setOpen}
+            />
+          )}
+        </>
       );
+    }
   }
 }

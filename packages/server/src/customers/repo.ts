@@ -6,6 +6,7 @@ import {
   type CustomerProfile,
 } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
+import { HIDDEN_CHAT_KEYS } from '../chats/hidden-sql.js';
 
 export const PROFILE_FIELDS = ['name', 'company', 'email', 'otherPhone', 'address'] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
@@ -113,10 +114,35 @@ export class CustomerRepo {
 
   /**
    * Existing tags for the tag input: prefix matches, most used first. With `inboxIds`, only tags
-   * used on chats of those inboxes count (an agent never learns tags of other inboxes).
+   * used on chats of those inboxes count (an agent never learns tags of other inboxes); with
+   * `chatJids`, only tags of those chats (an agent limited to chosen chats).
    */
-  suggest(q: string | undefined, limit = 20, inboxIds?: readonly number[]): string[] {
+  suggest(
+    q: string | undefined,
+    limit = 20,
+    inboxIds?: readonly number[],
+    chatJids?: readonly string[],
+  ): string[] {
     const key = q ? customerTagKey(q) : '';
+    if (chatJids) {
+      if (!chatJids.length) return [];
+      const rows = this.db
+        .prepare(
+          `SELECT MIN(tag) AS tag, COUNT(*) AS uses FROM customer_tags
+           WHERE tag_key LIKE @prefix ESCAPE '\\'
+             AND chat_jid IN (SELECT value FROM json_each(@chatJids))
+             AND chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
+           GROUP BY tag_key ORDER BY uses DESC, tag_key ASC LIMIT @limit`,
+        )
+        .all({
+          prefix: `${escapeLike(key)}%`,
+          limit,
+          chatJids: JSON.stringify(chatJids),
+        }) as Array<{
+        tag: string;
+      }>;
+      return rows.map((r) => r.tag);
+    }
     // inbox ids are integers, so they are written into the query as they are
     const ids = inboxIds?.filter((id) => Number.isInteger(id));
     if (ids && !ids.length) return [];
@@ -127,6 +153,7 @@ export class CustomerRepo {
       .prepare(
         `SELECT MIN(tag) AS tag, COUNT(*) AS uses FROM customer_tags
          WHERE tag_key LIKE @prefix ESCAPE '\\' ${inInboxes}
+           AND chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
          GROUP BY tag_key ORDER BY uses DESC, tag_key ASC LIMIT @limit`,
       )
       .all({ prefix: `${escapeLike(key)}%`, limit }) as Array<{ tag: string }>;

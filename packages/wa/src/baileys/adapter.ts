@@ -1,3 +1,4 @@
+import { validateMediaDownloadOptions } from '../media-download.js';
 import { EventEmitter } from 'node:events';
 import {
   Browsers,
@@ -28,12 +29,18 @@ import {
   type WaAdapter,
   type WaAdapterEvents,
   type WaAdapterOptions,
+  type WaMediaDownloadOptions,
   type WaChatInfo,
   type WaContactInfo,
   type WaAliasSource,
   type WaContactAlias,
   type WaGroupInfo,
+  type WaGroupInvite,
+  type WaGroupJoinRequest,
+  type WaGroupSettings,
   type WaMessageStatusUpdate,
+  type WaParticipantResult,
+  type WaMessageTarget,
   type WaReactionTarget,
   type WaSendFile,
   type WaSendOptions,
@@ -41,17 +48,89 @@ import {
 import { createAuthStore, type AuthStore } from './auth-store.js';
 import { backoffMs, classifyDisconnect } from './disconnect.js';
 import { Lru } from './lru.js';
+import { createWaVersionSource } from './wa-version.js';
+import { downloadBoundedMessage } from './bounded-download.js';
+import { MediaCache } from './media-cache.js';
+import { decodeMediaRef } from './media-ref.js';
 import { jidType, mapStoredReactions, mapWAMessage, mapWAReaction, toMs } from './mapping.js';
 import { quotedForChat, quotedFromRef } from './quoted.js';
+import { mapWAProtocol } from './protocol.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 import { checkedNumberJid } from './number-check.js';
 import { profilePhoto } from './photos.js';
 import { aboutFromStatusResult, mapGroupMetadata } from './groups.js';
+import {
+  inviteLink,
+  iqErrorCode,
+  mapJoinRequests,
+  mapParticipantEntry,
+  pickParticipantEntry,
+  settingCalls,
+} from './group-admin.js';
 
 type ILogger = NonNullable<Parameters<typeof makeWASocket>[0]['logger']>;
 
+/**
+ * Upload time allowed for one file (Baileys has none by default): a 70 MB video on a slow line is not
+ * cut off (design docs/features/forward-message/design.md → Large files).
+ */
+export const MEDIA_UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** WhatsApp's "Forwarded" mark for a send that asks for it (`WaSendOptions.forwarded`). */
+export function forwardedContext(
+  opts: WaSendOptions | undefined,
+): { contextInfo: proto.IContextInfo } | Record<string, never> {
+  const score = opts?.forwarded?.score;
+  if (score === undefined || !Number.isFinite(score) || score < 1) return {};
+  return { contextInfo: { isForwarded: true, forwardingScore: Math.floor(score) } };
+}
+
+/**
+ * The content of one file send: given by `path`, Baileys reads it from disk (streamed, and its media
+ * cache can re-use one upload for several chats); `asDocument` sends any file as a document.
+ */
+export function mediaContent(file: WaSendFile, opts?: WaSendOptions): AnyMessageContent {
+  const { mime, fileName, caption } = file;
+  const source = file.path ? { url: file.path } : file.buffer;
+  const withCaption = caption ? { caption } : {};
+  const fwd = forwardedContext(opts);
+  let content: AnyMessageContent;
+  if (file.asDocument) {
+    content = { document: source, mimetype: mime, fileName, ...withCaption };
+  } else if (mime.startsWith('image/') && mime !== 'image/webp') {
+    content = { image: source, mimetype: mime, ...withCaption };
+  } else if (mime === 'image/webp') {
+    content = { sticker: source, mimetype: mime };
+  } else if (mime.startsWith('video/')) {
+    content = { video: source, mimetype: mime, ...withCaption };
+  } else if (file.voiceNote) {
+    // Seconds and waveform are given, so Baileys needs neither music-metadata nor audio-decode.
+    // Baileys copies `waveform` into the audio message but leaves it out of its content type.
+    const voice: AnyMessageContent & { waveform: Uint8Array } = {
+      audio: source,
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true,
+      seconds: file.voiceNote.seconds,
+      waveform: file.voiceNote.waveform,
+    };
+    content = voice;
+  } else if (mime.startsWith('audio/')) {
+    content = { audio: source, mimetype: mime };
+  } else {
+    content = { document: source, mimetype: mime, fileName, ...withCaption };
+  }
+  return { ...content, ...fwd } as AnyMessageContent;
+}
+
 const RAW_CACHE_MAX = 2000;
+/** How long an edit or delete this adapter sent waits for WhatsApp's echo of it. */
+const OWN_CHANGE_TTL_MS = 60_000;
 const DAY_MS = 86_400_000;
+
+/** One per process: every inbox and reconnect shares the looked-up WhatsApp Web version. */
+const waVersion = createWaVersionSource({
+  fetchLatest: () => fetchLatestBaileysVersion() as Promise<{ version: [number, number, number] }>,
+});
 
 type BoomLike = { output?: { statusCode?: number }; message?: string };
 
@@ -117,6 +196,12 @@ export function normalizePairingPhone(phone: string): string {
 
 const PAIRING_READY_TIMEOUT_MS = 20_000;
 
+/**
+ * Time one connect attempt may take to open or offer a QR code. A socket that does neither (no
+ * open, no close, no error) is closed and the connect retried with the normal backoff.
+ */
+export const CONNECT_ATTEMPT_TIMEOUT_MS = 60_000;
+
 export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private sock: WASocket | null = null;
@@ -124,8 +209,17 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private readonly logger: Logger;
   private readonly historyDaysOpt: WaAdapterOptions['historyDays'];
   private raw = new Lru<string, WAMessage>(RAW_CACHE_MAX);
+  /** Uploaded files re-used for later copies on this number (Baileys `mediaCache`). */
+  private readonly mediaCache = new MediaCache();
+  /**
+   * Target ids of edits and deletes this adapter sent → when: WhatsApp echoes them back like the
+   * phone's own, and the core already recorded them with the teammate who made them.
+   */
+  private readonly ownChanges = new Map<string, number>();
   private attempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  /** Ends a connect attempt that neither opens nor offers a QR code (CONNECT_ATTEMPT_TIMEOUT_MS). */
+  private connectTimer: NodeJS.Timeout | null = null;
   /** true when the socket was closed on purpose (disconnect/logout/replaced/blocked). */
   private stopped = true;
   private connecting: Promise<void> | null = null;
@@ -136,7 +230,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
 
   constructor(opts: WaAdapterOptions) {
     super();
-    this.auth = createAuthStore(opts.authDir);
+    this.auth = createAuthStore(opts.authDir, opts.authStorage);
     this.historyDaysOpt = opts.historyDays;
     this.logger = opts.logger ?? pino({ level: 'silent' });
   }
@@ -259,7 +353,31 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.reconnectTimer = null;
   }
 
+  private clearConnectTimer(): void {
+    if (this.connectTimer) clearTimeout(this.connectTimer);
+    this.connectTimer = null;
+  }
+
+  /** Started for each new socket; cleared on open, QR, close, disconnect, logout and takeover. */
+  private startConnectTimer(sock: WASocket): void {
+    this.clearConnectTimer();
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      if (this.stopped || this.sock !== sock) return;
+      this.logger.warn(
+        { ms: CONNECT_ATTEMPT_TIMEOUT_MS, attempt: this.attempt },
+        'wa connect attempt timed out',
+      );
+      // closeSocket drops this socket's connection.update listener first: its late events change nothing.
+      void this.closeSocket();
+      this.setStatus({ state: 'connecting', lastError: 'connect attempt timed out' });
+      this.scheduleReconnect();
+    }, CONNECT_ATTEMPT_TIMEOUT_MS);
+    this.connectTimer.unref?.();
+  }
+
   private async closeSocket(): Promise<void> {
+    this.clearConnectTimer();
     this.signalKeys = null;
     this.aliasGeneration++;
     const sock = this.sock;
@@ -296,13 +414,11 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.setStatus({ state: 'connecting', qr: null });
     const { state, saveCreds } = await this.auth.load();
 
-    let version: [number, number, number] | undefined;
-    try {
-      const latest = await fetchLatestBaileysVersion();
-      version = latest.version;
-    } catch (err) {
-      this.logger.warn({ err }, 'could not fetch latest WA version; using bundled default');
-    }
+    // Never wait for the GitHub lookup: connect with the version we have, refresh it for next time.
+    const version = waVersion.current();
+    void waVersion.refresh().then(({ error }) => {
+      if (error) this.logger.warn({ err: error }, 'could not fetch latest WA version');
+    });
 
     if (this.stopped) return; // disconnect() was called while loading
 
@@ -319,10 +435,13 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       shouldSyncHistoryMessage: () => this.historyDays > 0,
       getMessage: async (key) =>
         key.id ? (this.raw.get(key.id)?.message ?? undefined) : undefined,
+      // One upload for several copies of a file on this number (forward to several chats).
+      mediaCache: this.mediaCache,
     });
     this.sock = sock;
     this.signalKeys = keys;
     this.aliasGeneration++;
+    this.startConnectTimer(sock);
 
     const alive = () => !this.stopped && this.sock === sock;
 
@@ -372,11 +491,17 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     sock.ev.on('group-participants.update', ({ id }) => {
       if (alive() && id) this.emitTyped('groupChanged', { groupJid: id });
     });
+    // Someone asked to join, withdrew, or an admin decided: the pending request list changed.
+    sock.ev.on('group.join-request', ({ id }) => {
+      if (alive() && id) this.emitTyped('groupChanged', { groupJid: id });
+    });
   }
 
   private onConnectionUpdate(sock: WASocket, u: BaileysEventMap['connection.update']): void {
     if (u.qr) {
       // The server is talking to us again; don't let earlier failures stretch the next retry.
+      // A person may take minutes to scan or type a code: the attempt no longer has a time limit.
+      this.clearConnectTimer();
       this.attempt = 0;
       this.setStatus({ state: 'qr', qr: u.qr });
     }
@@ -384,6 +509,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       this.setStatus({ state: 'connecting' });
     }
     if (u.connection === 'open') {
+      this.clearConnectTimer();
       this.attempt = 0;
       const user = sock.user;
       this.setStatus({
@@ -403,6 +529,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       const err = u.lastDisconnect?.error as BoomLike | undefined;
       const code = err?.output?.statusCode;
       const message = err?.message ?? (code ? `closed (${code})` : 'connection closed');
+      this.clearConnectTimer();
       this.sock = null;
       this.signalKeys = null;
       this.aliasGeneration++;
@@ -473,7 +600,14 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     for (const { key, update } of updates) {
       if (!key.id || !key.remoteJid || !key.fromMe) continue;
       const status = mapAck(update.status);
-      if (status) this.emitTyped('messageStatus', { id: key.id, chatJid: key.remoteJid, status });
+      if (!status) continue;
+      const code = status === 'failed' ? update.messageStubParameters?.[0] : undefined;
+      this.emitTyped('messageStatus', {
+        id: key.id,
+        chatJid: key.remoteJid,
+        status,
+        ...(typeof code === 'string' && code ? { error: code } : {}),
+      });
     }
   }
 
@@ -505,11 +639,26 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       this.emitTyped('reaction', reaction, { source });
       return;
     }
+    // Edits and deletes arrive as protocol messages naming the changed message. Baileys also
+    // reports them as messages.update; only this path is read, so each change counts once.
+    const change = mapWAProtocol(m);
+    if (change) {
+      const { targetId, fromMe, timestamp } = change.kind === 'edit' ? change.edit : change.revoke;
+      if (source === 'history' && timestamp < this.historyCutoff()) return;
+      if (fromMe && this.takeOwnChange(targetId)) return;
+      if (change.kind === 'edit') this.emitTyped('messageEdited', change.edit, { source });
+      else this.emitTyped('messageDeleted', change.revoke, { source });
+      return;
+    }
     if (m.message) this.raw.set(id, m);
     // History sync keeps earlier reactions on the reacted message itself.
     if (source === 'history')
       for (const r of mapStoredReactions(m)) this.emitTyped('reaction', r, { source });
-    const mapped = mapWAMessage(m, (raw) => this.download(raw));
+    const mapped = mapWAMessage(
+      m,
+      (raw) => this.download(raw),
+      (raw, options) => this.downloadBounded(raw, options),
+    );
     if (!mapped) return;
     if (source === 'history' && mapped.timestamp < this.historyCutoff()) return;
     this.emitTyped('message', mapped, { source });
@@ -664,6 +813,15 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     return buf as Buffer;
   }
 
+  private downloadBounded(raw: WAMessage, options: WaMediaDownloadOptions): Promise<Buffer> {
+    const sock = this.sock;
+    return downloadBoundedMessage(
+      raw,
+      options,
+      sock ? { reuploadRequest: sock.updateMediaMessage } : undefined,
+    );
+  }
+
   // ---------------------------------------------------------------- outbound
 
   private requireOpen(): WASocket {
@@ -677,6 +835,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     opts?: WaSendOptions,
     /** keep the sent message for quotes and media (not for reactions) */
     cache = true,
+    /** media sends: Baileys' upload options */
+    extra?: { mediaUploadTimeoutMs?: number },
   ): Promise<SendResult> {
     const sock = this.requireOpen();
     // The live cache is small and cleared on reconnect; rebuild older quotes from the saved copy.
@@ -689,7 +849,16 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
         : undefined;
     let res: WAMessage | undefined;
     try {
-      res = await sock.sendMessage(chatJid, content, quoted ? { quoted } : undefined);
+      const options = {
+        ...(quoted ? { quoted } : {}),
+        ...(opts?.messageId ? { messageId: opts.messageId } : {}),
+        ...(extra ?? {}),
+      };
+      res = await sock.sendMessage(
+        chatJid,
+        content,
+        Object.keys(options).length ? options : undefined,
+      );
     } catch (err) {
       // connection dropped mid-send: report as unavailable so the queue keeps the job pending
       if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open') {
@@ -708,47 +877,102 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   sendText(chatJid: string, text: string, opts?: WaSendOptions): Promise<SendResult> {
     // A tag is `@<number>` in the text plus the member's address in `mentions` (contextInfo).
     const mentions = opts?.mentions?.length ? { mentions: [...opts.mentions] } : {};
-    return this.send(chatJid, { text, ...mentions }, opts);
+    // Baileys merges this contextInfo with the one it builds for the mentions.
+    return this.send(chatJid, { text, ...mentions, ...forwardedContext(opts) }, opts);
   }
 
   sendMedia(chatJid: string, file: WaSendFile, opts?: WaSendOptions): Promise<SendResult> {
-    const { buffer, mime, fileName, caption } = file;
-    let content: AnyMessageContent;
-    if (mime.startsWith('image/') && mime !== 'image/webp') {
-      content = { image: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
-    } else if (mime === 'image/webp') {
-      content = { sticker: buffer, mimetype: mime };
-    } else if (mime.startsWith('video/')) {
-      content = { video: buffer, mimetype: mime, ...(caption ? { caption } : {}) };
-    } else if (file.voiceNote) {
-      // Seconds and waveform are given, so Baileys needs neither music-metadata nor audio-decode.
-      // Baileys copies `waveform` into the audio message but leaves it out of its content type.
-      const voice: AnyMessageContent & { waveform: Uint8Array } = {
-        audio: buffer,
-        mimetype: 'audio/ogg; codecs=opus',
-        ptt: true,
-        seconds: file.voiceNote.seconds,
-        waveform: file.voiceNote.waveform,
-      };
-      content = voice;
-    } else if (mime.startsWith('audio/')) {
-      content = { audio: buffer, mimetype: mime };
-    } else {
-      content = { document: buffer, mimetype: mime, fileName, ...(caption ? { caption } : {}) };
-    }
-    return this.send(chatJid, content, opts);
+    return this.send(chatJid, mediaContent(file, opts), opts, true, {
+      mediaUploadTimeoutMs: MEDIA_UPLOAD_TIMEOUT_MS,
+    });
   }
 
-  sendReaction(chatJid: string, target: WaReactionTarget, emoji: string): Promise<SendResult> {
-    // The cached key carries the group author exactly as WhatsApp delivered it.
+  /** The key WhatsApp matches a message by; the cached key carries the group author as delivered. */
+  private targetKey(chatJid: string, target: WaMessageTarget): WAMessageKey {
     const participant = this.raw.get(target.id)?.key?.participant ?? target.participant;
-    const key: WAMessageKey = {
+    return {
       remoteJid: chatJid,
       id: target.id,
       fromMe: target.fromMe,
       ...(participant && chatJid.endsWith('@g.us') ? { participant } : {}),
     };
-    return this.send(chatJid, { react: { text: emoji, key } }, undefined, false);
+  }
+
+  sendReaction(chatJid: string, target: WaReactionTarget, emoji: string): Promise<SendResult> {
+    return this.send(
+      chatJid,
+      { react: { text: emoji, key: this.targetKey(chatJid, target) } },
+      undefined,
+      false,
+    );
+  }
+
+  /** Remember an edit/delete we send, so its echo is not reported as the phone's. */
+  private markOwnChange(targetId: string): void {
+    const t = Date.now();
+    for (const [id, at] of this.ownChanges)
+      if (t - at > OWN_CHANGE_TTL_MS) this.ownChanges.delete(id);
+    this.ownChanges.set(targetId, t);
+  }
+
+  /** True (and forgotten) when a fromMe change of `targetId` is the echo of our own. */
+  private takeOwnChange(targetId: string): boolean {
+    const at = this.ownChanges.get(targetId);
+    if (at === undefined) return false;
+    this.ownChanges.delete(targetId);
+    return Date.now() - at <= OWN_CHANGE_TTL_MS;
+  }
+
+  private async sendChange(
+    chatJid: string,
+    target: WaMessageTarget,
+    content: AnyMessageContent,
+  ): Promise<SendResult> {
+    this.markOwnChange(target.id);
+    try {
+      return await this.send(chatJid, content, undefined, false);
+    } catch (err) {
+      this.ownChanges.delete(target.id);
+      throw err;
+    }
+  }
+
+  editText(chatJid: string, target: WaMessageTarget, text: string): Promise<SendResult> {
+    const key = this.targetKey(chatJid, target);
+    const cached = this.raw.get(target.id);
+    return this.sendChange(chatJid, target, { text, edit: key }).then((r) => {
+      // Later quotes of the message show the new text.
+      const m = cached?.message;
+      if (m?.conversation != null) m.conversation = text;
+      else if (m?.extendedTextMessage) m.extendedTextMessage.text = text;
+      return r;
+    });
+  }
+
+  deleteForEveryone(chatJid: string, target: WaMessageTarget): Promise<SendResult> {
+    return this.sendChange(chatJid, target, { delete: this.targetKey(chatJid, target) });
+  }
+
+  async deleteForMe(chatJid: string, target: WaMessageTarget, timestamp: number): Promise<void> {
+    const sock = this.requireOpen();
+    try {
+      await sock.chatModify(
+        {
+          deleteForMe: {
+            deleteMedia: true,
+            key: this.targetKey(chatJid, target),
+            timestamp: Math.floor(timestamp / 1000),
+          },
+        },
+        chatJid,
+      );
+    } catch (err) {
+      if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open')
+        throw new WaUnavailableError(
+          `WhatsApp connection lost: ${String((err as Error)?.message ?? err)}`,
+        );
+      throw err;
+    }
   }
 
   async markRead(chatJid: string, messageIds: string[]): Promise<void> {
@@ -767,8 +991,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     await sock.sendPresenceUpdate(presence, chatJid);
   }
 
-  async downloadMedia(messageId: string): Promise<Buffer | null> {
-    const raw = this.raw.get(messageId);
+  async downloadMedia(messageId: string, ref?: string | null): Promise<Buffer | null> {
+    const raw = this.raw.get(messageId) ?? (ref ? decodeMediaRef(ref) : null);
     if (!raw) return null;
     try {
       return await this.download(raw);
@@ -781,6 +1005,140 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   async getGroupInfo(groupJid: string): Promise<WaGroupInfo> {
     const sock = this.requireOpen();
     return mapGroupMetadata(await sock.groupMetadata(groupJid));
+  }
+
+  /**
+   * Run one group query on the open socket. A dropped connection becomes WaUnavailableError;
+   * WhatsApp's own refusals (Baileys Boom, `data` = code) pass through. Emits nothing: WhatsApp's
+   * notifications of the change raise `groupChanged`.
+   */
+  private async groupCall<T>(run: (sock: WASocket) => Promise<T>): Promise<T> {
+    const sock = this.requireOpen();
+    try {
+      return await run(sock);
+    } catch (err) {
+      if (isConnectionError(err) || this.sock !== sock || this._status.state !== 'open')
+        throw new WaUnavailableError(
+          `WhatsApp connection lost: ${String((err as Error)?.message ?? err)}`,
+        );
+      throw err;
+    }
+  }
+
+  async setGroupSubject(groupJid: string, subject: string): Promise<void> {
+    await this.groupCall((sock) => sock.groupUpdateSubject(groupJid, subject));
+    this.logger.info({ op: 'subject' }, 'group change');
+  }
+
+  async setGroupDescription(groupJid: string, description: string | null): Promise<void> {
+    // Baileys reads the current description id itself and deletes it when given none.
+    await this.groupCall((sock) => sock.groupUpdateDescription(groupJid, description || undefined));
+    this.logger.info({ op: 'description', cleared: !description }, 'group change');
+  }
+
+  /** One person only (the tuple type); a whole-request 401/403 is that person's "not allowed". */
+  private async participantCall(
+    personJid: string,
+    run: (sock: WASocket, jid: string) => Promise<unknown>,
+    op: string,
+  ): Promise<WaParticipantResult> {
+    const jid = normalizeContactJid(personJid) ?? personJid;
+    let result: WaParticipantResult;
+    try {
+      result = mapParticipantEntry(
+        jid,
+        pickParticipantEntry(jid, await this.groupCall((s) => run(s, jid))),
+      );
+    } catch (err) {
+      const code = iqErrorCode(err);
+      if (err instanceof WaUnavailableError || (code !== 401 && code !== 403)) throw err;
+      result = { jid, status: 'not_allowed' };
+    }
+    // The outcome only, never the number.
+    this.logger.info({ op, status: result.status }, 'group member change');
+    return result;
+  }
+
+  async updateGroupMembers(
+    groupJid: string,
+    jids: [string],
+    action: 'add' | 'remove' | 'promote' | 'demote',
+  ): Promise<WaParticipantResult[]> {
+    const [person] = jids;
+    return [
+      await this.participantCall(
+        person,
+        (sock, jid) => sock.groupParticipantsUpdate(groupJid, [jid], action),
+        action,
+      ),
+    ];
+  }
+
+  async sendGroupInvite(groupJid: string, toJid: string, invite: WaGroupInvite): Promise<void> {
+    const to = normalizeContactJid(toJid) ?? toJid;
+    // The invite card shows the group's name; read it fresh (a rename may be seconds old).
+    const meta = await this.groupCall((sock) => sock.groupMetadata(groupJid));
+    await this.send(
+      to,
+      {
+        groupInvite: {
+          inviteCode: invite.code,
+          inviteExpiration: Math.floor(invite.expiresAt / 1000),
+          text: '',
+          jid: groupJid,
+          subject: meta.subject ?? '',
+        },
+      },
+      undefined,
+      false,
+    );
+    this.logger.info({ op: 'invite' }, 'group change');
+  }
+
+  async getGroupInviteLink(groupJid: string): Promise<string> {
+    return inviteLink(await this.groupCall((sock) => sock.groupInviteCode(groupJid)));
+  }
+
+  async resetGroupInviteLink(groupJid: string): Promise<string> {
+    const link = inviteLink(await this.groupCall((sock) => sock.groupRevokeInvite(groupJid)));
+    this.logger.info({ op: 'reset_link' }, 'group change');
+    return link;
+  }
+
+  async setGroupSettings(groupJid: string, settings: Partial<WaGroupSettings>): Promise<void> {
+    // One query per setting, in a fixed order; the first refusal stops the rest.
+    for (const call of settingCalls(settings)) {
+      await this.groupCall((sock) => {
+        switch (call.fn) {
+          case 'groupSettingUpdate':
+            return sock.groupSettingUpdate(groupJid, call.arg);
+          case 'groupMemberAddMode':
+            return sock.groupMemberAddMode(groupJid, call.arg);
+          case 'groupJoinApprovalMode':
+            return sock.groupJoinApprovalMode(groupJid, call.arg);
+        }
+      });
+      this.logger.info({ op: 'setting', setting: call.arg }, 'group change');
+    }
+  }
+
+  async listGroupJoinRequests(groupJid: string): Promise<WaGroupJoinRequest[]> {
+    return mapJoinRequests(
+      await this.groupCall((sock) => sock.groupRequestParticipantsList(groupJid)),
+    );
+  }
+
+  decideGroupJoinRequest(
+    groupJid: string,
+    jid: string,
+    approve: boolean,
+  ): Promise<WaParticipantResult> {
+    return this.participantCall(
+      jid,
+      (sock, person) =>
+        sock.groupRequestParticipantsUpdate(groupJid, [person], approve ? 'approve' : 'reject'),
+      approve ? 'approve' : 'reject',
+    );
   }
 
   async checkNumber(phone: string): Promise<string | null> {
@@ -825,6 +1183,15 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       this.logger.warn({ err, kind }, 'about unavailable');
       throw err;
     }
+  }
+
+  async downloadMediaBounded(
+    messageId: string,
+    options: WaMediaDownloadOptions,
+  ): Promise<Buffer | null> {
+    validateMediaDownloadOptions(options);
+    const raw = this.raw.get(messageId);
+    return raw ? this.downloadBounded(raw, options) : null;
   }
 
   async getProfilePicture(jid: string): Promise<string | null> {

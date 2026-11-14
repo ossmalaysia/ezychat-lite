@@ -10,17 +10,30 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ConnectorGallery, ConnectorListStatus } from '@ezychat/shared';
+import type {
+  ConnectorGallery,
+  ConnectorListStatus,
+  GitHubState,
+  GoogleCalendarState,
+  SqlAccountState,
+} from '@ezychat/shared';
 import { connectorText } from '@ezychat/shared';
 import { errorMessage } from '../../api/client';
 import { useConnectorGallery, useRefreshConnectorList } from '../../api/connector-list';
-import { useGoogleCalendar } from '../../api/connectors';
+import {
+  useGitHub,
+  useGoogleCalendar,
+  useGoogleDrive,
+  useGoogleSheets,
+} from '../../api/connectors';
+import { useSqlAccount } from '../../api/sql-account';
 import { Banner, EmptyState, PageHeader } from '@/components/app';
 import { SearchField } from '@/components/app/SearchField';
 import { Button } from '@/components/ui/button';
 import { useAppLinks } from '@/lib/app-links';
 import { formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useEdition } from '@/lib/version';
 import { ErrorState } from '../adminUi';
 import {
   CONNECTOR_CATEGORIES,
@@ -58,13 +71,20 @@ interface GalleryRow {
 
 /**
  * Admin → Connectors: a gallery of connectors from the connector list the server keeps (refreshed
- * when the page opens), plus the app's own built-in Google Calendar and the custom MCP connector.
+ * when the page opens), plus the app's own built-in connectors (Google Calendar, Google Sheets, SQL
+ * Account) and the custom MCP connector.
  * Each card opens the connector's own page (details, settings, activity), or the page an extension
  * provides. Connected ones come first; search and a category filter narrow the list.
  */
 export function ConnectorsGalleryPage() {
   const { t, i18n } = useTranslation('admin');
   const google = useGoogleCalendar();
+  const sheets = useGoogleSheets();
+  const sql = useSqlAccount();
+  const drive = useGoogleDrive();
+  // GitHub is offered in Lite only for now (owner 2026-11-10).
+  const lite = useEdition() === 'lite';
+  const github = useGitHub(lite);
   const list = useConnectorGallery();
   const refresh = useRefreshConnectorList();
   const links = useConnectorLinks();
@@ -81,6 +101,14 @@ export function ConnectorsGalleryPage() {
     refreshNow();
   }, [refreshNow]);
 
+  const builtinStates: Partial<
+    Record<string, GoogleCalendarState | SqlAccountState | GitHubState | undefined>
+  > = {
+    'google-sheets': sheets.data?.state,
+    'google-drive': drive.data?.state,
+    'sql-account': sql.data?.state,
+    github: github.data?.state,
+  };
   const app = (id: (typeof CONNECTORS)[number]['id']): GalleryRow => {
     const c = CONNECTORS.find((x) => x.id === id)!;
     return {
@@ -90,7 +118,11 @@ export function ConnectorsGalleryPage() {
       short: t(`connectors.items.${c.id}.short`),
       category: c.category,
       icon: c,
-      status: connectorStatus(c, google.data?.state, links[c.id]),
+      status: connectorStatus(
+        c,
+        c.id in builtinStates ? builtinStates[c.id] : google.data?.state,
+        links[c.id],
+      ),
       beta:
         list.data?.connectors.some(
           (g) =>
@@ -98,10 +130,16 @@ export function ConnectorsGalleryPage() {
         ) ?? false,
     };
   };
-  const all: GalleryRow[] = [app('google-calendar')];
+  const all: GalleryRow[] = [
+    app('google-calendar'),
+    app('google-sheets'),
+    app('google-drive'),
+    app('sql-account'),
+    ...(lite ? [app('github')] : []),
+  ];
   for (const g of list.data?.connectors ?? []) {
-    // Built-in connectors are the app's own (Google Calendar shows once, with its live state and
-    // pages); a built-in this app does not know is skipped.
+    // Built-in connectors are the app's own (Google Calendar, Sheets, Drive, SQL Account and GitHub show once, with
+    // their live state and pages); a built-in this app does not know is skipped.
     if (g.entry.kind === 'builtin') continue;
     if (g.delisted && !isLinked(g.connection)) continue;
     if (all.some((r) => r.id === g.entry.id)) continue;

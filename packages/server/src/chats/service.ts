@@ -8,12 +8,13 @@ import type {
 } from '@ezychat/shared';
 import type { WaChatInfo, WaContactInfo, WaContactAlias } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
-import { agentForInbox } from '../ai/agents.js';
-import { answersDirect } from '../ai/direct.js';
+import { agentByUserId } from '../ai/agents.js';
+import { answersDirect, directAgentOf } from '../ai/direct.js';
 import { audit } from '../db/audit.js';
 import { HttpError, errors } from '../http/errors.js';
-import { canOpen, scopeFor } from '../inboxes/access.js';
+import { canOpenChat } from '../inboxes/access.js';
 import { getAliases } from './aliases.js';
+import { personDeletedAt } from './delete.js';
 import { PRIMARY_INBOX_ID, chatKey, parseChatKey, waMessageId } from '../inboxes/keys.js';
 import { ChatRepo, chatTypeOf, jidUser, waJidOf, type ChatRow } from './repo.js';
 import { createChatPresenter } from '../messages/mentions.js';
@@ -22,6 +23,8 @@ import { createChatPresenter } from '../messages/mentions.js';
 export interface ChatListScope {
   /** Inboxes the caller may open; omitted = every inbox, empty = none. */
   inboxIds?: readonly number[];
+  /** An agent limited to chosen chats: only these chats (replaces `inboxIds`); empty = none. */
+  chatJids?: readonly string[];
   /** One inbox only. */
   inbox?: number;
 }
@@ -39,6 +42,8 @@ export interface ChatService {
    */
   resolveJid(key: string): string;
   openCount(): number;
+  /** Open chats with unread messages in the caller's scope (the app navigation's Chats count). */
+  unreadCount(scope?: Omit<ChatListScope, 'inbox'>): number;
   resolveAll(actorId: number, ip?: string | null): number;
   events(jid: string): ChatEvent[];
   /**
@@ -48,6 +53,11 @@ export interface ChatService {
   addAiToolUsed(jid: string, actorId: number, lookups: readonly AiToolUsedPayload[]): ChatEvent[];
   /** A chat WhatsApp reported through `inboxId` (default inbox 1); `info.jid` is a WhatsApp JID. */
   upsertFromWa(info: WaChatInfo, inboxId?: number): Chat;
+  /**
+   * WhatsApp's own chat list (history sync, `chats.upsert`): as upsertFromWa, but never brings back a
+   * chat an admin deleted (null then). A live message still starts a new chat.
+   */
+  syncFromWa(info: WaChatInfo, inboxId?: number): Chat | null;
   /** actorId null = system */
   /** `eventDetail` is merged into the assignment event's payload (e.g. `{ handoff: reason }`). */
   patch(
@@ -183,6 +193,7 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         cursor,
         limit: q.limit + 1,
         inboxIds: scope.inboxIds,
+        chatJids: scope.chatJids,
         inbox: scope.inbox,
       });
       const more = rows.length > q.limit;
@@ -205,6 +216,10 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
 
     openCount() {
       return repo.openCount();
+    },
+
+    unreadCount(scope = {}) {
+      return repo.unreadCount(scope);
     },
 
     resolveAll(actorId, ip = null) {
@@ -260,6 +275,9 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
               sourceLabel: lookup.sourceLabel,
               ...(lookup.calendar ? { calendar: lookup.calendar } : {}),
               ...(lookup.group ? { group: lookup.group } : {}),
+              ...(lookup.sheet ? { sheet: lookup.sheet } : {}),
+              ...(lookup.drive ? { drive: lookup.drive } : {}),
+              ...(lookup.silent ? { silent: lookup.silent } : {}),
             },
             at,
           }),
@@ -296,6 +314,17 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       return present(existing);
     },
 
+    syncFromWa(info, inboxId = PRIMARY_INBOX_ID) {
+      const jid =
+        info.type === 'dm' ? aliases.route(inboxId, info.jid) : chatKey(inboxId, info.jid);
+      if (
+        !repo.get(jid) &&
+        personDeletedAt(ctx, inboxId, [parseChatKey(jid).waJid, info.jid]) !== null
+      )
+        return null;
+      return svc.upsertFromWa(info, inboxId);
+    },
+
     patch(jid, body, actorId, eventDetail = {}) {
       const cur = repo.get(jid);
       if (!cur) throw errors.notFound('Chat');
@@ -307,20 +336,22 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         if (body.assignedTo !== null) {
           const user = ctx.services.auth?.getUser(body.assignedTo) ?? null;
           if (!user || user.disabled) throw errors.validation('Assignee must be an active user');
-          // assigning gives no access: the assignee must already open the chat's inbox
-          if (user.kind !== 'ai' && !canOpen(scopeFor(ctx, user), cur.inbox_id))
+          // assigning gives no access: the assignee must already open the chat (its inbox, or
+          // one of their chosen chats for an agent limited to chosen chats)
+          if (user.kind !== 'ai' && !canOpenChat(ctx, user, cur))
             throw new HttpError(400, 'assignee_no_access', 'The assignee cannot open this inbox');
           // an AI agent answers only its own inbox: on any other chat it would never reply
-          if (user.kind === 'ai' && agentForInbox(ctx.db, cur.inbox_id)?.userId !== user.id)
+          const aiAgent = user.kind === 'ai' ? agentByUserId(ctx.db, user.id) : null;
+          if (user.kind === 'ai' && aiAgent?.inboxId !== cur.inbox_id)
             throw new HttpError(
               400,
               'assignee_not_inbox_agent',
               "The assignee is not this inbox's AI agent",
             );
-          // a group-only agent ("Answer direct chats" off) never answers a direct chat
-          if (user.kind === 'ai' && cur.type === 'dm') {
-            const agent = agentForInbox(ctx.db, cur.inbox_id);
-            if (agent && !answersDirect(ctx, agent))
+          // only the inbox's direct agent answers a direct chat (a group-only agent never does)
+          if (aiAgent && cur.type === 'dm') {
+            const agent = aiAgent;
+            if (!answersDirect(ctx, agent) || directAgentOf(ctx, cur.inbox_id)?.id !== agent.id)
               throw new HttpError(
                 400,
                 'agent_no_direct_chats',

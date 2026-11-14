@@ -55,16 +55,20 @@
     "adminSettings": "Tetapan pentadbir",
     "changePassword": "Tukar kata laluan",
     "share": "Kongsi aplikasi ini",
-    "reportIssue": "Laporkan masalah",
     "about": "Perihal {{appName}}",
     "signOut": "Log keluar",
-    "emailSupport": "E-mel sokongan"
+    "sendFeedback": "Hantar maklum balas",
+    "emailSupport": "E-mel sokongan",
+    "signingOut": "Sedang log keluar…",
+    "signOutFailed": "Tidak dapat log keluar: {{error}}"
   },
   "errorBoundary": {
     "title": "Berlaku ralat",
     "body": "Bahagian aplikasi ini mengalami ralat yang tidak dijangka. Ralat telah dilaporkan.",
     "reload": "Muat semula halaman",
-    "goHome": "Pergi ke peti masuk"
+    "goHome": "Pergi ke peti masuk",
+    "report": "Laporkan masalah ini",
+    "reportPrefix": "Ralat yang dipaparkan:"
   },
   "access": {
     "pausedTitle": "{{product}} dijeda",
@@ -78,7 +82,27 @@
     "cta": "Naik taraf ke Enterprise",
     "agents": "Perlukan lebih banyak ejen AI? EzyChat Enterprise ada satu ejen AI untuk setiap nombor WhatsApp.",
     "numbers": "Perlukan lebih banyak nombor WhatsApp? EzyChat Enterprise memautkan beberapa nombor ke satu peti masuk pasukan.",
-    "about": "Lebih banyak nombor WhatsApp dan ejen AI, dengan sokongan daripada Anchor Sprint."
+    "about": "Lebih banyak nombor WhatsApp dan ejen AI, dengan sokongan daripada Anchor Sprint.",
+    "dialog": {
+      "title": "Naik taraf ke EzyChat Enterprise",
+      "numbersValue": "10",
+      "numbers": "nombor WhatsApp",
+      "agentsValue": "10",
+      "agents": "ejen AI",
+      "apiValue": "API",
+      "api": "Business API",
+      "keeps": "Chat, pasukan dan WhatsApp ikut sekali",
+      "trial": "Percubaan percuma 7 hari",
+      "install": "Pasang EzyChat Enterprise",
+      "retry": "Cuba lagi",
+      "learnMore": "Ketahui lagi",
+      "cancel": "Batal",
+      "downloading": "Memuat turun",
+      "progress": "{{done}} daripada {{total}}",
+      "error": "Muat turun tidak selesai. Semak sambungan anda dan cuba lagi.",
+      "startedTitle": "Pemasang dimulakan",
+      "startedBody": "Lengkapkannya, kemudian EzyChat Enterprise membawa data anda."
+    }
   },
   "tips": {
     "guide": "Panduan penuh",
@@ -166,12 +190,76 @@
       "title": "Di mana fail dikunci disimpan?",
       "body": "Dalam folder EzyChat sendiri, dinamakan semula supaya tidak boleh dijalankan. Hanya admin boleh membuka kunci atau memadamnya."
     },
+    "driveFiles": {
+      "title": "Kenapa pilih fail?",
+      "body": "Google hanya membenarkan {{product}} membuka folder dan fail yang anda pilih dalam tetingkap Google, serta fail yang ia simpan. Fail Drive anda yang lain kekal peribadi."
+    },
     "reportNumber": {
       "title": "Cara melapor kepada WhatsApp",
       "body": "WhatsApp hanya menerima laporan dari aplikasi WhatsApp.",
       "step1": "Buka sembang ini di telefon terpaut.",
       "step2": "Ketik nama di atas.",
       "step3": "Ketik Laporkan, kemudian Laporkan sekali lagi."
+    },
+    "sqlApiService": {
+      "title": "Apakah perkhidmatan API (API Link)?",
+      "body": "Program kecil SQL Account pada pelayan SQL anda yang membolehkan aplikasi lain, seperti {{product}}, membaca dan menambah rekod dengan selamat.",
+      "step1": "Pada skrin log masuk SQL Account, klik ⚙.",
+      "step2": "Klik kanan pangkalan data syarikat → Configure API Service… → Install, kemudian Start.",
+      "step3": "Minta pengurus router anda memajukan port 443 (TCP) ke pelayan SQL Account.",
+      "step4": "Klik Test Connection dalam SQL Account: ia mesti menunjukkan OK.",
+      "action": "Panduan persediaan SQL Account"
+    },
+    "sqlKeys": {
+      "title": "Di mana saya dapat kunci?",
+      "body": "SQL Account membuat kunci akses dan kunci rahsia untuk seorang pengguna. Pengguna itu kemudian hanya digunakan untuk API.",
+      "step1": "Dalam SQL Account: Tools → Maintain User → New, namakan \"APIUser\".",
+      "step2": "Pilih pengguna baharu → More → API Secret Key.",
+      "step3": "Klik Generate API Secret Key.",
+      "step4": "Salin kedua-dua kunci sekarang (kunci rahsia ditunjukkan sekali sahaja) dan tampal di sini.",
+      "action": "Panduan kunci SQL Account"
+    },
+    "sqlCustomerCode": {
+      "title": "Apakah kod pelanggan?",
+      "body": "Kod pelanggan dalam SQL Account, contohnya 300-F0001. Apabila dipautkan pada chat, AI hanya menunjukkan rekod pelanggan itu sendiri."
+    },
+    "usageStats": {
+      "title": "Apakah statistik penggunaan tanpa nama?",
+      "body": "EzyChat mengira langkah persediaan, seperti WhatsApp dipautkan atau AI dihidupkan, untuk menambah baik aplikasi. Bukan siapa anda atau apa yang anda tulis.",
+      "step1": "Dihantar: kod pemasangan rawak, versi aplikasi, Windows atau Mac, dan langkah yang dicapai.",
+      "step2": "Tidak sekali-kali dihantar: nama, nombor telefon, sembang, mesej, e-mel, alamat IP atau kunci.",
+      "step3": "Ia dihantar ke pelayan lesen EzyChat, yang mengiranya dalam Google Analytics. Matikan di sini pada bila-bila masa."
+    },
+    "githubApp": {
+      "title": "Kenapa pasang aplikasi?",
+      "body": "Di GitHub anda pilih akaun dan repositori yang boleh dibaca oleh {{product}}, hanya isu dan pull request. Kemudian pilih repositori setiap ejen AI di sini."
+    },
+    "githubToken": {
+      "title": "Token yang mana?",
+      "body": "Token terperinci (fine-grained) yang terhad kepada repositori pilihan anda, dengan Issues dan Pull requests Read-only. Token klasik (ghp_…) mencapai semua repositori, jadi {{product}} menolaknya.",
+      "action": "Buat token di GitHub"
     }
+  },
+  "appNav": {
+    "main": "Utama",
+    "chats": "Sembang",
+    "reports": "Laporan",
+    "askEzy": "Tanya Ezy",
+    "members": "Ahli",
+    "settings": "Tetapan",
+    "account": "Akaun",
+    "unread_one": "{{count}} sembang dengan mesej belum dibaca",
+    "unread_other": "{{count}} sembang dengan mesej belum dibaca",
+    "attention": "Satu nombor WhatsApp perlu perhatian",
+    "settingsTitle": "Tetapan",
+    "team": "Pasukan",
+    "business": "Perniagaan",
+    "app": "Aplikasi",
+    "yourAccount": "Akaun anda",
+    "accountTitle": "Akaun",
+    "accountDescription": "Nama, rupa dan bahasa anda pada peranti ini.",
+    "attentionRow": "Perlu perhatian",
+    "backTo": "Kembali ke {{place}}",
+    "more": "Lain-lain"
   }
 }

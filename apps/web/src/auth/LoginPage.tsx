@@ -8,8 +8,10 @@ import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { AuthShell, ButtonSpinner, Field } from './AuthShell';
 
-function safeFrom(state: unknown): string {
+export function safeFrom(state: unknown): string {
   const from = (state as { from?: unknown } | null)?.from;
+  // The Account page is where a person signs out on a phone: the next sign-in (maybe someone else) opens Chats.
+  if (from === '/account') return '/';
   return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/';
 }
 

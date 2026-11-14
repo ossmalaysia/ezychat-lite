@@ -1,7 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { InfiniteQueryObserver, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { createElement, type default as React } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { stubXhr } from '../test/fake-xhr';
+import { uploadProgressOf as progressOf, useUploadProgress } from '../lib/upload-progress';
 import {
   DEFAULT_INBOX_CAPABILITIES,
   type Inbox,
@@ -20,6 +22,7 @@ import {
   useCustomerProfile,
   useCustomerTags,
   useSaveCustomerProfile,
+  useSendMedia,
   useSendReaction,
   type MessagesData,
 } from './queries';
@@ -84,6 +87,34 @@ describe('message cache', () => {
     const all = cached(qc);
     expect(all).toHaveLength(1);
     expect(all[0]).toMatchObject({ id: 'WA-1', status: 'delivered', clientId: 'c1' });
+  });
+
+  it('a live message that arrives while the first fetch is in flight triggers a refetch', async () => {
+    const qc = new QueryClient();
+    let calls = 0;
+    const observer = new InfiniteQueryObserver(qc, {
+      queryKey: qk.messages(JID),
+      initialPageParam: null as string | null,
+      getNextPageParam: () => undefined,
+      queryFn: async () => {
+        calls += 1;
+        await new Promise((r) => setTimeout(r, 20));
+        return { messages: calls === 1 ? [] : [msg({ id: 'live-1' })], nextBefore: null };
+      },
+    });
+    const unsub = observer.subscribe(() => undefined);
+    await new Promise((r) => setTimeout(r, 5));
+    upsertMessageInCache(qc, msg({ id: 'live-1' }));
+    await waitFor(() => expect(calls).toBe(2));
+    await waitFor(() => expect(cached(qc).map((x) => x.id)).toEqual(['live-1']));
+    expect(calls).toBe(2);
+    unsub();
+  });
+
+  it('a live message with no messages query at all does nothing', () => {
+    const qc = new QueryClient();
+    upsertMessageInCache(qc, msg({ id: 'live-1' }));
+    expect(qc.getQueryCache().find({ queryKey: qk.messages(JID) })).toBeUndefined();
   });
 
   it('a newer status from the server replaces the cached one', () => {
@@ -365,5 +396,75 @@ describe('inboxes', () => {
     expect(after.inboxes.map((i) => i.status.state)).toEqual(['open', 'open']);
     patchInboxStatusInCache(qc, { inboxId: 7, status: offline });
     expect(qc.getQueryData(qk.inboxes)).toBe(after);
+  });
+});
+
+describe('media upload refusals', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function upload(status: number, code: string, body?: string) {
+    stubXhr(() => ({ status, body: body ?? { error: { code, message: 'Server words' } } }));
+    const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    seed(qc, []);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useSendMedia(JID), { wrapper });
+    const file = new File(['x'], 'big.mp4', { type: 'video/mp4' });
+    await act(async () => {
+      await result.current.mutateAsync({ file, clientId: 'c9' }).catch(() => undefined);
+    });
+    return cached(qc).find((m) => m.clientId === 'c9')!;
+  }
+
+  it('sends asFile=1 for a video going as a file', async () => {
+    const uploads = stubXhr(() => ({ status: 500, body: { error: { code: 'x', message: 'no' } } }));
+    const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    seed(qc, []);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useSendMedia(JID), { wrapper });
+    const file = new File(['x'], 'big.mp4', { type: 'video/mp4' });
+    await act(async () => {
+      await result.current
+        .mutateAsync({ file, clientId: 'c8', asFile: true })
+        .catch(() => undefined);
+    });
+    expect(uploads[0]!.url).toBe(`/api/chats/${encodeURIComponent(JID)}/media`);
+    expect(uploads[0]!.form.get('asFile')).toBe('1');
+    expect(uploads[0]!.form.get('clientId')).toBe('c8');
+  });
+
+  it('keeps the code of a size refusal so the bubble words it, else the server message', async () => {
+    expect(await upload(413, 'too_large_as_video')).toMatchObject({
+      status: 'failed',
+      error: 'too_large_as_video',
+      type: 'video',
+    });
+    expect((await upload(413, 'too_large_for_whatsapp')).error).toBe('too_large_for_whatsapp');
+    expect((await upload(413, 'something_else')).error).toBe('Server words');
+    expect((await upload(500, 'too_large')).error).toBe('Server words');
+    // Cloudflare's tunnel refuses a large body without our JSON
+    expect((await upload(413, '', '<html>413 Request Entity Too Large</html>')).error).toBe(
+      'tunnel_too_large',
+    );
+  });
+
+  it('reports the upload progress while it goes, and clears it when it ends', async () => {
+    const seen: Array<number | null> = [];
+    stubXhr(() => {
+      seen.push(progressOf('c10'));
+      return { status: 201, body: { id: 'M10', clientId: 'c10', chatJid: JID } };
+    });
+    const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    seed(qc, []);
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useSendMedia(JID), { wrapper });
+    const { result: progress } = renderHook(() => useUploadProgress('c10'));
+    await act(async () => {
+      await result.current.mutateAsync({ file: new File(['x'], 'a.pdf'), clientId: 'c10' });
+    });
+    expect(seen).toEqual([1]);
+    expect(progress.current).toBeNull();
   });
 });

@@ -184,7 +184,10 @@ await eachScreen(browser, BASE, cookie, async (ctx, tag) => {
   };
 
   await page.goto('/');
-  await page.locator('[data-testid="ask-ezy-open"]:visible').first().click();
+  await page
+    .locator('[data-testid="nav-ask-ezy"]:visible, [data-testid="tab-ask-ezy"]:visible')
+    .first()
+    .click();
   await panel.getByText('Try one').waitFor();
   await shot(page, OUT, problems, tag, 'start');
   await ask('How is my inbox this week?');

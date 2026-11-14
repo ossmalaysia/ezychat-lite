@@ -9,9 +9,10 @@ export const REPORT_PERIODS = [7, 30, 90] as const;
 export const ReportPeriod = z.union([z.literal(7), z.literal(30), z.literal(90)]);
 export type ReportPeriod = z.infer<typeof ReportPeriod>;
 
-/** `GET /api/reports?days=` */
+/** `GET /api/reports?days=&inbox=` (also `/api/reports/safety`): `inbox` omitted = every inbox. */
 export const ReportQuery = z.object({
   days: z.coerce.number().pipe(ReportPeriod).default(30),
+  inbox: z.coerce.number().int().positive().optional(),
 });
 
 /** A new customer with no reply after this long counts as missed. */
@@ -32,6 +33,16 @@ export const ReportTotals = z.object({
   aiAnswered: z.number().int().nonnegative(),
   aiResolved: z.number().int().nonnegative(),
   aiHandoffs: z.number().int().nonnegative(),
+  /**
+   * AI completion rate (docs/workbooks/feat__ai-completion-rate.md): direct chats closed in the period (by the AI or
+   * a person) where the AI replied since the chat's previous close. `aiCompleted` of them had no hand-off since that
+   * close and no message from a teammate or the phone after the AI's first reply; the others split into
+   * `aiClosedAfterHandoff` and `aiClosedAfterReply` (a person replied, no hand-off). Scheduled messages do not count.
+   */
+  aiClosed: z.number().int().nonnegative().default(0),
+  aiCompleted: z.number().int().nonnegative().default(0),
+  aiClosedAfterHandoff: z.number().int().nonnegative().default(0),
+  aiClosedAfterReply: z.number().int().nonnegative().default(0),
 });
 export type ReportTotals = z.infer<typeof ReportTotals>;
 
@@ -58,6 +69,8 @@ export type ReportTeamRow = z.infer<typeof ReportTeamRow>;
 
 export const Report = z.object({
   days: ReportPeriod,
+  /** The one inbox counted; `null` = every inbox together. */
+  inboxId: z.number().int().positive().nullable().default(null),
   timeZone: z.string(),
   /** Local date of the first stored message (`null` = none yet). */
   firstDate: z.string().nullable(),
@@ -71,6 +84,8 @@ export const Report = z.object({
     count: z.number().int().nonnegative(),
     oldestAt: z.number().int().nullable(),
   }),
+  /** Current state: open direct chats an AI agent still holds and replied in during the period; not in the rate yet. */
+  aiOpen: z.number().int().nonnegative().default(0),
   /** One row per local day from the later of the period start and `firstDate`; today is partial. */
   daily: z.array(ReportDay),
   /** Monday first: average messages from customers and active chats per day of that weekday. */

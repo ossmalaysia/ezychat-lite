@@ -66,6 +66,49 @@ describe('Ask Ezy contract', () => {
     for (const b of blocks) expect(AskEzyBlock.safeParse(b).success, b.type).toBe(true);
   });
 
+  it('accepts a question with 1-4 short choices and the setup cards', () => {
+    const question = { type: 'question', text: 'Which Jee Fong?', choices: ['Jee Fong · …0084'] };
+    expect(AskEzyBlock.safeParse(question).success).toBe(true);
+    expect(AskEzyBlock.safeParse({ ...question, choices: [] }).success).toBe(false);
+    expect(AskEzyBlock.safeParse({ ...question, choices: ['a', 'b', 'c', 'd', 'e'] }).success).toBe(
+      false,
+    );
+    expect(AskEzyBlock.safeParse({ ...question, choices: ['x'.repeat(81)] }).success).toBe(false);
+    expect(AskEzyBlock.safeParse({ ...question, note: 'Lite', tone: 'info' }).success).toBe(false);
+    expect(
+      AskEzyBlock.safeParse({
+        type: 'agent_proposal',
+        id: 'a1',
+        name: 'Morning greeter',
+        preset: 'custom',
+        inboxName: 'Anchor MY',
+        note: null,
+        status: 'proposed',
+      }).success,
+    ).toBe(true);
+    const task = {
+      type: 'task_proposal',
+      id: 't1',
+      agent: 'Morning greeter',
+      agentId: null,
+      dependsOn: 'a1',
+      name: 'Morning greeting',
+      time: '09:00',
+      dayRule: 'daily',
+      days: [],
+      chatName: 'Jee Fong',
+      chatEnding: '0084',
+      chatType: 'dm',
+      instruction: 'Greet Jee Fong.',
+      timeZone: 'Asia/Kuala_Lumpur',
+      preview: null,
+      before: { time: '08:30' },
+      status: 'proposed',
+    };
+    expect(AskEzyBlock.safeParse(task).success).toBe(true);
+    expect(AskEzyBlock.safeParse({ ...task, chatEnding: '+60123450084' }).success).toBe(false);
+  });
+
   it('refuses a heatmap that is not 7 × 24 and an unknown block type', () => {
     expect(
       AskEzyBlock.safeParse({ type: 'heatmap', title: 'x', hours: hours.slice(1) }).success,

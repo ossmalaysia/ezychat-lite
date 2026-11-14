@@ -2,21 +2,50 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import type { Report, ReportDay } from '@ezychat/shared';
-import { ReportsPage, busiestBlock } from './ReportsPage';
+import {
+  DEFAULT_INBOX_CAPABILITIES,
+  type Inbox,
+  type Report,
+  type ReportDay,
+} from '@ezychat/shared';
+import { ReportsPage, busiestBlock, completionRate } from './ReportsPage';
 
 const query = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
   days: [] as number[],
+  inboxes: [] as Array<number | null>,
+  safetyInboxes: [] as Array<number | null | undefined>,
+  visible: [] as unknown[],
 }));
 // The WhatsApp Safety section has its own test (SafetyReport.test.tsx).
-vi.mock('./SafetyReport', () => ({ SafetyReportSection: () => null }));
+vi.mock('./SafetyReport', () => ({
+  SafetyReportSection: ({ inbox }: { inbox?: number | null }) => {
+    query.safetyInboxes.push(inbox);
+    return null;
+  },
+}));
 vi.mock('../api/queries', () => ({
-  useReport: (days: number) => {
+  useReport: (days: number, inbox: number | null) => {
     query.days.push(days);
+    query.inboxes.push(inbox);
     return query.current;
   },
 }));
+vi.mock('../inbox/useVisibleInboxes', () => ({ useVisibleInboxes: () => query.visible }));
+
+function inbox(id: number, name: string, number: string | null): Inbox {
+  return {
+    id,
+    name,
+    tone: 'primary',
+    number,
+    removed: false,
+    aiAgentId: null,
+    type: 'linked_phone',
+    capabilities: DEFAULT_INBOX_CAPABILITIES,
+    status: { state: 'open', me: null, qr: null, lastError: null },
+  };
+}
 
 const DAY = 86_400_000;
 const NOW = Date.now();
@@ -43,6 +72,7 @@ function hours(): number[][] {
 function report(overrides: Partial<Report> = {}): Report {
   return {
     days: 30,
+    inboxId: null,
     timeZone: 'Asia/Kuala_Lumpur',
     firstDate: '2026-10-05',
     linkedDate: '2026-10-05',
@@ -56,6 +86,10 @@ function report(overrides: Partial<Report> = {}): Report {
       aiAnswered: 20,
       aiResolved: 3,
       aiHandoffs: 10,
+      aiClosed: 25,
+      aiCompleted: 18,
+      aiClosedAfterHandoff: 4,
+      aiClosedAfterReply: 3,
     },
     previous: {
       newCustomers: 10,
@@ -67,8 +101,13 @@ function report(overrides: Partial<Report> = {}): Report {
       aiAnswered: 0,
       aiResolved: 1,
       aiHandoffs: 5,
+      aiClosed: 20,
+      aiCompleted: 13,
+      aiClosedAfterHandoff: 5,
+      aiClosedAfterReply: 2,
     },
     waitingAfterHandoff: { count: 2, oldestAt: NOW - 7 * DAY - 3_600_000 },
+    aiOpen: 6,
     daily: daily(),
     weekdays: [10, 10, 10, 10, 25, 3, 3].map((avgInbound, weekday) => ({
       weekday,
@@ -115,6 +154,9 @@ function renderPage() {
 
 beforeEach(() => {
   query.days = [];
+  query.inboxes = [];
+  query.safetyInboxes = [];
+  query.visible = [];
 });
 afterEach(cleanup);
 
@@ -136,6 +178,76 @@ describe('ReportsPage', () => {
     const waiting = within(screen.getByTestId('stat-waiting'));
     expect(waiting.getByText('Oldest waiting 7 days')).toBeTruthy();
     expect(waiting.getByRole('link', { name: 'Open chats' }).getAttribute('href')).toBe('/');
+  });
+
+  it('shows the AI completion rate with its parts and the change in points', async () => {
+    query.current = ready(report());
+    renderPage();
+    const card = within(screen.getByTestId('card-ai-completion'));
+    expect(card.getByTestId('ai-rate').textContent).toBe('72%');
+    // 72% now against 65% (13 of 20) before: 7 points better.
+    expect(card.getByText('Up 7 points vs previous 30 days').className).toContain('text-success');
+    expect(
+      card.getByRole('img', { name: '18 of 25 closed AI chats completed by the AI' }),
+    ).toBeTruthy();
+    expect(card.getByText('completed by the AI')).toBeTruthy();
+    expect(card.getByText('the team helped (hand-offs: 4, replies: 3)')).toBeTruthy();
+    expect(card.getByText('still open with the AI (not counted yet)')).toBeTruthy();
+    await userEvent.click(
+      card.getByRole('button', { name: 'How is the AI completion rate counted?' }),
+    );
+    expect(await screen.findByText(/the share the AI finished alone/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /Show steps/ }));
+    expect(screen.getByText(/A teammate who only presses Close still counts/)).toBeTruthy();
+  });
+
+  it('shows a dash when no AI chat closed yet, and no card when the AI did nothing', () => {
+    const quiet = report().totals;
+    query.current = ready(
+      report({
+        totals: {
+          ...quiet,
+          aiClosed: 0,
+          aiCompleted: 0,
+          aiClosedAfterHandoff: 0,
+          aiClosedAfterReply: 0,
+        },
+        previous: null,
+        aiOpen: 5,
+      }),
+    );
+    renderPage();
+    const card = within(screen.getByTestId('card-ai-completion'));
+    expect(card.getByText('–')).toBeTruthy();
+    expect(card.getByText(/No chat the AI answered was closed in the last 30 days\./)).toBeTruthy();
+    expect(card.queryByRole('img')).toBeNull();
+    cleanup();
+    query.current = ready(
+      report({
+        totals: {
+          ...quiet,
+          aiAnswered: 0,
+          aiClosed: 0,
+          aiCompleted: 0,
+          aiClosedAfterHandoff: 0,
+          aiClosedAfterReply: 0,
+        },
+        aiOpen: 0,
+      }),
+    );
+    renderPage();
+    expect(screen.queryByTestId('card-ai-completion')).toBeNull();
+  });
+
+  it('rounds the rate without contradicting its parts', () => {
+    const rate = (aiCompleted: number, aiClosed: number) =>
+      completionRate({ ...report().totals, aiCompleted, aiClosed });
+    expect(rate(0, 0)).toBeNull();
+    expect(rate(18, 25)).toBe(72);
+    expect(rate(299, 300)).toBe(99); // not 100 % while the team helped in one
+    expect(rate(1, 300)).toBe(1); // not 0 % while the AI completed one
+    expect(rate(5, 5)).toBe(100);
+    expect(rate(0, 5)).toBe(0);
   });
 
   it('names the busy day and busy times, and the reasons and team', () => {
@@ -219,6 +331,63 @@ describe('ReportsPage', () => {
     renderPage();
     await userEvent.setup().click(screen.getByText('7 days'));
     expect(query.days.at(-1)).toBe(7);
+  });
+
+  it('has no inbox choice with one WhatsApp number: everything together', () => {
+    query.current = ready(report());
+    query.visible = [inbox(1, 'Kopi Apong', '60123456789')];
+    renderPage();
+    expect(screen.queryByTestId('reports-inbox')).toBeNull();
+    expect(query.inboxes.at(-1)).toBeNull();
+  });
+
+  it('shows every inbox together or one of them, the Safety section too', async () => {
+    // Radix Select needs pointer capture and scrolling, which jsdom lacks.
+    const proto = Element.prototype as unknown as Record<string, unknown>;
+    proto.hasPointerCapture ??= () => false;
+    proto.setPointerCapture ??= () => {};
+    proto.releasePointerCapture ??= () => {};
+    proto.scrollIntoView ??= () => {};
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    query.current = ready(report());
+    query.visible = [inbox(1, 'Kopi Apong', '60123456789'), inbox(2, 'Catering', null)];
+    const u = userEvent.setup();
+    const view = renderPage();
+    const trigger = screen.getByRole('combobox', { name: 'Inbox' });
+    expect(trigger.textContent).toBe('All inboxes (2)');
+    expect(query.inboxes.at(-1)).toBeNull();
+    expect(query.safetyInboxes.at(-1)).toBeNull();
+
+    await u.click(trigger);
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'All inboxes (2)',
+      'Kopi Apong · +60123456789',
+      'Catering',
+    ]);
+    await u.click(screen.getByRole('option', { name: 'Catering' }));
+    expect(query.inboxes.at(-1)).toBe(2);
+    expect(query.safetyInboxes.at(-1)).toBe(2);
+    // The period keeps the inbox.
+    await u.click(screen.getByText('7 days'));
+    expect([query.days.at(-1), query.inboxes.at(-1)]).toEqual([7, 2]);
+
+    // The chosen inbox is removed: back to every inbox together.
+    query.visible = [inbox(1, 'Kopi Apong', '60123456789'), inbox(3, 'Events', null)];
+    view.rerender(
+      <MemoryRouter>
+        <ReportsPage />
+      </MemoryRouter>,
+    );
+    expect(query.inboxes.at(-1)).toBeNull();
+
+    await u.click(screen.getByRole('combobox', { name: 'Inbox' }));
+    await u.click(await screen.findByRole('option', { name: 'All inboxes (2)' }));
+    expect(query.inboxes.at(-1)).toBeNull();
   });
 
   it('draws a single day as one narrow bar and labels it once', () => {

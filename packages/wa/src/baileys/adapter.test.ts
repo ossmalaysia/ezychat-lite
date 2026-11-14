@@ -2,8 +2,10 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type * as Baileys from 'baileys';
+import { proto } from 'baileys';
+import { pino } from 'pino';
 import { createBaileysAdapter } from '../index.js';
 import { WaUnavailableError } from '../types.js';
 import type {
@@ -15,12 +17,17 @@ import type {
 } from '../types.js';
 import {
   BaileysAdapter,
+  CONNECT_ATTEMPT_TIMEOUT_MS,
+  MEDIA_UPLOAD_TIMEOUT_MS,
   WA_BROWSER,
+  forwardedContext,
   isConnectionError,
+  mediaContent,
   normalizePairingPhone,
   receiptStatus,
 } from './adapter.js';
 import { createAuthStore } from './auth-store.js';
+import { MediaCache } from './media-cache.js';
 import { contactAliasPair, normalizeContactJid } from './contact-aliases.js';
 
 const socketFactory = vi.hoisted(() => vi.fn());
@@ -44,6 +51,22 @@ function openAdapterRecording(prefix: string) {
     _status: { state: 'open', me: null, qr: null, lastError: null },
   });
   return { a, calls };
+}
+
+/** Like openAdapterRecording, but also records the send options and returns the id it was given. */
+function openAdapterWithOptions() {
+  const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
+  const options: unknown[] = [];
+  Object.assign(a as unknown as Record<string, unknown>, {
+    sock: {
+      sendMessage: async (_jid: string, _content: unknown, opts?: { messageId?: string }) => {
+        options.push(opts);
+        return { key: { id: opts?.messageId ?? 'NEW-ID' }, messageTimestamp: 1_700_000_000 };
+      },
+    },
+    _status: { state: 'open', me: null, qr: null, lastError: null },
+  });
+  return { a, options };
 }
 
 describe('pairing identity', () => {
@@ -120,11 +143,45 @@ describe('linked account identity', () => {
 });
 
 describe('createBaileysAdapter (offline smoke)', () => {
+  it('uses the public durable auth storage option for connect, credential updates and logout', async () => {
+    const records = new Map<string, string>();
+    const clear = vi.fn(async () => {
+      records.clear();
+    });
+    const ev = new EventEmitter();
+    socketFactory.mockReturnValueOnce({ ev, end: vi.fn(), logout: vi.fn(async () => {}) });
+    const a = createBaileysAdapter({
+      authDir: 'remote-scope',
+      historyDays: 0,
+      authStorage: {
+        get: async (keys) => Object.fromEntries(keys.map((key) => [key, records.get(key) ?? null])),
+        set: async (changes) => {
+          for (const [key, value] of Object.entries(changes)) {
+            if (value === null) records.delete(key);
+            else records.set(key, value);
+          }
+        },
+        clear,
+        backup: async () => 'backup-ref',
+      },
+    });
+    await a.connect();
+    expect(records.has('creds')).toBe(true);
+    const options = socketFactory.mock.calls.at(-1)![0];
+    options.auth.creds.registered = true;
+    ev.emit('creds.update', {});
+    await vi.waitFor(() => expect(JSON.parse(records.get('creds')!).registered).toBe(true));
+    await a.logout();
+    expect(clear).toHaveBeenCalledOnce();
+    expect(records.size).toBe(0);
+  });
+
   it('starts disconnected and refuses to send without connecting', async () => {
     const a = createBaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 7 });
     expect(a.status.state).toBe('disconnected');
     await expect(a.sendText('1@s.whatsapp.net', 'hi')).rejects.toBeInstanceOf(WaUnavailableError);
     expect(await a.downloadMedia('nope')).toBeNull();
+    expect(await a.downloadMedia('nope', 'not a ref')).toBeNull();
     await expect(a.getProfilePicture('1@s.whatsapp.net')).rejects.toBeInstanceOf(
       WaUnavailableError,
     );
@@ -151,6 +208,35 @@ function collect(a: BaileysAdapter) {
 }
 
 describe('BaileysAdapter event handling', () => {
+  it('passes the WhatsApp error code of an ERROR ack, and only for failures', () => {
+    const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    const { statuses } = collect(a);
+    const key = { id: 'OUT1', remoteJid: '120363000000000001@g.us', fromMe: true };
+    a.handleMessageUpdates([
+      {
+        key,
+        update: { status: proto.WebMessageInfo.Status.ERROR, messageStubParameters: ['479'] },
+      },
+      { key, update: { status: proto.WebMessageInfo.Status.ERROR } },
+      {
+        key,
+        update: { status: proto.WebMessageInfo.Status.SERVER_ACK, messageStubParameters: ['x'] },
+      },
+    ] as never);
+    expect(statuses).toEqual([
+      { id: 'OUT1', chatJid: key.remoteJid, status: 'failed', error: '479' },
+      { id: 'OUT1', chatJid: key.remoteJid, status: 'failed' },
+      { id: 'OUT1', chatJid: key.remoteJid, status: 'sent' },
+    ]);
+  });
+
+  it('re-sends under the given WhatsApp id and otherwise passes no options', async () => {
+    const { a, options } = openAdapterWithOptions();
+    expect((await a.sendText('g@g.us', 'again', { messageId: 'WA-SAME' })).id).toBe('WA-SAME');
+    expect((await a.sendText('g@g.us', 'new')).id).toBe('NEW-ID');
+    expect(options).toEqual([{ messageId: 'WA-SAME' }, undefined]);
+  });
+
   it("treats upsert 'append' (offline-queued) messages as live, even with history_days=0", () => {
     const a = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
     const { msgs } = collect(a);
@@ -554,5 +640,283 @@ describe('contact identity mapping', () => {
     expect(contacts.at(-1)?.savedName).toBe('New name');
     expect(wipe).toHaveBeenCalledOnce();
     expect(sock.signalRepository.lidMapping.getLIDForPN).not.toHaveBeenCalled();
+  });
+});
+
+describe('forwarding and large files', () => {
+  it('marks text as Forwarded with its score and keeps the mentions', async () => {
+    const { a, calls } = openAdapterRecording('F');
+    await a.sendText('1203@g.us', 'Hi @900111', {
+      mentions: ['900111@lid'],
+      forwarded: { score: 3 },
+    });
+    await a.sendText('1@s.whatsapp.net', 'Plain', { forwarded: { score: 0 } });
+    expect(calls.map((c) => c.content)).toEqual([
+      {
+        text: 'Hi @900111',
+        mentions: ['900111@lid'],
+        contextInfo: { isForwarded: true, forwardingScore: 3 },
+      },
+      { text: 'Plain' },
+    ]);
+  });
+
+  it('builds file content from a path, as a document on request, with the Forwarded mark', () => {
+    const file = {
+      buffer: Buffer.from('x'),
+      path: '/data/media/v.mp4',
+      mime: 'video/mp4',
+      fileName: 'v.mp4',
+    };
+    const fwd = { forwarded: { score: 2 } };
+    const ctx = { contextInfo: { isForwarded: true, forwardingScore: 2 } };
+    expect(mediaContent({ ...file, caption: 'hall' }, fwd)).toEqual({
+      video: { url: '/data/media/v.mp4' },
+      mimetype: 'video/mp4',
+      caption: 'hall',
+      ...ctx,
+    });
+    expect(mediaContent({ ...file, asDocument: true }, fwd)).toEqual({
+      document: { url: '/data/media/v.mp4' },
+      mimetype: 'video/mp4',
+      fileName: 'v.mp4',
+      ...ctx,
+    });
+    const buf = Buffer.from('img');
+    expect(mediaContent({ buffer: buf, mime: 'image/png', fileName: 'a.png' })).toEqual({
+      image: buf,
+      mimetype: 'image/png',
+    });
+    expect(mediaContent({ buffer: buf, mime: 'image/webp', fileName: 's.webp' }, fwd)).toEqual({
+      sticker: buf,
+      mimetype: 'image/webp',
+      ...ctx,
+    });
+    const voice = mediaContent(
+      {
+        buffer: buf,
+        path: '/v.ogg',
+        mime: 'audio/ogg; codecs=opus',
+        fileName: 'v.ogg',
+        voiceNote: { seconds: 3, waveform: new Uint8Array([1]) },
+      },
+      fwd,
+    );
+    expect(voice).toMatchObject({ audio: { url: '/v.ogg' }, ptt: true, seconds: 3, ...ctx });
+    expect(mediaContent({ buffer: buf, mime: 'audio/mpeg', fileName: 'a.mp3' })).toEqual({
+      audio: buf,
+      mimetype: 'audio/mpeg',
+    });
+    expect(
+      mediaContent({ buffer: buf, mime: 'application/pdf', fileName: 'm.pdf', caption: 'menu' }),
+    ).toEqual({ document: buf, mimetype: 'application/pdf', fileName: 'm.pdf', caption: 'menu' });
+    expect(forwardedContext({ forwarded: { score: 2.7 } })).toEqual({
+      contextInfo: { isForwarded: true, forwardingScore: 2 },
+    });
+    expect(forwardedContext(undefined)).toEqual({});
+  });
+
+  it('gives media sends a long upload time and the socket a media cache', async () => {
+    const { a, options } = openAdapterWithOptions();
+    await a.sendMedia('1@s.whatsapp.net', {
+      buffer: Buffer.from('x'),
+      mime: 'application/pdf',
+      fileName: 'a.pdf',
+    });
+    expect(options).toEqual([{ mediaUploadTimeoutMs: MEDIA_UPLOAD_TIMEOUT_MS }]);
+
+    const b = new BaileysAdapter({ authDir: 'unused-auth-dir', historyDays: 0 });
+    socketFactory.mockReturnValueOnce({ ev: new EventEmitter(), end: vi.fn() });
+    Object.assign(b, {
+      auth: {
+        load: async () => ({
+          state: { creds: {}, keys: { get: async () => ({}), set: async () => {} } },
+          saveCreds: async () => {},
+        }),
+        wipe: async () => {},
+      },
+    });
+    await b.connect();
+    expect(socketFactory.mock.calls.at(-1)![0].mediaCache).toBeInstanceOf(MediaCache);
+    await b.disconnect();
+  });
+});
+
+/** An adapter on in-memory auth whose next sockets are fakes the test drives through `ev`. */
+function connectHarness() {
+  const records = new Map<string, string>();
+  const logger = pino({ level: 'silent' });
+  const warn = vi.spyOn(logger, 'warn');
+  const a = new BaileysAdapter({
+    authDir: 'connect-timeout',
+    historyDays: 0,
+    logger,
+    authStorage: {
+      get: async (keys) => Object.fromEntries(keys.map((key) => [key, records.get(key) ?? null])),
+      set: async (changes) => {
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null) records.delete(key);
+          else records.set(key, value);
+        }
+      },
+      clear: async () => records.clear(),
+      backup: async () => 'backup-ref',
+    },
+  });
+  const socks: Array<{ ev: EventEmitter; end: ReturnType<typeof vi.fn> }> = [];
+  socketFactory.mockReset();
+  socketFactory.mockImplementation(() => {
+    const sock = {
+      ev: new EventEmitter(),
+      end: vi.fn(async () => {}),
+      logout: vi.fn(async () => {}),
+      user: { id: '60123456789:1@s.whatsapp.net' },
+    };
+    socks.push(sock);
+    return sock;
+  });
+  return { a, socks, warn };
+}
+
+describe('connect attempt time limit', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    socketFactory.mockReset();
+  });
+
+  it('closes a socket that never opens and reconnects with the normal backoff', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    expect(socks).toHaveLength(1);
+    expect(a.status.state).toBe('connecting');
+
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 1);
+    expect(socks[0]!.end).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socks[0]!.end).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      { ms: CONNECT_ATTEMPT_TIMEOUT_MS, attempt: 0 },
+      'wa connect attempt timed out',
+    );
+    expect(a.status).toMatchObject({ state: 'connecting', lastError: 'connect attempt timed out' });
+
+    // backoffMs(0) is at most 2.4 s.
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    await a.disconnect();
+  });
+
+  it('keeps a connection that opens before the limit', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    socks[0]!.ev.emit('connection.update', { connection: 'open' });
+    expect(a.status.state).toBe('open');
+
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 3);
+    expect(socks[0]!.end).not.toHaveBeenCalled();
+    expect(socks).toHaveLength(1);
+    expect(warn).not.toHaveBeenCalledWith(expect.anything(), 'wa connect attempt timed out');
+    expect(a.status.state).toBe('open');
+    await a.disconnect();
+  });
+
+  it('never cuts off a QR code or pairing that waits for a person', async () => {
+    vi.useFakeTimers();
+    const { a, socks } = connectHarness();
+    await a.connect();
+    socks[0]!.ev.emit('connection.update', { connection: 'connecting' });
+    socks[0]!.ev.emit('connection.update', { qr: 'QR-1' });
+    expect(a.status).toMatchObject({ state: 'qr', qr: 'QR-1' });
+
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 5);
+    expect(socks[0]!.end).not.toHaveBeenCalled();
+    expect(socks).toHaveLength(1);
+    expect(a.status).toMatchObject({ state: 'qr', qr: 'QR-1' });
+    await a.disconnect();
+  });
+
+  it('cancels the limit on disconnect and on logout', async () => {
+    vi.useFakeTimers();
+    const { a, socks } = connectHarness();
+    await a.connect();
+    await a.disconnect();
+    expect(a.status.state).toBe('disconnected');
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 2);
+    expect(socks).toHaveLength(1);
+    expect(a.status.state).toBe('disconnected');
+    expect(a.status.lastError).toBeNull();
+
+    await a.connect();
+    expect(socks).toHaveLength(2);
+    await a.logout();
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 2);
+    expect(socks).toHaveLength(2);
+    expect(a.status.state).toBe('logged_out');
+  });
+
+  it('starts a new limit for the socket a takeover opens', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 1000);
+    await a.takeover();
+    expect(socks).toHaveLength(2);
+    expect(socks[0]!.end).toHaveBeenCalledOnce();
+    // The first socket's limit is gone: only the new socket's full minute counts.
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 1);
+    expect(warn).not.toHaveBeenCalledWith(expect.anything(), 'wa connect attempt timed out');
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socks[1]!.end).toHaveBeenCalledOnce();
+    await a.disconnect();
+  });
+
+  it('leaves a socket that closes before the limit to the normal reconnect', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    await vi.advanceTimersByTimeAsync(30_000);
+    socks[0]!.ev.emit('connection.update', {
+      connection: 'close',
+      lastDisconnect: { error: { output: { statusCode: 503 }, message: 'Stream Errored' } },
+    });
+    expect(a.status).toMatchObject({ state: 'connecting', lastError: 'Stream Errored' });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    // The closed socket's limit (due 30 s from now) does nothing to the new socket.
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 3001);
+    expect(warn).not.toHaveBeenCalledWith(expect.anything(), 'wa connect attempt timed out');
+    expect(socks[1]!.end).not.toHaveBeenCalled();
+    expect(socks).toHaveLength(2);
+    await a.disconnect();
+  });
+
+  it('ignores late events from the socket that timed out', async () => {
+    vi.useFakeTimers();
+    const { a, socks } = connectHarness();
+    const states: string[] = [];
+    a.on('status', (s) => states.push(s.state));
+    await a.connect();
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS);
+    expect(a.status.state).toBe('connecting');
+    states.length = 0;
+
+    const old = socks[0]!.ev;
+    old.emit('connection.update', { connection: 'open' });
+    old.emit('connection.update', { qr: 'LATE-QR' });
+    old.emit('connection.update', {
+      connection: 'close',
+      lastDisconnect: { error: { output: { statusCode: 503 }, message: 'late close' } },
+    });
+    expect(states).toEqual([]);
+    expect(a.status).toMatchObject({ state: 'connecting', lastError: 'connect attempt timed out' });
+
+    // Exactly one reconnect: the late close did not schedule a second one.
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    await a.disconnect();
   });
 });

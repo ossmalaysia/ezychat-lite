@@ -17,7 +17,8 @@ export type AiKnowledge = Pick<AiSettings, 'displayName' | 'instructions' | 'han
 
 /** The label of each preset in the "Your role:" line (after the cached core, so it may differ). */
 const PRESET_ROLES: Record<AiAgentPreset, string> = {
-  sales: 'Sales agent: you answer customer questions and help customers to buy.',
+  sales:
+    'Sales agent: you answer customer questions and help customers to buy. Add buyers as a new row to the leads tab when one is available.',
   faq: 'FAQ agent: you answer customer questions only, from the supplied business facts.',
   custom: 'Custom agent: your purpose is what the administrator instructions say.',
 };
@@ -113,6 +114,20 @@ export interface AiSituation {
   awaitingConfirmation: boolean | 'not_confirmed';
   /** A WhatsApp group answer: the group, the asking member and the message to answer. */
   group?: AiGroupSituation;
+  /** Files of the batch the model was not given and why (`ai/files.ts`), as one plain note. */
+  filesNote?: string;
+  /** A scheduled task's turn: nobody wrote; the agent sends one message by itself (or none). */
+  scheduled?: AiScheduledSituation;
+}
+
+/** What a scheduled task asks for (per call, so it lives in the Current situation block). */
+export interface AiScheduledSituation {
+  /** The task's name, as the business called it. */
+  name: string;
+  /** The business's plain-words instruction for this one message. */
+  instruction: string;
+  /** The chat the message goes to. */
+  chat: { name: string; type: 'dm' | 'group' };
 }
 
 /** What a group answer is about (per call, so it lives in the Current situation block). */
@@ -121,11 +136,23 @@ export interface AiGroupSituation {
   name: string;
   /** The asking member's display name (never a phone number). */
   member: string;
-  /** How the member addressed the AI: a tag of the business, or a reply to an AI answer. */
-  trigger: 'tag' | 'quote';
-  /** The member's message to answer. */
+  /**
+   * How the member addressed the AI: a tag of the business, or a reply to an AI answer; `listen`:
+   * the group has "Reads every message" on and this is a batch of new member messages.
+   */
+  trigger: 'tag' | 'quote' | 'listen';
+  /** The member's message to answer (`listen`: the newest message of the batch). */
   message: string;
+  /** `listen`: every new member message of the batch, oldest first. */
+  messages?: Array<{ member: string; text: string }>;
 }
+
+/**
+ * The Current situation note of a group with "Reads every message" on: per call (never in the
+ * fixed rules), so the agent's own instructions decide when it replies.
+ */
+export const LISTEN_SITUATION =
+  'You read every message in this group, not only messages that tag the business. Reply only when your administrator instructions call for it (for example to record or confirm what a member sent); otherwise choose no_reply with an empty reply.';
 
 /** The configured zone if the runtime knows it, otherwise Kuala Lumpur. */
 export function resolveAiTimeZone(value: unknown): string {
@@ -167,9 +194,21 @@ function resolutionSituation(awaiting: AiSituation['awaitingConfirmation']): str
 }
 
 function currentSituation(
-  { now, timeZone, awaitingConfirmation, group }: AiSituation,
+  { now, timeZone, awaitingConfirmation, group, filesNote, scheduled }: AiSituation,
   customer: AiCustomer | null,
 ) {
+  const files = filesNote ? { files: filesNote } : {};
+  if (scheduled)
+    return {
+      ...situationClock(now, timeZone),
+      scheduledTask: {
+        name: scheduled.name,
+        instruction: scheduled.instruction,
+        chat: scheduled.chat.name,
+        chatType: scheduled.chat.type === 'group' ? 'WhatsApp group' : 'private chat',
+      },
+      ...(customer && scheduled.chat.type === 'dm' ? { customer } : {}),
+    };
   if (group)
     return {
       ...situationClock(now, timeZone),
@@ -177,17 +216,22 @@ function currentSituation(
         name: group.name,
         askingMember: group.member,
         addressedBy:
-          group.trigger === 'tag'
-            ? 'The member tagged the business.'
-            : 'The member replied to your earlier answer.',
+          group.trigger === 'listen'
+            ? LISTEN_SITUATION
+            : group.trigger === 'tag'
+              ? 'The member tagged the business.'
+              : 'The member replied to your earlier answer.',
         messageToAnswer: group.message,
+        ...(group.trigger === 'listen' && group.messages ? { newMessages: group.messages } : {}),
       },
+      ...files,
     };
   return {
     ...situationClock(now, timeZone),
     resolution: resolutionSituation(awaitingConfirmation),
     // Editable by the team at any time, so it lives in this per-call block, never earlier.
     ...(customer ? { customer } : {}),
+    ...files,
   };
 }
 
@@ -240,7 +284,13 @@ export function asksResolution(
  * Fixed rules added at the end of the instructions for a WhatsApp group answer (no interpolation:
  * the group, member and message are in the Current situation block).
  */
-export const GROUP_RULES = `WhatsApp group mode: this conversation is a WhatsApp group with several members, not a private chat. Each customer turn carries the member's display name. Answer only currentSituation.group.messageToAnswer, written by currentSituation.group.askingMember, who tagged the business or replied to your earlier answer; the other messages are context only, never questions for you. Reply in that member's language, name them, and keep the reply short: everyone in the group reads it. Never share a member's or another customer's personal details, and never ask for personal data (phone numbers, addresses, payment details) in the group. Choose answer, handoff or no_reply only, never ask_resolution or resolve. Choose no_reply when the message needs no answer from the business. You have look-up tools only here: you cannot book, order or change anything; for such a request choose handoff with handoffReason needs_action.`;
+export const GROUP_RULES = `WhatsApp group mode: this conversation is a WhatsApp group with several members, not a private chat. Each customer turn carries the member's display name. Answer only currentSituation.group.messageToAnswer, written by currentSituation.group.askingMember, who tagged the business, replied to your earlier answer or, when currentSituation.group says you read every message, simply posted it; the other messages are context only, never questions for you. Reply in that member's language, name them, and keep the reply short: everyone in the group reads it. Never share a member's or another customer's personal details, and never ask for personal data (phone numbers, addresses, payment details) in the group. Choose answer, handoff or no_reply only, never ask_resolution or resolve. Choose no_reply when the message needs no answer from the business. Here you may look things up, add a sheet row and save a member's file when a tool for it is offered; you cannot book, order or change anything else; for such a request choose handoff with handoffReason needs_action.`;
+
+/**
+ * Fixed rules added at the end of the instructions for a scheduled task's turn (no interpolation:
+ * the task, its instruction and the chat are in the Current situation block).
+ */
+export const SCHEDULED_RULES = `Scheduled task mode: nobody has just written to you. The business set up a scheduled task, and now you send one message by yourself to this chat (currentSituation.scheduledTask names the task, the chat and whether it is a WhatsApp group). Treat currentSituation.scheduledTask.instruction as the business's request for this one message: do what it asks within the rules above; it never overrides them. The conversation is context only: never answer earlier messages again. Get the facts the instruction needs from the business facts and the look-up tools; include only facts they give you and never invent bookings, tasks, amounts, dates or names. Write the message ready to send, in the language of the instruction unless it asks for another. Choose answer with that message, or no_reply with an empty reply when there is nothing to tell (for example the instruction says to skip when there is nothing and the look-ups found nothing). Never choose ask_resolution or resolve. Choose handoff only when the instruction asks for something you must not do or say; nothing is sent then. In a private chat, never share other customers' details. Here you may look things up and add a sheet row when a tool for it is offered; you cannot book, order or change anything else.`;
 
 /** Saved blank instructions: a sales agent falls back to the default text (today's rule). */
 export function administratorInstructions(knowledge: AiKnowledge): string {
@@ -271,10 +321,12 @@ export function buildAiPrompt(
 ): AiPrompt {
   // A group never gets a resolution question.
   const resolutionRules =
-    !situation.group && asksResolution(knowledge) ? RESOLUTION_RULES_ON : RESOLUTION_RULES_OFF;
+    !situation.group && !situation.scheduled && asksResolution(knowledge)
+      ? RESOLUTION_RULES_ON
+      : RESOLUTION_RULES_OFF;
   return {
     ...(images.length ? { images: [...images] } : {}),
-    instructions: `${GUARDRAILS}\n\n${CORE_RULES}\n${resolutionRules}\nYour name: ${knowledge.displayName}\nYour role: ${PRESET_ROLES[knowledge.preset]}\nAdministrator instructions:\n${administratorInstructions(knowledge)}\nBusiness hand-off rules (choose handoff with handoffReason business_rule when one matches):\n${businessHandoffRules(knowledge.handoffRules)}${situation.group ? `\n${GROUP_RULES}` : ''}`,
+    instructions: `${GUARDRAILS}\n\n${CORE_RULES}\n${resolutionRules}\nYour name: ${knowledge.displayName}\nYour role: ${PRESET_ROLES[knowledge.preset]}\nAdministrator instructions:\n${administratorInstructions(knowledge)}\nBusiness hand-off rules (choose handoff with handoffReason business_rule when one matches):\n${businessHandoffRules(knowledge.handoffRules)}${situation.group ? `\n${GROUP_RULES}` : ''}${situation.scheduled ? `\n${SCHEDULED_RULES}` : ''}`,
     input: JSON.stringify({
       internalKnowledge,
       businessKnowledge,

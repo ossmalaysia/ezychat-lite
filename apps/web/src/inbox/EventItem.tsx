@@ -54,6 +54,12 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
       // Title and source come from the extension; anything else in the payload is ignored.
       const used = AiToolUsedPayload.safeParse(e.payload);
       if (!used.success) return '';
+      // A direct chat: the agent read the message and chose to send nothing.
+      const silent = used.data.silent;
+      if (silent)
+        return silent.kind === 'finished'
+          ? i18n.t('inbox:events.aiSilentFinished', { actor })
+          : i18n.t('inbox:events.aiSilent', { actor });
       // A WhatsApp group: the AI answered a tag or a quote, handed it over, or the loop guard paused it.
       const group = used.data.group;
       if (group) {
@@ -78,6 +84,12 @@ export function describeEvent(e: ChatEvent, dir: Directory): string {
           ? i18n.t('inbox:events.calendarBooked', { when, source })
           : i18n.t('inbox:events.calendarBookedNoTime', { source });
       }
+      // Google Sheets: "AI added a row to Claims".
+      if (used.data.sheet?.action === 'row_added')
+        return i18n.t('inbox:events.sheetRowAdded', { tab: used.data.sheet.tab, source });
+      // Google Drive: "AI saved a file to Google Drive". Reads use the generic look-up line.
+      if (used.data.drive?.action === 'saved')
+        return i18n.t('inbox:events.driveFileSaved', { source });
       return i18n.t('inbox:events.aiToolUsed', { title: used.data.title, source });
     }
   }

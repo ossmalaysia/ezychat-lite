@@ -3,12 +3,13 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
-import { join, posix } from 'node:path';
-import { exec as sudoExec } from 'sudo-prompt';
+import { dirname, join, posix } from 'node:path';
+import { exec as sudoExec } from '@vscode/sudo-prompt';
 import { servicePortFile, serviceRunDir } from '../paths.js';
 import { activeProduct, type Product } from '../product.js';
 import {
   macControlScript,
+  macCopyLogsScript,
   macInstallScript,
   macResetAdminScript,
   macUninstallScript,
@@ -39,6 +40,8 @@ export interface ServiceManager {
   start(): Promise<void>;
   stop(): Promise<void>;
   resetAdmin(): Promise<string>;
+  /** macOS: copies the root-only service logs into a folder the user can open; returns its path. */
+  copyLogs?(): Promise<string>;
 }
 
 export interface ServiceDeps {
@@ -107,6 +110,8 @@ export function serviceCommand(
   };
   if (d.cloudflaredBinary && exists(d.cloudflaredBinary))
     env.WATI_CLOUDFLARED = d.cloudflaredBinary;
+  // server-host then ends exits a restart cannot fix with 0, which the launchd job does not restart
+  if (platform === 'darwin') env.WATI_SERVICE_MANAGER = 'launchd';
   const cmd = {
     exe: d.execPath,
     args: [
@@ -132,8 +137,56 @@ export function serviceCommand(
     : cmd;
 }
 
+/**
+ * Opens the logs folder. The macOS service keeps its logs in a root-only folder that Finder cannot open,
+ * so its copyLogs() copy (made after the admin prompt) is opened instead.
+ */
+export async function openLogsFolder(o: {
+  serviceMode: boolean;
+  dataDir: string;
+  machineDataDir: string;
+  service: Pick<ServiceManager, 'copyLogs'>;
+  openPath: (path: string) => Promise<unknown>;
+  exists: (path: string) => boolean;
+  log: (s: string) => void;
+}): Promise<void> {
+  if (o.serviceMode && o.service.copyLogs) {
+    try {
+      await o.openPath(await o.service.copyLogs());
+    } catch (err) {
+      o.log(`could not copy the service logs: ${String(err)}`);
+    }
+    return;
+  }
+  const dir = join(o.serviceMode ? o.machineDataDir : o.dataDir, 'logs');
+  await o.openPath(o.exists(dir) ? dir : dirname(dir));
+}
+
+/** The administrator prompt was refused (or never shown): the elevated script did not run at all. */
+export class ElevationCancelledError extends Error {
+  constructor() {
+    super('The administrator prompt was cancelled; nothing was changed.');
+    this.name = 'ElevationCancelledError';
+  }
+}
+
+/**
+ * Result of runElevatedWindows. The elevated wrapper always writes its log once it runs (Out-File opens
+ * the file first, the catch appends), so no log means UAC was refused or the process never started.
+ */
+export function elevatedWindowsOutcome(code: number, log: string | null, stderr: string): string {
+  if (code === 0) return log ?? '';
+  if (log === null) throw new ElevationCancelledError();
+  throw new Error(log || stderr.trim() || 'Elevated command failed.');
+}
+
+/** The admin prompt's error (`@vscode/sudo-prompt`) when the macOS admin prompt is cancelled. */
+export function isMacPromptCancelled(message: string): boolean {
+  return /did not grant permission|User canceled/i.test(message);
+}
+
 /** Runs a PowerShell script elevated (UAC prompt); returns its combined output. */
-async function runElevatedWindows(script: string): Promise<string> {
+export async function runElevatedWindows(script: string): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), 'wati-svc-'));
   const inner = join(dir, 'task.ps1');
   const wrapper = join(dir, 'run.ps1');
@@ -169,18 +222,14 @@ async function runElevatedWindows(script: string): Promise<string> {
       ? readFileSync(log, 'utf8')
           .replace(/^\uFEFF/, '')
           .trim()
-      : '';
-    if (r.code !== 0) {
-      const msg = out || r.stderr.trim() || 'Elevated command failed or was cancelled.';
-      throw new Error(msg);
-    }
-    return out;
+      : null;
+    return elevatedWindowsOutcome(r.code, out, r.stderr);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-/** Runs a bash script as root via the macOS admin prompt (sudo-prompt). */
+/** Runs a bash script as root via the macOS admin prompt (`@vscode/sudo-prompt`). */
 async function runElevatedMac(script: string, name: string): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), 'wati-svc-'));
   const file = join(dir, 'task.sh');
@@ -188,7 +237,8 @@ async function runElevatedMac(script: string, name: string): Promise<string> {
   try {
     return await new Promise<string>((resolve, reject) => {
       sudoExec(`/bin/bash ${shQuote(file)}`, { name }, (err, stdout, stderr) => {
-        if (err) reject(new Error(String(stderr ?? '').trim() || err.message));
+        if (err && isMacPromptCancelled(err.message)) reject(new ElevationCancelledError());
+        else if (err) reject(new Error(String(stderr ?? '').trim() || err.message));
         else resolve(String(stdout ?? '').trim());
       });
     });
@@ -289,6 +339,7 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         const cmd = serviceCommand(deps, 'darwin');
         const script = macInstallScript({
           label: LAUNCHD_LABEL,
+          productName: product.productName,
           program: cmd.exe,
           args: cmd.args,
           env: cmd.env,
@@ -316,10 +367,28 @@ export function createServiceManager(platform: NodeJS.Platform, deps: ServiceDep
         );
       },
       async start() {
-        log(await runElevated(macControlScript({ label: LAUNCHD_LABEL, action: 'start' })));
+        log(
+          await runElevated(
+            macControlScript({
+              label: LAUNCHD_LABEL,
+              action: 'start',
+              productName: product.productName,
+            }),
+          ),
+        );
       },
       async stop() {
         log(await runElevated(macControlScript({ label: LAUNCHD_LABEL, action: 'stop' })));
+      },
+      async copyLogs() {
+        const out = await runElevated(
+          macCopyLogsScript({
+            logDir,
+            tempPrefix: `${product.appDirName}-logs`,
+            owner: userInfo().username,
+          }),
+        );
+        return out.split('\n').pop()?.trim() ?? '';
       },
       async resetAdmin() {
         requirePackagedRuntime();

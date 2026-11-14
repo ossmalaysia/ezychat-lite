@@ -164,8 +164,20 @@ export const SafetyChatState = z.object({
   /** A known customer whose latest flagged message is High and still open: their WhatsApp may be hacked. */
   maybeHacked: z.boolean(),
   itemId: z.number().int().positive().nullable(),
+  /**
+   * Whether an admin can block this chat's number now (a direct chat on an inbox that supports blocking;
+   * the Business API only within its window after the customer's last message).
+   */
+  canBlock: z.boolean().default(false),
 });
 export type SafetyChatState = z.infer<typeof SafetyChatState>;
+
+/** `POST /api/safety/chats/:jid/:action` (admins): block or unblock any direct chat's number. */
+export const SafetyChatAction = z.enum(['block', 'unblock']);
+export type SafetyChatAction = z.infer<typeof SafetyChatAction>;
+/** `spam`: also mark the number as spam (shown in the chat and in Reports; it does not report to WhatsApp). */
+export const SafetyChatActionBody = z.object({ spam: z.boolean().optional() }).default({});
+export type SafetyChatActionBody = z.infer<typeof SafetyChatActionBody>;
 
 export const SafetyKind = z.enum([
   'hiddenProgram',
@@ -191,9 +203,11 @@ export const SafetyReportTotals = z.object({
 });
 export type SafetyReportTotals = z.infer<typeof SafetyReportTotals>;
 
-/** `GET /api/reports/safety?days=` (admins): Admin → Reports → WhatsApp Safety. */
+/** `GET /api/reports/safety?days=&inbox=` (admins): Admin → Reports → WhatsApp Safety. */
 export const SafetyReport = z.object({
   days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+  /** The one inbox counted; `null` = every inbox together. */
+  inboxId: z.number().int().positive().nullable().default(null),
   enabled: z.boolean(),
   totals: SafetyReportTotals,
   previous: SafetyReportTotals,

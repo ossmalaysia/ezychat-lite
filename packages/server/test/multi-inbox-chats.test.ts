@@ -13,7 +13,7 @@ import { runIdentityMigration } from '../src/chats/identity-migration.js';
 import { mergeChat } from '../src/chats/merge.js';
 import { ChatRepo } from '../src/chats/repo.js';
 import { createGroupService } from '../src/groups/service.js';
-import { createProfileImages } from '../src/http/profile-images.js';
+import { profilePhotoLookup } from '../src/http/profile-images.js';
 import { getChats } from '../src/wa-bridge/index.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -255,7 +255,7 @@ describe('chats of several inboxes', () => {
       .spyOn(t.inboxWa(2), 'getProfilePicture')
       .mockResolvedValue('https://pps.whatsapp.net/two.jpg');
     const one = vi.spyOn(t.inboxWa(1), 'getProfilePicture').mockResolvedValue(null);
-    const photo = createProfileImages(t.ctx, t.ctx.log);
+    const photo = (key: string) => profilePhotoLookup(t.ctx, key)();
     expect(await photo(`${PN}#2`)).toBe('https://pps.whatsapp.net/two.jpg');
     expect(two).toHaveBeenCalledWith(PN);
     expect(await photo(PN)).toBeNull();
@@ -295,8 +295,8 @@ describe('customer profiles of several inboxes', () => {
       message(`${PN}#2`),
     ]);
     expect(one!.senderProfile).toEqual({ chatJid: PN, name: 'Alice of one' });
-    // inbox 2 has its own chat with Alice, without a saved name
-    expect(two!.senderProfile).toBeNull();
+    // inbox 2 has its own chat with Alice, and it carries the same (synced) profile
+    expect(two!.senderProfile).toEqual({ chatJid: `${PN}#2`, name: 'Alice of one' });
     expect(dm).not.toHaveProperty('senderProfile');
     customers.save(`${PN}#2`, CustomerProfileBody.parse({ name: 'Alice of two' }), {
       userId: user.id,
@@ -304,6 +304,10 @@ describe('customer profiles of several inboxes', () => {
     });
     expect(customers.senderProfiles([PN], 2).get(PN)).toEqual({
       chatJid: `${PN}#2`,
+      name: 'Alice of two',
+    });
+    expect(customers.senderProfiles([PN], 1).get(PN)).toEqual({
+      chatJid: PN,
       name: 'Alice of two',
     });
     // the WhatsApp facts read contacts by WhatsApp JID, not by the chat key
@@ -371,7 +375,7 @@ describe('a removed or unknown inbox', () => {
     getChats(t.ctx).upsertFromWa({ jid: GROUP, type: 'group', name: 'Partners' }, 2);
     getChats(t.ctx).upsertFromWa({ jid: PN, type: 'dm', name: 'Alice' }, 2);
     const groups = createGroupService(t.ctx);
-    const photo = createProfileImages(t.ctx, t.ctx.log);
+    const photo = (key: string) => profilePhotoLookup(t.ctx, key)();
     await expect(groups.info(`${GROUP}#0`)).rejects.toThrow(/Group not found/);
     await expect(photo(`${PN}#0`)).rejects.toThrow(/invalid/);
     await t.ctx.inboxes.connections.remove(2);

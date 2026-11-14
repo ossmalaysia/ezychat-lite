@@ -20,8 +20,17 @@ export interface SendJob {
   caption?: string;
   /** media jobs: send the Ogg/Opus file as a WhatsApp voice note */
   voiceNote?: boolean;
+  /** media jobs: send any file (e.g. a video above the video limit) as a document */
+  asDocument?: boolean;
+  /** a forwarded copy: WhatsApp's forwarding score it carries (the source's + 1) */
+  forwardingScore?: number;
   /** template jobs: the approved template and its body values */
   template?: WaTemplateSend;
+  /**
+   * Retry of a message WhatsApp already took (row keeps its WhatsApp id): send it again under that
+   * same WhatsApp id, so phones that already have it never show a second copy.
+   */
+  resendId?: string;
 }
 
 export interface SendQueueDeps {
@@ -108,6 +117,18 @@ export class SendQueue {
   /** Re-enqueue persisted pending jobs (startup). */
   restore(jobs: SendJob[]): void {
     for (const j of [...jobs].sort((a, b) => a.createdAt - b.createdAt)) this.enqueue(j);
+  }
+
+  /**
+   * Forgets every job still waiting for `chatJid` (the chat is being deleted): none is sent and no
+   * callback runs. A send already in flight finishes; its row is gone, so onSent finds nothing.
+   * Returns how many jobs were dropped.
+   */
+  drop(chatJid: string): number {
+    const q = this.queues.get(chatJid);
+    if (!q) return 0;
+    // in place: a running worker holds this array and sees it empty on its next turn
+    return q.splice(0).length;
   }
 
   stop(): void {

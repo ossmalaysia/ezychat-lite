@@ -90,18 +90,23 @@ export function webClientCalls(): { calls: ClientCall[]; unresolved: string[] } 
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
         const callee = node.expression.text;
         const at = `${relative(WEB_SRC, file)}:${sf.getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
-        if (callee === 'api' || callee === 'fetch') {
+        if (callee === 'api' || callee === 'apiUpload' || callee === 'fetch') {
           const raws = literalPaths(node.arguments[0], checker);
           const isApiFetch = callee === 'fetch' && raws?.[0]?.startsWith('/api');
-          if (callee === 'api' || isApiFetch) {
-            // api() POSTs when a body is given; fetch() keeps GET unless told otherwise.
-            const method = methodOf(node.arguments[1], callee === 'api' ? 'POST' : 'GET');
+          const viaHelper = callee === 'api' || callee === 'apiUpload';
+          if (viaHelper || isApiFetch) {
+            // api() POSTs when a body is given; apiUpload() always POSTs a form; fetch() keeps GET
+            // unless told otherwise.
+            const method =
+              callee === 'apiUpload'
+                ? 'POST'
+                : methodOf(node.arguments[1], callee === 'api' ? 'POST' : 'GET');
             if (raws === null || method === null) unresolved.push(at);
             else
               for (const raw of raws)
                 calls.push({
                   method,
-                  path: (callee === 'api' ? '/api' + raw : raw).split('?')[0]!,
+                  path: (viaHelper ? '/api' + raw : raw).split('?')[0]!,
                   at,
                 });
           } else if (callee === 'fetch' && raws === null) {
@@ -133,6 +138,19 @@ describe('web client ↔ server routes', () => {
     expect(calls.length).toBeGreaterThan(60);
   });
 
+  it('checks the New chat calls (docs/features/new-chat/design.md)', () => {
+    const ours = scan.calls
+      .filter((c) => c.at.startsWith(join('api', 'new-chat.ts')))
+      .map((c) => `${c.method} ${c.path.replace(/\/inboxes\/[^/]+\//, '/inboxes/:id/')}`)
+      .sort();
+    expect(ours).toEqual([
+      'GET /api/new-chat',
+      'POST /api/inboxes/:id/new-chat',
+      'POST /api/inboxes/:id/new-chat/check',
+      'PUT /api/new-chat/settings',
+    ]);
+  });
+
   it('every web call has a server route with the same method', async () => {
     const { calls } = scan;
     const missing: string[] = [];
@@ -156,6 +174,8 @@ describe('web client ↔ server routes', () => {
         'the api() helper itself: fetch(`/api${path}`) for every call above',
       [join('lib', 'clipboard.ts')]:
         'copyImageFromUrl: GETs a Message.mediaUrl the server built (GET /api/media/:id, covered by messages.test.ts)',
+      [join('lib', 'pdf.ts')]:
+        'loadPdf: GETs a Message.mediaUrl the server built (GET /api/media/:id, covered by messages.test.ts and e2e/pdf-viewer.spec.ts)',
     };
     const { unresolved } = scan;
     expect(unresolved.filter((at) => !(at.replace(/:\d+$/, '') in REVIEWED))).toEqual([]);

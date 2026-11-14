@@ -4,6 +4,7 @@ import { LocaleSchema } from './i18n/locales.js';
 import {
   ChatEventSchema,
   ChatSchema,
+  MessageEditedBy,
   MessageReactionSchema,
   MessageSchema,
   QuickReplySchema,
@@ -71,10 +72,34 @@ export type ChatPatchBody = z.infer<typeof ChatPatchBody>;
 
 export const OpenChatCountResponse = z.object({ openCount: z.number().int().nonnegative() });
 export type OpenChatCountResponse = z.infer<typeof OpenChatCountResponse>;
+/** App navigation: open chats with unread messages that the signed-in user may open. */
+export const UnreadChatCountResponse = z.object({ count: z.number().int().nonnegative() });
+export type UnreadChatCountResponse = z.infer<typeof UnreadChatCountResponse>;
 export const ResolveAllChatsBody = z.object({ confirmed: z.literal(true) });
 export type ResolveAllChatsBody = z.infer<typeof ResolveAllChatsBody>;
 export const ResolveAllChatsResponse = z.object({ resolvedCount: z.number().int().nonnegative() });
 export type ResolveAllChatsResponse = z.infer<typeof ResolveAllChatsResponse>;
+/**
+ * Delete chat (admins, docs/features/chat-hide-delete/design.md Part B): what `DELETE /api/chats/:jid`
+ * would remove, shown in the confirmation (`GET /api/chats/:jid/delete-preview`).
+ */
+export const ChatDeletePreview = z.object({
+  messages: z.number().int().nonnegative(),
+  files: z.number().int().nonnegative(),
+});
+export type ChatDeletePreview = z.infer<typeof ChatDeletePreview>;
+
+/**
+ * Hide chats on Log out (admins, design.md Part A; `GET /api/inboxes/:id/hidden-chats`): `visible` =
+ * the inbox's chats the team sees (the Log out confirmation hides them), `hidden` = chats hidden when
+ * `number` (digits of the inbox's own number) logged out, shown again when the same number links.
+ */
+export const HiddenChatsInfo = z.object({
+  visible: z.number().int().nonnegative(),
+  hidden: z.number().int().nonnegative(),
+  number: z.string().nullable(),
+});
+export type HiddenChatsInfo = z.infer<typeof HiddenChatsInfo>;
 
 export const ChatDetailResponse = z.object({ chat: ChatSchema, events: z.array(ChatEventSchema) });
 export type ChatDetailResponse = z.infer<typeof ChatDetailResponse>;
@@ -91,6 +116,17 @@ export const MessageListResponse = z.object({
   nextBefore: z.string().nullable(),
 });
 export type MessageListResponse = z.infer<typeof MessageListResponse>;
+
+/**
+ * Where a quoted message sits in its chat (`GET /chats/:jid/messages/:id/locate`): `found` is false
+ * when it is not stored in this chat or is hidden for the team; `newer` counts the visible messages
+ * after it, so the inbox knows how many older pages to load before it can scroll there.
+ */
+export const MessageLocateResponse = z.object({
+  found: z.boolean(),
+  newer: z.number().int().nonnegative(),
+});
+export type MessageLocateResponse = z.infer<typeof MessageLocateResponse>;
 
 /** Most members one message may tag (@mention). */
 export const MAX_MESSAGE_MENTIONS = 50;
@@ -114,6 +150,11 @@ export const SendMediaFields = z.object({
   quotedId: z.string().max(256).optional(),
   /** "1": send the Ogg/Opus file as a WhatsApp voice note (never with a caption). */
   voiceNote: z.literal('1').optional(),
+  /**
+   * "1": send a video as a file (a document: full quality, no preview), e.g. above the number's video
+   * limit (`InboxCapabilities.mediaLimits.video`). Ignored for other types.
+   */
+  asFile: z.literal('1').optional(),
 });
 export type SendMediaFields = z.infer<typeof SendMediaFields>;
 
@@ -142,6 +183,39 @@ export const SendReactionResponse = z.object({
   reactions: z.array(MessageReactionSchema),
 });
 export type SendReactionResponse = z.infer<typeof SendReactionResponse>;
+
+/** PATCH /messages/:id: new text (or caption) of a message the team sent; WhatsApp shows "Edited". */
+export const EditMessageBody = z.object({ text: z.string().trim().min(1).max(65536) });
+export type EditMessageBody = z.infer<typeof EditMessageBody>;
+
+/**
+ * DELETE /messages/:id?scope=: `everyone` deletes it on the customer's WhatsApp too; `me` hides it
+ * for the whole team and deletes it on the linked phone (admins only).
+ */
+export const DeleteMessageQuery = z.object({ scope: z.enum(['everyone', 'me']) });
+export type DeleteMessageQuery = z.infer<typeof DeleteMessageQuery>;
+
+/** One earlier version of an edited message, oldest first. */
+export const MessageEditSchema = z.object({
+  /** The text before this edit. */
+  previousBody: z.string().nullable(),
+  at: z.number(),
+  by: MessageEditedBy,
+  /** `by` `team`: the teammate who edited. */
+  userId: z.number().nullable(),
+});
+export type MessageEdit = z.infer<typeof MessageEditSchema>;
+
+/**
+ * GET /messages/:id/edits. `original`: the text of a message deleted for everyone, for admins only
+ * (null for agents and for messages that are not deleted).
+ */
+export const MessageEditsResponse = z.object({
+  messageId: z.string(),
+  edits: z.array(MessageEditSchema),
+  original: z.string().nullable(),
+});
+export type MessageEditsResponse = z.infer<typeof MessageEditsResponse>;
 
 export const NoteBody = z.object({ body: z.string().min(1).max(8192) });
 export type NoteBody = z.infer<typeof NoteBody>;
@@ -234,7 +308,10 @@ export const CloudflareCreateBody = z.object({
 });
 export type CloudflareCreateBody = z.infer<typeof CloudflareCreateBody>;
 
-export const SettingsPatchBody = SettingsSchema.omit({ hasTunnelToken: true }).partial();
+// usageStats is re-declared without its default: a patch that leaves it out must not switch it on.
+export const SettingsPatchBody = SettingsSchema.omit({ hasTunnelToken: true })
+  .partial()
+  .extend({ usageStats: z.boolean().optional() });
 export type SettingsPatchBody = z.infer<typeof SettingsPatchBody>;
 
 export const PushSubscribeBody = z.object({
@@ -305,9 +382,30 @@ export const FakeReactionBody = z.object({
 });
 export type FakeReactionBody = z.infer<typeof FakeReactionBody>;
 
+/**
+ * POST /api/dev/fake-edit and /api/dev/fake-revoke (fake WA only): the fake phone delivers an edit
+ * (`body`) or a delete for everyone of a stored message, by its customer, a group member
+ * (`senderJid`) or the linked phone (`fromMe`).
+ */
+export const FakeMessageChangeBody = z.object({
+  messageId: z.string().min(1).max(256),
+  /** The new text (fake-edit only). */
+  body: z.string().max(65536).optional(),
+  senderJid: z.string().max(256).optional(),
+  fromMe: z.boolean().optional(),
+});
+export type FakeMessageChangeBody = z.infer<typeof FakeMessageChangeBody>;
+
 /** POST /api/dev/fake-link (fake WA only): the inbox's fake phone links, as a QR scan would. */
 export const FakeLinkBody = z.object({ inboxId: z.number().int().positive() });
 export type FakeLinkBody = z.infer<typeof FakeLinkBody>;
 
-/** Largest file `POST /chats/:jid/media` accepts; the composer refuses bigger files before uploading. */
-export const MEDIA_UPLOAD_LIMIT_BYTES = 64 * 1024 * 1024;
+/**
+ * Largest request body a Cloudflare tunnel passes (Free and Pro plans). The app has no file size cap
+ * of its own (each WhatsApp number's `mediaLimits` decide); through the tunnel a larger file is refused
+ * by Cloudflare, so the composer says so before uploading: it works on this computer or the local
+ * network.
+ */
+export const TUNNEL_UPLOAD_LIMIT_BYTES = 100 * 1024 * 1024;
+/** Kept for existing imports: the tunnel's limit (TUNNEL_UPLOAD_LIMIT_BYTES), no longer an app cap. */
+export const MEDIA_UPLOAD_LIMIT_BYTES = TUNNEL_UPLOAD_LIMIT_BYTES;

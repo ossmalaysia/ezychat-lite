@@ -1,13 +1,9 @@
 import { ExtensionBannerSlot } from '@/access/BannerSlot';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
 import { useAppVersion } from '../lib/version';
 import { useInboxes, type ChatFilters as Filters } from '../api/queries';
-import { UserMenu } from '../auth/UserMenu';
-import { AskEzyButton } from '../askezy/AskEzyButton';
 import { EmptyState } from '@/components/app';
 import { cn } from '@/lib/utils';
 import { decodeJid } from '../lib/jid';
@@ -19,6 +15,7 @@ import { useDirectory } from './useDirectory';
 import { ReconnectBanner } from './ReconnectBanner';
 import { WaBanner } from './WaBanner';
 import { useVisibleInboxes } from './useVisibleInboxes';
+import { NewChatButton } from './NewChatDialog';
 import { useCanonicalChatRedirect } from './useCanonicalChatRedirect';
 import { NavigationGuardProvider } from './navigation-guard';
 
@@ -80,7 +77,7 @@ export function InboxPage() {
 
   return (
     <NavigationGuardProvider>
-      <div className="safe-x flex h-dvh flex-col overflow-hidden bg-background">
+      <div className="safe-x flex h-full flex-col overflow-hidden bg-background">
         <div className="safe-top bg-surface" />
         <ExtensionBannerSlot />
         <WaBanner />
@@ -93,21 +90,13 @@ export function InboxPage() {
             )}
             aria-label={t('page.chats')}
           >
-            <header className="flex items-center gap-2 px-3 py-1">
+            {/* Ask Ezy, Admin and the account moved to the app navigation (rail / tabs). */}
+            <header className="flex items-center gap-1 px-3 py-1">
               <h1 className="flex-1 py-2 text-xl font-semibold tracking-tight text-foreground">
                 {t('page.title')}
               </h1>
-              <AskEzyButton />
-              {directory.isAdmin && (
-                <Button asChild variant="ghost" size="touch">
-                  <Link to="/admin" aria-label={t('page.admin')}>
-                    <Settings aria-hidden="true" />
-                    {/* Icon only on phones, to leave room for Ask Ezy. */}
-                    <span className="max-sm:hidden">{t('page.admin')}</span>
-                  </Link>
-                </Button>
-              )}
-              <UserMenu />
+              {/* New chat (docs/features/new-chat/design.md): admins, and team members when allowed. */}
+              <NewChatButton />
             </header>
             <ChatFilters value={filters} onChange={setFilters} inboxes={visibleInboxes} />
             <ChatList
@@ -116,12 +105,12 @@ export function InboxPage() {
               directory={directory}
               onResetFilters={() => setFilters(DEFAULT_FILTERS)}
             />
+            {/* Desktop only: on phones the tabs sit here (the version is on the Account page). */}
             {version && (
-              <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+              <p className="border-t px-3 py-2 text-xs text-muted-foreground max-md:hidden">
                 {t('page.version', { appName: t('common:appName'), version })}
               </p>
             )}
-            <div className="safe-bottom" />
           </aside>
           <main
             className={cn(

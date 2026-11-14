@@ -84,6 +84,38 @@ describe('describeEvent', () => {
     ).toBe('Jee Fong handed this chat to the team: a look-up in a connected system failed');
   });
 
+  it('says the AI added a row to a Google Sheets tab', () => {
+    const payload = {
+      title: 'Add a row to Claims',
+      sourceLabel: 'Google Sheets',
+      sheet: { action: 'row_added', tab: 'Claims' },
+    };
+    expect(describeEvent(event('ai_tool_used', 3, payload), dir)).toBe(
+      'AI added a row to Claims · Google Sheets',
+    );
+  });
+
+  it('says the AI saved a file to Google Drive', () => {
+    const payload = {
+      title: 'Save a file',
+      sourceLabel: 'Google Drive',
+      drive: { action: 'saved' },
+    };
+    expect(describeEvent(event('ai_tool_used', 3, payload), dir)).toBe(
+      'AI saved a file to Google Drive · Google Drive',
+    );
+  });
+
+  it('says the AI did not reply, and when it saw the chat as finished', () => {
+    const source = { title: 'Sales Agent', sourceLabel: 'WhatsApp' };
+    expect(
+      describeEvent(event('ai_tool_used', 2, { ...source, silent: { kind: 'no_reply' } }), dir),
+    ).toBe('Jee Fong did not reply');
+    expect(
+      describeEvent(event('ai_tool_used', 2, { ...source, silent: { kind: 'finished' } }), dir),
+    ).toBe('Jee Fong did not reply: it saw the chat as finished');
+  });
+
   it('names Google Calendar checks and bookings with the booked time', () => {
     const source = { title: 'Check free times', sourceLabel: 'Google Calendar' };
     expect(

@@ -25,6 +25,7 @@ import {
   type PatchMeBody,
   MeResponse,
   OpenChatCountResponse,
+  UnreadChatCountResponse,
   ResolveAllChatsResponse,
   SetupStatusResponse,
   CloudflareSetupStatus,
@@ -46,10 +47,13 @@ import {
   type DirectoryUser,
   type InboxListResponse,
   type InboxStatusPayload,
+  type MemberChatsResponse,
+  type SetMemberChatsBody,
   type CloudflareCreateBody,
   type LoginBody,
   type Message,
   type MessageListResponse,
+  type MessageLocateResponse,
   type Note,
   type PatchUserBody,
   type QuickReply,
@@ -64,8 +68,11 @@ import {
   type User,
   type WaStatus,
 } from '@ezychat/shared';
-import { ApiError, api } from './client';
+import { ApiError, api, apiUpload } from './client';
+import { setUploadProgress } from '@/lib/upload-progress';
+import { randomUuid } from '@/lib/random-id';
 import { unsubscribePush } from '../pwa/push';
+import { clearUserCaches } from '../auth/user-caches';
 
 // ---------------------------------------------------------------------------
 // Query keys
@@ -87,7 +94,9 @@ export const qk = {
   chats: (f: ChatFilters) => ['chats', f] as const,
   chatsAll: ['chats'] as const,
   openChatCount: ['open-chat-count'] as const,
-  report: (days: number) => ['report', days] as const,
+  // Not under ['chats']: upsertChatInCache rewrites every query there as a chat list.
+  unreadChatCount: ['unread-chat-count'] as const,
+  report: (days: number, inbox: number | null = null) => ['report', days, inbox] as const,
   chat: (jid: string) => ['chat', jid] as const,
   messages: (jid: string) => ['messages', jid] as const,
   notes: (jid: string) => ['notes', jid] as const,
@@ -98,6 +107,7 @@ export const qk = {
   quickReplies: ['quick-replies'] as const,
   users: ['users'] as const,
   directory: ['users', 'directory'] as const,
+  memberChats: (userId: number) => ['users', userId, 'chats'] as const,
   wa: ['wa'] as const,
   inboxes: ['inboxes'] as const,
   tunnel: ['tunnel'] as const,
@@ -215,10 +225,29 @@ function applyPatch(x: Message, patch: Partial<Message>): Message {
   return next;
 }
 
-/** Insert or replace a message in the messages cache of its chat. */
+/** Insert or replace a message in the messages cache of its chat ("Delete for me": remove it). */
 export function upsertMessageInCache(qc: QueryClient, m: Message): void {
+  // No pages yet: the first fetch may have started before this message was stored, so its
+  // answer could miss it. Restart it (a fetch without data is not restarted by a plain
+  // invalidate) instead of dropping the event.
+  if (!qc.getQueryData<MessagesData>(qk.messages(m.chatJid))?.pages.length) {
+    const queryKey = qk.messages(m.chatJid);
+    void qc
+      .cancelQueries({ queryKey }, { revert: true })
+      .then(() => qc.invalidateQueries({ queryKey }));
+    return;
+  }
   qc.setQueryData<MessagesData>(qk.messages(m.chatJid), (old) => {
     if (!old || old.pages.length === 0) return old;
+    if (m.hidden)
+      return {
+        ...old,
+        pages: old.pages.map((p) =>
+          p.messages.some((x) => sameMessage(x, m))
+            ? { ...p, messages: p.messages.filter((x) => !sameMessage(x, m)) }
+            : p,
+        ),
+      };
     let found = false;
     const pages = old.pages.map((p) => {
       if (!p.messages.some((x) => sameMessage(x, m))) return p;
@@ -298,9 +327,9 @@ function currentUser(qc: QueryClient): User | null {
   return qc.getQueryData<User | null>(qk.me) ?? null;
 }
 
+/** A random UUID, also on a plain-http LAN page (see `randomUuid`). */
 export function newClientId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return randomUuid();
 }
 
 function optimisticMessage(
@@ -421,9 +450,11 @@ export function useLogout() {
         if (!(e instanceof ApiError && e.status === 401)) throw e;
       }
     },
-    onSettled: () => {
+    onSettled: async () => {
       qc.clear();
       qc.setQueryData(qk.me, null);
+      // Photos, files and the saved chat list stay on a shared phone otherwise.
+      await clearUserCaches();
     },
   });
 }
@@ -455,9 +486,18 @@ export function useChangePassword() {
 // Chats & messages
 // ---------------------------------------------------------------------------
 
-export function useChats(filters: ChatFilters) {
+/**
+ * `holdCached`: while true, a list that is already on screen (kept from the last visit or loaded
+ * earlier) does not refresh; a list with nothing to show still loads at once. The realtime
+ * connection sets it until it joins, because joining reloads every list (one load, not two).
+ */
+export function useChats(filters: ChatFilters, opts: { holdCached?: boolean } = {}) {
+  const { holdCached = false } = opts;
+  const qc = useQueryClient();
+  const onScreen = holdCached && qc.getQueryData(qk.chats(filters)) !== undefined;
   return useInfiniteQuery({
     queryKey: qk.chats(filters),
+    enabled: !onScreen,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => {
       const p = new URLSearchParams();
@@ -482,10 +522,12 @@ export function useChat(jid: string | null | undefined) {
 }
 
 /** Admin → Reports for the last 7, 30 or 90 days (admins only). */
-export function useReport(days: ReportPeriod) {
+/** `inbox` null = every inbox together. */
+export function useReport(days: ReportPeriod, inbox: number | null = null) {
+  const scope = inbox === null ? '' : `&inbox=${inbox}`;
   return useQuery({
-    queryKey: qk.report(days),
-    queryFn: ({ signal }) => api(`/reports?days=${days}`, { schema: Report, signal }),
+    queryKey: qk.report(days, inbox),
+    queryFn: ({ signal }) => api(`/reports?days=${days}${scope}`, { schema: Report, signal }),
     staleTime: 60_000,
   });
 }
@@ -494,6 +536,15 @@ export function useOpenChatCount() {
   return useQuery({
     queryKey: qk.openChatCount,
     queryFn: ({ signal }) => api('/chats/open-count', { schema: OpenChatCountResponse, signal }),
+  });
+}
+
+/** App navigation: open chats with unread messages the user may open (kept live by the chat socket events). */
+export function useUnreadChatCount() {
+  return useQuery({
+    queryKey: qk.unreadChatCount,
+    queryFn: ({ signal }) =>
+      api('/chats/unread-count', { schema: UnreadChatCountResponse, signal }),
   });
 }
 
@@ -534,6 +585,11 @@ export function useMessages(jid: string | null | undefined) {
   });
 }
 
+/** Where a quoted message sits in its chat (`found: false`: not in our records for this chat). */
+export function locateMessage(jid: string, id: string): Promise<MessageLocateResponse> {
+  return api<MessageLocateResponse>(`/chats/${enc(jid)}/messages/${enc(id)}/locate`);
+}
+
 /** Flatten MessagesData into ascending order. */
 export function flattenMessages(data: MessagesData | undefined): Message[] {
   if (!data) return [];
@@ -549,7 +605,7 @@ export interface SendTextInput {
   mentions?: string[];
   /** The text as the box showed it (`@Name`), for the pending bubble until the server answers. */
   shown?: string;
-  /** Generate with `newClientId()` (crypto.randomUUID). */
+  /** Generate with `newClientId()` (a random UUID). */
   clientId: string;
 }
 
@@ -601,6 +657,27 @@ export interface SendMediaInput {
   quotedId?: string;
   /** A recorded Ogg/Opus voice note: sent as a WhatsApp voice note, never with a caption. */
   voiceNote?: boolean;
+  /** A video above the number's video limit goes as a file (a document, full quality). */
+  asFile?: boolean;
+}
+
+/** 413 answers of the media upload that the failed bubble words itself. */
+const SIZE_REFUSALS: ReadonlySet<string> = new Set([
+  'too_large',
+  'too_large_as_video',
+  'too_large_for_whatsapp',
+]);
+
+/**
+ * The error a failed upload's bubble keeps: WhatsApp's size refusals by code, a 413 that is not ours
+ * (Cloudflare's tunnel limit answers without our JSON) as `tunnel_too_large`, else the message.
+ */
+export function uploadFailure(e: unknown): string {
+  if (e instanceof ApiError && e.status === 413) {
+    if (SIZE_REFUSALS.has(e.code)) return e.code;
+    if (e.code === 'http_413') return 'tunnel_too_large';
+  }
+  return e instanceof Error ? e.message : 'Upload failed';
 }
 
 export function useSendMedia(jid: string) {
@@ -612,11 +689,15 @@ export function useSendMedia(jid: string) {
         ...(input.caption ? { caption: input.caption } : {}),
         ...(input.quotedId ? { quotedId: input.quotedId } : {}),
         ...(input.voiceNote ? { voiceNote: '1' as const } : {}),
+        ...(input.asFile ? { asFile: '1' as const } : {}),
       };
       const form = new FormData();
       for (const [key, value] of Object.entries(fields)) form.append(key, value);
       form.append('file', input.file, input.file.name);
-      return api<Message>(`/chats/${enc(jid)}/media`, { method: 'POST', form });
+      const done = () => setUploadProgress(input.clientId, null);
+      return apiUpload<Message>(`/chats/${enc(jid)}/media`, form, (share) =>
+        setUploadProgress(input.clientId, share),
+      ).finally(done);
     },
     onMutate: (input) => {
       const mime = input.file.type;
@@ -657,7 +738,8 @@ export function useSendMedia(jid: string) {
         { id: `local-${input.clientId}`, clientId: input.clientId },
         {
           status: 'failed',
-          error: e instanceof Error ? e.message : 'Upload failed',
+          // WhatsApp's size refusals keep their code: the bubble words them (MessageBubble).
+          error: uploadFailure(e),
         },
       );
     },
@@ -919,6 +1001,28 @@ export function usePatchUser() {
     mutationFn: ({ id, patch }: { id: number; patch: PatchUserBody }) =>
       api<User>(`/users/${id}`, { method: 'PATCH', body: patch }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.users }),
+  });
+}
+
+/** Admins: an agent's "Chats this member can see" (`GET /api/users/:id/chats`). */
+export function useMemberChats(userId: number, opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: qk.memberChats(userId),
+    queryFn: () => api<MemberChatsResponse>(`/users/${userId}/chats`),
+    enabled: opts.enabled ?? true,
+  });
+}
+
+/** Admins: replaces it (`PUT /api/users/:id/chats`); the members list and assign dropdowns follow. */
+export function useSetMemberChats() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, body }: { userId: number; body: SetMemberChatsBody }) =>
+      api<MemberChatsResponse>(`/users/${userId}/chats`, { method: 'PUT', body }),
+    onSuccess: (data, { userId }) => {
+      qc.setQueryData(qk.memberChats(userId), data);
+      void qc.invalidateQueries({ queryKey: qk.users });
+    },
   });
 }
 

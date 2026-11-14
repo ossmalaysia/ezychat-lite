@@ -1,5 +1,5 @@
 import type { DB } from '../db/index.js';
-import { inboxCondition, localClock, localDate, localMidnight } from './stats.js';
+import { chatScope, localClock, localDate, localMidnight } from './stats.js';
 
 /** A customer message after this much silence in its chat starts a new conversation. */
 export const CONVERSATION_GAP_MS = 12 * 60 * 60 * 1000;
@@ -100,7 +100,7 @@ export function computeInboxActivity(
     .prepare(
       `SELECT m.chat_jid, m.from_me, m.sent_by_user_id, m.timestamp FROM messages m
        JOIN chats c ON c.jid = m.chat_jid
-       WHERE c.type = 'dm' AND ${inboxCondition('c', opts.inboxIds)} AND ${counted}
+       WHERE c.type = 'dm' AND ${chatScope('c', opts.inboxIds)} AND ${counted}
          AND m.timestamp >= ? AND m.timestamp <= ?
        ORDER BY m.chat_jid, m.timestamp, m.rowid`,
     )

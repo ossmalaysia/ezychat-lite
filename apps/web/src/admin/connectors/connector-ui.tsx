@@ -1,11 +1,14 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ExternalLink, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { ChevronRight, ExternalLink, Loader2, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { connectorText, type ConnectorEntry } from '@ezychat/shared';
 import { useConnectorGallery } from '../../api/connector-list';
 import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useAppLinks } from '@/lib/app-links';
 import { cn } from '@/lib/utils';
 import { useWebExtensions } from '../../extensions';
@@ -180,5 +183,100 @@ export function GoogleCalendarLink({
         <ExternalLink aria-hidden />
       </a>
     </Button>
+  );
+}
+
+/**
+ * One switch of a connector's per-agent settings ("Check free times", "Answer questions from the sheet"): label, an
+ * optional badge (e.g. "Changes your calendar"), a hint and a 44 px switch target; `children` shows
+ * under it (e.g. the tab to read).
+ */
+export function ToolSwitchRow({
+  id,
+  label,
+  hint,
+  badge,
+  tip,
+  checked,
+  disabled,
+  onCheckedChange,
+  children,
+}: Readonly<{
+  id: string;
+  label: string;
+  hint: string;
+  badge?: string;
+  /** An InfoTip after the label (what a risky switch does). */
+  tip?: ReactNode;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  children?: ReactNode;
+}>) {
+  return (
+    <div className="flex flex-col gap-3 px-3 py-3">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <span className="flex flex-wrap items-center gap-2">
+            <Label htmlFor={id}>{label}</Label>
+            {badge && <Badge variant="secondary">{badge}</Badge>}
+            {tip}
+          </span>
+          <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
+        </div>
+        <Label htmlFor={id} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+          <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+        </Label>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * While Google's file picker is open in another window (Google Sheets, Google Drive): what is
+ * happening, a link to open it again (the browser may have blocked the window) and Cancel.
+ */
+export function PickerWaiting({
+  testId,
+  title,
+  hint,
+  url,
+  blocked,
+  openLabel,
+  sameComputer,
+  onCancel,
+}: Readonly<{
+  testId: string;
+  title: string;
+  hint: string;
+  url: string;
+  blocked: boolean;
+  openLabel: string;
+  sameComputer: string;
+  onCancel: () => void;
+}>) {
+  const { t } = useTranslation('admin');
+  return (
+    <output
+      className="flex flex-col items-start gap-3 rounded-lg border px-3 py-3"
+      data-testid={testId}
+    >
+      <p className="flex items-center gap-2 text-sm font-medium">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+        {title}
+      </p>
+      <p className="text-sm text-muted-foreground">{hint}</p>
+      <Button asChild size="touch" variant={blocked ? 'default' : 'outline'}>
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          {openLabel}
+          <ExternalLink aria-hidden />
+        </a>
+      </Button>
+      <p className="text-sm text-muted-foreground">{sameComputer}</p>
+      <Button size="touch" variant="ghost" onClick={onCancel}>
+        {t('connectors.gc.cancelSignIn')}
+      </Button>
+    </output>
   );
 }
