@@ -238,9 +238,15 @@ describe('a "yes" carrying new facts never resolves', () => {
     expect(guardResolution(ask, 5, text)).toEqual(ask);
   });
 
-  it.each(['Yes thanks', 'Ok noted, yes that answers it. Thank you!', 'ok', '谢谢'])(
-    'a plain confirmation carries no new facts: %s',
-    (text) => expect(addsNewFacts(text)).toBe(false),
+  it.each([
+    'Yes thanks',
+    'Ok noted, yes that answers it. Thank you!',
+    'ok',
+    '谢谢',
+    'thanks a lot',
+    'Thanks again, much appreciated!',
+  ])('a plain confirmation carries no new facts: %s', (text) =>
+    expect(addsNewFacts(text)).toBe(false),
   );
 
   it('never announces closing the chat', () => {
