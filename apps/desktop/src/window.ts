@@ -17,6 +17,7 @@ import { registerInboxNotifications } from './notifications.js';
 import { externalLinkToOpen, inboxPermissionAllowed, isInboxUrl } from './window-security.js';
 import { activeProduct } from './product.js';
 import { registerContextMenu } from './context-menu.js';
+import { showWindow } from './window-show.js';
 
 const SAFE_PREFS = {
   contextIsolation: true,
@@ -140,7 +141,7 @@ export function createMainWindow(o: {
   registerInboxNotifications(win, o.baseUrl, o.icon);
   pinTitle(win, o.title);
   addDevShortcuts(win);
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => showWindow(win));
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);
     return { action: 'deny' };
@@ -223,7 +224,7 @@ export function createStatusWindow(o: {
     webPreferences: { ...SAFE_PREFS, preload: o.preload },
   });
   pinTitle(win, title);
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => showWindow(win));
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url);
     return { action: 'deny' };

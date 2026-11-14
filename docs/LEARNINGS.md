@@ -1789,6 +1789,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- Never start the app with `Start-Process -WindowStyle Hidden` or `windowsHide`: Windows applies that show state to the
+  app's first window, so the first `show()` leaves it invisible (measured: hidden start → invisible, a second `show()` →
+  visible). Windows the user must see go through `window-show.ts#showWindow` (shows again when still invisible). The
+  relaunch script is written by the OLD app, so a broker fix helps only from the next update; the app-side fix helps at once.
 - Never key a non-list query under `['chats', …]`: `upsertChatInCache` rewrites every query there as a chat list
   (`setQueriesData`). Give a count its own key (`qk.unreadChatCount`) and invalidate it in `refreshChats`, so it stays
   live with the list's 50 ms batch and no new socket event.
