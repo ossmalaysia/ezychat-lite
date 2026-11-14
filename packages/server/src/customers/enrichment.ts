@@ -221,6 +221,8 @@ export function createEnrichmentService(ctx: AppContext): EnrichmentService {
       !ready() ||
       chat.type !== 'dm' ||
       message.fromMe ||
+      // Forwarded text is someone else's words: a name, email or address in it is not the customer's own.
+      message.forwarded !== undefined ||
       !message.id ||
       message.id.length > 256 ||
       message.type !== 'text' ||

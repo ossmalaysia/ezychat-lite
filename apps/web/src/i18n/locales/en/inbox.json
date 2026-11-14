@@ -877,14 +877,54 @@
       "get_ai_context_item": "Business context",
       "get_ai_setup_history": "the setup history",
       "get_ai_setup_version": "an earlier setup",
+      "edit_ai_setup_text": "a draft change",
       "try_ai_reply_one": "{{count}} test reply",
       "try_ai_reply_other": "{{count}} test replies",
       "propose_ai_setup_change": "a suggested change",
-      "other": "your data"
+      "other": "your data",
+      "list_scheduled_tasks_one": "{{count}} scheduled task",
+      "list_scheduled_tasks_other": "{{count}} scheduled tasks",
+      "propose_agent": "a new agent plan",
+      "propose_scheduled_task": "a preview of the message",
+      "propose_scheduled_task_edit": "a change to a scheduled task"
     },
     "summariseButton": "Summarise with Ezy",
     "readyWith": "Answer ready: {{first}}",
-    "aboutChatSuffix": "about this chat"
+    "aboutChatSuffix": "about this chat",
+    "setup": {
+      "newAgent": "New agent",
+      "scheduledTask": "Scheduled task",
+      "changeTag": "Change",
+      "type": "Type",
+      "number": "Number",
+      "does": "Does",
+      "agent": "Agent",
+      "sendTo": "Send to",
+      "when": "When",
+      "instruction": "Instruction",
+      "preset": {
+        "sales": "Sales agent",
+        "faq": "FAQ agent",
+        "custom": "Custom agent"
+      },
+      "startsOff": "It starts switched off. Turn it on in Admin → Members when you are ready.",
+      "newSuffix": "{{name}} (new)",
+      "chatWithEnding": "{{name}} (…{{ending}})",
+      "whenZone": "{{schedule}} · {{zone}}",
+      "whenNext": "{{schedule}} · next: {{next}}",
+      "preview": "Preview (not sent)",
+      "applyBoth": "Apply both",
+      "created": "Created (switched off).",
+      "saved": "Saved.",
+      "savedOff": "Saved. It sends once the agent is on.",
+      "openAgent": "Open the agent",
+      "openTasks": "Open scheduled tasks",
+      "chatUnnamed": "Chat …{{ending}}",
+      "chatNoName": "Chat",
+      "agentStays": "Created. It stays, switched off: change it on its page.",
+      "agentNeedsTask": "What should the new agent send, to which chat, and when? A new agent is set up together with its scheduled task.",
+      "previewNotReady": "The preview took too long, so it is not shown. The task works the same."
+    }
   },
   "safety": {
     "title": {

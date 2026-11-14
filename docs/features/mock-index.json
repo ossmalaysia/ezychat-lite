@@ -16,8 +16,18 @@
   },
   "proposals": [
     {
-      "feature": "chat-hide-delete",
+      "feature": "ai-completion-rate",
       "creationOrder": 42,
+      "createdAt": "2026-11-13",
+      "design": "docs/workbooks/feat__ai-completion-rate.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock folder (one card on the Reports page; the owner confirmed a quick review page with screenshots at 1280/360, light and dark, 2026-11-13: \"ok go ahead\"): the Design section of the workbook and the refreshed docs/screenshots/reports shots.",
+      "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
+    },
+    {
+      "feature": "chat-hide-delete",
+      "creationOrder": 44,
       "createdAt": "2026-11-12",
       "design": "docs/features/chat-hide-delete/design.md",
       "mock": "docs/features/chat-hide-delete/mock/index.html",
@@ -25,7 +35,7 @@
       "confirmedAt": "2026-11-12",
       "confirmation": "Owner (Jazz) confirmed the quick mock and rules on 2026-11-12 (\"look good\"); the owner chose a quick mock with screenshots instead of a full app clone.",
       "coverage": "Quick mock only (not an app clone): Log out dialog, Admin -> WhatsApp after Log out with the hidden count, chat menu with Delete chat, Delete chat dialog, list after delete; 1280/360, light/dark (mock/shots.mjs, mock/screens/).",
-      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Prunes new-chat (37); template-store stays (live tooling)."
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Numbered 44 when merged after ai-completion-rate (42) and app-navigation (43). Prunes new-chat (37); template-store stays (live tooling)."
     },
     {
       "feature": "ai-silent-line",

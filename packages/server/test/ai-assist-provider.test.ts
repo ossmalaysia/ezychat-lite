@@ -102,4 +102,41 @@ describe('provider assist (network mocked, no real model)', () => {
     ).rejects.toThrow('Add a Claude API key');
     await provider.shutdown();
   });
+
+  it('ChatGPT sign-in: a setup turn (main) uses the saved main model with its own reasoning', async () => {
+    seedTokens(t.ctx);
+    const fetchMock = vi.fn(async (url: unknown) =>
+      String(url).startsWith(CODEX_BACKEND.modelsUrl)
+        ? new Response(JSON.stringify({ models: [] }))
+        : answerText(JSON.stringify(OUTPUT)),
+    );
+    const provider = new DirectChatGptProvider(t.ctx, { fetch: fetchMock as typeof fetch });
+    const result = await provider.assist(
+      { ...CHATGPT_SETTINGS, model: 'gpt-6-astra' },
+      null,
+      { ...call, main: true },
+      new AbortController().signal,
+    );
+    expect(result.model).not.toBe('gpt-6-luna');
+    const sent = fetchMock.mock.calls.filter((c) => c[0] === CODEX_BACKEND.responsesUrl);
+    const body = JSON.parse(String((sent[0] as unknown as [unknown, RequestInit])[1].body));
+    expect(body.model).toBe(result.model);
+    expect(body.reasoning?.effort).not.toBe('low');
+    await provider.shutdown();
+  });
+
+  it('API key mode: a setup turn uses the saved model, a normal turn the fast one', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => openAiAnswer(JSON.stringify(OUTPUT))),
+    );
+    const provider = new DirectChatGptProvider(t.ctx, {});
+    const settings = { ...CHATGPT_SETTINGS, mode: 'api' as const, model: 'gpt-5.5' };
+    const signal = new AbortController().signal;
+    const main = await provider.assist(settings, 'sk-test', { ...call, main: true }, signal);
+    expect(main.model).toBe('gpt-5.5');
+    const fast = await provider.assist(settings, 'sk-test', call, signal);
+    expect(fast.model).not.toBe('gpt-5.5');
+    await provider.shutdown();
+  });
 });

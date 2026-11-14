@@ -121,9 +121,14 @@ export function computeReport(db: DB, opts: Options): Report {
       }
     });
 
+  const aiCases = closedAiChats(db, scope, previousFrom, now, (since) =>
+    auditRows('ai.handoff', since, now + 1),
+  );
+
   const totalsOf = (start: number, end: number, medianFirstReplyMinutes: number | null) => {
     const window = messages.filter((m) => m.at >= start && m.at < end);
     const newOnes = starters.filter((s) => s.at >= start && s.at < end);
+    const closed = aiCases.filter((c) => c.at >= start && c.at < end);
     return {
       newCustomers: newOnes.length,
       messagesIn: window.filter((m) => m.fromMe === 0).length,
@@ -136,6 +141,10 @@ export function computeReport(db: DB, opts: Options): Report {
       aiAnswered: (aiReplies.get(start, end) as { n: number }).n,
       aiResolved: auditRows('ai.resolve', start, end).length,
       aiHandoffs: auditRows('ai.handoff', start, end).length,
+      aiClosed: closed.length,
+      aiCompleted: closed.filter((c) => c.outcome === 'completed').length,
+      aiClosedAfterHandoff: closed.filter((c) => c.outcome === 'handoff').length,
+      aiClosedAfterReply: closed.filter((c) => c.outcome === 'reply').length,
     } satisfies ReportTotals;
   };
 
@@ -166,12 +175,96 @@ export function computeReport(db: DB, opts: Options): Report {
     totals,
     previous,
     waitingAfterHandoff: waitingAfterHandoff(db, scope, only),
+    aiOpen: openAiChats(db, scope, from),
     ...dayBuckets(starts, firstAt, timeZone, messages, starters),
     handoffReasons: [...reasons]
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
     team: teamRows(db, activity.responders),
   };
+}
+
+/** An AI agent's own reply: not a scheduled message, which no customer asked for. */
+const AI_REPLY = `m.from_me = 1 AND ${COUNTED} AND m.scheduled_task_id IS NULL
+  AND m.sent_by_user_id IN (SELECT id FROM users WHERE kind = 'ai')`;
+/** A reply from a person: a teammate in the app, or the linked phone itself (no sender). */
+const PERSON_REPLY = `m.from_me = 1 AND ${COUNTED}
+  AND (m.sent_by_user_id IS NULL OR m.sent_by_user_id NOT IN (SELECT id FROM users WHERE kind = 'ai'))`;
+
+type AiCase = { at: number; outcome: 'completed' | 'handoff' | 'reply' };
+
+/**
+ * Every close (`resolved` event, by the AI or a person) of a direct chat in `[from, now]` where the AI replied since
+ * the chat's previous close (one case). Completed = no hand-off in the case (the hand-off line may be the AI's first
+ * message) and no reply from a person after the AI's first reply. Known limits: the linked phone's own automatic
+ * messages (WhatsApp Business away or greeting) count as a person, and a hand-off recorded under a chat key that the
+ * identity migration later merged is not matched (as in `handoffReasons`).
+ */
+function closedAiChats(
+  db: DB,
+  scope: string,
+  from: number,
+  now: number,
+  handoffsSince: (since: number) => ReadonlyArray<{ chatJid: string; at: number }>,
+): AiCase[] {
+  const closes = db
+    .prepare(
+      `SELECT e.chat_jid AS chat, e.at AS at FROM chat_events e JOIN chats c ON c.jid = e.chat_jid
+       WHERE e.type = 'resolved' AND c.type = 'dm' AND ${scope} AND e.at >= ? AND e.at <= ?`,
+    )
+    .all(from, now) as Array<{ chat: string; at: number }>;
+  if (!closes.length) return [];
+  const previousClose = db.prepare(
+    `SELECT MAX(at) AS at FROM chat_events WHERE chat_jid = ? AND type = 'resolved' AND at < ?`,
+  );
+  const firstAiReply = db.prepare(
+    `SELECT MIN(m.timestamp) AS at FROM messages m
+     WHERE m.chat_jid = ? AND ${AI_REPLY} AND m.timestamp > ? AND m.timestamp <= ?`,
+  );
+  const personReplied = db.prepare(
+    `SELECT 1 FROM messages m WHERE m.chat_jid = ? AND ${PERSON_REPLY}
+     AND m.timestamp > ? AND m.timestamp <= ? LIMIT 1`,
+  );
+  const cases = closes.flatMap(({ chat, at }) => {
+    const since = (previousClose.get(chat, at) as { at: number | null }).at ?? 0;
+    const aiAt = (firstAiReply.get(chat, since, at) as { at: number | null }).at;
+    return aiAt === null ? [] : [{ chat, at, since, aiAt }];
+  });
+  if (!cases.length) return [];
+  // Hand-offs only from the oldest case start: not the whole audit history on every report.
+  const handoffsOf = new Map<string, number[]>();
+  for (const h of handoffsSince(Math.min(...cases.map((c) => c.since)))) {
+    const list = handoffsOf.get(h.chatJid);
+    if (list) list.push(h.at);
+    else handoffsOf.set(h.chatJid, [h.at]);
+  }
+  return cases.map(({ chat, at, since, aiAt }) => {
+    const handedOver = (handoffsOf.get(chat) ?? []).some((t) => t > since && t <= at);
+    const outcome: AiCase['outcome'] = handedOver
+      ? 'handoff'
+      : personReplied.get(chat, aiAt, at)
+        ? 'reply'
+        : 'completed';
+    return { at, outcome };
+  });
+}
+
+/**
+ * Open direct chats an AI agent still holds (assigned to it, so not handed over or taken by a teammate) and replied
+ * in since `from` and since their last close: not in the rate until they close.
+ */
+function openAiChats(db: DB, scope: string, from: number): number {
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM chats c WHERE c.type = 'dm' AND ${scope} AND c.status != 'resolved'
+         AND c.assigned_to IN (SELECT id FROM users WHERE kind = 'ai')
+         AND EXISTS (SELECT 1 FROM messages m WHERE m.chat_jid = c.jid AND ${AI_REPLY} AND m.timestamp >= ?
+           AND m.timestamp > COALESCE((SELECT MAX(e.at) FROM chat_events e
+             WHERE e.chat_jid = c.jid AND e.type = 'resolved'), 0))`,
+      )
+      .get(from) as { n: number }
+  ).n;
 }
 
 /** How long a counted report is reused: opening Reports or asking `get_stats` again costs nothing. */
@@ -349,9 +442,7 @@ function waitingAfterHandoff(
   );
   // The newest reply written by a person: a teammate in EzyChat or someone on the phone (no AI).
   const lastPersonReply = db.prepare(
-    `SELECT MAX(m.timestamp) AS at FROM messages m
-     WHERE m.chat_jid = ? AND m.from_me = 1 AND ${COUNTED}
-       AND (m.sent_by_user_id IS NULL OR m.sent_by_user_id NOT IN (SELECT id FROM users WHERE kind = 'ai'))`,
+    `SELECT MAX(m.timestamp) AS at FROM messages m WHERE m.chat_jid = ? AND ${PERSON_REPLY}`,
   );
   let count = 0;
   let oldestAt: number | null = null;

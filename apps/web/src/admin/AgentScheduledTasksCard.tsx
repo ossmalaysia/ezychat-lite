@@ -1,6 +1,6 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarClock, History, MoreVertical, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ScheduledPausedReason, ScheduledTask } from '@ezychat/shared';
@@ -48,6 +48,14 @@ export function AgentScheduledTasksCard({
   const [history, setHistory] = useState<ScheduledTask | null>(null);
   const [running, setRunning] = useState<ScheduledTask | null>(null);
   const [removing, setRemoving] = useState<ScheduledTask | null>(null);
+  // "Open scheduled tasks" (Ask Ezy) links to `#scheduled-tasks`: bring the card into view once it has loaded.
+  const { hash } = useLocation();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const loaded = !!q.data;
+  useEffect(() => {
+    if (hash === '#scheduled-tasks' && loaded)
+      cardRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [hash, loaded]);
 
   const body = () => {
     if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
@@ -176,7 +184,12 @@ export function AgentScheduledTasksCard({
   };
 
   return (
-    <Card className="gap-4" data-testid="agent-scheduled-tasks">
+    <Card
+      ref={cardRef}
+      id="scheduled-tasks"
+      className="scroll-mt-4 gap-4"
+      data-testid="agent-scheduled-tasks"
+    >
       <CardHeader>
         <CardTitle>{t('ai.scheduled.title')}</CardTitle>
         <CardDescription>{t('ai.scheduled.description', { name })}</CardDescription>

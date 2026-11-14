@@ -1,6 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { AskEzyRequest, type AskEzyEvent, type AskEzyStatus } from '@ezychat/shared';
+import {
+  AskEzyRequest,
+  AskEzySettingsUpdate,
+  type AskEzyEvent,
+  type AskEzySettings,
+  type AskEzyStatus,
+} from '@ezychat/shared';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
@@ -11,6 +17,8 @@ import { createAskEzyService } from '../ask-ezy/service.js';
 
 /** Questions a user may ask per minute (each one costs model usage). */
 export const ASK_EZY_PER_MINUTE = 20;
+/** An empty line this often while a question runs (proxies close a silent response). */
+export const ASK_EZY_KEEP_ALIVE_MS = 20_000;
 
 /**
  * Ask Ezy (design: docs/features/ask-ezy/design.md). Every signed-in user asks; the answer streams as NDJSON
@@ -38,23 +46,50 @@ export default async function askEzyRoutes(app: FastifyInstance, ctx: AppContext
       if (!reply.raw.writableFinished) cancel.abort();
     });
     let started = false;
+    const begin = () => {
+      if (started) return;
+      started = true;
+      reply.hijack();
+      reply.raw.writeHead(200, {
+        'content-type': 'application/x-ndjson; charset=utf-8',
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+      });
+    };
     const write = (event: AskEzyEvent) => {
-      if (!started) {
-        started = true;
-        reply.hijack();
-        reply.raw.writeHead(200, {
-          'content-type': 'application/x-ndjson; charset=utf-8',
-          'cache-control': 'no-store',
-          'x-content-type-options': 'nosniff',
-        });
-      }
+      begin();
       if (!reply.raw.writableEnded) reply.raw.write(JSON.stringify(event) + '\n');
     };
-    // An error before the first line (no connection, unknown chat) is a normal JSON error answer.
-    await service.ask(user, body, write, cancel.signal);
+    // A question may run for minutes (the admin's limit): an empty line every 20 s keeps proxies such as the
+    // Cloudflare tunnel (100 s without data) from closing it. The reader skips empty lines.
+    const keepAlive = setInterval(() => {
+      begin();
+      if (!reply.raw.writableEnded) reply.raw.write('\n');
+    }, ASK_EZY_KEEP_ALIVE_MS);
+    try {
+      // An error before the first line (no connection, unknown chat) is a normal JSON error answer.
+      await service.ask(user, body, write, cancel.signal);
+    } catch (error) {
+      if (!started) throw error;
+      write({ type: 'error', code: 'ai_unavailable' });
+    } finally {
+      clearInterval(keepAlive);
+    }
     if (!started) write({ type: 'error', code: 'ai_unavailable' });
     reply.raw.end();
   });
+
+  app.get(
+    '/ask-ezy/settings',
+    { preHandler: requireAdmin(ctx) },
+    async (): Promise<AskEzySettings> => service.settings(),
+  );
+  app.put('/ask-ezy/settings', { preHandler: requireAdmin(ctx) }, async (req) =>
+    service.updateSettings(parse(AskEzySettingsUpdate, req.body), {
+      userId: req.user!.id,
+      ip: clientIp(req),
+    }),
+  );
 
   const ChangeParams = z.object({
     id: z.string().min(1).max(64),
@@ -64,8 +99,6 @@ export default async function askEzyRoutes(app: FastifyInstance, ctx: AppContext
     const { id, action } = parse(ChangeParams, req.params);
     const user = req.user!;
     const ip = clientIp(req);
-    if (action === 'apply') return service.changes.apply(id, user, ip);
-    if (action === 'discard') return service.changes.discard(id, user);
-    return service.changes.undo(id, user, ip);
+    return service.act(id, action, user, ip);
   });
 }
