@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   CreateInboxBody,
+  DreamTarget,
   FakeGroupBody,
   FakeIncomingBody,
   FakeLinkBody,
@@ -15,6 +16,7 @@ import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { HttpError, errors, parse } from '../http/errors.js';
 import { agentById } from '../ai/agents.js';
+import { DreamRepo } from '../ai/dream/repo.js';
 import {
   PRIMARY_INBOX_ID,
   chatKey,
@@ -299,6 +301,58 @@ export default async function devRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!agentById(ctx.db, agentId))
       throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
     return { runId: await dream.runNow(agentId) };
+  });
+
+  /** POST /api/dev/fake-dream-run: a finished night with the given waiting changes (e2e; no model, no checks). */
+  app.post('/dev/fake-dream-run', { preHandler: requireAdmin(ctx) }, async (req) => {
+    const body = parse(
+      z.object({
+        agentId: z.number().int().positive(),
+        changes: z
+          .array(
+            z.object({
+              target: DreamTarget,
+              itemId: z.number().int().positive().nullable().default(null),
+              name: z.string().nullable().default(null),
+              before: z.string(),
+              after: z.string(),
+              summary: z.string(),
+            }),
+          )
+          .max(5),
+      }),
+      req.body ?? {},
+    );
+    const agent = agentById(ctx.db, body.agentId);
+    if (!agent) throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
+    const repo = new DreamRepo(ctx.db);
+    const now = Date.now();
+    const runId = repo.claimRun(agent.id, now, now)!;
+    for (const c of body.changes)
+      repo.addChange(runId, agent.id, {
+        target: c.target,
+        itemId: c.itemId,
+        itemName: c.name,
+        before: c.before,
+        after: c.after,
+        summary: c.summary,
+        sourceMessageIds: [],
+        checks: [
+          { name: 'privacy', ok: true },
+          { name: 'replay', ok: true },
+        ],
+        status: 'waiting',
+        auto: false,
+        versionId: null,
+        createdAt: now,
+      });
+    const saved = body.changes.length;
+    repo.finishRun(
+      runId,
+      { status: 'done', reason: null, chatsRead: saved, takeovers: saved, saved, dropped: 0 },
+      now,
+    );
+    return { runId };
   });
 
   /** POST /api/dev/fake-window: moves a chat's last customer message to `hoursAgo` (open/close its window). */

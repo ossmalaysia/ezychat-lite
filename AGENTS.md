@@ -250,6 +250,25 @@ then `messages.sendText(…, { scheduledTaskId })`: never claims the chat, `mess
 audit `scheduled_task.*` never hold the instruction or text. Lite import copies tasks switched off, no runs. Web:
 `admin/AgentScheduledTasksCard.tsx`, `ScheduledTaskDialog.tsx`, `ScheduledRunsDialog.tsx`, `api/scheduled-tasks.ts`.
 
+**Dream mode** (design `docs/superpowers/specs/2026-11-14-dream-mode-design.md`, quick mock `docs/features/dream-mode/`,
+migration 045, `ai/dream/` (`repo.ts` is its only SQL), routes `/api/ai/agents/:agentId/dream*`, admins). Per agent, off by
+default: `ai_dream_settings` (enabled, `run_time` HH:MM in `ai_timezone`, `auto_apply`). `ai/dream/service.ts` ticks every
+60 s; a night (`UNIQUE(agent_id, slot)` in `ai_dream_runs`) runs once within 60 minutes of its time, later `missed`, never
+caught up; a night set up after it starts does not run; one run at a time; skipped when the gate is closed, the agent is
+off or `draftConnection()` is not ready. `ai/dream/collect.ts` reads the agent's direct take-over chats of the window (an
+`ai.handoff` audit row, or an `assigned` event with reason `reply` over the AI user, then a person's reply; at most 30, last
+20 messages): never forwarded messages (`forwarding_score`, owner rule), deleted/hidden, scheduled-task, Safety-flagged or
+still-checking, system rows or captionless media; names, emails and long numbers cleaned (`ai/customer-names.ts` +
+`cleanTeamReply`). One `draft` call per chat (`DREAM_LESSON_RULES`, Model for suggestions) → lessons that cite team
+messages and keep their numbers; one `draft` call on the main model (`DREAM_MERGE_RULES`) → at most 5 changes; Internal
+items never in the input. `ai/dream/checks.ts`: privacy, leak, grounding on the added lines, then Try-it previews with the
+proposed setup (`AiService.previewWithSetup`; `tryAnswer`'s server-only `items` field) of the source questions and up to 10
+questions the AI answered (40 previews a night); a change failing any check is dropped, never stored. Apply by itself only
+for `context_text`; Apply/Undo share `ai/setup-apply.ts` with Ask Ezy (409 `setup_changed` → `stale`), versions `via:
+'dream'`. Logs and audit (`dream.settings`, `dream.change.applied|dismissed|undone`) hold ids and counts only. Lite import
+copies settings switched off, no runs or changes. Dev: `POST /api/dev/dream-run`, `/api/dev/fake-dream-run`. Web:
+`admin/AgentDreamCard.tsx`, `DreamChangeDialog.tsx`, `api/dream.ts`.
+
 **AI in groups** (design `docs/features/ai-groups/design.md`). Off by default: `ai_agents.answer_groups` (agent page
 Groups card) and `ai_group_chats` per group (Group info switch), migration 024; routes `/api/ai/agents/:agentId/groups`,
 `/api/chats/:jid/ai-group`. `ai/groups.ts` answers only a live group message that tags the inbox's own JID/LID

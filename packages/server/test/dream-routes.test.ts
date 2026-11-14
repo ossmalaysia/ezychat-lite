@@ -180,6 +180,42 @@ describe('dream mode routes', () => {
     expect(s.repo.change(id)!.status).toBe('stale');
   });
 
+  it('seeds a finished night with given changes through the dev route (e2e, no model)', async () => {
+    const s = await setup();
+    const res = await s.t.app.inject({
+      method: 'POST',
+      url: '/api/dev/fake-dream-run',
+      headers: authHeaders(s.adminCookie),
+      payload: {
+        agentId: s.agent.id,
+        changes: [
+          {
+            target: 'context_text',
+            itemId: s.itemId,
+            before: 'Closed on weekends.',
+            after: 'Saturday 9 am to 1 pm.',
+            summary: 'Saturday hours',
+          },
+          {
+            target: 'handoff_rules',
+            before: 'Hand over refunds.',
+            after: 'Hand over refunds and complaints.',
+            summary: 'Complaints',
+          },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const history = (await s.call('GET', '')).json();
+    expect(history.runs[0]).toMatchObject({ status: 'done', saved: 2 });
+    expect(history.runs[0].changes.map((c: { status: string }) => c.status)).toEqual([
+      'waiting',
+      'waiting',
+    ]);
+    const applied = await s.call('POST', `/changes/${history.runs[0].changes[0].id}/apply`);
+    expect(applied.json()).toMatchObject({ status: 'applied' });
+  });
+
   it('answers 404 for a change of another agent or an unknown agent', async () => {
     const s = await setup();
     const id = s.change();
