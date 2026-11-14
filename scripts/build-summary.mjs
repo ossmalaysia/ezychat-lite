@@ -171,7 +171,10 @@ const MERGE_LONG = {
   DRAFT: '◐ draft',
 };
 const mergeText = (table, state) => table[state] ?? `· ${String(state).toLowerCase()}`;
-const reviewText = (open) => (open ? `✗ ${plural(open, 'open comment')}` : '✓ no open comments');
+const reviewText = (open) => {
+  if (open === null) return '? open comments not known';
+  return open ? `✗ ${plural(open, 'open comment')}` : '✓ no open comments';
+};
 
 /** Dev: the workbook's Dev entry when recorded, always with the PR state. */
 function devText(f, dev) {
@@ -251,8 +254,14 @@ function checkpointMarks(f) {
     mark(stages.E2E),
     devBuildState(stages['Dev Build'], f.devBuild).mark,
     mark(stages['Screen review']),
-    f.openComments ? `✗${f.openComments}` : '✓',
+    commentMark(f.openComments),
   ];
+}
+
+/** Review column: ✗n open comments, ✓ none, · not known. */
+function commentMark(open) {
+  if (open === null) return '·';
+  return open ? `✗${open}` : '✓';
 }
 
 /** What stops a feature from merging, in checkpoint order: { text, running }. */
@@ -372,88 +381,132 @@ export function resolveTool(
 const run = (tool, args) =>
   execFileSync(resolveTool(tool), args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
-const PR_FIELDS = `fragment pr on PullRequest {
-  number title headRefName headRefOid isDraft state mergeStateStatus mergedAt
-  commits(last: 1) { totalCount nodes { commit { statusCheckRollup { contexts(first: 30) { nodes {
-    ... on CheckRun { name status conclusion }
-  } } } } } }
-  reviewThreads(first: 100) { nodes { isResolved } }
-}`;
+const READ_LIMIT = { maxBuffer: 64 * 1024 * 1024 };
+const ghJson = (args) =>
+  JSON.parse(
+    execFileSync(resolveTool('gh'), args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...READ_LIMIT,
+    }),
+  );
 
-/** The GraphQL query: one PR by number, or the open PRs and the 3 most recently merged. */
-export function prQuery(number) {
-  const body = number
-    ? `one: pullRequest(number: ${Number(number)}) { ...pr }`
-    : [
-        'open: pullRequests(states: OPEN, first: 20, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { ...pr } }',
-        'merged: pullRequests(states: MERGED, first: 3, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { ...pr } }',
-      ].join('\n');
-  return `query($owner: String!, $name: String!) {\n  repository(owner: $owner, name: $name) {\n${body}\n  }\n}\n${PR_FIELDS}`;
+/** `owner/name` from a git remote URL (https, ssh or a local proxy path). */
+export function repoOf(url) {
+  const m = url.trim().match(/[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/);
+  return m ? `${m[1]}/${m[2]}` : null;
 }
 
-function fileAt(nameWithOwner, path, ref) {
+/** GraphQL state names from a REST pull request (the render code reads these). */
+const stateOf = (pr) => {
+  if (pr.merged_at) return 'MERGED';
+  return pr.state === 'open' ? 'OPEN' : 'CLOSED';
+};
+const upper = (value) => (typeof value === 'string' ? value.toUpperCase() : value);
+const resolvedOf = (thread) => thread.isResolved ?? thread.is_resolved ?? thread.resolved;
+
+/**
+ * Unresolved review threads: the cloud session's REST route `pulls/<n>/ccr/review_threads`, else
+ * GraphQL `reviewThreads`; null when neither answers (shown as unknown, never as "no comments").
+ */
+function openThreads({ api, graphql }, repo, number) {
+  let threads;
   try {
-    return run('gh', [
-      'api',
-      `repos/${nameWithOwner}/contents/${path}?ref=${ref}`,
-      '-H',
-      'Accept: application/vnd.github.raw',
-    ]);
+    const ccr = api(`repos/${repo}/pulls/${number}/ccr/review_threads`);
+    threads = Array.isArray(ccr) ? ccr : (ccr?.threads ?? ccr?.review_threads);
   } catch {
-    return null;
+    try {
+      threads = graphql(repo, number);
+    } catch {
+      threads = null;
+    }
   }
+  if (!Array.isArray(threads) || threads.some((t) => typeof resolvedOf(t) !== 'boolean'))
+    return null;
+  return threads.filter((thread) => !resolvedOf(thread)).length;
 }
 
-function toFeature(pr, nameWithOwner) {
-  const checks = pr.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? [];
-  const open = pr.state !== 'MERGED';
-  const workbook = open
-    ? fileAt(nameWithOwner, workbookPath(pr.headRefName).replaceAll('\\', '/'), pr.headRefOid)
-    : null;
-  const log = open ? fileAt(nameWithOwner, 'docs/dev-build-checks.md', pr.headRefOid) : null;
-  return {
-    number: pr.number,
-    title: pr.title,
-    branch: pr.headRefName,
-    state: pr.state,
-    isDraft: pr.isDraft,
-    mergedAt: pr.mergedAt,
-    commits: pr.commits.totalCount,
-    ci: ciSummary(checks.filter((check) => check.name)),
-    workbook: workbook ? parseWorkbook(workbook) : null,
-    devBuild: log
-      ? devBuildSummary(log, { number: pr.number, branch: pr.headRefName })
-      : { pass: 0, fail: 0 },
-    openComments: pr.reviewThreads.nodes.filter((thread) => !thread.isResolved).length,
-    mergeState: pr.mergeStateStatus,
-  };
+/** Features from the GitHub REST API: one PR by number, or the open PRs and the 3 most recently merged. */
+export function restFeatures(number, { api, graphql = () => null, fileAt, repo }) {
+  const list = number
+    ? [api(`repos/${repo}/pulls/${Number(number)}`)]
+    : [
+        ...api(`repos/${repo}/pulls?state=open&sort=updated&direction=desc&per_page=20`),
+        ...api(`repos/${repo}/pulls?state=closed&sort=updated&direction=desc&per_page=20`)
+          .filter((pr) => pr.merged_at)
+          .slice(0, 3),
+      ];
+  return list.map((item) => {
+    const merged = Boolean(item.merged_at);
+    // The list answer has no commit count or merge state: read the PR itself for those.
+    const pr = number || merged ? item : api(`repos/${repo}/pulls/${item.number}`);
+    const head = pr.head.sha;
+    const checks = merged
+      ? []
+      : (api(`repos/${repo}/commits/${head}/check-runs?per_page=100`).check_runs ?? []).map(
+          (check) => ({
+            name: check.name,
+            status: upper(check.status),
+            conclusion: upper(check.conclusion),
+          }),
+        );
+    const workbook = merged
+      ? null
+      : fileAt(repo, workbookPath(pr.head.ref).replaceAll('\\', '/'), head);
+    const log = merged ? null : fileAt(repo, 'docs/dev-build-checks.md', head);
+    return {
+      number: pr.number,
+      title: pr.title,
+      branch: pr.head.ref,
+      state: stateOf(pr),
+      isDraft: Boolean(pr.draft),
+      mergedAt: pr.merged_at ?? null,
+      commits: pr.commits ?? 0,
+      ci: ciSummary(checks.filter((check) => check.name)),
+      workbook: workbook ? parseWorkbook(workbook) : null,
+      devBuild: log
+        ? devBuildSummary(log, { number: pr.number, branch: pr.head.ref })
+        : { pass: 0, fail: 0 },
+      openComments: merged ? 0 : openThreads({ api, graphql }, repo, pr.number),
+      mergeState: upper(pr.mergeable_state) ?? 'UNKNOWN',
+    };
+  });
 }
 
+const THREADS_QUERY = `query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}`;
+
+/** Live features through `gh api` REST calls (`gh pr`/`gh repo view` need GraphQL, which cloud sessions block). */
 function features(number) {
-  const nameWithOwner = run('gh', [
-    'repo',
-    'view',
-    '--json',
-    'nameWithOwner',
-    '-q',
-    '.nameWithOwner',
-  ]).trim();
-  const [owner, name] = nameWithOwner.split('/');
-  const query = prQuery(number);
-  const data = JSON.parse(
-    run('gh', [
+  const repo = process.env.GH_REPO || repoOf(run('git', ['remote', 'get-url', 'origin']));
+  if (!repo) throw new Error('Cannot tell the repository: set GH_REPO=owner/name');
+  const fileAt = (nameWithOwner, path, ref) => {
+    try {
+      return run('gh', [
+        'api',
+        `repos/${nameWithOwner}/contents/${path}?ref=${ref}`,
+        '-H',
+        'Accept: application/vnd.github.raw',
+      ]);
+    } catch {
+      return null;
+    }
+  };
+  const graphql = (nameWithOwner, pr) => {
+    const [owner, name] = nameWithOwner.split('/');
+    return ghJson([
       'api',
       'graphql',
       '-f',
-      `query=${query}`,
+      `query=${THREADS_QUERY}`,
       '-F',
       `owner=${owner}`,
       '-F',
       `name=${name}`,
-    ]),
-  ).data.repository;
-  const prs = number ? [data.one].filter(Boolean) : [...data.open.nodes, ...data.merged.nodes];
-  return prs.map((pr) => toFeature(pr, nameWithOwner));
+      '-F',
+      `pr=${pr}`,
+    ]).data.repository.pullRequest.reviewThreads.nodes;
+  };
+  return restFeatures(number, { api: (path) => ghJson(['api', path]), graphql, fileAt, repo });
 }
 
 /** `record` arguments: stage, status and detail in order, plus --title and --sha anywhere. */

@@ -5,7 +5,8 @@ import {
   overviewRows,
   paint,
   parseRecordArgs,
-  prQuery,
+  repoOf,
+  restFeatures,
   resolveTool,
   parseWorkbook,
   renderFeature,
@@ -333,17 +334,133 @@ describe('review fixes', () => {
     expect(text).toMatch(/Dev\s+… web next {2}\(2026-10-08\) · PR open, 3 commits$/m);
   });
 
-  it('asks GitHub for a requested PR by number, not from the latest lists', () => {
-    expect(prQuery(42)).toContain('pullRequest(number: 42)');
-    expect(prQuery(42)).not.toContain('pullRequests(states');
-    expect(prQuery(null)).toContain('pullRequests(states: OPEN');
-  });
-
   it('runs gh and git from absolute paths, never a PATH lookup', () => {
     const exists = (path) => path === '/usr/bin/gh';
     expect(resolveTool('gh', {}, exists, 'linux')).toBe('/usr/bin/gh');
     expect(resolveTool('gh', { GH_PATH: '/opt/x/gh' }, () => true, 'linux')).toBe('/opt/x/gh');
     expect(() => resolveTool('gh', { GH_PATH: 'gh' }, () => true, 'linux')).toThrow(/absolute/);
     expect(() => resolveTool('git', {}, () => false, 'linux')).toThrow(/GIT_PATH/);
+  });
+});
+
+describe('restFeatures (REST only: cloud sessions block GraphQL)', () => {
+  const R = 'acme/app';
+  const pr = (number, extra = {}) => ({
+    number,
+    title: `PR ${number}`,
+    state: 'open',
+    draft: false,
+    merged_at: null,
+    head: { ref: `feat/f${number}`, sha: `sha${number}` },
+    ...extra,
+  });
+  const fakeApi = (routes) => {
+    const calls = [];
+    const api = (path) => {
+      calls.push(path);
+      const answer = routes[path];
+      if (answer instanceof Error) throw answer;
+      if (answer === undefined) throw new Error(`unexpected ${path}`);
+      return answer;
+    };
+    return { api, calls };
+  };
+
+  it('reads open PRs, their details, checks, threads and files, plus the 3 newest merged', () => {
+    const merged = [1, 2, 3, 4].map((n) =>
+      pr(n, { state: 'closed', merged_at: `2026-11-1${n}T00:00:00Z` }),
+    );
+    const { api, calls } = fakeApi({
+      [`repos/${R}/pulls?state=open&sort=updated&direction=desc&per_page=20`]: [pr(9)],
+      [`repos/${R}/pulls?state=closed&sort=updated&direction=desc&per_page=20`]: [
+        pr(8, { state: 'closed' }),
+        ...merged,
+      ],
+      [`repos/${R}/pulls/9`]: pr(9, { commits: 4, draft: true, mergeable_state: 'behind' }),
+      [`repos/${R}/commits/sha9/check-runs?per_page=100`]: {
+        check_runs: [
+          { name: 'Test (ubuntu-latest)', status: 'completed', conclusion: 'success' },
+          { name: 'Test (windows-latest)', status: 'completed', conclusion: 'failure' },
+          { name: 'Test (macos-latest)', status: 'in_progress', conclusion: null },
+          { name: 'SonarCloud Code Analysis', status: 'completed', conclusion: 'neutral' },
+        ],
+      },
+      [`repos/${R}/pulls/9/ccr/review_threads`]: [{ is_resolved: false }, { is_resolved: true }],
+    });
+    const files = [];
+    const fileAt = (repo, path, ref) => {
+      files.push([repo, path, ref]);
+      return path === 'docs/dev-build-checks.md' ? '| 2026-11-14 | #9 | x | y | Pass. | — |' : null;
+    };
+    const list = restFeatures(null, { api, fileAt, repo: R });
+
+    expect(list.map((f) => [f.number, f.state])).toEqual([
+      [9, 'OPEN'],
+      [1, 'MERGED'],
+      [2, 'MERGED'],
+      [3, 'MERGED'],
+    ]);
+    expect(list[0]).toMatchObject({
+      branch: 'feat/f9',
+      isDraft: true,
+      commits: 4,
+      mergeState: 'BEHIND',
+      openComments: 1,
+      ci: { unit: { ubuntu: 'pass', windows: 'fail', macos: 'running' }, quality: 'skip' },
+      devBuild: { pass: 1, fail: 0 },
+      workbook: null,
+    });
+    expect(files).toContainEqual([R, 'docs/workbooks/feat__f9.md', 'sha9']);
+    // Merged PRs need no checks, threads or files.
+    expect(calls.filter((c) => c.includes('/pulls/1'))).toEqual([]);
+    expect(list[1]).toMatchObject({ openComments: 0, mergedAt: '2026-11-11T00:00:00Z' });
+  });
+
+  it('reads one requested PR by number without the lists', () => {
+    const { api, calls } = fakeApi({
+      [`repos/${R}/pulls/42`]: pr(42, { commits: 1, mergeable_state: 'clean' }),
+      [`repos/${R}/commits/sha42/check-runs?per_page=100`]: { check_runs: [] },
+      [`repos/${R}/pulls/42/ccr/review_threads`]: { threads: [] },
+    });
+    const [f] = restFeatures(42, { api, fileAt: () => null, repo: R });
+    expect(f).toMatchObject({ number: 42, mergeState: 'CLEAN', openComments: 0 });
+    expect(calls.some((c) => c.includes('state=open'))).toBe(false);
+  });
+
+  it('falls back to GraphQL threads, and reports unknown (null) when neither answers', () => {
+    const routes = {
+      [`repos/${R}/pulls/5`]: pr(5, { state: 'closed' }),
+      [`repos/${R}/commits/sha5/check-runs?per_page=100`]: { check_runs: [] },
+      [`repos/${R}/pulls/5/ccr/review_threads`]: new Error('404'),
+    };
+    const viaGraphql = restFeatures(5, {
+      api: fakeApi(routes).api,
+      graphql: () => [{ isResolved: false }, { isResolved: false }],
+      fileAt: () => null,
+      repo: R,
+    })[0];
+    expect(viaGraphql).toMatchObject({ state: 'CLOSED', openComments: 2, mergeState: 'UNKNOWN' });
+
+    const unknown = restFeatures(5, {
+      api: fakeApi(routes).api,
+      graphql: () => {
+        throw new Error('HTTP 403: GitHub GraphQL is not available');
+      },
+      fileAt: () => null,
+      repo: R,
+    })[0];
+    expect(unknown.openComments).toBeNull();
+    expect(renderFeature({ ...unknown, workbook: null })).toMatch(
+      /Review\s+\? open comments not known/,
+    );
+  });
+});
+
+describe('repoOf', () => {
+  it('reads owner/name from https, ssh and proxy remotes', () => {
+    expect(repoOf('https://github.com/acme/app.git')).toBe('acme/app');
+    expect(repoOf('git@github.com:acme/app.git\n')).toBe('acme/app');
+    expect(repoOf('http://127.0.0.1:1234/git/acme/app')).toBe('acme/app');
+    expect(repoOf('not a remote')).toBeNull();
   });
 });
