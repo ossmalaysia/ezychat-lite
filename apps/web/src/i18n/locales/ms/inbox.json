@@ -7,8 +7,7 @@
   },
   "page": {
     "chats": "Sembang",
-    "title": "Peti masuk",
-    "admin": "Admin",
+    "title": "Sembang",
     "version": "{{appName}} · v{{version}}",
     "selectTitle": "Pilih sembang",
     "selectDescription": "Pilih perbualan daripada senarai untuk membaca dan membalas sebagai satu pasukan."
@@ -85,6 +84,19 @@
     "groupMembers_other": "Kumpulan · {{count}} ahli",
     "openGroupInfo": "Buka maklumat kumpulan untuk {{name}}",
     "openCustomer": "Buka butiran pelanggan untuk {{name}}"
+  },
+  "deleteChat": {
+    "more": "Tindakan sembang",
+    "action": "Padam sembang",
+    "title": "Padam sembang ini?",
+    "messages_one": "{{count}} mesej",
+    "messages_other": "{{count}} mesej",
+    "files_one": "{{count}} fail",
+    "files_other": "{{count}} fail",
+    "body": "Dipadam daripada {{product}} untuk selamanya. Telefon WhatsApp anda menyimpan salinannya. Sandaran menyimpannya sehingga 7 hari.",
+    "confirm": "Padam sembang",
+    "done": "Sembang dipadam",
+    "failed": "Tidak dapat memadam sembang ini."
   },
   "conversation": {
     "loading": "Memuatkan sembang",

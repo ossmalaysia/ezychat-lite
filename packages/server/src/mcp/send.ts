@@ -15,6 +15,7 @@ import { audit } from '../db/audit.js';
 import { HttpError } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { scopeFor, scopeIds } from '../inboxes/access.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { chatKey, inboxOfKey } from '../inboxes/keys.js';
 import { WINDOW_CLOSED } from '../inboxes/reply-window.js';
 import { capabilitiesOf } from '../inboxes/types.js';
@@ -310,7 +311,11 @@ export function createInboxSendPort(
   const newNumbers = new WindowLimiter({ ...SEND_LIMITS.newNumbersPerDay, now: deps?.now });
 
   /** The existing chat of a JID or chat key (phone number or WhatsApp ID), or null. */
-  const existing = (jid: string) => chats.get(chats.resolveJid(jid));
+  const existing = (jid: string) => {
+    const chat = chats.get(chats.resolveJid(jid));
+    // a chat hidden on Log out does not exist: never sent to
+    return chat && !isChatHidden(ctx.db, chat.jid) ? chat : null;
+  };
 
   /**
    * The inbox a new number is messaged from: `inboxId` when the owner may open that active inbox,

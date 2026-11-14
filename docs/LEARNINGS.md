@@ -258,6 +258,10 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
   failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
 - Hunting an e2e flake with `--repeat-each` shares one signed-in user and one server: a per-user rate limit (reactions: 30 a minute) turns the repeats into 429s that look like the flake. Read the failing trace's `.network` for 4xx before blaming timing; cap repeats so the user's requests stay under the limit.
+- A screen change ships with at least one e2e spec that clicks it, not only component tests: the "?" tips
+  (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
+  no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
+  value it found in `finally`.
 
 ## Multi-agent process
 
@@ -333,6 +337,18 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - The Stop hook commits on every stop while subagents write: snapshot commits during parallel work carry `[skip ci]` so CI and its failure notices don't fire on half-written code; SonarCloud still runs on them, so read its issue list only on the integrated head.
 
 ## Git, GitHub and CI
+
+- Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
+  Merge them into one combined branch one by one (typecheck after each), run the full checks once, open one PR. After
+  a line-by-line union of CHANGELOG, move every PR's entries back under `[Unreleased]`: a PR cut before a release
+  lands its lines in the released section. Two PRs may take the same migration number: keep the one already applied
+  on an owner install and renumber the other (file, its `repo.ts` comment, AGENTS.md, the lite-import test). A typecheck per
+  merge is not enough: run the full unit suite on the combined branch (each PR passed alone, yet #347's new chat-keyed
+  `github_activity` was missing from #352's `chats/delete.ts` plan, caught only by `chat-delete-coverage.test.ts`).
+- An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
+  renumber or change them on that branch (later parts take the next number), or the official release cannot
+  upgrade that install. Build such an installer from a clean worktree of one commit, never from a folder another
+  agent is editing, and give it a prerelease version below the next release (`0.1.32-dev.1`).
 
 - A test that scans the whole repository does it in one native call (`git grep`), not file by file in JS: the
   read loop passed locally and timed out at 5 s on a busy macOS runner.
@@ -410,6 +426,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
   bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` in any code (server and web too, even of string ids) a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
   names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
+- `release-review.mjs --approve` writes two files that must be committed, and that push starts CI again (~15 min)
+  before the final merge check can say MERGE OK: when the owner is likely to approve, push every other docs commit
+  first, and tell the owner the merge waits for that CI run. Commit exactly the two paths it prints: without a
+  feature folder the entry goes to `docs/release-review/log.md`, not a `review.md` (a name filter missed it once).
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
@@ -487,6 +507,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   change to any `e2e/*.mjs` file counts as test code too: a one-line SonarCloud fix in an eval script after the checks
   cancelled the e2e, Dev Build and screen proofs. Read SonarCloud's findings on new scripts (taint rules such as S5145
   flag any server value in `console.log`; print fixed texts) before the final checks, not after.
+- Two open PRs that both add to `CHANGELOG.md`, `docs/LEARNINGS.md` or `docs/dev-build-checks.md` conflict as soon as one
+  merges: merge `main` into the other (never rebase a reviewed PR; a merge of `main` keeps its proofs), keep both
+  sides, and expect one more CI run before its MERGE OK. Merge the PR whose CI is already green first.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
@@ -646,7 +669,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `main`, run `npm run version:sync` before `npm install --package-lock-only`, or npm looks the old
   version up on the registry (404). Different npm versions flip dozens of `"peer": true` lines in the
   lockfile at each release and can drop optional packages (`@napi-rs/canvas` for pdfjs): keep `main`'s
-  lockfile and change only the `@ezychat/*` version strings (`docs/release.md` step 1; about 22 lines). Stop the owner test env Dev Build (and every process
+  lockfile and change only the `@ezychat/*` version strings (`docs/release.md` step 1; about 22 lines). When a merge
+  must re-resolve the lockfile (Dependabot conflicts), write it with CI's npm: `npx -y npm@10.9.9 install
+--package-lock-only` (CI runs Node 22 / npm 10.9.9); npm 11 on this PC left out `@emnapi/*` and CI's `npm ci` refused
+  ("Missing … from lock file"). Check with `npx -y npm@10.9.9 ci --dry-run --ignore-scripts`. To hold a package back below what a
+  tool accepts (vitest takes any jsdom), pin it in the root `overrides`: a version only in one workspace leaves npm
+  free to hoist the newest at the root, and the tests load that one. Stop the owner test env Dev Build (and every process
   running from `node_modules`) before `npm ci`: a locked `esbuild.exe` makes it fail with EPERM after it
   deleted half of `node_modules`.
 - After merging `main` (and before a release), check `CHANGELOG.md` `[Unreleased]` for duplicate
@@ -743,6 +771,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- The web app's main file sits near the PWA precache limit: `vite build` fails with "Assets exceeding the limit" when
+  `assets/index-*.js` passes `maximumFileSizeToCacheInBytes` (3 MiB since 2026-11-14, 2.13 MB used). Check the size of
+  that file after adding a page; split rarely used areas with `React.lazy` rather than raising the limit again.
+- Dependabot `@ai-sdk/openai` / `@ai-sdk/anthropic` bumps fail the typecheck alone (LanguageModelV4 mismatch): take them
+  with the matching `ai` bump. A major version inside a Dependabot group (jsdom 31) can pass the typecheck and break
+  tests: run the failing test files and hold back that one package, not the whole group.
+- On Windows `git worktree remove --force` can unregister a worktree and still leave its folder (`node_modules`):
+  check `git worktree list`, then delete the leftover folder if it is yours.
 - Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
   replacement silently turned `/…\d{4}/` into `/…d{4}/`. After any `sed` on code, read the changed line back.
 
@@ -823,6 +859,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   from disk (`setInputFiles`, about 70 s per file); a tab that reports viewport 0x0 or times out on screenshots is in
   a hidden window, so open a new tab. Other vendors: the false-positive contact list in the
   Google Threat Intelligence (VirusTotal) docs.
+- McAfee's form often answers the report right after a successful one with "Time out! Please refresh the page and
+  submit." (nothing was sent; the script then stops on its 480 s wait). Read `after.png` before any rerun, then rerun
+  the same command: `results.json` skips what went out. From a Mac, `mcafee-submit.mjs --only mac-arm64,mac-x64`
+  checks the app inside each `.dmg` and only then names the Developer ID and notarization in the report.
+- A GitHub release asset can answer 504 on its `releases/download/...` link for one file while the asset API
+  (`Accept: application/octet-stream`) serves it and its digest matches; re-uploading with `--clobber` did not help and
+  the link recovered by itself within about 15 minutes. That link is what the in-app updater downloads, so after a
+  release probe every versioned file (`curl -r 0-100`, expect 206) and recheck a failing one before re-uploading.
 - An antivirus that blocks the update installer (Windows Update helper `helper-error.log`: "the file contains a virus
   or potentially unwanted software") can leave `Program Files\<product>` empty: the rollback ran although nothing was
   replaced (`$replacementStarted` was set before `Start-Process`), and its `Remove-Item $installDir -Recurse` deleted
@@ -1021,9 +1065,17 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
+- `new URL(import.meta.url).pathname` gives `/D:/…` on Windows, so a cloned mock's seed or runner fails to find its
+  files: use `fileURLToPath(new URL(…, import.meta.url))` in every script that may run on the Windows dev machine.
 - In PowerShell, `git commit -F - @'…'@` passes the here-string as a pathspec, not stdin: the commit fails while the
   `git add` before it already staged its files. Write multi-line commit messages with a Bash heredoc (`-F - <<'EOF'`)
   or `-m` per paragraph, and run `git add` and `git commit` of one change together.
+- Git Bash's `/tmp` is not the folder Node opens (`/tmp/x` in Node is `D:\tmp\x`): pass temp files to Node with a
+  Windows path in the scratchpad. Never put `;` after an `&&` chain whose first step can fail before a `git commit`: a
+  failed conflict-resolution script still let `git add && git commit` record a merge with conflict markers. Check
+  `git grep -nE '^(<{7,8}|>{7,8})( |$)'` before every commit that ends a merge.
+- The Cloudflare Workers log tool fails on the events view (`requestId` schema error); the calculations view with a
+  count grouped by `$metadata.message` works and shows which webhook paths ran.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
@@ -1126,6 +1178,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   or skipped with a reason; the coverage test fails otherwise. A branch with a migration runs
   `lite-import-merge*.test.ts` and `upgrade-from-oldest.test.ts` after every rebase, not only its own files. A failed hand-over after a committed merge restores the
   pre-import backup (`onCommitted` undo) so Lite and Enterprise never both keep one number.
+  Skipping a setting that owns something outside the app (a tunnel, a DNS record) strands it: move it when the
+  target has none (`merge-address.ts`) and release it in Lite in the hand-over itself, not in Lite's restore code
+  (an older Lite runs its own restore).
 - A read-only better-sqlite3 open of a stopped WAL database still creates `-wal`/`-shm` files: remove them afterwards
   when a folder must stay byte-identical (Lite's data during an import).
 - One-shot CLI commands that exit right away log through a synchronous pino destination; the rotating server logger
@@ -1263,6 +1318,15 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- A reconnect socket can hang with no `open`, no `close` and no error (seen after a 503 stream error: one number back in
+  4 s, the other stuck at "connecting" 1 h 45 min until a relink). Never rely on Baileys alone to end a connect
+  attempt: the adapter needs its own time limit that closes the attempt and schedules the next one.
+- A chat is keyed by inbox and customer (`chatKey(inboxId, waJid)`, unique `(inbox_id, wa_jid)`), never by our own
+  linked number: a different number linked into the same inbox writes into the old number's chat rows. Any feature
+  that treats "this number's chats" as a set (hide, archive, reports per number) needs its own number stamp or new
+  keys. Admin Log out and an unlink from the phone both end in the bridge's `logged_out` status; only the admin path
+  goes through `routes/wa.ts` and its audit row.
+
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
   app must make its own. The adapter's `raw` cache is memory only, so a later download goes
@@ -1285,6 +1349,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
   and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
   background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
+- A Baileys socket can hang after a reconnect with no open, no close and no error (1 h 45 min on a live service):
+  every connect attempt needs an adapter-level limit (`CONNECT_ATTEMPT_TIMEOUT_MS`) that closes it and reconnects,
+  cleared on open, QR, close and every stop. Never let it run while a QR or pairing code waits for a person.
 - A WhatsApp ERROR ack is not proof a message was not sent: in a group it is one ack for the whole message even when
   only some members' devices failed. A later delivered/read receipt overrides it, and a Retry of a message that has a
   WhatsApp id re-sends under that same id (`WaSendOptions.messageId`), never a new one: a new id is a second copy.
@@ -1402,6 +1469,16 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
   task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
   as "chat ownership changed".
+- A table with a `chat_jid` or message-id column also goes into `chats/delete.ts` `DELETE_PLAN` (Delete chat;
+  `chat-delete-coverage.test.ts` fails otherwise). A "remove every row of X" test can seed one row in every table
+  generically from `PRAGMA table_info` with `foreign_keys = OFF` and `ignore_check_constraints = ON` (`chat-delete.test.ts`).
+  A service that stores `deps.now ?? Date.now` keeps the original function, so `vi.spyOn(Date, 'now')` misses it: store
+  `() => Date.now()`.
+- A per-chat "does not exist" state (hidden on Log out) needs the SQL filter in every list and count, not only the
+  `canOpenChat` gate: admins and the AI get scope `'all'` and Lite's one-inbox shortcut skips membership. Readers use
+  `chats/hidden-sql.ts`; a socket emit for one chat goes through `toVisibleChat` and returns nothing instead of calling
+  `io.to([])` (an empty room list broadcasts to every socket). Code that copies or re-keys a `chats` row builds its
+  column list from `PRAGMA table_info`, and `chats/merge.ts` carries the hidden columns, so a later column is never lost.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and
@@ -1556,7 +1633,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   class and status for the log, or every cause looks like the same plain `Error`.
 - Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`, Enterprise
   `C:\ProgramData\ezychat-enterprise`) is admin-only; the owner's downloads land in `D:\Downloads` (read the
-  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). An `AI decision` with `toolCalls: []` where a
+  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). Read it with a read-only filter script started by
+  `Start-Process powershell -Verb RunAs -Wait` (the owner clicks Yes) that writes the matching lines there; filter by
+  `"inboxId":<n>` and close/reconnect messages with no per-file line cap (request lines flood any cap), and remember
+  each line appears twice (pino file + WinSW `out.log`). An `AI decision` with `toolCalls: []` where a
   connector tool was expected means the agent was not offered it: check that agent's own connector settings. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
   Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
@@ -1708,6 +1788,25 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A provider mode whose request format is undocumented for a content type (ChatGPT backend and PDFs) gets a text fallback, never a guessed part type.
 
 ## Desktop and web UI
+
+- Never key a non-list query under `['chats', …]`: `upsertChatInCache` rewrites every query there as a chat list
+  (`setQueriesData`). Give a count its own key (`qk.unreadChatCount`) and invalidate it in `refreshChats`, so it stays
+  live with the list's 50 ms batch and no new socket event.
+- A component added to an always-mounted shell (rail, tabs) runs in every test that renders `App`: hooks it uses
+  (`useUnreadChatCount`, `useAuth().isAdmin`, `user.displayName`, `DesktopUpdatePanel` via `AboutDialog`) must be in
+  those tests' mocks, or the ErrorBoundary hides the page and dozens of unrelated tests fail at once.
+- In a Playwright check, `waitForURL` resolves before React draws the new page: read `aria-current`, a dot or a
+  heading with a retrying `expect`/poll, never one `getAttribute`/`isVisible` right after the URL changes. The same
+  race hits `if (await locator.count())` right after `goto`: wait for the shell (`hasRail` in `e2e/helpers.ts`) first,
+  and use `openAccountItem` / `signOutFromInbox` instead of clicking the account menu (phones have none).
+- Login returns to `state.from`, the page where the session ended: a page where people sign out (`/account`) must
+  never be a return target (`safeFrom`), or the next person signs in to someone else's last page.
+- Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
+  new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
+  to iterate, then one full run decides.
+- In screen scripts, scope action buttons to the page content (`getByRole('main').getByRole('button', { name,
+exact: true })`): on admin pages a bare "Log out" also matches the account menu's sign-out, and `.first()` signs
+  the script out. A confirm dialog may be an `alertdialog`, so wait for either role.
 
 - The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
   `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
@@ -2103,6 +2202,9 @@ DB --remote && wrangler deploy`, other branches `wrangler versions upload`. A tr
 - A Quick Tunnel is Running only after URL assignment and edge registration.
 - Persist app-owned tunnel/DNS IDs first, retry only those, never overwrite foreign DNS or tunnels; fall
   back to the approved zone when zone listing is denied.
+- "Address already in use" on named-tunnel setup: read the CNAME's `<id>.cfargotunnel.com` and that
+  tunnel's `deleted_at` through the Cloudflare API first. Deleting a tunnel in the dashboard (or a new
+  data folder that lost the owned list) leaves the CNAME behind, and the app correctly refuses it.
 - Unknown named-tunnel hosts are allowed only on the validated loopback proxy path, identically for HTTP
   and Socket.IO.
 - Restoration and setup share one tracked operation gate; shutdown waits for it.

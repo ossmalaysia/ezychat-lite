@@ -464,6 +464,22 @@ amount owed comes only from `/customerinvoice` / `customer.outstanding`, said ex
 phone index reads each customer's `sdsbranch` in the background (one every 4 s). Logs and Activity: tool, ok, ms, ids only. `--fake-wa` swaps in
 `FakeSqlAccount` (`fake.ts`, checks SigV4 with `FAKE_SQL_ACCESS_KEY`/`FAKE_SQL_SECRET`; `/api/dev/fake-sql-account/*`).
 
+**GitHub** (design `docs/features/github/design.md`, beta, **Lite only** for now: outside Lite the service is not
+created, routes answer 404, no tools). Read only, issues and pull requests, never code. Sign-in (one per install, encrypted
+`github_auth`): Anchor Sprint's GitHub App "EzyChat by Anchor Sprint" through the device flow with only the public Client ID
+(`GITHUB_APP_CLIENT_ID` in `packages/shared/src/github.ts`; no client secret, no private key in the app), or a fine-grained
+token (`github_pat_` only, classic `gh[pousr]_` refused). Refresh needs no secret but revokes the old access token at once
+and the refresh token is single-use: one refresh at a time, save the new pair first, retry a 401 once.
+`connectors/github/` (`repo.ts` is its only SQL, migration 044, routes `/api/connectors/github/*`, admins): per agent ≤ 20
+repos + Issues / Pull requests switches. **Security invariant: a user token reads any public repo**, so `query.ts` is the
+boundary: every search query is rebuilt (every word with a colon, OR/AND/NOT, quotes and brackets dropped; `repo:` per
+allowed repo + `is:issue`/`is:pr` added), results from other repos are dropped, and every other call checks the repo
+against the agent's allowed and still-shared list. Tools `github_search_issues`, `github_list_issues`, `github_read_issue`
+(issues API, body ≤ 4,000, 5 latest comments ≤ 1,500 each), `github_search_pull_requests`; results ≤ 12,000 characters,
+data never instructions, ≤ 6 calls a turn, failures hand over (`lookup_failed`); allowed in Try it and groups. Logs never
+keep query words, titles, bodies, repo names or tokens. `--fake-wa` uses `FakeGitHub` (`/api/dev/fake-github*`) unless
+`EZYCHAT_GITHUB_REAL=1`.
+
 **Connector list** (design `docs/features/connector-list/design.md`). The gallery comes from a signed list published
 by the public repo `anchorsprint/ezychat-connectors` (one folder per connector: `connector.yaml`, `skill.md`,
 `icon.svg`; its CI validates, builds `list-v1.json`, signs it with Ed25519 and uploads it with the icons to
@@ -560,6 +576,38 @@ XHR, `lib/upload-progress.ts`). Through the tunnel the web refuses files above `
 100 MB) before uploading, and a 413 that is not ours becomes `tunnel_too_large`. 30 forwards a minute per user; audit
 `message.forwarded` {messageId, chatJids, messageIds}; logs ids and counts only. Web: `inbox/ForwardDialog.tsx`,
 ⋮ menu and touch bar **Forward**, the Forwarded line and "Sending … to WhatsApp" in `MessageBubble`.
+
+**Delete chat** (admins; design `docs/features/chat-hide-delete/design.md` Part B, migration 042). `DELETE /api/chats/:jid`
+(admin, `chatJidParam`, 30 a minute per admin, 204; `GET …/delete-preview` gives the dialog's counts) goes only through
+`chats/delete.ts#deleteChat`: it drops the chat's queued sends (`SendQueue.drop`) and AI work (`AiService.cancelChat`),
+then one transaction runs `DELETE_PLAN` (every chat-keyed and message-keyed table, then `chats`) and writes the tombstone
+`deleted_chats` (inbox, wa_jid, deleted_at); files (media paths, quarantine copies, the chat's photo) go after the commit,
+never one another message still points at. History sync (`ingest` 'history') and `chats.syncFromWa` (WhatsApp's chat list)
+never bring a deleted chat back or import its messages older than `deleted_at`; a live message starts a new chat. Never
+touches `contacts`, `jid_aliases`, `safety_numbers` or `audit_log`. A new table with a `chat_jid` or message-id column goes
+into `DELETE_PLAN` (`test/chat-delete-coverage.test.ts` fails otherwise). Audit `chat.deleted` {chatJid, messages, files};
+socket `chat:deleted` {jid} drops it from every web cache. Web: chat header ⋮ (admins) → `inbox/DeleteChatDialog.tsx`.
+
+**Hide chats on Log out** (design `docs/features/chat-hide-delete/design.md` Part A, migration 043). `chats/hide.ts` is the
+only code that hides, shows or archives. A `logged_out` status of an adapter with `WaCapabilities.qrLink` (the admin's Log
+out or Link again, which marks itself via `markAdminLogout`, or an unlink from the phone; never a connection drop, never an
+adapter the inbox already let go of on remove or type change) runs `hideInbox`: one transaction sets `chats.hidden_at` and
+`hidden_number` (digits of `inboxes.own_jid`) on every chat of the inbox, fails its pending sends (`LOGGED_OUT_MESSAGE`),
+then drops queued jobs and AI work; audit `chats.hidden_on_logout` {inboxId, count, via}; socket `chats:hidden` {inboxId}.
+Nothing is deleted; assignees stay (an unknown number, also not in the last status, is stored NULL and never archived).
+The bridge holds chat-list, message, reaction and edit events while chats are hidden and the new link's number is unknown
+(`linkDecided`, at most `HELD_EVENTS_MAX`), and on open (or the first event that carries the number) calls `onLinked`
+**before** saving the number: the same digits arm showing; other digits archive every hidden chat (re-keyed to `chatKey(inbox, '<wa_jid>~old<n>')` in
+`CHAT_TABLES` + `avatars`, one transaction, audit `chats.archived_on_relink`), so the new number starts empty; archived
+chats never come back. `showIfHidden` (WhatsApp's chat list in the bridge, every ingested message, New chat and a group
+member's Message) shows a chat again only for the armed number; audit `chats.shown_on_relink` {inboxId, count} once per
+30 s quiet period. A hidden chat does not exist for anyone: `canOpenChat`/`usersWhoCanOpenChat` (so every 404 route, push,
+hand-off), `requireSendable` (404), `ChatRepo.list`/`openCount`/`openChats`, `chatScope` (stats, activity, Reports), Safety
+lists, `linkedChats`, tag suggestions, MCP `findChats`/send/file, scheduled tasks (skipped `chat_hidden`), AI hand-off
+candidates, AI group lists, socket chat events (`toVisibleChat`); an ingested message of a still-hidden chat is stored but
+emits no `message:received`/`inbound:notify`. Read side helpers in `chats/hidden-sql.ts` (`HIDDEN_CHAT_KEYS`,
+`isChatHidden`). Admin read `GET /api/inboxes/:id/hidden-chats` {visible, hidden, number}; web `api/chat-hide.ts`,
+`admin/HiddenChats.tsx` (Log out / Link again dialogs and the logged-out note on Admin → WhatsApp and Admin → Inboxes).
 
 **Group info.** `packages/server/src/groups/service.ts` + `routes/groups.ts`: `GET /chats/:jid/members`
 reads `WaAdapter.getGroupInfo` (Baileys `groupMetadata`) with a 5-minute cache invalidated by the
@@ -705,7 +753,7 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   MP4 (`sendAs` video/file; omitted, a video above the number's video limit goes as a file). Each takes exactly one of
   a link, base64 (about 6 MB, `MCP_SEND_MAX_BASE64_BYTES`: what fits the 8 MB JSON) or `uploadId`; links and uploads
   have no cap of our own: up to the target number's `mediaLimits` (an upload: the largest of the owner's inboxes), within
-  the free disk, streamed to disk and sent by path (Forward's 413 codes). `POST /mcp/uploads` (design `docs/features/mcp-file-upload/design.md`): the `/mcp` `onRequest` checks
+  the free disk, streamed to disk and sent by path (Forward's 413 codes). `POST /mcp/uploads` (design [`docs/features/mcp-file-upload/design.md`](https://github.com/ossmalaysia/ezychat-lite/blob/ee978fa4f6ce76f5d46795bfe719521c5ad9c147/docs/features/mcp-file-upload/design.md), archived): the `/mcp` `onRequest` checks
   first, then `inbox:send` and a declared size, all before the body is read; raw body (`X-File-Name`) or multipart
   (one `file` part), never parsed or buffered, streamed to `<data>/uploads/` (0700/0600, random names, emptied on
   start), typed from the bytes (JPEG/PNG/WebP/PDF/.docx/MP4, else 415); an upload belongs to its token, is sent once
@@ -783,6 +831,14 @@ A Quick Tunnel is Running only after URL assignment and edge registration.
 
 Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must
 cover navigation from every admin section and recovery from malformed URLs.
+
+App navigation (design `docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
+`AppShell` wraps every signed-in page (`/`, `/chats/:jid`, `/account`, `/admin/*`, extension user routes): a rail
+from 768 px, bottom tabs below, no tabs inside an open chat. Reports and Members are rail places; every other admin
+page is under Settings (side menu on desktop, the `/admin` list on phones, `PhoneBar` back one level; unknown admin
+paths go to `/admin`, which opens App settings on desktop and the list on phones). The Chats count is `GET /api/chats/unread-count` (open chats with unread messages
+in the caller's scope, reloaded with the chat list). Never put an Admin button, Ask Ezy or the account photo back in
+a page header.
 
 ## Working rules (required)
 

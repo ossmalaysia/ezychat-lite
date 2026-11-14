@@ -4,6 +4,7 @@ import type { SecretBox } from '../crypto/secret.js';
 import { audit } from '../db/audit.js';
 import type { DB } from '../db/index.js';
 import { InboxRepo } from '../inboxes/repo.js';
+import { moveOwnAddress } from './merge-address.js';
 import { IdMaps, remapJson } from './merge-remap.js';
 
 /**
@@ -34,6 +35,7 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   customer_tags: { merged: true },
   contacts: { merged: true },
   jid_aliases: { merged: true },
+  deleted_chats: { merged: true },
   quick_replies: { merged: true },
   fix_english_words: { merged: true },
   audit_log: { merged: true },
@@ -48,6 +50,8 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   drive_saved_files: { merged: true },
   drive_folders: { merged: true },
   drive_activity: { merged: true },
+  github_agent_settings: { merged: true },
+  github_activity: { merged: true },
   connector_connections: { merged: true },
   connector_agent_settings: { merged: true },
   connector_activity: { merged: true },
@@ -68,7 +72,7 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
     skip: 'a one-day guard of looked-up items: looked up again after import',
   },
   settings: {
-    skip: "install-wide settings stay the target's; only per-agent keys (ai_phrases_state:<id>) are copied",
+    skip: "install-wide settings stay the target's; only per-agent keys (ai_phrases_state:<id>) and Lite's own address (when the target has none, merge-address.ts) are copied",
   },
   sessions: { skip: 'not imported: everyone signs in again' },
   push_subscriptions: { skip: 'not imported: phones subscribe again' },
@@ -112,6 +116,8 @@ export interface MergeOutcome {
   agentImported: boolean;
   agentOff: boolean;
   renamedShortcuts: string[];
+  /** Lite's own address (hostname) that moved to the target; null when it did not. */
+  address: string | null;
 }
 
 type Row = Record<string, unknown>;
@@ -201,6 +207,7 @@ export function mergeTables(input: MergeInput): MergeOutcome {
   /** Imported agents that came in off and unbound (no slot): their chats are released. */
   const offAgentUsers: number[] = [];
   const importedHumans: number[] = [];
+  let address: string | null = null;
 
   // ── Users ──────────────────────────────────────────────────────────────────────────────────
   phase(() => {
@@ -358,6 +365,11 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     }
   });
 
+  // ── Own address (only when the target has none) ────────────────────────────────────────────
+  phase(() => {
+    address = moveOwnAddress(target, lite, input.liteSecret, input.targetSecret);
+  });
+
   // ── Connectors: connections (target wins), per-agent settings, Google Calendar settings ────
   let sameGoogle = false;
   let sameSheets = false;
@@ -429,6 +441,14 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       const addFolder = inserter(target, 'drive_folders', { verb: 'INSERT OR IGNORE' });
       for (const f of rows(lite, 'SELECT * FROM drive_folders')) addFolder(f);
     }
+    // GitHub: each agent's repositories and switches (GitHub's own repository ids). The sign-in
+    // (setting github_auth) is not imported: the admin signs in again, and a repository the new
+    // sign-in does not share shows as no longer shared.
+    const addGitHub = inserter(target, 'github_agent_settings', { verb: 'INSERT OR IGNORE' });
+    for (const s of rows(lite, 'SELECT * FROM github_agent_settings')) {
+      const agentId = maps.agent(s.agent_id);
+      if (agentId !== null) addGitHub({ ...s, agent_id: agentId });
+    }
   });
 
   // ── Shared tables: contacts, aliases, Safety numbers (target wins, empty fields filled) ─────
@@ -447,6 +467,13 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     }
     const addAlias = inserter(target, 'jid_aliases', { verb: 'INSERT OR IGNORE' });
     for (const a of rows(lite, 'SELECT * FROM jid_aliases')) addAlias(a);
+    // Chats an admin deleted in Lite stay deleted: WhatsApp's history sync of the new inbox never brings them back.
+    const addDeleted = target.prepare(
+      `INSERT INTO deleted_chats (inbox_id, wa_jid, deleted_at) VALUES (?, ?, ?)
+       ON CONFLICT(inbox_id, wa_jid) DO UPDATE SET deleted_at = MAX(deleted_at, excluded.deleted_at)`,
+    );
+    for (const d of rows(lite, 'SELECT wa_jid, deleted_at FROM deleted_chats'))
+      addDeleted.run(input.inboxId, d.wa_jid, d.deleted_at);
     const addNumber = inserter(target, 'safety_numbers', { verb: 'INSERT OR IGNORE' });
     for (const n of rows(lite, 'SELECT * FROM safety_numbers'))
       // Inbox ids differ between the two installs: an imported block counts for every inbox (null).
@@ -645,6 +672,7 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       }
     }
     byChatAndAgent('drive_activity', false);
+    byChatAndAgent('github_activity', false);
     byChatAndAgent('connector_activity', false);
     byChatAndAgent('connector_calls', false);
     byChatAndAgent('connector_values', false);
@@ -735,6 +763,7 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       meta: {
         inbox: input.inboxId,
         counts: { ...counts, agentImported, agentOff, renamedShortcuts: renamedShortcuts.length },
+        addressMoved: address !== null,
       },
     });
   });
@@ -743,5 +772,5 @@ export function mergeTables(input: MergeInput): MergeOutcome {
     run();
     input.progress(i + 1, phases.length);
   });
-  return { counts, agentImported, agentOff, renamedShortcuts };
+  return { counts, agentImported, agentOff, renamedShortcuts, address };
 }

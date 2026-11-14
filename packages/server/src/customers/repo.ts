@@ -6,6 +6,7 @@ import {
   type CustomerProfile,
 } from '@ezychat/shared';
 import type { DB } from '../db/index.js';
+import { HIDDEN_CHAT_KEYS } from '../chats/hidden-sql.js';
 
 export const PROFILE_FIELDS = ['name', 'company', 'email', 'otherPhone', 'address'] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
@@ -130,6 +131,7 @@ export class CustomerRepo {
           `SELECT MIN(tag) AS tag, COUNT(*) AS uses FROM customer_tags
            WHERE tag_key LIKE @prefix ESCAPE '\\'
              AND chat_jid IN (SELECT value FROM json_each(@chatJids))
+             AND chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
            GROUP BY tag_key ORDER BY uses DESC, tag_key ASC LIMIT @limit`,
         )
         .all({
@@ -151,6 +153,7 @@ export class CustomerRepo {
       .prepare(
         `SELECT MIN(tag) AS tag, COUNT(*) AS uses FROM customer_tags
          WHERE tag_key LIKE @prefix ESCAPE '\\' ${inInboxes}
+           AND chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
          GROUP BY tag_key ORDER BY uses DESC, tag_key ASC LIMIT @limit`,
       )
       .all({ prefix: `${escapeLike(key)}%`, limit }) as Array<{ tag: string }>;

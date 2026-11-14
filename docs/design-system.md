@@ -4,8 +4,9 @@ The single design system for **EzyChat Lite and EzyChat Enterprise** (production
 and status page, feature mocks, extension screens, screenshots and generated images). Enterprise has no design
 system of its own: it uses the published `@ezychat/web` components and these rules (see [Editions](#editions)).
 A living reference that renders the real tokens and components, light and dark, is the mock page
-[`/design-system`](features/mobile-redesign/mock/src/design-system/DesignSystemPage.tsx) (run the
-[mobile-redesign mock](features/mobile-redesign/mock/README.md), open `http://localhost:7489/design-system`).
+[`/design-system`](https://github.com/ossmalaysia/ezychat-lite/blob/829a4b384346e0281d45bc90d76c5f8ade8b77e3/docs/features/mobile-redesign/mock/src/design-system/DesignSystemPage.tsx) (the
+[mobile-redesign mock](https://github.com/ossmalaysia/ezychat-lite/tree/829a4b384346e0281d45bc90d76c5f8ade8b77e3/docs/features/mobile-redesign/mock), archived under the five-folder rule: check
+out that revision and run it, then open `http://localhost:7489/design-system`).
 
 EzyChat is a tool people keep open all day to answer customers. The design language is
 **quiet, dense, and work-focused**: neutral surfaces, colour only where it carries meaning
@@ -176,7 +177,7 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   pending clock. Don't use a spinner or a toast for it, and don't block the
   composer. A size refusal (WhatsApp's limit, the tunnel's 100 MB) is said before uploading as an error toast that
   names the limit and where it works, and in the failed bubble with the same words. — screenshots in
-  `docs/features/mcp-file-upload/screens/`
+  [`docs/features/mcp-file-upload/screens/`](https://github.com/ossmalaysia/ezychat-lite/tree/ee978fa4f6ce76f5d46795bfe719521c5ad9c147/docs/features/mcp-file-upload/screens) (archived)
 - **Small screens:** Dialog → Drawer (bottom sheet) below `sm` (`ResponsiveDialog`); tables → stacked cards below
   `lg`; admin side nav → top Tabs/Sheet below `md`; the inbox switches to its phone layout below `md` (768px, see
   [Mobile patterns](#mobile-patterns)). Filters that are segmented tabs on desktop are chips on phones.
@@ -186,21 +187,21 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
 ## Mobile patterns
 
 For phones (below 768 px, the width at which the inbox becomes one column). Every rule has a mock screen in
-[`features/mobile-redesign/mock/screenshots`](features/mobile-redesign/mock/screenshots) (`<shot>-m360-light.png`;
+[`features/mobile-redesign/mock/screenshots`](https://github.com/ossmalaysia/ezychat-lite/tree/829a4b384346e0281d45bc90d76c5f8ade8b77e3/docs/features/mobile-redesign/mock/screenshots) (archived) (`<shot>-m360-light.png`;
 390 px, dark, Malay and Chinese variants beside it). Desktop keeps its own layout; never let a phone pattern leak
 into it. The owner made these the rules for both editions on 2026-11-07; the app follows them once the mobile redesign is
 built (the mock shows each one).
 
 ### App bar and number switcher
 
-- **Do** use one 56 px bar: the title says where you are, then at most two icons (search, account). With 2+
+- **Do** use one 56 px bar: the title says where you are, then at most two icons (search, New chat). With 2+
   WhatsApp numbers the title is the number switcher ("All numbers ▾" / the number's name and phone), opening a
   bottom sheet with each number's unread chats and connection; a dot on the title marks unread chats on other
   numbers. Admins get "Manage numbers" at the bottom of the sheet. — `01-list`, `02-inbox-switcher`,
   `03-switched-catering`
 - **Don't** spend a full-width select or a row on something most people never change, show the switcher with
-  one number (Lite, a one-number agent: plain "Inbox", `21-lite-one-number`, `22-agent-one-number`), or put a
-  labelled "Admin" button in the bar (Admin settings is in the account menu).
+  one number (Lite, a one-number agent: plain "Chats", `21-lite-one-number`, `22-agent-one-number`), or put an
+  "Admin" button or the account photo in the bar (they are in the app navigation, see below).
 
 ### FAB (floating action button)
 
@@ -266,12 +267,27 @@ built (the mock shows each one).
   Toasts sit above the composer on phones (`18-chat-tags-saved`).
 - **Don't** let the keyboard cover the box, put toasts at the top of a phone screen, or add rows under the box.
 
-### Bottom navigation vs menu
+### App navigation (rail and bottom tabs)
 
-- **Do** reach rarely used destinations (Admin settings, language, theme, About and the version, sign out) from
-  the account menu in the app bar while there are fewer than three everyday destinations.
-- **Don't** add a bottom navigation bar for two items; propose one (Chats · Reports · Admin · Me) only when three
-  or more destinations are used daily, and only with the owner's confirmation (2026-11-07: no bottom bar).
+Owner request and confirmation 2026-11-13 (`features/app-navigation`); it replaces the 2026-11-07 "no bottom bar"
+rule. Code: `apps/web/src/nav/AppNav.tsx`.
+
+- **Do** show one app navigation on every signed-in page: from 768 px a 64 px icon rail on the left (Chats with the
+  count of chats with unread messages, Reports, Ask Ezy, Members; Settings and the account photo at the bottom),
+  below 768 px bottom tabs (admins: Chats · Reports · Ask Ezy · Settings; team members: Chats · Ask Ezy · Account;
+  an agent limited to chosen chats has no Ask Ezy). Icon 20 px in a 48 × 32 pill (56 × 32 in the tabs;
+  `bg-primary/10 text-primary` when current, `aria-current="page"`) with a 12 px label; the whole cell is the hit
+  area (≥ 56 px). Count: `bg-unread` pill, "99+" cap, with an accessible name. Attention: a 10 px `bg-danger` dot on
+  Settings, admins only, for a WhatsApp number that needs an admin (or an extension's attention badge); with a number,
+  Settings opens that number's page. — app-navigation `01-chats-unread`, `07-settings-attention`, `12-settings-home`
+- **Do** hide the tabs inside an open chat (the composer owns the bottom) and keep admin detail pages under
+  Settings: a side menu on desktop ("App settings" is the general page), a list page on phones (Team, Business,
+  App, More for extensions, Your account), and a 56 px phone bar with a back arrow one level up. Ask Ezy toggles its
+  panel (`aria-pressed`). Rarely used items (language, theme, About, sign out) stay in the account menu, and on
+  phones on the Account page.
+- **Don't** add a sixth tab, put a rarely used page in the tabs, let an extension add a rail item or a tab, show
+  the rail on phones or the tabs on desktop, add an "Admin" button to a header, or use the dot for anything but
+  something an admin must fix.
 
 ### Empty states
 
@@ -289,7 +305,8 @@ built (the mock shows each one).
 ### Back behaviour
 
 - **Do** make Back (button, Android back, iOS edge swipe) close the top sheet or dialog first, then search, then
-  go from a chat to the list (history pop when the chat was opened from the list, replace for deep links).
+  go from a chat to the list (history pop when the chat was opened from the list, replace for deep links). On a
+  Settings page the bar's back arrow goes one level up (the Settings list, Members, Connectors).
 - **Don't** trap Back, or leave a chat by Back into a reopened sheet.
 
 ## Editions

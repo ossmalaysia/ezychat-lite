@@ -40,6 +40,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmDialog, ErrorState, Field, ListSkeleton } from './adminUi';
+import { HiddenChatsNote, HidesLine } from './HiddenChats';
+import { useHiddenChats } from '../api/chat-hide';
 import { formatInboxNumber, inboxCardStatus } from './inbox-status';
 import { cn } from '@/lib/utils';
 import { LiteChecklistCard, LiteImportEntry } from '../lite-import/notice';
@@ -816,6 +818,9 @@ function InboxLink({ inbox, justCreated }: Readonly<{ inbox: Inbox; justCreated:
   /** "Link the phone again" was pressed: the QR code shows until the phone is linked again. */
   const [relinking, setRelinking] = useState(false);
   const [unlinked, setUnlinked] = useState(false);
+  /** "Link the phone again" logs the phone out first, which hides the number's chats: confirm it. */
+  const [confirmRelink, setConfirmRelink] = useState(false);
+  const hidden = useHiddenChats(inbox.id, status.state);
   const card = inboxCardStatus(status.state);
   const connected = status.state === 'open';
 
@@ -866,18 +871,38 @@ function InboxLink({ inbox, justCreated }: Readonly<{ inbox: Inbox; justCreated:
               size="touch"
               className="md:min-h-9"
               disabled={action.isPending}
-              onClick={() =>
-                action.mutate('relink', {
-                  onSuccess: () => setRelinking(true),
-                })
-              }
+              onClick={() => {
+                action.reset();
+                setConfirmRelink(true);
+              }}
             >
               {t('inboxes.relink')}
             </Button>
           </div>
         </div>
       )}
+      {status.state === 'logged_out' && <HiddenChatsNote info={hidden.data} />}
       {showQr && <LinkPhone inboxId={inbox.id} status={status} />}
+      <ConfirmDialog
+        open={confirmRelink}
+        title={t('whatsapp.actions.relink.title')}
+        confirmLabel={t('inboxes.relink')}
+        danger
+        loading={action.isPending}
+        error={action.error ?? undefined}
+        onConfirm={() =>
+          action.mutate('relink', {
+            onSuccess: () => {
+              setConfirmRelink(false);
+              setRelinking(true);
+            },
+          })
+        }
+        onClose={() => setConfirmRelink(false)}
+      >
+        <p>{t('whatsapp.actions.relink.body')}</p>
+        <HidesLine info={hidden.data} />
+      </ConfirmDialog>
     </div>
   );
 }

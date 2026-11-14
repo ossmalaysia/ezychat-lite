@@ -212,7 +212,7 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {children && (
             <AlertDialogDescription asChild>
-              <div>{children}</div>
+              <div className="flex flex-col gap-2">{children}</div>
             </AlertDialogDescription>
           )}
         </AlertDialogHeader>

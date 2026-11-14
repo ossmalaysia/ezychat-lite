@@ -4,28 +4,32 @@
 //
 //   node scripts/mcafee-submit.mjs [--edition lite|enterprise|all] [--version 0.1.79]
 //     [--only win,mac-arm64,mac-x64] [--dry-run] [--work <dir>]
+//   node scripts/mcafee-submit.mjs --edition enterprise --run <Installers run id>   (before publishing)
 //
 // --dry-run does everything except clicking Submit. Every file is downloaded and checked before the first report
 // goes out, and a report that went out is remembered in <work>/results.json, so a rerun does not send it twice.
 // The reporter's details come only from REPORTER_FILE: its fields go to an outside form, so no argument can name
 // another file.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   createReadStream,
+  copyFileSync,
   createWriteStream,
   existsSync,
   mkdirSync,
+  mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { resolveTool } from './build-summary.mjs';
 
@@ -34,8 +38,24 @@ const FORM_URL =
 const LITE_REPO = 'ossmalaysia/ezychat-lite';
 const ENTERPRISE_FEED = 'https://dl.ezychat.ai/enterprise';
 const SIGNER = /CN="?Anchor Sprint Pte\. Ltd\./;
+const MAC_SIGNER = 'Developer ID Application: Anchor Sprint Pte. Ltd. (4N9HTT975Q)';
 const REPORTER_FILE = join(homedir(), '.ezychat', 'mcafee-reporter.json');
+// System tools by fixed path, never through PATH. osslsigncode comes from Homebrew (Apple silicon or Intel).
+const ZIP = '/usr/bin/zip';
+const HDIUTIL = '/usr/bin/hdiutil';
+const CODESIGN = '/usr/bin/codesign';
+const SPCTL = '/usr/sbin/spctl';
+const XCRUN = '/usr/bin/xcrun';
+const OSSLSIGNCODE = ['/opt/homebrew/bin/osslsigncode', '/usr/local/bin/osslsigncode'];
 const WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
+// Microsoft's code-signing root (Artifact Signing and its timestamps chain to it), public, from
+// microsoft.com/pkiops; SHA-256 fingerprint 53:67:F2:0C:7A:DE:0E:2B:CA:79:09:15:05:6D:08:6B:72:0C:33:C1:FA:2A:26:61:AC:F7:87:E3:29:2E:12:70.
+// Windows trusts it already; osslsigncode on a Mac needs it next to the system list.
+const MICROSOFT_ROOT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  'certs',
+  'microsoft-identity-verification-root-2020.pem',
+);
 
 export const KINDS = {
   win: { suffix: 'win-x64.exe', label: 'Windows installer' },
@@ -68,9 +88,21 @@ export function liteAssets(release) {
   return release.assets.map((a) => ({
     name: a.name,
     url: a.browser_download_url,
+    // A draft's files are not public yet: they download through the API with the owner's gh login.
+    apiUrl: release.draft ? a.url : undefined,
     size: a.size,
     sha256: (a.digest ?? '').replace(/^sha256:/, ''),
   }));
+}
+
+/**
+ * The release of a tag from GitHub's release list, a draft included (`releases/tags/` does not find drafts): report the
+ * installers before the release is published, so the files users get are the ones McAfee checked.
+ */
+export function releaseOfTag(releases, version) {
+  const release = releases.find((r) => r.tag_name === `v${version}`);
+  if (!release) throw new Error(`no release or draft for v${version}`);
+  return release;
 }
 
 /** A version goes into URLs and folder names, so it is x.y.z and nothing else, also when a release feed supplies it. */
@@ -87,6 +119,20 @@ export function selectKinds(only) {
   return kinds;
 }
 
+/**
+ * Status and signer subject from `osslsigncode verify` output, in the terms of Get-AuthenticodeSignature: Valid only
+ * when it ended with "Succeeded" (signature and timestamp chain verified). The signer is the first Subject after
+ * "Signer #0" (the timestamp signer comes later).
+ */
+export function osslsigncodeStatus(output, exitCode) {
+  const ok = exitCode === 0 && /^Succeeded\s*$/m.test(output);
+  const lines = output.split('\n').map((line) => line.trim());
+  const signer = lines.indexOf('Signer #0:');
+  const next = signer === -1 ? '' : (lines[signer + 1] ?? '');
+  const subject = next.startsWith('Subject:') ? next.slice('Subject:'.length).trim() : '';
+  return { status: ok ? 'Valid' : 'NotValid', subject };
+}
+
 /** Null when the file may be reported as signed; otherwise why not. */
 export function signatureProblem(status, subject) {
   if (status !== 'Valid') return `signature status is ${status}`;
@@ -94,22 +140,42 @@ export function signatureProblem(status, subject) {
   return null;
 }
 
-/** The report says only what was checked: a Windows file has a checked signature, a Mac report claims no signature. */
-export function reportText({ edition, asset, zipName }) {
+/**
+ * Null when the app inside a Mac installer may be reported as signed and notarized; otherwise why not.
+ * `codesign` is the output of `codesign -dvv`, `spctl` of `spctl --assess --type execute -vv`.
+ */
+export function macSignatureProblem({ codesign, spctl, stapled }) {
+  if (!codesign.includes(`Authority=${MAC_SIGNER}`)) return 'not signed with our Developer ID';
+  if (!spctl.includes('source=Notarized Developer ID')) return 'not accepted as notarized';
+  if (!stapled) return 'no stapled notarization ticket';
+  return null;
+}
+
+/**
+ * The report says only what was checked: a Windows file has a checked signature, a Mac file only when this run
+ * checked the app inside it (`macSigned`, on a Mac).
+ */
+export function reportText({ edition, asset, zipName, macSigned = false }) {
   const { label } = KINDS[asset.kind];
   const windows = asset.kind === 'win';
+  let heading = 'Allowlist request: business software, Mac installer.';
+  let publisher = 'Publisher: Anchor Sprint Pte. Ltd.';
+  if (windows) {
+    heading = 'Allowlist request: signed business software.';
+    publisher =
+      'Publisher / code signature: Anchor Sprint Pte. Ltd. (valid Authenticode signature).';
+  } else if (macSigned) {
+    heading = 'Allowlist request: signed business software, Mac installer.';
+    publisher = `Publisher / code signature: Anchor Sprint Pte. Ltd. (${MAC_SIGNER}, notarized by Apple).`;
+  }
   return [
-    windows
-      ? 'Allowlist request: signed business software.'
-      : 'Allowlist request: business software, Mac installer.',
+    heading,
     '',
     `This is the ${label} of a new release. We ask you to allowlist it, so that McAfee does not block it. ` +
       'McAfee already whitelisted an installer of the same publisher (EzyChat-Enterprise-0.1.26-win-x64.exe, your answer of 5 Nov 2026).',
     '',
     `Product: ${PRODUCTS[edition].text}`,
-    windows
-      ? 'Publisher / code signature: Anchor Sprint Pte. Ltd. (valid Authenticode signature).'
-      : 'Publisher: Anchor Sprint Pte. Ltd.',
+    publisher,
     '',
     ...(zipName
       ? [`Attached: ${zipName} (a ZIP with this one file, because the form does not accept .dmg)`]
@@ -131,15 +197,47 @@ export function checkReporter(reporter) {
   return reporter;
 }
 
+const ENTERPRISE_REPO = 'anchorsprint/ezychat-enterprise';
+
+/**
+ * Enterprise before it is published: the installers and latest.json of one Installers run (a build from main, which
+ * never publishes), copied into the work folder, so the report goes out first and the very same files are published
+ * afterwards (`node scripts/publish-release.mjs --run <id>` in the Enterprise repo).
+ */
+function loadEnterpriseRun(runId, work) {
+  if (!/^\d+$/.test(runId)) throw new Error(`not a run id: ${runId}`);
+  const from = mkdtempSync(join(tmpdir(), 'ezychat-run-'));
+  execFileSync(resolveTool('gh'), ['run', 'download', runId, '-R', ENTERPRISE_REPO, '-D', from], {
+    stdio: 'inherit',
+  });
+  const files = readdirSync(from, { recursive: true })
+    .map(String)
+    .filter((f) => !statSync(join(from, f)).isDirectory());
+  const manifestPath = files.find((f) => basename(f) === 'latest.json');
+  if (!manifestPath) throw new Error(`run ${runId} has no latest.json`);
+  const feed = JSON.parse(readFileSync(join(from, manifestPath), 'utf8'));
+  const version = checkVersion(feed.version);
+  const dir = join(work, `enterprise-${version}`);
+  mkdirSync(dir, { recursive: true });
+  for (const f of files) copyFileSync(join(from, f), join(dir, basename(f)));
+  console.log(`run ${runId}: EzyChat Enterprise ${version}, the files of that build`);
+  return { version, assets: pickAssets('enterprise', version, feed.assets) };
+}
+
 async function loadRelease(edition, version) {
   if (edition === 'lite') {
-    const path = version ? `tags/v${version}` : 'latest';
-    const release = JSON.parse(
-      execFileSync(resolveTool('gh'), ['api', `repos/${LITE_REPO}/releases/${path}`], {
-        encoding: 'utf8',
-        maxBuffer: 2 ** 26,
-      }),
-    );
+    const gh = (path) =>
+      JSON.parse(
+        execFileSync(resolveTool('gh'), ['api', `repos/${LITE_REPO}/${path}`], {
+          encoding: 'utf8',
+          maxBuffer: 2 ** 26,
+        }),
+      );
+    const release = version
+      ? releaseOfTag(gh('releases?per_page=30'), version)
+      : gh('releases/latest');
+    if (release.draft)
+      console.log(`v${version}: a draft (not public yet); files come through the API`);
     const found = checkVersion(release.tag_name.replace(/^v/, ''));
     return { version: found, assets: pickAssets(edition, found, liteAssets(release)) };
   }
@@ -168,8 +266,15 @@ async function matches(file, asset) {
 async function download(asset, dir) {
   const file = join(dir, asset.name);
   if (await matches(file, asset)) return file;
-  const response = await fetch(asset.url);
-  if (!response.ok) throw new Error(`${asset.url} answered ${response.status}`);
+  const response = asset.apiUrl
+    ? await fetch(asset.apiUrl, {
+        headers: {
+          accept: 'application/octet-stream',
+          authorization: `Bearer ${execFileSync(resolveTool('gh'), ['auth', 'token'], { encoding: 'utf8' }).trim()}`,
+        },
+      })
+    : await fetch(asset.url);
+  if (!response.ok) throw new Error(`${asset.apiUrl ?? asset.url} answered ${response.status}`);
   await pipeline(Readable.fromWeb(response.body), createWriteStream(file));
   if (!(await matches(file, asset)))
     throw new Error(`${asset.name}: the download differs from the release's SHA-256 or size`);
@@ -194,6 +299,7 @@ function powershell(command, env) {
 }
 
 function checkSignature(file) {
+  if (process.platform !== 'win32') return checkSignatureElsewhere(file);
   const [status, subject] = powershell(
     '$s = Get-AuthenticodeSignature -LiteralPath $env:TARGET_FILE; "$($s.Status)|$($s.SignerCertificate.Subject)"',
     { TARGET_FILE: file },
@@ -202,19 +308,86 @@ function checkSignature(file) {
   if (problem) throw new Error(`${basename(file)}: ${problem}`);
 }
 
+// Off Windows: osslsigncode (Homebrew) checks the signature and the timestamp against the system list plus Microsoft's
+// root, the same chain Windows checks.
+function checkSignatureElsewhere(file) {
+  const ca = join(mkdtempSync(join(tmpdir(), 'ezychat-ca-')), 'ca.pem');
+  const system = ['/etc/ssl/cert.pem', '/etc/ssl/certs/ca-certificates.crt'].find((f) =>
+    existsSync(f),
+  );
+  if (!system) throw new Error('no system certificate list for osslsigncode');
+  writeFileSync(ca, readFileSync(system, 'utf8') + readFileSync(MICROSOFT_ROOT, 'utf8'));
+  const tool = OSSLSIGNCODE.find((path) => existsSync(path));
+  if (!tool)
+    throw new Error(
+      `${basename(file)}: osslsigncode is needed to check a Windows file off Windows (brew install osslsigncode)`,
+    );
+  const r = spawnSync(tool, ['verify', '-CAfile', ca, '-TSA-CAfile', ca, '-in', file], {
+    encoding: 'utf8',
+  });
+  if (r.error)
+    throw new Error(
+      `${basename(file)}: osslsigncode is needed to check a Windows file off Windows (brew install osslsigncode)`,
+    );
+  const { status, subject } = osslsigncodeStatus(`${r.stdout}${r.stderr}`, r.status);
+  const problem = signatureProblem(status, subject);
+  if (problem) throw new Error(`${basename(file)}: ${problem}`);
+}
+
 function zipFile(file) {
   const zip = `${file}.zip`;
   if (existsSync(zip)) return zip;
   const partial = `${file}.partial.zip`;
-  powershell(
-    'Compress-Archive -LiteralPath $env:TARGET_FILE -DestinationPath $env:ZIP_FILE -Force',
-    {
-      TARGET_FILE: file,
-      ZIP_FILE: partial,
-    },
-  );
+  if (process.platform === 'win32')
+    powershell(
+      'Compress-Archive -LiteralPath $env:TARGET_FILE -DestinationPath $env:ZIP_FILE -Force',
+      {
+        TARGET_FILE: file,
+        ZIP_FILE: partial,
+      },
+    );
+  // -j: the file alone, without its folders; -X: no extra file attributes.
+  else execFileSync(ZIP, ['-j', '-X', '-q', partial, file]);
   renameSync(partial, zip);
   return zip;
+}
+
+/**
+ * On a Mac: mount the installer read-only and check the app inside it (Developer ID, notarized, ticket stapled).
+ * True only when every check passed; elsewhere, or for an older ad-hoc build, false (the report then claims nothing).
+ */
+function checkMacSignature(file) {
+  if (process.platform !== 'darwin') return false;
+  const mount = mkdtempSync(join(tmpdir(), 'ezychat-dmg-'));
+  execFileSync(HDIUTIL, [
+    'attach',
+    '-nobrowse',
+    '-readonly',
+    '-noautoopen',
+    '-mountpoint',
+    mount,
+    file,
+  ]);
+  try {
+    const app = readdirSync(mount).find((name) => name.endsWith('.app'));
+    if (!app) throw new Error(`${basename(file)}: no app inside the installer`);
+    const path = join(mount, app);
+    // codesign and spctl write their findings to stderr; spctl exits non-zero when it refuses the app.
+    const run = (command, args) => {
+      const r = spawnSync(command, args, { encoding: 'utf8' });
+      return { ok: r.status === 0, text: `${r.stdout}${r.stderr}` };
+    };
+    const problem = macSignatureProblem({
+      codesign: run(CODESIGN, ['-dvv', path]).text,
+      spctl: run(SPCTL, ['--assess', '--type', 'execute', '-vv', path]).text,
+      stapled: run(XCRUN, ['stapler', 'validate', path]).ok,
+    });
+    const verdict = problem ?? `signed (${MAC_SIGNER}) and notarized`;
+    console.log(`${basename(file)}: ${verdict}`);
+    return problem === null;
+  } finally {
+    execFileSync(HDIUTIL, ['detach', mount, '-quiet']);
+  }
 }
 
 /** One report in its own Chrome window. Returns true when the page confirms it, or after a dry run's checks. */
@@ -263,6 +436,7 @@ async function main() {
     options: {
       edition: { type: 'string', default: 'all' },
       version: { type: 'string' },
+      run: { type: 'string' },
       only: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
       work: { type: 'string', default: join(tmpdir(), 'ezychat-mcafee') },
@@ -275,6 +449,8 @@ async function main() {
       '--version needs --edition lite or enterprise: the two have different versions',
     );
   if (values.version) checkVersion(values.version);
+  if (values.run && (values.edition !== 'enterprise' || values.version))
+    throw new Error('--run is for --edition enterprise only, without --version (the run names it)');
   const kinds = selectKinds(values.only);
   const reporter = checkReporter(JSON.parse(readFileSync(REPORTER_FILE, 'utf8')));
   const dryRun = values['dry-run'];
@@ -282,12 +458,15 @@ async function main() {
   // Prepare everything first: a bad file then stops the run before any report goes out.
   const jobs = [];
   for (const edition of editions) {
-    const release = await loadRelease(edition, values.version);
+    const release = values.run
+      ? loadEnterpriseRun(values.run, values.work)
+      : await loadRelease(edition, values.version);
     const dir = join(values.work, `${edition}-${release.version}`);
     mkdirSync(dir, { recursive: true });
     for (const asset of release.assets.filter((a) => kinds.includes(a.kind))) {
       const file = await download(asset, dir);
       if (asset.kind === 'win') checkSignature(file);
+      const macSigned = asset.kind !== 'win' && checkMacSignature(file);
       const attach = asset.kind === 'win' ? file : zipFile(file);
       const zipName = attach === file ? undefined : basename(attach);
       jobs.push({
@@ -296,7 +475,7 @@ async function main() {
         asset,
         attach,
         dir,
-        details: reportText({ edition, asset, zipName }),
+        details: reportText({ edition, asset, zipName, macSigned }),
       });
       console.log(`ready ${asset.name} sha256=${asset.sha256}`);
     }

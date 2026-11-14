@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A new menu on every screen takes you straight to Chats, Reports, Ask Ezy, Members and Settings. On a computer it is a narrow bar on the left, with your photo and Settings at the bottom; on a phone it is a row of tabs at the bottom (Chats, Reports, Ask Ezy and Settings for admins; Chats, Ask Ezy and Account for your team), hidden while a chat is open. Chats shows how many chats have unread messages, and a red dot on Settings tells an admin when a WhatsApp number needs attention. The chat list is now called **Chats**, and on a phone Settings opens one list of every admin page.
+- When a WhatsApp number is logged out (Log out in EzyChat, or Linked devices → Log out on the phone), its chats are hidden from the inbox. Nothing is deleted. If the same number links again, each chat comes back as soon as WhatsApp shows it is still on the phone (or the customer writes again). If a different number links, the old chats stay hidden and the new number starts with an empty inbox. The Log out confirmation says how many chats are hidden.
+- Admins can delete a chat: chat menu (⋮) → **Delete chat**. The chat, its messages, notes and files are removed from EzyChat for good; your WhatsApp phone keeps its own copy. WhatsApp's history never brings it back, and if the customer writes again, a new empty chat starts.
+- GitHub connector (beta, Lite): AI agents can look up issues and pull requests in the GitHub repositories you choose for each agent. They can say an issue's status, labels and latest comments. Sign in with GitHub using a code you enter on GitHub (through the "EzyChat by Anchor Sprint" app), or paste a fine-grained token if your organisation doesn't allow apps. It is read only: EzyChat never changes anything on GitHub and never reads code.
+
 ### Changed
 
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).
+
+### Fixed
+
+- A WhatsApp number that stayed on "Connecting…" after WhatsApp dropped the connection now tries again by itself after one minute. Before, it could stay that way for hours until you unlinked and linked it again. Waiting for you to scan a QR code or type a pairing code is never cut off.
+- **Your own address stays when EzyChat Lite's number moves into EzyChat Enterprise.** When Enterprise already had
+  data, the move left EzyChat Lite's own Cloudflare address behind: Enterprise said "This address is already in use"
+  and the old DNS record had to be removed by hand. If Enterprise has no own address yet, the move now brings
+  EzyChat Lite's address with it, so your team keeps opening the same address. EzyChat Lite turns that address off,
+  so "Use EzyChat Lite again" never runs it beside Enterprise. Addresses set up in the Cloudflare dashboard are
+  still set up again.
 
 ## [0.1.84] - 2026-11-13
 

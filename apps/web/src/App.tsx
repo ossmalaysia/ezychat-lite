@@ -14,6 +14,8 @@ import { useAuth } from './auth/AuthProvider';
 import { chosenChatsOnly } from './auth/chat-scope';
 import { AskEzyProvider } from './askezy/AskEzyContext';
 import { AskEzyPanel } from './askezy/AskEzyPanel';
+import { AppShell } from './nav/AppNav';
+import { AccountPage } from './nav/AccountPage';
 
 /** Ask Ezy: the panel exists only for a signed-in user, on every signed-in page. */
 function SignedInAskEzy() {
@@ -49,20 +51,24 @@ export function App() {
             }
           />
           <Route element={<RequireAuth />}>
-            <Route path="/" element={<InboxPage />} />
             {/* MCP sign-in: an AI assistant app asks an admin to approve its connection. */}
             <Route path="/oauth/authorize" element={<OAuthConsentPage />} />
-            <Route path="/chats/:jid" element={<InboxPage />} />
-            {extensionRoutes(extensions, false)}
+            {/* App navigation (docs/features/app-navigation/design.md): rail on desktop, tabs on phones. */}
+            <Route element={<AppShell />}>
+              <Route path="/" element={<InboxPage />} />
+              <Route path="/chats/:jid" element={<InboxPage />} />
+              <Route path="/account" element={<AccountPage />} />
+              {extensionRoutes(extensions, false)}
+              <Route
+                path="/admin/*"
+                element={
+                  <RequireAuth admin>
+                    <AdminLayout />
+                  </RequireAuth>
+                }
+              />
+            </Route>
           </Route>
-          <Route
-            path="/admin/*"
-            element={
-              <RequireAuth admin>
-                <AdminLayout />
-              </RequireAuth>
-            }
-          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AskEzyProvider>

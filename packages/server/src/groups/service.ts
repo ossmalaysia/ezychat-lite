@@ -9,6 +9,8 @@ import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { errors } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
+import { getChatHide } from '../chats/hide.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { isFallbackName } from '../chats/service.js';
 import { jidUser } from '../chats/repo.js';
 import { PRIMARY_INBOX_ID, chatKey, parseChatKey } from '../inboxes/keys.js';
@@ -244,7 +246,8 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       // chat found through it while it still points at this member's WhatsApp ID.
       if (j === p.phoneJid && !ownPhone(inboxId, p)) continue;
       const chat = chats.get(aliases.route(inboxId, j));
-      if (chat && chat.type === 'dm' && chat.inboxId === inboxId)
+      // a chat hidden on Log out is no chat (Message shows it again for the same number)
+      if (chat && chat.type === 'dm' && chat.inboxId === inboxId && !isChatHidden(ctx.db, chat.jid))
         return { jid: chat.jid, name: chat.name, phone: chat.phone };
     }
     return null;
@@ -362,6 +365,8 @@ export function createGroupService(ctx: AppContext, deps?: { now?: () => number 
       if ([p.jid, p.phoneJid, p.lidJid].some((j) => !!j && mine.has(j))) {
         throw errors.validation('You cannot start a chat with your own number');
       }
+      // The team opens a chat with this member: one hidden on Log out comes back (same number only).
+      getChatHide(ctx).showIfHidden(inboxId, [p.lidJid, p.phoneJid]);
       const existing = existingChat(inboxId, p);
       if (existing) return existing.jid;
       // Chats are keyed by the WhatsApp ID once known (the pair was learned when the list was read).

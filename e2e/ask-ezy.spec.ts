@@ -20,7 +20,10 @@ test('without an AI connection Ask Ezy shows the setup first', async ({ page }) 
   );
   await page.goto('/');
   await expect(inboxHeading(page)).toBeVisible();
-  await page.locator('[data-testid="ask-ezy-open"]:visible').first().click();
+  await page
+    .locator('[data-testid="nav-ask-ezy"]:visible, [data-testid="tab-ask-ezy"]:visible')
+    .first()
+    .click();
   const panel = page.getByTestId('ask-ezy-panel');
   await expect(panel.getByText('Connect an AI to use Ask Ezy')).toBeVisible();
   await expect(panel.getByRole('textbox')).toBeDisabled();
@@ -103,7 +106,10 @@ test('an admin asks about the week, applies a change and asks about one chat', a
 
   await page.goto('/');
   await expect(inboxHeading(page)).toBeVisible();
-  await page.locator('[data-testid="ask-ezy-open"]:visible').first().click();
+  await page
+    .locator('[data-testid="nav-ask-ezy"]:visible, [data-testid="tab-ask-ezy"]:visible')
+    .first()
+    .click();
   const panel = page.getByTestId('ask-ezy-panel');
   await panel.getByRole('button', { name: 'How is my inbox this week?' }).click();
   await expect(panel.getByTestId('ask-block-stats')).toContainText('18');

@@ -1,0 +1,198 @@
+<!doctype html>
+<!--
+  Quick mock: hide chats on Log out + Delete chat (design.md). Owner chose screenshots of a quick mock
+  (2026-11-12). Open directly in a browser; ?state=<id>&theme=dark picks a state. Demo data only.
+  Screenshots: node docs/features/chat-hide-delete/mock/shots.mjs
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mock: hide chats on Log out, Delete chat</title>
+    <style>
+      /* Tokens copied from apps/web/src/index.css (Calm Desk). */
+      :root {
+        --radius: 10px;
+        --background: #f8fafc;
+        --foreground: #0f172a;
+        --card: #ffffff;
+        --muted: #f1f5f9;
+        --muted-foreground: #475569;
+        --accent: #f0fdfa;
+        --border: #e2e8f0;
+        --primary: #0f766e;
+        --primary-foreground: #ffffff;
+        --danger: #dc2626;
+        --overlay: rgb(15 23 42 / 0.45);
+      }
+      :root.dark {
+        --background: #0b1220;
+        --foreground: #f1f5f9;
+        --card: #111827;
+        --muted: #1f2937;
+        --muted-foreground: #94a3b8;
+        --accent: #12302d;
+        --border: #243042;
+        --primary: #14b8a6;
+        --primary-foreground: #04201d;
+        --danger: #ef4444;
+        --overlay: rgb(0 0 0 / 0.6);
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--background); color: var(--foreground);
+        font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      .bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px dashed var(--border); font-size: 12px; }
+      .bar a { color: var(--primary); }
+      .app { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 37px); }
+      .side { border-right: 1px solid var(--border); background: var(--card); }
+      .side h1 { font-size: 18px; margin: 0; padding: 14px 16px; }
+      .row { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); }
+      .row.sel { background: var(--accent); }
+      .av { width: 36px; height: 36px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; font-weight: 600; flex: none; }
+      .name { font-weight: 600; }
+      .sub { color: var(--muted-foreground); font-size: 13px; }
+      .main { display: flex; flex-direction: column; min-width: 0; }
+      .head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--card); position: relative; }
+      .head .grow { flex: 1; min-width: 0; }
+      .btn { border: 1px solid var(--border); background: var(--card); color: var(--foreground); border-radius: 8px; padding: 8px 14px; font: inherit; min-height: 40px; }
+      .btn.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+      .btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+      .btn.ghost-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+      .icon { width: 40px; padding: 0; }
+      .menu { position: absolute; right: 16px; top: 56px; width: 220px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 30px rgb(0 0 0 / 0.15); padding: 4px; z-index: 5; }
+      .menu div { padding: 9px 12px; border-radius: 6px; }
+      .menu .sep { height: 1px; padding: 0; margin: 4px 0; background: var(--border); }
+      .menu .del { color: var(--danger); }
+      .thread { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .bubble { max-width: 70%; padding: 8px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+      .bubble.me { align-self: flex-end; background: var(--accent); }
+      .page { padding: 24px; max-width: 760px; display: grid; gap: 16px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; }
+      .note { background: var(--muted); border-radius: 8px; padding: 10px 12px; color: var(--muted-foreground); }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; padding: 16px; z-index: 10; }
+      .dialog { background: var(--card); border-radius: 12px; padding: 20px; width: min(440px, 100%); display: grid; gap: 12px; }
+      .dialog h2 { margin: 0; font-size: 17px; }
+      .dialog p { margin: 0; color: var(--muted-foreground); }
+      .dialog .who { color: var(--foreground); font-weight: 600; }
+      .dialog .end { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+      .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--foreground); color: var(--background); padding: 10px 16px; border-radius: 8px; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); display: inline-block; margin-right: 6px; }
+      [hidden] { display: none !important; }
+      @media (max-width: 767px) {
+        .app { grid-template-columns: 1fr; }
+        .side { display: none; }
+        .app.list .side { display: block; }
+        .app.list .main { display: none; }
+        .page { padding: 16px; }
+        .bubble { max-width: 85%; }
+        .hide-sm { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="bar" aria-label="Mock states">
+      Mock states:
+      <a href="?state=logout">1 Log out dialog</a> ·
+      <a href="?state=loggedout">2 Logged out</a> ·
+      <a href="?state=menu">3 Chat menu</a> ·
+      <a href="?state=delete">4 Delete dialog</a> ·
+      <a href="?state=deleted">5 Deleted</a>
+    </nav>
+
+    <!-- Admin → WhatsApp (states 1, 2) -->
+    <div class="app" id="admin" hidden>
+      <aside class="side"><h1>Admin</h1>
+        <div class="row"><span>General</span></div>
+        <div class="row sel"><span>WhatsApp</span></div>
+        <div class="row"><span>Members</span></div>
+      </aside>
+      <main class="main"><div class="page">
+        <h2 style="margin:0">WhatsApp</h2>
+        <div class="card" id="linked">
+          <div><span class="dot" style="background:var(--primary)"></span><b>Connected</b> · +60 12-345 6789</div>
+          <div class="actions">
+            <button class="btn">Take over</button><button class="btn">Link again</button>
+            <button class="btn ghost-danger">Log out</button>
+          </div>
+          <div class="sub">Log out: remove this inbox from the phone's linked devices. Its chats are hidden until the same number links again.</div>
+        </div>
+        <div class="card" id="out" hidden>
+          <div><span class="dot"></span><b>Not linked</b></div>
+          <div class="note">The 128 chats of +60 12-345 6789 are hidden. Link the same number again to show the chats that
+            are still on the phone. Another number starts with an empty inbox.</div>
+          <div class="actions"><button class="btn primary">Link WhatsApp</button></div>
+        </div>
+      </div></main>
+    </div>
+
+    <!-- Inbox with a chat (states 3, 4, 5) -->
+    <div class="app" id="inbox" hidden>
+      <aside class="side"><h1>Inbox</h1>
+        <div class="row sel" id="row-z"><div class="av">Z</div><div><div class="name">Zamirin</div><div class="sub">ya</div></div></div>
+        <div class="row"><div class="av">A</div><div><div class="name">Aisyah Rahman</div><div class="sub">Thanks, received the quote</div></div></div>
+        <div class="row"><div class="av">L</div><div><div class="name">Lim Wei Jie</div><div class="sub">Can deliver on Friday?</div></div></div>
+      </aside>
+      <main class="main">
+        <div class="head">
+          <div class="av">Z</div>
+          <div class="grow"><div class="name">Zamirin</div><div class="sub">+60 13-274 0084</div></div>
+          <button class="btn hide-sm">Sales Agent (AI)</button>
+          <button class="btn icon" aria-label="More">⋮</button>
+          <div class="menu" id="menu" hidden>
+            <div>Customer details</div><div>Notes</div><div>Mark as unread</div>
+            <div class="sep"></div><div class="del">Delete chat</div>
+          </div>
+        </div>
+        <div class="thread">
+          <div class="bubble">Morning, can your AI agent support customer service for a telco?</div>
+          <div class="bubble me">Yes, we can build an AI customer service agent, including a CRM link.</div>
+          <div class="bubble">ya</div>
+        </div>
+      </main>
+    </div>
+
+    <div class="overlay" id="dlg-logout" hidden><div class="dialog" role="dialog" aria-labelledby="t1">
+      <h2 id="t1">Log out of WhatsApp?</h2>
+      <p>The linked device is removed from the phone. The team inbox stops receiving and sending messages.</p>
+      <p>The 128 chats of this number are hidden. Link the same number again to show the chats that are still on the phone.</p>
+      <div class="end"><button class="btn">Cancel</button><button class="btn danger">Log out</button></div>
+    </div></div>
+
+    <div class="overlay" id="dlg-delete" hidden><div class="dialog" role="dialog" aria-labelledby="t2">
+      <h2 id="t2">Delete this chat?</h2>
+      <p><span class="who">Zamirin</span> · 48 messages, 3 files</p>
+      <p>Deleted from EzyChat for good. Your WhatsApp phone keeps its copy. Backups keep it for up to 7 days.</p>
+      <div class="end"><button class="btn">Cancel</button><button class="btn danger">Delete chat</button></div>
+    </div></div>
+
+    <div class="toast" id="toast" hidden>Chat deleted</div>
+
+    <script>
+      const q = new URLSearchParams(location.search);
+      const state = q.get('state') || 'logout';
+      if (q.get('theme') === 'dark') document.documentElement.classList.add('dark');
+      const show = (id) => (document.getElementById(id).hidden = false);
+      const hide = (id) => (document.getElementById(id).hidden = true);
+      if (state === 'logout' || state === 'loggedout') {
+        show('admin');
+        if (state === 'logout') show('dlg-logout');
+        else { hide('linked'); show('out'); }
+      } else {
+        show('inbox');
+        if (state === 'menu') show('menu');
+        if (state === 'delete') show('dlg-delete');
+        if (state === 'deleted') {
+          hide('row-z');
+          document.getElementById('inbox').classList.add('list');
+          document.querySelector('#inbox .main').innerHTML =
+            '<div class="page"><div class="note">Select a chat</div></div>';
+          show('toast');
+        }
+      }
+    </script>
+  </body>
+</html>

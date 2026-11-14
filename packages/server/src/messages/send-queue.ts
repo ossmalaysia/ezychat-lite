@@ -119,6 +119,18 @@ export class SendQueue {
     for (const j of [...jobs].sort((a, b) => a.createdAt - b.createdAt)) this.enqueue(j);
   }
 
+  /**
+   * Forgets every job still waiting for `chatJid` (the chat is being deleted): none is sent and no
+   * callback runs. A send already in flight finishes; its row is gone, so onSent finds nothing.
+   * Returns how many jobs were dropped.
+   */
+  drop(chatJid: string): number {
+    const q = this.queues.get(chatJid);
+    if (!q) return 0;
+    // in place: a running worker holds this array and sees it empty on its next turn
+    return q.splice(0).length;
+  }
+
   stop(): void {
     this.stopped = true;
     this.queues.clear();

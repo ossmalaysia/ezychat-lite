@@ -6,15 +6,27 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "forward-message",
-    "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-    "mock": "docs/features/forward-message/mock/index.html",
-    "design": "docs/features/forward-message/design.md",
-    "confirmedAt": "2026-11-07",
-    "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured.",
-    "note": "Clone of new-chat (scheduled-tasks + google-drive + sql-accounting + New chat) with partner-role (limited chat access) merged in, plus Forward (large files, across numbers). Inherits new-chat's coverage gaps (message edit/delete and Safety-on-message screens)."
+    "feature": "app-navigation",
+    "gitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
+    "mock": "docs/features/app-navigation/mock/index.html",
+    "design": "docs/features/app-navigation/design.md",
+    "confirmedAt": "2026-11-13",
+    "confirmation": "Owner (Jazz) confirmed the app navigation mock 2026-11-13 (\"other also fine\", \"design good, go ahead\") with the recommended answers: Members as a Settings row on phones, Report a problem stays in the account menu, list title renamed Inbox -> Chats in the build, rail Settings opens App settings or the numbers page when a number needs attention.",
+    "note": "Clone of forward-message (2549b7af) with Ask Ezy copied in and the desktop icon rail / phone bottom tabs added; replaces mobile-redesign's phone list header. Inherits forward-message's coverage gaps."
   },
   "proposals": [
+    {
+      "feature": "app-navigation",
+      "creationOrder": 43,
+      "createdAt": "2026-11-13",
+      "design": "docs/features/app-navigation/design.md",
+      "mock": "docs/features/app-navigation/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "forward-message",
+      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "coverage": "Full app clone of the confirmed forward-message reference; app navigation on every signed-in screen: desktop (768 px and up) 64 px icon rail (Chats with the count of chats with unread messages, Reports and Members for admins, Ask Ezy, Settings with the red attention dot for admins, account photo/menu at the bottom), the Settings side menu on the other admin pages (Quick replies, Connectors, Inboxes/WhatsApp with the dot, Phone access, App settings, Audit), Reports and Members full width; phone (below 768 px) bottom tabs (admin: Chats, Reports, Ask Ezy, Settings; team member: Chats, Ask Ezy, Account; agent limited to chosen chats: Chats, Account), no tabs inside an open chat, Settings list page (every admin page, Your account, Mock only attention switch), Account page, phone app bar with back; Ask Ezy panel copied from the app (docked from 1280 px, full screen on phones, scripted answers via /api/mock/ask-ezy); desktop 1280 / phone 360, light/dark, en/ms/zh-CN, admin/team member/limited agent (shots.mjs, 44 shots in docs/features/app-navigation/screenshots).",
+      "note": "Replaces the phone list header of the unconfirmed mobile-redesign proposal (39) where they overlap (Admin moves to the Settings tab, account to Settings/Account) and reverses the design-system rule \"no bottom bar\" (2026-11-07) on owner request 2026-11-13. Removes new-chat (37) for retention; template-store stays (live tooling). Inherits forward-message coverage gaps (message edit/delete and Safety-on-message screens; no Safety admin page in the mock)."
+    },
     {
       "feature": "ai-completion-rate",
       "creationOrder": 42,
@@ -24,6 +36,18 @@
       "status": "design-only",
       "coverage": "No mock folder (one card on the Reports page; the owner confirmed a quick review page with screenshots at 1280/360, light and dark, 2026-11-13: \"ok go ahead\"): the Design section of the workbook and the refreshed docs/screenshots/reports shots.",
       "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
+    },
+    {
+      "feature": "chat-hide-delete",
+      "creationOrder": 44,
+      "createdAt": "2026-11-12",
+      "design": "docs/features/chat-hide-delete/design.md",
+      "mock": "docs/features/chat-hide-delete/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-12",
+      "confirmation": "Owner (Jazz) confirmed the quick mock and rules on 2026-11-12 (\"look good\"); the owner chose a quick mock with screenshots instead of a full app clone.",
+      "coverage": "Quick mock only (not an app clone): Log out dialog, Admin -> WhatsApp after Log out with the hidden count, chat menu with Delete chat, Delete chat dialog, list after delete; 1280/360, light/dark (mock/shots.mjs, mock/screens/).",
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Numbered 44 when merged after ai-completion-rate (42) and app-navigation (43). Prunes new-chat (37); template-store stays (live tooling)."
     },
     {
       "feature": "ai-silent-line",
@@ -36,41 +60,16 @@
       "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
     },
     {
-      "feature": "mcp-file-upload",
-      "creationOrder": 40,
-      "createdAt": "2026-11-08",
-      "design": "docs/features/mcp-file-upload/design.md",
-      "mock": null,
-      "status": "design-only",
-      "coverage": "No mock (a small change; the owner asked for screenshots and states only): design.md with the security review and the composer states; screenshots at 1280/360 in screens/ (uploading progress, sent as a file, over WhatsApp's limit, tunnel 100 MB) made by screens/shots.mjs against a Dev Build.",
-      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Removes partner-role (36) for retention; template-store stays (live tooling)."
-    },
-    {
-      "feature": "mobile-redesign",
-      "creationOrder": 39,
-      "createdAt": "2026-11-07",
-      "design": "docs/features/mobile-redesign/design.md",
-      "mock": "docs/features/mobile-redesign/mock/index.html",
+      "feature": "github",
+      "creationOrder": 45,
+      "createdAt": "2026-11-10",
+      "design": "docs/features/github/design.md",
+      "mock": "docs/features/github/mock/index.html",
       "status": "proposal",
       "baselineFeature": "forward-message",
       "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-      "coverage": "Full app clone of the confirmed forward-message reference; phone layout (below 768 px) of the inbox: one-row list header with the WhatsApp-number switcher as the title, search on demand, filter chips (All, Unread with count, Mine, Unassigned, Groups, Tag, Resolved), number switcher bottom sheet with unread and connection per number, tag filter sheet, New chat floating button (shrinks on scroll), swipe right = Assign to me / left = Resolve with Undo, press-and-hold row action sheet, one-row chat header with a chip strip (assignee, tags, + Tag, Notes, group AI badge), assign sheet, chat Tags sheet (tick, create, Done), more-actions sheet, number badge on photos, toasts at the bottom; Lite and one-number agent; desktop 1280 unchanged; 360 and 390 px touch, light/dark, en/ms/zh-CN (mobile-shots.mjs); before shots of the baseline at 360 px (audit-shots.mjs); living design-system reference page /design-system (tokens from index.css, type, space, radius, elevation, components and states, mobile patterns, editions; light/dark, desktop and 360 px). Tags on group chats as on direct chats (owner 2026-11-07): header chip, row sheet, Group info and Customer details Tags row with one shared editor, list rows, the tag filter returning groups (stand-in route group-tags.ts writes the real customer_tags table); desktop Group info and Customer details tags.",
-      "note": "Phase 1 only (the owner's three items + quick wins). Phase 2 (composer, message actions, Customer details / Group info sheets, keyboard) is described in design.md, not mocked. Inherits forward-message's coverage gaps (message edit/delete and Safety-on-message screens). Removes scheduled-tasks (35) for retention; template-store stays (live tooling). Also updates docs/design-system.md (Mobile patterns, Editions, fixes) as part of the same confirmation."
-    },
-    {
-      "feature": "forward-message",
-      "creationOrder": 38,
-      "createdAt": "2026-11-07",
-      "design": "docs/features/forward-message/design.md",
-      "mock": "docs/features/forward-message/mock/index.html",
-      "status": "confirmed",
-      "baselineFeature": "new-chat",
-      "baselineGitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
-      "coverage": "Full app clone of new-chat with partner-role (846a09cc) merged in three ways against google-drive 442b6317; Forward on the message menu (desktop ⋮ menu, touch press-and-hold bar, disabled when Safety locks the file), dialog: what is forwarded, search, chats and groups by inbox access / chosen chats, two inboxes picked with the own-number note, 5 of 5, Business API chat with the window closed (row disabled), Safety locked, WhatsApp offline, forwarded many times = one chat, sent toast (n chats; one chat with Open chat); Forwarded / Forwarded many times label on copies and on customers' forwarded messages; Activity row; limited agent (Ravi) list; Lite; desktop 1280 / mobile 360 touch, light (dark for the dialog and label), en/ms/zh-CN ; large files (owner case, a 70 MB video from Catering to a Business API chat and a group on another number: size, large-file note, Send as Video/File with Video disabled above the chat's limit, 120 MB greyed out for the Business API chat, Sending 70 MB… in the target chat, upload failed with Retry) (forward-shots.mjs, 56 shots, 0 page errors, 0 overflow)",
-      "note": "Inherits new-chat's coverage gaps (the mock web source predates message edit/delete and Safety on messages: a minimal ⋮ menu and a Mock only Safety switch stand in). Stand-in routes /api/mock/forward*. Prunes sql-accounting (34). partner-role's files are already merged in, so the next clone starts from this mock alone.",
-      "confirmedAt": "2026-11-07",
-      "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-      "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured."
+      "coverage": "Full app clone of the confirmed forward-message reference; Admin → Connectors gallery card (GitHub under Other), connector page Overview (four look-ups; GitHub account card: Sign in with GitHub and Use a token instead, device code dialog with waiting / cancelled / expired, app not installed with Install on GitHub and Check again, connected with the App, token form with classic / not accepted / no repositories errors, connected with a token, token expiring, sign-in expired, unreachable, Disconnect confirm; Your data), Settings per AI agent (repositories none / picker with search, owners, private-public, at most 20, refresh and a link to share more on GitHub / chosen / no longer shared, who-can-be-told notice, Issues and Pull requests switches, instructions link, Save bar, paused banner), Mock only chat simulator (issue, pull request, other repo refused, issue text with orders read as information, paused hand-over), Activity, agent page Connectors row; localStorage; desktop 1280 / mobile 360 touch, light/dark (github-shots.mjs)",
+      "note": "Requester (Frankie) 2026-11-10: \"Open PR and build\" after the screenshots, decisions Q1-Q3 and the spike; repository owner (Jazz) not yet asked, so latestConfirmed stays forward-message. Connector list entry: anchorsprint/ezychat-connectors PR #6."
     },
     {
       "feature": "new-chat",
@@ -82,7 +81,7 @@
       "baselineFeature": "scheduled-tasks",
       "baselineGitRevision": "426c2eb766f24e520fd4f59b66ab837c11296045",
       "coverage": "Full app clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks); New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on) and daily limit field (invalid, 0 = no limit, 10, ban warning), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs)",
-      "note": "Built in parallel with partner-role (36, from google-drive) on the scheduled-tasks baseline (35); confirmed after partner-role, so latestConfirmed is new-chat and the next clone starts from this mock and copies in partner-role's files (its design.md lists them). Inherits scheduled-tasks' coverage gaps.",
+      "note": "Built in parallel with partner-role (36, from google-drive) on the scheduled-tasks baseline (35); confirmed after partner-role, so latestConfirmed is new-chat and the next clone starts from this mock and copies in partner-role's files (its design.md lists them). Inherits scheduled-tasks' coverage gaps. Folder pruned 2026-11-12 by chat-hide-delete (42) for retention; recover it from gitRevision.",
       "confirmedAt": "2026-11-06",
       "gitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
       "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd): \"The owner CONFIRMED the New chat mock on 2026-11-06, with one change\": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning, audited before/after, shared with MCP send_to_new_number); suggested answers stand (counts in memory; Business API only 5/hour per user; default country from the inbox's own number, +60 fallback; assigned to the starter, AI waits); limited agents (chat_scope 'chosen') never start a new chat."
@@ -705,6 +704,74 @@
       "archivedAt": "2026-11-08",
       "archivedRevision": "3a287f59cf49ad7f7c7220c6fbe53a809b287047",
       "archivedBy": "mcp-file-upload (five-folder retention; template-store kept as tooling)"
+    },
+    {
+      "feature": "new-chat",
+      "creationOrder": 37,
+      "createdAt": "2026-11-06",
+      "design": "docs/features/new-chat/design.md",
+      "mock": "docs/features/new-chat/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "scheduled-tasks",
+      "baselineGitRevision": "426c2eb766f24e520fd4f59b66ab837c11296045",
+      "coverage": "Full app clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks); New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on) and daily limit field (invalid, 0 = no limit, 10, ban warning), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs)",
+      "note": "Built in parallel with partner-role (36, from google-drive) on the scheduled-tasks baseline (35); confirmed after partner-role, so latestConfirmed is new-chat and the next clone starts from this mock and copies in partner-role's files (its design.md lists them). Inherits scheduled-tasks' coverage gaps.",
+      "confirmedAt": "2026-11-06",
+      "gitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
+      "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd): \"The owner CONFIRMED the New chat mock on 2026-11-06, with one change\": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning, audited before/after, shared with MCP send_to_new_number); suggested answers stand (counts in memory; Business API only 5/hour per user; default country from the inbox's own number, +60 fallback; assigned to the starter, AI waits); limited agents (chat_scope 'chosen') never start a new chat.",
+      "archived": true,
+      "archivedAt": "2026-11-13",
+      "archivedRevision": "98b22a044a6ce1d805d0fc5fb38c5e44a3838716",
+      "archivedBy": "app-navigation (five-folder retention; template-store kept as tooling; cloud-auth-storage is a design-only folder created 2026-11-08, newer than new-chat)"
+    },
+    {
+      "feature": "forward-message",
+      "creationOrder": 38,
+      "createdAt": "2026-11-07",
+      "design": "docs/features/forward-message/design.md",
+      "mock": "docs/features/forward-message/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "new-chat",
+      "baselineGitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
+      "coverage": "Full app clone of new-chat with partner-role (846a09cc) merged in three ways against google-drive 442b6317; Forward on the message menu (desktop ⋮ menu, touch press-and-hold bar, disabled when Safety locks the file), dialog: what is forwarded, search, chats and groups by inbox access / chosen chats, two inboxes picked with the own-number note, 5 of 5, Business API chat with the window closed (row disabled), Safety locked, WhatsApp offline, forwarded many times = one chat, sent toast (n chats; one chat with Open chat); Forwarded / Forwarded many times label on copies and on customers' forwarded messages; Activity row; limited agent (Ravi) list; Lite; desktop 1280 / mobile 360 touch, light (dark for the dialog and label), en/ms/zh-CN ; large files (owner case, a 70 MB video from Catering to a Business API chat and a group on another number: size, large-file note, Send as Video/File with Video disabled above the chat's limit, 120 MB greyed out for the Business API chat, Sending 70 MB… in the target chat, upload failed with Retry) (forward-shots.mjs, 56 shots, 0 page errors, 0 overflow)",
+      "note": "Inherits new-chat's coverage gaps (the mock web source predates message edit/delete and Safety on messages: a minimal ⋮ menu and a Mock only Safety switch stand in). Stand-in routes /api/mock/forward*. Prunes sql-accounting (34). partner-role's files are already merged in, so the next clone starts from this mock alone.",
+      "confirmedAt": "2026-11-07",
+      "gitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "confirmation": "Owner (Jazz) confirmed the Forward mock 2026-11-07 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd) with all proposed answers: offline refuse; forwarding claims the chat like a reply; 5 chats per forward and 30 forwards a minute per user; no WhatsApp Forwarded mark on Business API copies; [forwarded] in the AI conversation; composer upload limit 64 -> 100 MB for every type, checked per number (Business API video over 16 MB offered as a file); linked-phone video limit 64 MB until measured.",
+      "archived": true,
+      "archivedAt": "2026-11-14",
+      "archivedRevision": "81696946f1f562e93cf10a09ed0a4bfc21aa5fa5",
+      "archivedBy": "app-navigation (five-folder retention: ask-ezy-setup arrived from main as the sixth counted folder; template-store kept as tooling; app-navigation is the confirmed baseline now)"
+    },
+    {
+      "feature": "mobile-redesign",
+      "creationOrder": 39,
+      "createdAt": "2026-11-07",
+      "design": "docs/features/mobile-redesign/design.md",
+      "mock": "docs/features/mobile-redesign/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "forward-message",
+      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "coverage": "Full app clone of the confirmed forward-message reference; phone layout (below 768 px) of the inbox: one-row list header with the WhatsApp-number switcher as the title, search on demand, filter chips (All, Unread with count, Mine, Unassigned, Groups, Tag, Resolved), number switcher bottom sheet with unread and connection per number, tag filter sheet, New chat floating button (shrinks on scroll), swipe right = Assign to me / left = Resolve with Undo, press-and-hold row action sheet, one-row chat header with a chip strip (assignee, tags, + Tag, Notes, group AI badge), assign sheet, chat Tags sheet (tick, create, Done), more-actions sheet, number badge on photos, toasts at the bottom; Lite and one-number agent; desktop 1280 unchanged; 360 and 390 px touch, light/dark, en/ms/zh-CN (mobile-shots.mjs); before shots of the baseline at 360 px (audit-shots.mjs); living design-system reference page /design-system (tokens from index.css, type, space, radius, elevation, components and states, mobile patterns, editions; light/dark, desktop and 360 px). Tags on group chats as on direct chats (owner 2026-11-07): header chip, row sheet, Group info and Customer details Tags row with one shared editor, list rows, the tag filter returning groups (stand-in route group-tags.ts writes the real customer_tags table); desktop Group info and Customer details tags.",
+      "note": "Phase 1 only (the owner's three items + quick wins). Phase 2 (composer, message actions, Customer details / Group info sheets, keyboard) is described in design.md, not mocked. Inherits forward-message's coverage gaps (message edit/delete and Safety-on-message screens). Removes scheduled-tasks (35) for retention; template-store stays (live tooling). Also updates docs/design-system.md (Mobile patterns, Editions, fixes) as part of the same confirmation.",
+      "archived": true,
+      "archivedAt": "2026-11-14",
+      "archivedRevision": "829a4b384346e0281d45bc90d76c5f8ade8b77e3",
+      "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
+    },
+    {
+      "feature": "mcp-file-upload",
+      "creationOrder": 40,
+      "createdAt": "2026-11-08",
+      "design": "docs/features/mcp-file-upload/design.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock (a small change; the owner asked for screenshots and states only): design.md with the security review and the composer states; screenshots at 1280/360 in screens/ (uploading progress, sent as a file, over WhatsApp's limit, tunnel 100 MB) made by screens/shots.mjs against a Dev Build.",
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Removes partner-role (36) for retention; template-store stays (live tooling).",
+      "archived": true,
+      "archivedAt": "2026-11-14",
+      "archivedRevision": "ee978fa4f6ce76f5d46795bfe719521c5ad9c147",
+      "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
     }
   ]
 }

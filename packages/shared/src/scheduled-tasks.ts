@@ -77,6 +77,8 @@ export const ScheduledRunReason = z.enum([
   'window_closed',
   'missed',
   'chat_gone',
+  /** The chat was hidden when its WhatsApp number logged out (docs/features/chat-hide-delete). */
+  'chat_hidden',
   'confidential_leak',
   'ai_unavailable',
   'lookup_failed',

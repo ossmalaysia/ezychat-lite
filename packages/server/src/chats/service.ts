@@ -14,6 +14,7 @@ import { audit } from '../db/audit.js';
 import { HttpError, errors } from '../http/errors.js';
 import { canOpenChat } from '../inboxes/access.js';
 import { getAliases } from './aliases.js';
+import { personDeletedAt } from './delete.js';
 import { PRIMARY_INBOX_ID, chatKey, parseChatKey, waMessageId } from '../inboxes/keys.js';
 import { ChatRepo, chatTypeOf, jidUser, waJidOf, type ChatRow } from './repo.js';
 import { createChatPresenter } from '../messages/mentions.js';
@@ -41,6 +42,8 @@ export interface ChatService {
    */
   resolveJid(key: string): string;
   openCount(): number;
+  /** Open chats with unread messages in the caller's scope (the app navigation's Chats count). */
+  unreadCount(scope?: Omit<ChatListScope, 'inbox'>): number;
   resolveAll(actorId: number, ip?: string | null): number;
   events(jid: string): ChatEvent[];
   /**
@@ -50,6 +53,11 @@ export interface ChatService {
   addAiToolUsed(jid: string, actorId: number, lookups: readonly AiToolUsedPayload[]): ChatEvent[];
   /** A chat WhatsApp reported through `inboxId` (default inbox 1); `info.jid` is a WhatsApp JID. */
   upsertFromWa(info: WaChatInfo, inboxId?: number): Chat;
+  /**
+   * WhatsApp's own chat list (history sync, `chats.upsert`): as upsertFromWa, but never brings back a
+   * chat an admin deleted (null then). A live message still starts a new chat.
+   */
+  syncFromWa(info: WaChatInfo, inboxId?: number): Chat | null;
   /** actorId null = system */
   /** `eventDetail` is merged into the assignment event's payload (e.g. `{ handoff: reason }`). */
   patch(
@@ -210,6 +218,10 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
       return repo.openCount();
     },
 
+    unreadCount(scope = {}) {
+      return repo.unreadCount(scope);
+    },
+
     resolveAll(actorId, ip = null) {
       // Commit the complete reset before publishing any changes to connected teammates.
       const result = ctx.db.transaction(() => {
@@ -300,6 +312,17 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
         return emitChat(jid);
       }
       return present(existing);
+    },
+
+    syncFromWa(info, inboxId = PRIMARY_INBOX_ID) {
+      const jid =
+        info.type === 'dm' ? aliases.route(inboxId, info.jid) : chatKey(inboxId, info.jid);
+      if (
+        !repo.get(jid) &&
+        personDeletedAt(ctx, inboxId, [parseChatKey(jid).waJid, info.jid]) !== null
+      )
+        return null;
+      return svc.upsertFromWa(info, inboxId);
     },
 
     patch(jid, body, actorId, eventDetail = {}) {

@@ -24,6 +24,7 @@ import {
 } from '../ai/setup-versions.js';
 import { agentById, defaultAgent, type AgentRow } from '../ai/agents.js';
 import { localDate, localMidnight } from '../chats/stats.js';
+import { HIDDEN_CHAT_KEYS } from '../chats/hidden-sql.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { inboxOfKey } from '../inboxes/keys.js';
 
@@ -196,6 +197,7 @@ export function createAiSetupPort(ctx: AppContext): AiSetupPort {
         `SELECT COUNT(DISTINCT chat_jid) AS chats, COUNT(*) AS messages FROM messages
          WHERE sent_by_user_id IN (SELECT id FROM users WHERE kind = 'ai')
            AND from_me = 1 AND timestamp >= ? AND timestamp < ?
+           AND chat_jid NOT IN (${HIDDEN_CHAT_KEYS})
            AND (? IS NULL OR chat_jid IN (SELECT jid FROM chats
                 WHERE inbox_id IN (SELECT value FROM json_each(?))))`,
       );

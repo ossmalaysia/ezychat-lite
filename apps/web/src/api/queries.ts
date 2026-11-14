@@ -25,6 +25,7 @@ import {
   type PatchMeBody,
   MeResponse,
   OpenChatCountResponse,
+  UnreadChatCountResponse,
   ResolveAllChatsResponse,
   SetupStatusResponse,
   CloudflareSetupStatus,
@@ -93,6 +94,8 @@ export const qk = {
   chats: (f: ChatFilters) => ['chats', f] as const,
   chatsAll: ['chats'] as const,
   openChatCount: ['open-chat-count'] as const,
+  // Not under ['chats']: upsertChatInCache rewrites every query there as a chat list.
+  unreadChatCount: ['unread-chat-count'] as const,
   report: (days: number, inbox: number | null = null) => ['report', days, inbox] as const,
   chat: (jid: string) => ['chat', jid] as const,
   messages: (jid: string) => ['messages', jid] as const,
@@ -533,6 +536,15 @@ export function useOpenChatCount() {
   return useQuery({
     queryKey: qk.openChatCount,
     queryFn: ({ signal }) => api('/chats/open-count', { schema: OpenChatCountResponse, signal }),
+  });
+}
+
+/** App navigation: open chats with unread messages the user may open (kept live by the chat socket events). */
+export function useUnreadChatCount() {
+  return useQuery({
+    queryKey: qk.unreadChatCount,
+    queryFn: ({ signal }) =>
+      api('/chats/unread-count', { schema: UnreadChatCountResponse, signal }),
   });
 }
 

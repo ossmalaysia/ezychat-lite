@@ -71,6 +71,8 @@ describe('mergeLiteInbox', () => {
       agentImported: true,
       agentOff: false,
       renamedShortcuts: ['hi-lite'],
+      // Lite has no own address here (lite-import-address.test.ts covers one that moves)
+      address: null,
     });
     expect(progress.map((p) => `${p.step}:${p.state}`)).toEqual(
       expect.arrayContaining([
@@ -323,7 +325,15 @@ describe('mergeLiteInbox', () => {
         'drive_saved_files',
       ])
         expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get(), table).toEqual({ n: 0 });
-      for (const table of ['sheets_activity', 'drive_activity'])
+      // GitHub: the agent's repositories and its activity come across; the sign-in does not.
+      expect(db.prepare('SELECT agent_id, settings FROM github_agent_settings').get()).toEqual({
+        agent_id: agentId,
+        settings: '{"repos":[{"id":9001,"fullName":"acme/helpdesk","private":true}]}',
+      });
+      expect(
+        db.prepare("SELECT value FROM settings WHERE key = 'github_auth'").get(),
+      ).toBeUndefined();
+      for (const table of ['sheets_activity', 'drive_activity', 'github_activity'])
         expect(db.prepare(`SELECT agent_id, chat_jid FROM ${table}`).get(), table).toEqual({
           agent_id: agentId,
           chat_jid: `${LITE_CHAT}#3`,
@@ -823,6 +833,25 @@ describe('mergeLiteInbox refusals and rollback', () => {
     }
   });
 
+  it('keeps the chats an admin deleted in Lite deleted, under the new inbox', async () => {
+    const t = seedTarget();
+    const lite = seedLite();
+    const db = openDb(join(lite.dir, 'app.db'));
+    db.prepare('INSERT INTO deleted_chats (inbox_id, wa_jid, deleted_at) VALUES (1, ?, 500)').run(
+      '60999@s.whatsapp.net',
+    );
+    db.close();
+    const { inboxId } = (await merge(t.dir, lite.dir)).result;
+    const check = openDb(join(t.dir, 'app.db'));
+    try {
+      expect(check.prepare('SELECT * FROM deleted_chats').all()).toEqual([
+        { inbox_id: inboxId, wa_jid: '60999@s.whatsapp.net', deleted_at: 500 },
+      ]);
+    } finally {
+      check.close();
+    }
+  });
+
   it('migrates an older Lite copy before merging, never Lite itself', async () => {
     const t = seedTarget();
     const lite = seedLite();
@@ -872,6 +901,14 @@ describe('mergeLiteInbox refusals and rollback', () => {
       'DROP TABLE media_refs; ALTER TABLE messages DROP COLUMN media_width; ALTER TABLE messages DROP COLUMN media_height;',
     );
     db.exec('DROP TABLE media_thumbs; ALTER TABLE messages DROP COLUMN media_has_thumb;');
+    // and 042 (deleted chats)
+    db.exec('DROP TABLE deleted_chats;');
+    // and 043 (chats hidden on Log out)
+    db.exec(
+      'DROP INDEX idx_chats_hidden; ALTER TABLE chats DROP COLUMN hidden_at; ALTER TABLE chats DROP COLUMN hidden_number;',
+    );
+    // and 044 (GitHub connector)
+    db.exec('DROP TABLE github_agent_settings; DROP TABLE github_activity;');
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

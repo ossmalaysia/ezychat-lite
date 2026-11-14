@@ -488,7 +488,10 @@ export function createSqlAccountService(ctx: AppContext, options: SqlAccountServ
       code: string | null,
       actor: Actor,
     ): Promise<'ok' | 'unknown_code' | 'not_found'> {
-      const chat = ctx.db.prepare('SELECT jid FROM chats WHERE jid = ?').get(jid);
+      // a chat hidden on Log out cannot be linked (it does not exist for anyone)
+      const chat = ctx.db
+        .prepare('SELECT jid FROM chats WHERE jid = ? AND hidden_at IS NULL')
+        .get(jid);
       if (!chat || jid.endsWith('@g.us')) return 'not_found';
       if (code !== null) {
         const c = require();
