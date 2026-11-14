@@ -103,6 +103,33 @@ describe('collectTakeovers', () => {
     expect(chat!.messages.map((m) => m.text)).toEqual(['Is my order sent?', 'Yes, it left today.']);
   });
 
+  it('never counts another AI agent as the team', async () => {
+    const s = await setup();
+    const other = s.t.ctx.db
+      .prepare(
+        "INSERT INTO users (username, display_name, password_hash, role, kind, created_at) VALUES ('ai-old', 'Old bot', '', 'agent', 'ai', 1)",
+      )
+      .run().lastInsertRowid;
+    s.chat(A, 'One');
+    s.msg(A, T0, 'customer', 'Price?');
+    s.handoff(A, T0 + MIN);
+    const id = s.msg(A, T0 + 2 * MIN, 'team', 'It is RM 5.');
+    s.t.ctx.db.prepare('UPDATE messages SET sent_by_user_id = ? WHERE id = ?').run(other, id);
+    expect(collectTakeovers(s.t.ctx, s.window)).toEqual([]);
+  });
+
+  it('removes Chinese and two-character names too', async () => {
+    const s = await setup();
+    s.chat(A, '陈明');
+    s.msg(A, T0, 'customer', '陈明您好,周六开门吗?');
+    s.handoff(A, T0 + MIN);
+    s.msg(A, T0 + 2 * MIN, 'team', '陈明您好,周六早上9点到下午1点');
+    const text = collectTakeovers(s.t.ctx, s.window)[0]!
+      .messages.map((m) => m.text)
+      .join(' ');
+    expect(text).not.toContain('陈明');
+  });
+
   it('cleans names, numbers and emails before the lesson call', async () => {
     const s = await setup();
     s.chat(A, 'Ahmad Lee');

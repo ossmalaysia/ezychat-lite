@@ -105,10 +105,11 @@ function triggers(
   return [...latest.values()].filter((t) => direct.get(t.jid, inboxId)).sort((a, b) => b.at - a.at);
 }
 
-function roleOf(m: RawMessage, aiUserId: number): TakeoverMessage['role'] {
+/** null: another AI agent's message (never a lesson, never context). */
+function roleOf(m: RawMessage, aiUserId: number): TakeoverMessage['role'] | null {
   if (!m.from_me) return 'customer';
   if (m.sent_by_user_id === null || m.kind === 'human') return 'team';
-  return m.sent_by_user_id === aiUserId ? 'ai' : 'team';
+  return m.sent_by_user_id === aiUserId ? 'ai' : null;
 }
 
 export function collectTakeovers(ctx: AppContext, w: Window): TakeoverChat[] {
@@ -133,10 +134,10 @@ export function collectTakeovers(ctx: AppContext, w: Window): TakeoverChat[] {
       w.to,
       (backToAi.get(t.jid, t.at, agent.userId) as { at: number | null }).at ?? w.to,
     );
-    const rows = (messages.all(t.jid, end, 200) as RawMessage[]).map((m) => ({
-      ...m,
-      role: roleOf(m, agent.userId),
-    }));
+    const rows = (messages.all(t.jid, end, 200) as RawMessage[]).flatMap((m) => {
+      const role = roleOf(m, agent.userId);
+      return role ? [{ ...m, role }] : [];
+    });
     const lastTeam = rows.find((m) => m.role === 'team' && m.created_at >= t.at);
     if (!lastTeam) continue;
     const kept = rows

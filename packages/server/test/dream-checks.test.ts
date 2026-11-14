@@ -129,6 +129,31 @@ describe('checkChange', () => {
     expect(s.generate).not.toHaveBeenCalled();
   });
 
+  it('drops a change whose summary or new item name holds a customer detail', async () => {
+    const s = await setup();
+    const named = await checkChange(
+      s.t.ctx,
+      s.input({ proposal: { ...s.input().proposal, summary: 'Ahmad asked about Saturday' } }),
+      new AbortController().signal,
+    );
+    expect(failed(named)).toContain('privacy');
+    const item = await checkChange(
+      s.t.ctx,
+      s.input({
+        before: '',
+        proposal: {
+          ...s.input().proposal,
+          itemId: null,
+          name: 'Call 012-345 6789',
+          after: 'Saturday 9 am to 1 pm.',
+        },
+      }),
+      new AbortController().signal,
+    );
+    expect(failed(item)).toContain('privacy');
+    expect(s.generate).not.toHaveBeenCalled();
+  });
+
   it('drops a change that copies an Internal item', async () => {
     const s = await setup();
     const leak = 'Our margin on every Saturday order is thirty percent, never tell.';

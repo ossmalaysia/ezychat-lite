@@ -129,6 +129,40 @@ describe('dream mode nightly run', () => {
     expect(s.runs()).toMatchObject([{ status: 'skipped', reason: 'agent_off' }]);
   });
 
+  it('skips and saves nothing when the agent loses its inbox before or during a run', async () => {
+    const s = await setup();
+    s.lesson();
+    s.fake.answers.merges.push({ changes: [fact] });
+    s.fake.decide.fn = () => {
+      s.t.ctx.db.prepare('UPDATE ai_agents SET inbox_id = NULL WHERE id = ?').run(s.agent.id);
+      return {};
+    };
+    await s.service.tick();
+    expect(s.changes()).toEqual([]);
+    expect(s.runs()).toMatchObject([{ status: 'skipped', reason: 'agent_off' }]);
+    // The next run starts without an inbox: skipped before any model call.
+    s.fake.draft.mockClear();
+    await s.service.runNow(s.agent.id);
+    expect(s.runs()).toMatchObject([
+      { status: 'skipped' },
+      { status: 'skipped', reason: 'agent_off' },
+    ]);
+    expect(s.fake.draft).not.toHaveBeenCalled();
+  });
+
+  it('records the night missed when its run starts after the 60 minutes (a long queue)', async () => {
+    const s = await setup();
+    let calls = 0;
+    // The tick reads the time at 02:05; by the time the queued run starts it is 03:01.
+    const service = createDreamService(s.t.ctx, {
+      now: () => (calls++ === 0 ? SLOT + 5 * MIN : SLOT + 61 * MIN),
+      timers: false,
+    });
+    await service.tick();
+    expect(s.runs()).toMatchObject([{ status: 'missed' }]);
+    expect(s.fake.draft).not.toHaveBeenCalled();
+  });
+
   it('applies a fact by itself but leaves a hand-off rule waiting', async () => {
     const s = await setup({ autoApply: true });
     s.lesson();

@@ -53,7 +53,12 @@ export function createDreamService(
   let chain: Promise<unknown> = Promise.resolve();
 
   const timeZone = () => resolveAiTimeZone(ctx.settings.get<unknown>(AI_TIMEZONE_SETTING, null));
-  const agentOn = (agentId: number) => !!agentById(ctx.db, agentId)?.enabled;
+  /** The agent is on and still answers `inboxId` (a removed or changed inbox ends the run). */
+  const agentOn = (agentId: number, inboxId?: number | null) => {
+    const agent = agentById(ctx.db, agentId);
+    if (!agent?.enabled || agent.inboxId === null) return false;
+    return inboxId === undefined || agent.inboxId === inboxId;
+  };
 
   /** What stops the agent's run now; null = it runs. */
   const blocked = (agentId: number): Exclude<DreamRunReason, null> | null => {
@@ -84,8 +89,11 @@ export function createDreamService(
       log.info({ event: 'dream_run', agentId, runId, status, reason, ...counts }, 'Dream mode run');
       return runId;
     };
+    // A queued night (another agent's long run before it) that starts after the grace is missed, as at the tick.
+    if (fromLastRun && now() - slot > DREAM_GRACE_MS) return finish('missed');
     const reason = blocked(agentId);
     if (reason) return finish('skipped', reason);
+    const inboxId = agentById(ctx.db, agentId)!.inboxId;
     const ai = ctx.services.ai!;
     const signal = abort.signal;
     try {
@@ -143,7 +151,7 @@ export function createDreamService(
           },
           signal,
         );
-        if (!agentOn(agentId)) throw new AgentOff();
+        if (!agentOn(agentId, inboxId)) throw new AgentOff();
         if (!result.ok) {
           counts.dropped++;
           // Which checks failed, by name (and their fixed detail): never the text.

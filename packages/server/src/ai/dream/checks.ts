@@ -5,6 +5,7 @@ import { findLeak } from '../leak-check.js';
 import type { PreviewItem } from '../service.js';
 import type { TakeoverChat } from './collect.js';
 import { contactsIn, type DreamProposal } from './prompts.js';
+import { nameMatcher } from '../phrases/check.js';
 
 /**
  * The checks every dream mode change passes before it is saved (design §6): privacy, leak, grounding, then replay
@@ -43,12 +44,10 @@ const addedText = (before: string, after: string) => {
 };
 
 const holdsName = (text: string, names: readonly string[]) =>
-  names.some((n) =>
-    new RegExp(
-      `(?<![\\p{L}\\p{N}])${n.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`,
-      'iu',
-    ).test(text),
-  );
+  names.some((n) => {
+    const re = nameMatcher(n);
+    return !!re && re.test(text);
+  });
 
 /** The question each source chat asked before the team stepped in. */
 const sourceQuestions = (sources: readonly TakeoverChat[]) =>
@@ -77,18 +76,24 @@ export async function checkChange(
       return doc.kind === 'text' ? [doc.text] : [];
     });
 
+  // The summary and a new item's name are stored and shown too: they get the same privacy and leak checks.
+  const checked = [
+    added,
+    proposal.summary,
+    proposal.itemId === null ? (proposal.name ?? '') : '',
+  ].join('\n');
   const checks: DreamCheck[] = [
     // An edited line keeps what the old text already had: only new contact details and names fail.
     {
       name: 'privacy',
       ok:
-        !contactsIn(added).some((c) => !input.before.includes(c)) &&
+        !contactsIn(checked).some((c) => !input.before.includes(c)) &&
         !holdsName(
-          added,
+          checked,
           input.names.filter((n) => !holdsName(input.before, [n])),
         ),
     },
-    { name: 'leak', ok: !findLeak(added, internal) },
+    { name: 'leak', ok: !findLeak(checked, internal) },
     // A number is grounded in the team's reply or in the old text (an edited line keeps its prices).
     {
       name: 'grounding',

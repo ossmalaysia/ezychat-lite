@@ -1,4 +1,5 @@
 import type { DB } from '../db/index.js';
+import { isPersonName } from './phrases/check.js';
 
 /** Newest direct chats whose people's names no learned text may hold. */
 export const NAMED_CHATS = 2_000;
@@ -31,5 +32,5 @@ export function inboxCustomerNames(
         .flatMap((r) => [r.chatName, r.profileName])
         .flatMap((n) => (n ? [n, ...n.split(/\s+/)] : [])),
     ),
-  ].filter((n) => n.trim().length >= 3 && !/^\+?\d/.test(n));
+  ].filter(isPersonName);
 }
