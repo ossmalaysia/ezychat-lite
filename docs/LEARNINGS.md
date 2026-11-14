@@ -34,7 +34,10 @@ into AGENTS.md.
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
-  and trim before a plain-value regex instead of allowing spaces twice.
+  and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code
+  and is flagged again: export a helper from the file that has it, without editing that line. `.sort()` without a
+  compare function (S2871) is Critical and fails the reliability gate on its own. The Sonar project key is
+  `ossmalaysia_wa-team-inbox` (the PR check's link shows it).
 - SonarCloud fails the security rating on a literal bidi control character in source (S6389: write `\u202e`, not the
   character; an editor or the agent's file-writing tool may turn the escape into the character, so scan new test
   files for U+200E/F, U+202A–202E, U+2066–2069, U+FEFF before pushing) and on a JSON key containing "password" (S2068,
