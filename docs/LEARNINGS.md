@@ -342,7 +342,9 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   Merge them into one combined branch one by one (typecheck after each), run the full checks once, open one PR. After
   a line-by-line union of CHANGELOG, move every PR's entries back under `[Unreleased]`: a PR cut before a release
   lands its lines in the released section. Two PRs may take the same migration number: keep the one already applied
-  on an owner install and renumber the other (file, its `repo.ts` comment, AGENTS.md, the lite-import test).
+  on an owner install and renumber the other (file, its `repo.ts` comment, AGENTS.md, the lite-import test). A typecheck per
+  merge is not enough: run the full unit suite on the combined branch (each PR passed alone, yet #347's new chat-keyed
+  `github_activity` was missing from #352's `chats/delete.ts` plan, caught only by `chat-delete-coverage.test.ts`).
 - An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
   renumber or change them on that branch (later parts take the next number), or the official release cannot
   upgrade that install. Build such an installer from a clean worktree of one commit, never from a folder another
@@ -764,6 +766,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- The web app's main file sits near the PWA precache limit: `vite build` fails with "Assets exceeding the limit" when
+  `assets/index-*.js` passes `maximumFileSizeToCacheInBytes` (3 MiB since 2026-11-14, 2.13 MB used). Check the size of
+  that file after adding a page; split rarely used areas with `React.lazy` rather than raising the limit again.
 - Dependabot `@ai-sdk/openai` / `@ai-sdk/anthropic` bumps fail the typecheck alone (LanguageModelV4 mismatch): take them
   with the matching `ai` bump. A major version inside a Dependabot group (jsdom 31) can pass the typecheck and break
   tests: run the failing test files and hold back that one package, not the whole group.
