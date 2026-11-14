@@ -341,6 +341,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- `gh pr merge --match-head-commit` takes the full 40-character SHA only (a short one fails "Could not coerce …
+  to GitObjectID"): pass `gh pr view <n> --json headRefOid --jq .headRefOid`, the head the merge check scored.
 - Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
   Merge them into one combined branch one by one (typecheck after each), run the full checks once, open one PR. After
   a line-by-line union of CHANGELOG, move every PR's entries back under `[Unreleased]`: a PR cut before a release
