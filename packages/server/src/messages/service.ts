@@ -32,6 +32,9 @@ import { WaUnavailableError, type WaMediaLimits } from '@ezychat/wa';
 import type { AppContext } from '../context.js';
 import { errors, HttpError } from '../http/errors.js';
 import { getAliases } from '../chats/aliases.js';
+import { personDeletedAt } from '../chats/delete.js';
+import { getChatHide } from '../chats/hide.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { ChatRepo } from '../chats/repo.js';
 import { isFallbackName } from '../chats/service.js';
 import {
@@ -325,6 +328,20 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   const withMentionNames = createMentionPresenter(ctx, log);
   const reactions = createReactionPresenter(ctx);
   const changeRepo = new MessageChangeRepo(ctx.db);
+
+  /**
+   * A history message, reaction, edit or delete of a chat an admin deleted (Delete chat): never stored
+   * when the chat is gone, nor when it is older than the delete (a live message started the chat
+   * again). Checks every address of the person (phone number and LID).
+   */
+  const deletedHistory = (
+    inboxId: number,
+    chatJid: string,
+    m: { chatJid: string; chatJidAlt?: string | null; timestamp: number },
+  ): boolean => {
+    const at = personDeletedAt(ctx, inboxId, [waJidOf(chatJid), m.chatJid, m.chatJidAlt]);
+    return at !== null && (!chats.get(chatJid) || m.timestamp < at);
+  };
 
   /** WA statuses that arrived before the local row was renamed to the WA id. */
   const earlyStatus = new Map<string, WaMessageStatusUpdate['status']>();
@@ -816,6 +833,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
   /** Sending needs the chat's inbox: a removed inbox keeps its chats read only. */
   const requireSendable = (jid: string) => {
     const c = requireChat(jid);
+    // a chat hidden on Log out does not exist for anyone (never sent from the next number)
+    if (isChatHidden(ctx.db, c.jid)) throw errors.notFound('Chat');
     refuseSend(inboxOfKey(jid));
     return c;
   };
@@ -1080,6 +1099,7 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     learnChangeAliases(c, source);
     const id = messageKey(inboxId, c.targetId);
     const chatJid = changeChat(c.chatJid, inboxId);
+    if (source === 'history' && deletedHistory(inboxId, chatJid, c)) return;
     const change = {
       kind,
       fromMe: c.fromMe,
@@ -1227,6 +1247,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const directKey = chatKey(inboxId, m.chatJid);
       const chatJid = isGroup ? directKey : aliases.route(inboxId, m.chatJid);
       const chatWaJid = waJidOf(chatJid);
+      if (source === 'history' && deletedHistory(inboxId, chatJid, m)) return null;
+      // Any message of a chat hidden on Log out: the phone still has it, the same number shows it again.
+      getChatHide(ctx).showIfHidden(inboxId, [m.chatJid, m.chatJidAlt]);
       // Our own send may echo before the queue has committed its WhatsApp id and sender. The guard
       // is keyed by the chat the send came from: the routed chat, or a PN chat still kept separate.
       const guard = m.fromMe ? (inflight.get(chatJid) ?? inflight.get(directKey)) : undefined;
@@ -1305,7 +1328,9 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         ctx.bus.emit('chat:event', ev);
       }
 
-      if (source === 'live') {
+      // A chat still hidden on Log out (no same-number link shows it) is stored, never acted on.
+      const hidden = isChatHidden(ctx.db, chatJid);
+      if (source === 'live' && !hidden) {
         // AI Sales Agent trigger (#18): keyed by the routed chat, where its ai_chat_state lives.
         ctx.bus.emit('message:received', {
           chat: ctx.services.chats!.get(chatJid)!,
@@ -1373,7 +1398,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const msg = present(final);
       ctx.bus.emit('message:new', msg);
       const chat = emitChat(chatJid);
-      if (isNewLiveInbound && chat) ctx.bus.emit('inbound:notify', { chat, message: msg });
+      if (isNewLiveInbound && chat && !hidden)
+        ctx.bus.emit('inbound:notify', { chat, message: msg });
       return msg;
     },
 
@@ -1621,6 +1647,8 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       } else if (r.chatJidAlt) {
         aliases.learn({ jid: r.chatJid, alias: r.chatJidAlt }, learnedFrom);
       }
+      if (source === 'history' && deletedHistory(inboxId, changeChat(r.chatJid, inboxId), r))
+        return;
       const messageId = messageKey(inboxId, r.targetId);
       const row = reactionRow(r, messageId, aliases);
       if (!row || !reactions.repo.apply(row)) return;

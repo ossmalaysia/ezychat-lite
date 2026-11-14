@@ -5,7 +5,12 @@ import type {
   SafetyReportTotals,
   SafetyRule,
 } from '@ezychat/shared';
-import { inboxCondition, localDate, localMidnight } from '../chats/stats.js';
+import { chatScope, inboxCondition, localDate, localMidnight } from '../chats/stats.js';
+import { HIDDEN_CHAT_KEYS } from '../chats/hidden-sql.js';
+
+/** SQL condition on `safety_items i`: of one of `inboxIds`, never of a chat hidden on Log out. */
+const itemScope = (inboxIds: readonly number[] | undefined) =>
+  `${inboxCondition('i', inboxIds)} AND i.chat_jid NOT IN (${HIDDEN_CHAT_KEYS})`;
 import type { DB } from '../db/index.js';
 
 const DAY_MS = 86_400_000;
@@ -54,9 +59,9 @@ function totals(
   to: number,
   inboxIds: readonly number[] | undefined,
 ): SafetyReportTotals {
-  const items = inboxCondition('i', inboxIds);
+  const items = itemScope(inboxIds);
   const numbers = inboxIds
-    ? `AND EXISTS (SELECT 1 FROM chats c WHERE c.wa_jid = safety_numbers.wa_jid AND ${inboxCondition('c', inboxIds)})`
+    ? `AND EXISTS (SELECT 1 FROM chats c WHERE c.wa_jid = safety_numbers.wa_jid AND ${chatScope('c', inboxIds)})`
     : '';
   const rows = db
     .prepare(`SELECT * FROM safety_items i WHERE created_at >= ? AND created_at < ? AND ${items}`)
@@ -106,7 +111,7 @@ export function computeSafetyReport(
   },
 ): SafetyReport {
   const { days, timeZone, now, inboxIds } = opts;
-  const items = inboxCondition('i', inboxIds);
+  const items = itemScope(inboxIds);
   const today = localMidnight(localDate(now, timeZone), timeZone);
   const starts = [today];
   for (let i = 1; i < days; i++)

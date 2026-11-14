@@ -10,6 +10,7 @@ import { profilePhotoLookup } from '../http/profile-images.js';
 import { avatarStore, sendAvatar } from '../avatars/http.js';
 import { chosenChats, scopeFor } from '../inboxes/access.js';
 import { chatWaState, requireChatAccess } from '../inboxes/service.js';
+import { WindowLimiter } from '../http/window-limiter.js';
 
 export const JidParams = z.object({ jid: z.string().min(3).max(256) });
 
@@ -78,6 +79,19 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
     const jid = chatJidParam(ctx, req);
     const body = parse(ChatPatchBody, req.body ?? {});
     return chats.patch(jid, body, req.user!.id);
+  });
+
+  // Delete chat (admins, docs/features/chat-hide-delete/design.md Part B): in EzyChat only, for good.
+  const deleteLimiter = new WindowLimiter({ windowMs: 60_000, max: 30 });
+  app.get('/chats/:jid/delete-preview', { preHandler: requireAdmin(ctx) }, async (req) =>
+    ctx.services.chatDelete!.preview(chatJidParam(ctx, req)),
+  );
+  app.delete('/chats/:jid', { preHandler: requireAdmin(ctx) }, async (req, reply) => {
+    const jid = chatJidParam(ctx, req);
+    const limit = deleteLimiter.hit(String(req.user!.id));
+    if (!limit.allowed) throw errors.rateLimited(limit.retryAfterSec);
+    await ctx.services.chatDelete!.deleteChat(jid, { userId: req.user!.id, ip: clientIp(req) });
+    return reply.code(204).send();
   });
 
   app.post('/chats/:jid/read', async (req) => {

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A new menu on every screen takes you straight to Chats, Reports, Ask Ezy, Members and Settings. On a computer it is a narrow bar on the left, with your photo and Settings at the bottom; on a phone it is a row of tabs at the bottom (Chats, Reports, Ask Ezy and Settings for admins; Chats, Ask Ezy and Account for your team), hidden while a chat is open. Chats shows how many chats have unread messages, and a red dot on Settings tells an admin when a WhatsApp number needs attention. The chat list is now called **Chats**, and on a phone Settings opens one list of every admin page.
+- When a WhatsApp number is logged out (Log out in EzyChat, or Linked devices → Log out on the phone), its chats are hidden from the inbox. Nothing is deleted. If the same number links again, each chat comes back as soon as WhatsApp shows it is still on the phone (or the customer writes again). If a different number links, the old chats stay hidden and the new number starts with an empty inbox. The Log out confirmation says how many chats are hidden.
+- Admins can delete a chat: chat menu (⋮) → **Delete chat**. The chat, its messages, notes and files are removed from EzyChat for good; your WhatsApp phone keeps its own copy. WhatsApp's history never brings it back, and if the customer writes again, a new empty chat starts.
 
 ### Changed
 

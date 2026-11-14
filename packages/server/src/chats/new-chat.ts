@@ -20,6 +20,8 @@ import { HttpError, errors } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { canOpen, chosenChats, scopeFor, scopeIds } from '../inboxes/access.js';
 import { chatKey } from '../inboxes/keys.js';
+import { getChatHide } from './hide.js';
+import { isChatHidden } from './hidden-sql.js';
 import { capabilitiesOf } from '../inboxes/types.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 
@@ -165,8 +167,14 @@ export function createNewChatService(
     [...ctx.inboxes.connections.ownJids()].some((j) => j.split(/[:@]/)[0] === digits);
 
   /** The chat this number already has in the inbox (phone JID or its LID), or null. */
-  const existing = (inboxId: number, waJid: string) =>
-    chats.get(chats.resolveJid(chatKey(inboxId, waJid)));
+  const existing = (inboxId: number, waJid: string) => {
+    const chat = chats.get(chats.resolveJid(chatKey(inboxId, waJid)));
+    // a chat hidden on Log out does not exist (starting the chat shows it again, same number only)
+    return chat && !isChatHidden(ctx.db, chat.jid) ? chat : null;
+  };
+  /** The team starts this chat: one hidden on Log out comes back for the same number. */
+  const showHidden = (inboxId: number, waJid: string) =>
+    getChatHide(ctx).showIfHidden(inboxId, [waJid]);
 
   /** Everything that needs no WhatsApp call: the normalised digits and an existing chat. */
   const precheck = (inboxId: number, wa: WaAdapter, mode: NewChatMode, phone: string) => {
@@ -249,6 +257,7 @@ export function createNewChatService(
       throw fail(503, 'wa_disconnected', 'This WhatsApp number is not connected');
     }
     if (!found) throw fail(404, 'not_on_whatsapp', 'This number is not on WhatsApp');
+    showHidden(inboxId, found);
     const raced = existing(inboxId, found);
     if (raced) return { chatJid: raced.jid, created: false };
     const chat = chats.upsertFromWa({ jid: found, type: 'dm', name: null }, inboxId);
@@ -333,6 +342,7 @@ export function createNewChatService(
             body.template!,
             user.id,
             () => {
+              showHidden(inboxId, waJid);
               const raced = existing(inboxId, waJid);
               if (raced) return raced.jid;
               created = true;

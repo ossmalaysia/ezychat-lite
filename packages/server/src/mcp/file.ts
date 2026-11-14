@@ -14,6 +14,7 @@ import { extractKnowledgeIsolated } from '../ai/knowledge-worker.js';
 import { HttpError } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import { canOpen, scopeFor } from '../inboxes/access.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { inboxOfKeyOrNull } from '../inboxes/service.js';
 import { getMessages } from '../wa-bridge/index.js';
 import { ToolError } from './tools.js';
@@ -144,6 +145,7 @@ export function createMessageFilePort(
         !r ||
         r.hidden_at != null ||
         inboxId === null ||
+        isChatHidden(ctx.db, r.chat_jid) ||
         !canOpen(scopeFor(ctx, principal.user), inboxId)
       )
         throw new ToolError(`No message found for ${messageId}.`);

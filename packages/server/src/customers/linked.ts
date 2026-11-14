@@ -43,7 +43,8 @@ function personJids(db: DB, waJid: string): string[] {
 
 /**
  * The other direct chats of the same person, in every inbox (removed ones included), in inbox order.
- * Primary-key look-ups only. Not `chatJid` itself; empty for a group or an unknown key.
+ * Primary-key look-ups only. Not `chatJid` itself, never a chat hidden on Log out; empty for a group
+ * or an unknown key.
  */
 export function linkedChats(db: DB, chatJid: string): string[] {
   let waJid: string;
@@ -67,7 +68,8 @@ export function linkedChats(db: DB, chatJid: string): string[] {
   return (
     db
       .prepare(
-        `SELECT jid FROM chats WHERE type = 'dm' AND jid IN (${keys.map(() => '?').join(', ')})
+        `SELECT jid FROM chats WHERE type = 'dm' AND hidden_at IS NULL
+           AND jid IN (${keys.map(() => '?').join(', ')})
          ORDER BY inbox_id, jid`,
       )
       .all(...keys) as Array<{ jid: string }>

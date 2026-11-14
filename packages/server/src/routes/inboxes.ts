@@ -9,7 +9,8 @@ import {
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { clientIp } from '../http/client-ip.js';
-import { parse } from '../http/errors.js';
+import { errors, parse } from '../http/errors.js';
+import { getChatHide } from '../chats/hide.js';
 import { getInboxService, type InboxActor } from '../inboxes/service.js';
 import { registerWaActions } from './wa.js';
 
@@ -40,6 +41,13 @@ export default async function inboxRoutes(app: FastifyInstance, ctx: AppContext)
   app.delete('/inboxes/:id', { preHandler: adminOnly }, async (req, reply) => {
     await inboxes.remove(idOf(req), actor(req));
     return reply.status(204).send();
+  });
+
+  // Log out confirmation and the logged-out note: how many chats Log out hides / hid (counts only).
+  app.get('/inboxes/:id/hidden-chats', { preHandler: adminOnly }, async (req) => {
+    const id = idOf(req);
+    if (!ctx.inboxes.repo.get(id)) throw errors.notFound('Inbox');
+    return getChatHide(ctx).info(id);
   });
 
   registerWaActions(app, ctx, '/inboxes/:id/wa', (req) => {

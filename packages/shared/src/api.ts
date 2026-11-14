@@ -79,6 +79,27 @@ export const ResolveAllChatsBody = z.object({ confirmed: z.literal(true) });
 export type ResolveAllChatsBody = z.infer<typeof ResolveAllChatsBody>;
 export const ResolveAllChatsResponse = z.object({ resolvedCount: z.number().int().nonnegative() });
 export type ResolveAllChatsResponse = z.infer<typeof ResolveAllChatsResponse>;
+/**
+ * Delete chat (admins, docs/features/chat-hide-delete/design.md Part B): what `DELETE /api/chats/:jid`
+ * would remove, shown in the confirmation (`GET /api/chats/:jid/delete-preview`).
+ */
+export const ChatDeletePreview = z.object({
+  messages: z.number().int().nonnegative(),
+  files: z.number().int().nonnegative(),
+});
+export type ChatDeletePreview = z.infer<typeof ChatDeletePreview>;
+
+/**
+ * Hide chats on Log out (admins, design.md Part A; `GET /api/inboxes/:id/hidden-chats`): `visible` =
+ * the inbox's chats the team sees (the Log out confirmation hides them), `hidden` = chats hidden when
+ * `number` (digits of the inbox's own number) logged out, shown again when the same number links.
+ */
+export const HiddenChatsInfo = z.object({
+  visible: z.number().int().nonnegative(),
+  hidden: z.number().int().nonnegative(),
+  number: z.string().nullable(),
+});
+export type HiddenChatsInfo = z.infer<typeof HiddenChatsInfo>;
 
 export const ChatDetailResponse = z.object({ chat: ChatSchema, events: z.array(ChatEventSchema) });
 export type ChatDetailResponse = z.infer<typeof ChatDetailResponse>;

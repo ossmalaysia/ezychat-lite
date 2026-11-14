@@ -85,6 +85,19 @@
     "openGroupInfo": "打开 {{name}} 的群组信息",
     "openCustomer": "打开 {{name}} 的客户资料"
   },
+  "deleteChat": {
+    "more": "聊天操作",
+    "action": "删除聊天",
+    "title": "删除此聊天？",
+    "messages_one": "{{count}} 条消息",
+    "messages_other": "{{count}} 条消息",
+    "files_one": "{{count}} 个文件",
+    "files_other": "{{count}} 个文件",
+    "body": "将从 {{product}} 中永久删除。你的 WhatsApp 手机会保留它的副本。备份最多保留 7 天。",
+    "confirm": "删除聊天",
+    "done": "聊天已删除",
+    "failed": "无法删除此聊天。"
+  },
   "conversation": {
     "loading": "正在加载聊天",
     "notFound": "此聊天不存在。",

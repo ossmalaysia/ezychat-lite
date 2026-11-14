@@ -289,7 +289,8 @@ function inboxGroups(db: DB, inboxId: number) {
          LEFT JOIN ai_group_chats g ON g.chat_jid = c.jid
          LEFT JOIN ai_agents a ON a.id = g.agent_id AND a.inbox_id = c.inbox_id
          LEFT JOIN users u ON u.id = a.user_id
-         WHERE c.type = 'group' AND c.inbox_id = ? ORDER BY lower(c.name), c.jid`,
+         WHERE c.type = 'group' AND c.inbox_id = ? AND c.hidden_at IS NULL
+         ORDER BY lower(c.name), c.jid`,
       )
       .all(inboxId) as Array<{
       jid: string;
@@ -337,7 +338,7 @@ const heldDirectChats = (db: DB, userId: number): number =>
   (
     db
       .prepare(
-        "SELECT count(*) AS n FROM chats WHERE type = 'dm' AND status = 'open' AND assigned_to = ?",
+        "SELECT count(*) AS n FROM chats WHERE type = 'dm' AND status = 'open' AND assigned_to = ? AND hidden_at IS NULL",
       )
       .get(userId) as { n: number }
   ).n;

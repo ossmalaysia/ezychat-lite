@@ -580,14 +580,17 @@
     "phoneHint": "获取 8 位字符的代码，无需扫描二维码。",
     "linkTitle": "关联 WhatsApp",
     "linkBody": "重新关联以显示新的二维码，然后用手机扫描。",
+    "hides_other": "它的 {{count}} 个聊天将被隐藏。重新关联同一号码后，仍在手机上的聊天会再次显示。",
+    "hidesUnknown": "它的聊天将被隐藏。重新关联同一号码后，仍在手机上的聊天会再次显示。",
+    "hiddenNote_other": "{{number}} 的 {{count}} 个聊天已隐藏。重新关联同一号码后，仍在手机上的聊天会再次显示。其他号码会从空的收件箱开始。",
     "actionsTitle": "操作",
     "actions": {
       "logout": {
         "label": "退出登录",
         "title": "退出 WhatsApp？",
-        "body": "已关联的设备将从手机中移除。在重新关联之前，团队收件箱将停止收发消息。消息记录会保留。",
+        "body": "已关联的设备将从手机中移除。团队收件箱将停止收发消息。",
         "done": "已退出 WhatsApp。",
-        "hint": "从手机的已关联设备中移除此收件箱。消息记录会保留。"
+        "hint": "从手机的已关联设备中移除此收件箱。在同一号码重新关联之前，它的聊天会被隐藏。"
       },
       "relink": {
         "label": "重新关联",
@@ -1432,6 +1435,7 @@
         "window_closed": "此聊天的 24 小时回复窗口已关闭（WhatsApp Business API）。",
         "missed": "当时应用没有运行。错过的任务不会补发。",
         "chat_gone": "此聊天已不在这个收件箱中。",
+        "chat_hidden": "此聊天已隐藏，因为它的 WhatsApp 号码已退出登录。",
         "confidential_leak": "这条消息会透露内部条目，所以没有发送。",
         "ai_unavailable": "AI 没有及时回答。",
         "lookup_failed": "查询（例如 Google 日历）没有成功。",

@@ -17,6 +17,7 @@ import type {
 } from '@ezychat/shared';
 import { SESSION_COOKIE } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
+import { isChatHidden } from '../chats/hidden-sql.js';
 import { contextHostPolicy, hostAllowed } from '../http/host.js';
 import { isTrustedTunnelPeer } from '../http/client-ip.js';
 import { canOpen, chosenChats, scopeFor, visibleInboxIds } from '../inboxes/access.js';
@@ -200,6 +201,7 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       // typing reaches only the people who may open that chat's inbox, and only from them
       const inboxId = inboxOf(chatJid);
       if (inboxId === null || !opensChat(socket, chatJid, inboxId)) return;
+      if (isChatHidden(ctx.db, chatJid)) return;
       const key = `${userId}\u0000${chatJid}`;
       const now = Date.now();
       const last = lastTyping.get(key);
@@ -233,17 +235,27 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
     const inboxId = inboxOf(chatJid);
     return io.to(inboxId === null ? ['admins'] : [inboxRoom(inboxId), chatRoom(chatJid), 'admins']);
   };
-  const onMessageNew = (m: Message) => toChat(m.chatJid).emit('message:new', m);
-  const onMessageStatus = (p: MessageStatusPayload) => toChat(p.chatJid).emit('message:status', p);
-  const onMessageUpdated = (m: Message) => toChat(m.chatJid).emit('message:updated', m);
+  /** As toChat, but nothing for a chat hidden on Log out (it does not exist for anyone). */
+  const toVisibleChat = (chatJid: string) =>
+    isChatHidden(ctx.db, chatJid) ? null : toChat(chatJid);
+  const onMessageNew = (m: Message) => toVisibleChat(m.chatJid)?.emit('message:new', m);
+  const onMessageStatus = (p: MessageStatusPayload) =>
+    toVisibleChat(p.chatJid)?.emit('message:status', p);
+  const onMessageUpdated = (m: Message) => toVisibleChat(m.chatJid)?.emit('message:updated', m);
   const onMessageReactions = (p: MessageReactionsPayload) =>
-    toChat(p.chatJid).emit('message:reactions', p);
+    toVisibleChat(p.chatJid)?.emit('message:reactions', p);
   const onVoice = (s: VoiceStatus) => io.to('admins').emit('voice:status', s);
-  const onChatUpdated = (c: Chat) => toChat(c.jid).emit('chat:updated', c);
-  const onChatEvent = (e: ChatEvent) => toChat(e.chatJid).emit('chat:event', e);
-  const onNote = (n: Note) => toChat(n.chatJid).emit('note:new', n);
+  const onChatUpdated = (c: Chat) => toVisibleChat(c.jid)?.emit('chat:updated', c);
+  const onChatEvent = (e: ChatEvent) => toVisibleChat(e.chatJid)?.emit('chat:event', e);
+  const onChatDeleted = (p: { jid: string }) => toChat(p.jid).emit('chat:deleted', { jid: p.jid });
+  // A linked phone logged out: everyone who sees the inbox drops its chats (they are hidden now).
+  const onChatsHidden = (p: { inboxId: number }) =>
+    io
+      .to([inboxRoom(p.inboxId), inboxStatusRoom(p.inboxId), 'admins'])
+      .emit('chats:hidden', { inboxId: p.inboxId });
+  const onNote = (n: Note) => toVisibleChat(n.chatJid)?.emit('note:new', n);
   const onGroupChanged = (p: { chatJid: string }) =>
-    toChat(p.chatJid).emit('group:changed', { chatJid: p.chatJid });
+    toVisibleChat(p.chatJid)?.emit('group:changed', { chatJid: p.chatJid });
   const onWaStatus = (s: WaStatus) => {
     io.to('admins').emit('wa:status', s);
     io.to([inboxRoom(PRIMARY_INBOX_ID), inboxStatusRoom(PRIMARY_INBOX_ID)])
@@ -309,6 +321,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
   bus.on('voice:status', onVoice);
   bus.on('chat:updated', onChatUpdated);
   bus.on('chat:event', onChatEvent);
+  bus.on('chat:deleted', onChatDeleted);
+  bus.on('chats:hidden', onChatsHidden);
   bus.on('note:new', onNote);
   bus.on('group:changed', onGroupChanged);
   bus.on('wa:status', onWaStatus);
@@ -335,6 +349,8 @@ export function attachRealtime(server: HttpServer, ctx: AppContext): RealtimeSer
       bus.off('voice:status', onVoice);
       bus.off('chat:updated', onChatUpdated);
       bus.off('chat:event', onChatEvent);
+      bus.off('chat:deleted', onChatDeleted);
+      bus.off('chats:hidden', onChatsHidden);
       bus.off('note:new', onNote);
       bus.off('group:changed', onGroupChanged);
       bus.off('wa:status', onWaStatus);

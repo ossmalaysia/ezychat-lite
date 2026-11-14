@@ -38,6 +38,18 @@
       "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
     },
     {
+      "feature": "chat-hide-delete",
+      "creationOrder": 44,
+      "createdAt": "2026-11-12",
+      "design": "docs/features/chat-hide-delete/design.md",
+      "mock": "docs/features/chat-hide-delete/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-12",
+      "confirmation": "Owner (Jazz) confirmed the quick mock and rules on 2026-11-12 (\"look good\"); the owner chose a quick mock with screenshots instead of a full app clone.",
+      "coverage": "Quick mock only (not an app clone): Log out dialog, Admin -> WhatsApp after Log out with the hidden count, chat menu with Delete chat, Delete chat dialog, list after delete; 1280/360, light/dark (mock/shots.mjs, mock/screens/).",
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Numbered 44 when merged after ai-completion-rate (42) and app-navigation (43). Prunes new-chat (37); template-store stays (live tooling)."
+    },
+    {
       "feature": "ai-silent-line",
       "creationOrder": 41,
       "createdAt": "2026-11-12",
@@ -79,7 +91,7 @@
       "baselineFeature": "scheduled-tasks",
       "baselineGitRevision": "426c2eb766f24e520fd4f59b66ab837c11296045",
       "coverage": "Full app clone of scheduled-tasks (google-drive + sql-accounting + scheduled tasks); New chat header button (admin; team member with the switch on/off), dialog: empty, invalid, number typed with the ban warning, checking, chat opened (assigned, composer), not on WhatsApp, existing chat → Open chat, daily limit, WhatsApp offline; Business API: template picker with the paid note, variables, preview, send error (no chat), chat after the template with free text locked; Settings → General switch (off/on) and daily limit field (invalid, 0 = no limit, 10, ban warning), Audit log rows; Lite (one inbox); desktop 1280 / mobile 360, light (dark for dialog and template step), en/ms/zh-CN (new-chat-shots.mjs)",
-      "note": "Built in parallel with partner-role (36, from google-drive) on the scheduled-tasks baseline (35); confirmed after partner-role, so latestConfirmed is new-chat and the next clone starts from this mock and copies in partner-role's files (its design.md lists them). Inherits scheduled-tasks' coverage gaps.",
+      "note": "Built in parallel with partner-role (36, from google-drive) on the scheduled-tasks baseline (35); confirmed after partner-role, so latestConfirmed is new-chat and the next clone starts from this mock and copies in partner-role's files (its design.md lists them). Inherits scheduled-tasks' coverage gaps. Folder pruned 2026-11-12 by chat-hide-delete (42) for retention; recover it from gitRevision.",
       "confirmedAt": "2026-11-06",
       "gitRevision": "e7dc8cfacdb7a4066c02016e96fc645187668270",
       "confirmation": "Owner (Jazz) confirmed the mock 2026-11-06 (relayed by the main session, session_01J4pmGkCf1Mvdepudm8WQAd): \"The owner CONFIRMED the New chat mock on 2026-11-06, with one change\": the daily new-number limit for personal WhatsApp is an admin setting (default 20, 0 = no limit, ban warning, audited before/after, shared with MCP send_to_new_number); suggested answers stand (counts in memory; Business API only 5/hour per user; default country from the inbox's own number, +60 fallback; assigned to the starter, AI waits); limited agents (chat_scope 'chosen') never start a new chat."

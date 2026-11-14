@@ -416,13 +416,25 @@ describe('InboxesPage', () => {
       respond: (url, init) =>
         url === '/api/inboxes/1/wa/relink' && init?.method === 'POST'
           ? json({ ok: true })
-          : undefined,
+          : url === '/api/inboxes/1/hidden-chats'
+            ? json({ visible: 12, hidden: 0, number: null })
+            : undefined,
     });
     await user.click(await screen.findByRole('button', { name: 'Edit · Sales' }));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('Linked to +60111')).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: 'Link the phone again' }));
+    // it logs the phone out first: the confirmation says the chats are hidden
+    const confirm = await screen.findByRole('alertdialog');
+    expect(
+      await within(confirm).findByText(
+        'Its 12 chats will be hidden. Link the same number again to show the chats that are still on the phone.',
+      ),
+    ).toBeTruthy();
+    expect(calls('POST', '/api/inboxes/1/wa/relink')).toHaveLength(0);
+    await user.click(within(confirm).getByRole('button', { name: 'Link the phone again' }));
     await waitFor(() => expect(calls('POST', '/api/inboxes/1/wa/relink')).toHaveLength(1));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     // Inbox 1 still answers `/wa/status` with `open` here; the dialog waits for the new code.
     expect(await within(dialog).findByTestId('inbox-qr')).toBeTruthy();
     act(() => qc.setQueryData(qk.wa, status('qr', 'QR-SALES')));
@@ -430,6 +442,28 @@ describe('InboxesPage', () => {
     act(() => qc.setQueryData(qk.wa, open));
     expect(await within(dialog).findByText('Linked to +60111')).toBeTruthy();
     expect(within(dialog).queryByTestId('inbox-qr')).toBeNull();
+  });
+
+  it('says how many chats of the old number are hidden while an inbox is logged out', async () => {
+    setup({
+      list: {
+        inboxes: [SALES, { ...CATERING, status: status('logged_out') }],
+        maxInboxes: 3,
+        canAdd: true,
+      },
+      respond: (url) =>
+        url === '/api/inboxes/2/hidden-chats'
+          ? json({ visible: 0, hidden: 128, number: '60123456789' })
+          : undefined,
+    });
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Edit · Catering' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText(
+        'The 128 chats of +60123456789 are hidden. Link the same number again to show the chats that are still on the phone. Another number starts with an empty inbox.',
+      ),
+    ).toBeTruthy();
+    expect(within(dialog).getByTestId('inbox-qr')).toBeTruthy();
   });
 
   it('shows the error of a failed relink and offers Take over when opened elsewhere', async () => {

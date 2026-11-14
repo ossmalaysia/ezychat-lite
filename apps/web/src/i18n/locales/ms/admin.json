@@ -581,14 +581,17 @@
     "phoneHint": "Dapatkan kod 8 aksara dan bukannya mengimbas QR.",
     "linkTitle": "Paut WhatsApp",
     "linkBody": "Paut semula untuk memaparkan kod QR baharu, kemudian imbas dari telefon.",
+    "hides_other": "{{count}} chatnya akan disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon.",
+    "hidesUnknown": "Chatnya akan disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon.",
+    "hiddenNote_other": "{{count}} chat {{number}} disembunyikan. Paut nombor yang sama semula untuk memaparkan chat yang masih ada pada telefon. Nombor lain bermula dengan peti masuk kosong.",
     "actionsTitle": "Tindakan",
     "actions": {
       "logout": {
         "label": "Log keluar",
         "title": "Log keluar daripada WhatsApp?",
-        "body": "Peranti dipaut dialih keluar daripada telefon. Peti masuk pasukan berhenti menerima dan menghantar mesej sehingga anda memaut semula. Sejarah mesej dikekalkan.",
+        "body": "Peranti dipaut dialih keluar daripada telefon. Peti masuk pasukan berhenti menerima dan menghantar mesej.",
         "done": "Telah log keluar daripada WhatsApp.",
-        "hint": "Alih keluar peti masuk ini daripada peranti dipaut pada telefon. Sejarah mesej dikekalkan."
+        "hint": "Alih keluar peti masuk ini daripada peranti dipaut pada telefon. Chatnya disembunyikan sehingga nombor yang sama dipaut semula."
       },
       "relink": {
         "label": "Paut semula",
@@ -1433,6 +1436,7 @@
         "window_closed": "Tetingkap balasan 24 jam chat ini telah ditutup (WhatsApp Business API).",
         "missed": "Aplikasi tidak berjalan pada masa itu. Larian yang terlepas tidak dihantar kemudian.",
         "chat_gone": "Chat ini tiada lagi dalam peti masuk ini.",
+        "chat_hidden": "Chat ini disembunyikan kerana nombor WhatsAppnya telah dilog keluar.",
         "confidential_leak": "Mesej itu akan menunjukkan item dalaman, jadi ia tidak dihantar.",
         "ai_unavailable": "AI tidak menjawab tepat pada masanya.",
         "lookup_failed": "Satu carian (contohnya Google Calendar) tidak berjaya.",

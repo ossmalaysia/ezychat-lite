@@ -334,6 +334,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
+  renumber or change them on that branch (later parts take the next number), or the official release cannot
+  upgrade that install. Build such an installer from a clean worktree of one commit, never from a folder another
+  agent is editing, and give it a prerelease version below the next release (`0.1.32-dev.1`).
+
 - A test that scans the whole repository does it in one native call (`git grep`), not file by file in JS: the
   read loop passed locally and timed out at 5 s on a busy macOS runner.
 - Never hide `git push` errors (`2>$null`), and compare the remote branch with the local head before `gh pr create`: a refused
@@ -750,6 +755,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- On Windows `git worktree remove --force` can unregister a worktree and still leave its folder (`node_modules`):
+  check `git worktree list`, then delete the leftover folder if it is yours.
 - Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
   replacement silently turned `/…\d{4}/` into `/…d{4}/`. After any `sed` on code, read the changed line back.
 
@@ -1281,6 +1288,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A reconnect socket can hang with no `open`, no `close` and no error (seen after a 503 stream error: one number back in
   4 s, the other stuck at "connecting" 1 h 45 min until a relink). Never rely on Baileys alone to end a connect
   attempt: the adapter needs its own time limit that closes the attempt and schedules the next one.
+- A chat is keyed by inbox and customer (`chatKey(inboxId, waJid)`, unique `(inbox_id, wa_jid)`), never by our own
+  linked number: a different number linked into the same inbox writes into the old number's chat rows. Any feature
+  that treats "this number's chats" as a set (hide, archive, reports per number) needs its own number stamp or new
+  keys. Admin Log out and an unlink from the phone both end in the bridge's `logged_out` status; only the admin path
+  goes through `routes/wa.ts` and its audit row.
+
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
   app must make its own. The adapter's `raw` cache is memory only, so a later download goes
@@ -1423,6 +1436,16 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   extraction (enrichment's check) and is false with mock providers. An AI send that is not a live reply (a scheduled
   task) needs its own gate in the send queue (`row.scheduled_task_id` → `scheduled.canSend`), or `ai.canSend` cancels it
   as "chat ownership changed".
+- A table with a `chat_jid` or message-id column also goes into `chats/delete.ts` `DELETE_PLAN` (Delete chat;
+  `chat-delete-coverage.test.ts` fails otherwise). A "remove every row of X" test can seed one row in every table
+  generically from `PRAGMA table_info` with `foreign_keys = OFF` and `ignore_check_constraints = ON` (`chat-delete.test.ts`).
+  A service that stores `deps.now ?? Date.now` keeps the original function, so `vi.spyOn(Date, 'now')` misses it: store
+  `() => Date.now()`.
+- A per-chat "does not exist" state (hidden on Log out) needs the SQL filter in every list and count, not only the
+  `canOpenChat` gate: admins and the AI get scope `'all'` and Lite's one-inbox shortcut skips membership. Readers use
+  `chats/hidden-sql.ts`; a socket emit for one chat goes through `toVisibleChat` and returns nothing instead of calling
+  `io.to([])` (an empty room list broadcasts to every socket). Code that copies or re-keys a `chats` row builds its
+  column list from `PRAGMA table_info`, and `chats/merge.ts` carries the hidden columns, so a later column is never lost.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and
@@ -1748,6 +1771,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
   new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
   to iterate, then one full run decides.
+- In screen scripts, scope action buttons to the page content (`getByRole('main').getByRole('button', { name,
+exact: true })`): on admin pages a bare "Log out" also matches the account menu's sign-out, and `.first()` signs
+  the script out. A confirm dialog may be an `alertdialog`, so wait for either role.
+
 - The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
   `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
   (or `newClientId`), never `crypto.randomUUID()` directly or `Math.random`; feature-check any other secure-only API. One call in an always-mounted host (e.g. `FeedbackHost`) blanked every
