@@ -934,6 +934,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   without asking; run checks one at a time with low workers (`npm run e2e -- --workers=1`, `vitest --maxWorkers=2`).
 - Stopping a background `npx tsx …` task on Windows can leave its node child listening: free the port by
   stopping the process that owns it (`Get-NetTCPConnection -LocalPort`), then delete the runner's temp data.
+  The sign: the "fresh" server's task fails at once (port taken) and the check's ids continue from the last run.
 
 - In a cloud container whose bundled Chromium build differs from the repo's Playwright, run e2e with
   `PLAYWRIGHT_BROWSERS_PATH=<tmp>` holding a `chromium-<wanted build>` symlink to the installed one; never edit
@@ -1654,7 +1655,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   received (`e2e/agents-devbuild.ts`: name, guardrails first, `MARK-…` words per knowledge part) proves
   isolation and order end to end; a data-moving migration is also checked from the installed release
   (`ELECTRON_RUN_AS_NODE=1 "<install>\EzyChat Lite.exe" …\server.cjs --data <temp>`), then the branch on
-  the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`).
+  the same temp folder (`e2e/devbuild-agents-upgrade-check.mjs`). A mock that decides from `prompt.input` alone never
+  sees the hand-off rules or the instructions: they are in `prompt.instructions`, so match on both. A check that seeds
+  a "source" message inside a chat the feature reads makes that message a real input: seed it in a chat outside the
+  feature's scope (dream mode learned a forward's source text sent as a team reply in a take-over chat).
 - When one thing becomes many (one AI member → one agent per inbox), every extension slot keyed by
   kind (`agentSections` with `agent: 'sales'`) must also get the instance id, and the screen review must
   include an Enterprise Dev Build: its Connectors card named the inbox-1 agent on every agent page, which
