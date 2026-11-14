@@ -671,7 +671,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   lockfile at each release and can drop optional packages (`@napi-rs/canvas` for pdfjs): keep `main`'s
   lockfile and change only the `@ezychat/*` version strings (`docs/release.md` step 1; about 22 lines). When a merge
   must re-resolve the lockfile (Dependabot conflicts), write it with CI's npm: `npx -y npm@10.9.9 install
-  --package-lock-only` (CI runs Node 22 / npm 10.9.9); npm 11 on this PC left out `@emnapi/*` and CI's `npm ci` refused
+--package-lock-only` (CI runs Node 22 / npm 10.9.9); npm 11 on this PC left out `@emnapi/*` and CI's `npm ci` refused
   ("Missing … from lock file"). Check with `npx -y npm@10.9.9 ci --dry-run --ignore-scripts`. Stop the owner test env Dev Build (and every process
   running from `node_modules`) before `npm ci`: a locked `esbuild.exe` makes it fail with EPERM after it
   deleted half of `node_modules`.
