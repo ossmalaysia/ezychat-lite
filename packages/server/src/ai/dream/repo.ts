@@ -22,7 +22,7 @@ export interface NewChange {
   before: string;
   after: string;
   summary: string;
-  sourceMessageIds: number[];
+  sourceMessageIds: string[];
   checks: DreamCheck[];
   status: 'waiting' | 'applied';
   auto: boolean;
@@ -34,7 +34,7 @@ export interface ChangeRow extends DreamChange {
   agentId: number;
   before: string;
   after: string;
-  sourceMessageIds: number[];
+  sourceMessageIds: string[];
   checks: DreamCheck[];
   versionId: number | null;
   decidedBy: number | null;
@@ -81,7 +81,7 @@ interface RawRun {
 }
 
 const toChange = (r: RawChange): ChangeRow => {
-  const sourceMessageIds = JSON.parse(r.source_message_ids) as number[];
+  const sourceMessageIds = JSON.parse(r.source_message_ids) as string[];
   return {
     id: r.id,
     runId: r.run_id,

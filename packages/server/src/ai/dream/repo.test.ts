@@ -29,7 +29,7 @@ const change = (over: Partial<NewChange> = {}): NewChange => ({
   before: '',
   after: 'Saturday: 9 am to 1 pm.',
   summary: 'Saturday hours',
-  sourceMessageIds: [1, 2],
+  sourceMessageIds: ['M1', 'M2'],
   checks: [{ name: 'replay', ok: true }],
   status: 'waiting',
   auto: false,
