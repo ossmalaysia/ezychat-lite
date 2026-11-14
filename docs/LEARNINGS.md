@@ -1482,6 +1482,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `chats/hidden-sql.ts`; a socket emit for one chat goes through `toVisibleChat` and returns nothing instead of calling
   `io.to([])` (an empty room list broadcasts to every socket). Code that copies or re-keys a `chats` row builds its
   column list from `PRAGMA table_info`, and `chats/merge.ts` carries the hidden columns, so a later column is never lost.
+- Removing a chat's rows does not stop a send already in flight: WhatsApp echoes it back as a live `fromMe` message,
+  which starts the chat again unless ingest drops that id. A file named after a key (avatar `sha256(key).jpg`) moves
+  or goes with its row on a re-key. Safety checks fail closed: an unknown value (a hidden chat's number) never
+  matches, and a hold buffer that is full drops what cannot wait instead of handling everything at once.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and

@@ -23,7 +23,11 @@ import { capabilitiesOf } from '../inboxes/types.js';
  * ctx.services.waStatus + bus 'wa:status'; when open → that inbox's send queue onConnected().
  * Returns a detach function.
  */
-/** Most events of a new link held until its number is known (then handled at once, in order). */
+/**
+ * Most history events (history messages and changes, chat lists) of a new link held until its number
+ * is known; later ones are dropped, never routed into the old number's hidden chats. Live events always
+ * wait (they need an open connection, which knows its number, so they are few).
+ */
 export const HELD_EVENTS_MAX = 50_000;
 
 export function attachWaBridge(
@@ -110,8 +114,13 @@ export function attachWaBridge(
    * with them). They run in order once the number decided (`onConnected`, or the next event with it).
    */
   const held: Array<() => void> = [];
-  let heldWarned = false;
+  /** History events held now (bounded by HELD_EVENTS_MAX) and dropped past it, for this link. */
+  let heldHistory = 0;
+  let dropped = 0;
   const runHeld = () => {
+    if (dropped) log.warn({ dropped }, 'history events dropped before the link opened');
+    heldHistory = 0;
+    dropped = 0;
     for (const run of held.splice(0)) run();
   };
   const linkDecided = () => {
@@ -122,16 +131,22 @@ export function attachWaBridge(
       return true;
     }
   };
-  /** Runs `run` now, or holds it until the link's number is known. */
-  const gate = (run: () => void) => {
-    if (linkDecided() || held.length >= HELD_EVENTS_MAX) {
-      if (held.length >= HELD_EVENTS_MAX && !heldWarned) {
-        heldWarned = true;
-        log.warn({ held: held.length }, 'too many events before the link opened: handled now');
-      }
+  /**
+   * Runs `run` now, or holds it until the link's number is known. A history event past the limit is
+   * dropped (fail closed: the old number's chats never receive it; WhatsApp keeps it on the phone).
+   */
+  const gate = (run: () => void, history: boolean) => {
+    if (linkDecided()) {
       runHeld();
       run();
       return;
+    }
+    if (history) {
+      if (heldHistory >= HELD_EVENTS_MAX) {
+        dropped++;
+        return;
+      }
+      heldHistory++;
     }
     held.push(run);
   };
@@ -149,7 +164,7 @@ export function attachWaBridge(
       messages
         .ingest(m, meta?.source ?? 'live', inboxId)
         .catch((err: unknown) => log.error({ err, id: m.id }, 'ingest failed'));
-    });
+    }, meta?.source === 'history');
   const onReaction = (r: WaReaction, meta: { source: 'live' | 'history' }) =>
     gate(() => {
       try {
@@ -157,7 +172,7 @@ export function attachWaBridge(
       } catch (err) {
         log.error({ err, id: r.targetId }, 'reaction not stored');
       }
-    });
+    }, meta?.source === 'history');
   const onEdited = (e: WaMessageEdit, meta: { source: 'live' | 'history' }) =>
     gate(() => {
       try {
@@ -165,7 +180,7 @@ export function attachWaBridge(
       } catch (err) {
         log.error({ err, id: e.targetId }, 'edit not stored');
       }
-    });
+    }, meta?.source === 'history');
   const onDeleted = (r: WaMessageRevoke, meta: { source: 'live' | 'history' }) =>
     gate(() => {
       try {
@@ -173,7 +188,7 @@ export function attachWaBridge(
       } catch (err) {
         log.error({ err, id: r.targetId }, 'delete not stored');
       }
-    });
+    }, meta?.source === 'history');
   const onStatusUpdate = (u: WaMessageStatusUpdate) => {
     try {
       messages.applyStatus(u, inboxId);
@@ -195,7 +210,7 @@ export function attachWaBridge(
       } catch (err) {
         log.error({ err }, 'chats upsert failed');
       }
-    });
+    }, true);
   const onContacts = (list: WaContactInfo[]) => {
     try {
       chats.upsertContacts(list);

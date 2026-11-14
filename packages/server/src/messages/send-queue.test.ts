@@ -196,6 +196,35 @@ describe('SendQueue', () => {
     expect(presence).toEqual(['PN']);
     q.stop();
   });
+
+  it('drop() forgets waiting jobs; a job enqueued while a dropped send is in flight still goes out', async () => {
+    const sent: string[] = [];
+    const ok: string[] = [];
+    let finish!: () => void;
+    const q = new SendQueue({
+      send: async (j): Promise<SendResult> => {
+        if (j.localId === 'a1') await new Promise<void>((r) => (finish = r));
+        sent.push(j.localId);
+        return { id: `WA-${j.localId}`, timestamp: 0 };
+      },
+      onSent: (j) => ok.push(j.localId),
+      onFailed: () => undefined,
+      isConnected: () => true,
+      sleep: async () => undefined,
+      spacingMs: 0,
+    });
+    q.enqueue(job('a1', 'A', Date.now()));
+    q.enqueue(job('a2', 'A', Date.now()));
+    await flush();
+    expect(q.drop('A')).toBe(2);
+    // the chat starts again while a1 is still in flight
+    q.enqueue(job('b1', 'A', Date.now()));
+    finish();
+    await flush();
+    expect(sent).toEqual(['a1', 'b1']);
+    expect(ok).toEqual(['a1', 'b1']);
+    q.stop();
+  });
 });
 
 describe('SendQueue while the access gate is closed', () => {
