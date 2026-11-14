@@ -410,6 +410,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - SonarCloud's gate fails a PR on script code too: run tools through `resolveTool` (`build-summary.mjs`), never a
   bare `execFileSync('git' | 'gh')` (PATH lookup, Security B), and give every `.sort()` in any code (server and web too, even of string ids) a compare function (Reliability D). Where the order is a protocol's (SigV4 canonical
   names and query keys are byte order), pass an explicit code-unit comparator, not the `localeCompare` Sonar suggests.
+- `release-review.mjs --approve` writes two files that must be committed, and that push starts CI again (~15 min)
+  before the final merge check can say MERGE OK: when the owner is likely to approve, push every other docs commit
+  first, and tell the owner the merge waits for that CI run. Commit exactly the two paths it prints: without a
+  feature folder the entry goes to `docs/release-review/log.md`, not a `review.md` (a name filter missed it once).
 - The release review is the final merge check and reads only GitHub REST and git (cloud sessions block
   GraphQL; review threads come from `pulls/<n>/ccr/review_threads` there): no `GH_PATH` wrapper. GitHub's
   compare lists at most 300 files and has no file pages: take a PR's files from `pulls/<n>/files` pages and a
@@ -487,6 +491,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   change to any `e2e/*.mjs` file counts as test code too: a one-line SonarCloud fix in an eval script after the checks
   cancelled the e2e, Dev Build and screen proofs. Read SonarCloud's findings on new scripts (taint rules such as S5145
   flag any server value in `console.log`; print fixed texts) before the final checks, not after.
+- Two open PRs that both add to `CHANGELOG.md`, `docs/LEARNINGS.md` or `docs/dev-build-checks.md` conflict as soon as one
+  merges: merge `main` into the other (never rebase a reviewed PR; a merge of `main` keeps its proofs), keep both
+  sides, and expect one more CI run before its MERGE OK. Merge the PR whose CI is already green first.
 - Dependabot opens `react` and `react-dom` as separate PRs; each fails every web test alone. `main` requires
   up-to-date branches, so each merge re-runs CI on every other PR: combine the non-critical updates into
   one PR (`npm install -w <workspace> pkg@range`, keep exact pins exact) and close the single PRs after it
@@ -1021,9 +1028,17 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `Set-Content`; `file <path>` shows it). Unicode escapes can still land as the raw invisible character
   (lint `no-irregular-whitespace`): match invisible characters with `\p{Cf}`/`\p{Cc}` classes and
   check suspicious lines with `od -c`.
+- `new URL(import.meta.url).pathname` gives `/D:/…` on Windows, so a cloned mock's seed or runner fails to find its
+  files: use `fileURLToPath(new URL(…, import.meta.url))` in every script that may run on the Windows dev machine.
 - In PowerShell, `git commit -F - @'…'@` passes the here-string as a pathspec, not stdin: the commit fails while the
   `git add` before it already staged its files. Write multi-line commit messages with a Bash heredoc (`-F - <<'EOF'`)
   or `-m` per paragraph, and run `git add` and `git commit` of one change together.
+- Git Bash's `/tmp` is not the folder Node opens (`/tmp/x` in Node is `D:\tmp\x`): pass temp files to Node with a
+  Windows path in the scratchpad. Never put `;` after an `&&` chain whose first step can fail before a `git commit`: a
+  failed conflict-resolution script still let `git add && git commit` record a merge with conflict markers. Check
+  `git grep -nE '^(<{7,8}|>{7,8})( |$)'` before every commit that ends a merge.
+- The Cloudflare Workers log tool fails on the events view (`requestId` schema error); the calculations view with a
+  count grouped by `$metadata.message` works and shows which webhook paths ran.
 - Multi-line scripts go in a file (PowerShell breaks `node -e`); prefer PowerShell/Grep/Read over slow Git
   Bash; prefix `git show ref:path` and any argument that starts with `/` (an API path such as `/ai/x`) with
   `MSYS_NO_PATHCONV=1` in Git Bash, or it becomes `C:/Program Files/Git/ai/x`. The user profile path has a
@@ -1263,6 +1278,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## WhatsApp / Baileys
 
+- A reconnect socket can hang with no `open`, no `close` and no error (seen after a 503 stream error: one number back in
+  4 s, the other stuck at "connecting" 1 h 45 min until a relink). Never rely on Baileys alone to end a connect
+  attempt: the adapter needs its own time limit that closes the attempt and schedules the next one.
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
   app must make its own. The adapter's `raw` cache is memory only, so a later download goes
@@ -1556,7 +1574,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   class and status for the log, or every cause looks like the same plain `Error`.
 - Diagnosing a live hand-off: the installed service's log (`C:\ProgramData\wa-team-inbox\logs`, Enterprise
   `C:\ProgramData\ezychat-enterprise`) is admin-only; the owner's downloads land in `D:\Downloads` (read the
-  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). An `AI decision` with `toolCalls: []` where a
+  Windows Downloads folder setting, not `%USERPROFILE%\Downloads`). Read it with a read-only filter script started by
+  `Start-Process powershell -Verb RunAs -Wait` (the owner clicks Yes) that writes the matching lines there; filter by
+  `"inboxId":<n>` and close/reconnect messages with no per-file line cap (request lines flood any cap), and remember
+  each line appears twice (pino file + WinSW `out.log`). An `AI decision` with `toolCalls: []` where a
   connector tool was expected means the agent was not offered it: check that agent's own connector settings. Start from the chat history (MCP `get_chat`: hand-off reason + timestamps; a few seconds
   between claim and `ai_unavailable` = a fast provider error, not a timeout), then ask the owner for
   Admin → Audit → **Download logs** (redacted zip, no admin shell) and read the `AI answer unavailable`
@@ -1709,6 +1730,21 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- Never key a non-list query under `['chats', …]`: `upsertChatInCache` rewrites every query there as a chat list
+  (`setQueriesData`). Give a count its own key (`qk.unreadChatCount`) and invalidate it in `refreshChats`, so it stays
+  live with the list's 50 ms batch and no new socket event.
+- A component added to an always-mounted shell (rail, tabs) runs in every test that renders `App`: hooks it uses
+  (`useUnreadChatCount`, `useAuth().isAdmin`, `user.displayName`, `DesktopUpdatePanel` via `AboutDialog`) must be in
+  those tests' mocks, or the ErrorBoundary hides the page and dozens of unrelated tests fail at once.
+- In a Playwright check, `waitForURL` resolves before React draws the new page: read `aria-current`, a dot or a
+  heading with a retrying `expect`/poll, never one `getAttribute`/`isVisible` right after the URL changes. The same
+  race hits `if (await locator.count())` right after `goto`: wait for the shell (`hasRail` in `e2e/helpers.ts`) first,
+  and use `openAccountItem` / `signOutFromInbox` instead of clicking the account menu (phones have none).
+- Login returns to `state.from`, the page where the session ended: a page where people sign out (`/account`) must
+  never be a return target (`safeFrom`), or the next person signs in to someone else's last page.
+- Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
+  new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
+  to iterate, then one full run decides.
 - The web app also runs over plain `http://` on the LAN, which is not a secure context: `crypto.randomUUID`,
   `crypto.subtle`, clipboard writes and service workers are missing there. Make ids with `lib/random-id.ts#randomUuid`
   (or `newClientId`), never `crypto.randomUUID()` directly or `Math.random`; feature-check any other secure-only API. One call in an always-mounted host (e.g. `FeedbackHost`) blanked every

@@ -91,11 +91,42 @@ export async function expectNoHorizontalScroll(page: Page, label: string): Promi
   ).toBeLessThanOrEqual(m.innerWidth);
 }
 
-/** Opens the account menu in the inbox header and signs out. */
+/**
+ * Signs out: the account menu under the photo at the bottom of the rail (768 px and up), else the Account page
+ * (a team member's Account tab, an admin's Settings → Your account).
+ */
 export async function signOutFromInbox(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Account menu' }).click();
-  await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  if (await hasRail(page)) {
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  } else {
+    await page.goto('/account');
+    await page.getByTestId('account-sign-out').click();
+  }
   await expect(page).toHaveURL(/\/login$/);
+}
+
+/** True from 768 px (the rail with the account menu), false on phones (tabs); waits until one of them is drawn. */
+export async function hasRail(page: Page): Promise<boolean> {
+  await page
+    .locator('[data-testid="app-rail"]:visible, [data-testid="app-tabs"]:visible')
+    .first()
+    .waitFor();
+  return page.getByTestId('app-rail').isVisible();
+}
+
+/**
+ * Opens an item of the account menu (`name`, e.g. "Share this app", "About EzyChat Lite"): the menu under the photo in
+ * the rail from 768 px, else the same row on the Account page.
+ */
+export async function openAccountItem(page: Page, name: string): Promise<void> {
+  if (await hasRail(page)) {
+    await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+    await page.getByRole('menuitem', { name, exact: true }).click();
+  } else {
+    await page.goto('/account');
+    await page.getByTestId('account-page').getByRole('button', { name, exact: true }).click();
+  }
 }
 
 export async function signIn(page: Page, username: string, password: string): Promise<void> {
@@ -122,5 +153,5 @@ export async function signIn(page: Page, username: string, password: string): Pr
 }
 
 export function inboxHeading(page: Page) {
-  return page.getByRole('heading', { name: 'Inbox', exact: true });
+  return page.getByRole('heading', { name: 'Chats', exact: true });
 }

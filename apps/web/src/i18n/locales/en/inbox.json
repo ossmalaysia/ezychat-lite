@@ -7,8 +7,7 @@
   },
   "page": {
     "chats": "Chats",
-    "title": "Inbox",
-    "admin": "Admin",
+    "title": "Chats",
     "version": "{{appName}} · v{{version}}",
     "selectTitle": "Select a chat",
     "selectDescription": "Pick a conversation from the list to read and reply as a team."

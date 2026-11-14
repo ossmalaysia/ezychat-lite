@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A new menu on every screen takes you straight to Chats, Reports, Ask Ezy, Members and Settings. On a computer it is a narrow bar on the left, with your photo and Settings at the bottom; on a phone it is a row of tabs at the bottom (Chats, Reports, Ask Ezy and Settings for admins; Chats, Ask Ezy and Account for your team), hidden while a chat is open. Chats shows how many chats have unread messages, and a red dot on Settings tells an admin when a WhatsApp number needs attention. The chat list is now called **Chats**, and on a phone Settings opens one list of every admin page.
+
 ### Changed
 
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).

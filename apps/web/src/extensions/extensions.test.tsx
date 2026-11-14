@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { App } from '../App';
 import { ADMIN_NAV } from '../admin/AdminLayout';
@@ -16,7 +16,8 @@ import {
 let role: 'admin' | 'agent' = 'admin';
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({
-    user: { role, mustChangePassword: false },
+    user: { role, mustChangePassword: false, displayName: 'Aisyah Rahman', username: 'aisyah' },
+    isAdmin: role === 'admin',
     isLoading: false,
     error: null,
     logout: vi.fn(),
@@ -32,10 +33,15 @@ vi.mock('../api/queries', () => ({
   usePatchSettings: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   // Lite: one WhatsApp number, so the admin nav keeps WhatsApp (no Inboxes).
   useInboxes: () => ({ isPending: false, data: { inboxes: [], maxInboxes: 1, canAdd: false } }),
+  // App navigation: the Chats count in the rail and tabs.
+  useUnreadChatCount: () => ({ data: { count: 0 } }),
 }));
 vi.mock('@/lib/error-reporter', () => ({ reportClientError: vi.fn() }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.0' }));
-vi.mock('@/components/app/DesktopUpdates', () => ({ DesktopUpdateNotice: () => null }));
+vi.mock('@/components/app/DesktopUpdates', () => ({
+  DesktopUpdateNotice: () => null,
+  DesktopUpdatePanel: () => null,
+}));
 vi.mock('@/components/app/DevBuildBadge', () => ({ DevBuildBadge: () => null }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('@/i18n/use-change-locale', () => ({
@@ -125,7 +131,10 @@ describe('Lite without extensions', () => {
     expect(screen.getByRole('heading', { name: 'Inbox' })).toBeTruthy();
     cleanup();
     renderApp('/admin/members', []);
-    expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+    // the page's own heading (the phone bar names it too)
+    expect(
+      within(screen.getByTestId('admin-main')).getByRole('heading', { name: 'Members' }),
+    ).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Demo reports' })).toBeNull();
   });
 
@@ -177,7 +186,10 @@ describe('extension routes', () => {
       ],
     };
     renderApp('/admin/members', [shadow]);
-    expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+    // the page's own heading (the phone bar names it too)
+    expect(
+      within(screen.getByTestId('admin-main')).getByRole('heading', { name: 'Members' }),
+    ).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Shadow members' })).toBeNull();
     cleanup();
     renderApp('/chats/123', [shadow]);
@@ -220,26 +232,36 @@ describe('agent sub-pages and nav badges', () => {
     await registerExtensionCatalogs([agents]);
   });
 
-  it('marks Members active and names it in the phone header on an agent sub-page', () => {
+  it('marks the rail Members current and names it in the phone bar on an agent sub-page', () => {
     renderApp('/admin/ext/connectors/agents/ai', [agents]);
     expect(screen.getByRole('heading', { name: 'Agent tools' })).toBeTruthy();
-    for (const link of screen.getAllByRole('link', { name: 'Members' }))
-      expect(link.className).toContain('bg-primary/10');
-    for (const link of screen.getAllByRole('link', { name: 'Connectors' }))
-      expect(link.className).not.toContain('bg-primary/10');
-    expect(screen.getByText('Admin · Members')).toBeTruthy();
+    expect(screen.getByTestId('nav-members').getAttribute('aria-current')).toBe('page');
+    // a rail place: no Settings side menu
+    expect(screen.queryByTestId('settings-nav')).toBeNull();
+    const bar = screen.getByTestId('phone-bar');
+    expect(bar.textContent).toContain('Members');
+    expect(screen.getByRole('link', { name: 'Back to Members' }).getAttribute('href')).toBe(
+      '/admin/members',
+    );
   });
 
-  it('keeps an extension page without a section under its own nav item', () => {
+  it('keeps an extension page without a section under its own item in the Settings menu', () => {
     renderApp('/admin/ext/connectors/manage', [agents]);
-    for (const link of screen.getAllByRole('link', { name: 'Members' }))
-      expect(link.className).not.toContain('bg-primary/10');
-    expect(screen.getByText('Admin · Connectors')).toBeTruthy();
+    expect(screen.getByTestId('nav-members').getAttribute('aria-current')).toBeNull();
+    expect(screen.getByTestId('nav-settings').getAttribute('aria-current')).toBe('page');
+    const own = screen
+      .getAllByRole('link', { name: 'Connectors' })
+      .find((l) => l.getAttribute('href') === '/admin/ext/connectors/manage');
+    expect(own?.className).toContain('bg-primary/10');
+    expect(screen.getByTestId('phone-bar').textContent).toContain('Connectors');
+    expect(screen.getByRole('link', { name: 'Back to Settings' }).getAttribute('href')).toBe(
+      '/admin',
+    );
   });
 
   it('shows a count or an attention dot from the extension badge hook', () => {
     badge = { count: 120, labelKey: 'ext.connectors.attention' };
-    renderApp('/admin/members', [agents]);
+    renderApp('/admin/audit', [agents]);
     expect(screen.getAllByTestId('nav-badge')[0]?.textContent).toContain('99+');
     expect(screen.getAllByTestId('nav-badge')[0]?.firstElementChild?.className).toContain(
       'bg-primary',
@@ -247,19 +269,22 @@ describe('agent sub-pages and nav badges', () => {
     cleanup();
     // A count of things to fix uses the warning tone, never the brand colour.
     badge = { count: 1, attention: true };
-    renderApp('/admin/members', [agents]);
+    renderApp('/admin/audit', [agents]);
     const pill = screen.getAllByTestId('nav-badge')[0]?.firstElementChild;
     expect(pill?.textContent).toBe('1');
     expect(pill?.className).toContain('bg-warning/15');
     expect(pill?.className).not.toContain('bg-primary');
     cleanup();
     badge = { attention: true };
-    renderApp('/admin/members', [agents]);
+    renderApp('/admin/audit', [agents]);
     expect(screen.getAllByTestId('nav-badge').length).toBeGreaterThan(0);
+    // ...and raises the rail's Settings dot
+    expect(screen.getAllByTestId('nav-attention-dot').length).toBeGreaterThan(0);
     cleanup();
     badge = { count: 0 };
-    renderApp('/admin/members', [agents]);
+    renderApp('/admin/audit', [agents]);
     expect(screen.queryByTestId('nav-badge')).toBeNull();
+    expect(screen.queryByTestId('nav-attention-dot')).toBeNull();
   });
 
   it('hides a badge whose hook throws and keeps the nav', () => {
@@ -275,7 +300,7 @@ describe('agent sub-pages and nav badges', () => {
         },
       ],
     };
-    renderApp('/admin/members', [broken]);
+    renderApp('/admin/audit', [broken]);
     expect(screen.getAllByRole('link', { name: 'Connectors' }).length).toBeGreaterThan(0);
     expect(screen.queryByTestId('error-boundary')).toBeNull();
   });

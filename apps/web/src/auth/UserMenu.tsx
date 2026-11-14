@@ -48,7 +48,8 @@ import { useAuth } from './AuthProvider';
  */
 /** Short button text for the language switch (endonyms/codes, not translated). */
 const SHORT_LOCALE: Record<string, string> = { en: 'EN', ms: 'BM', 'zh-CN': '中文' };
-function shortLocaleLabel(code: string, nativeName: string): string {
+/** Also used by the Account page (nav/AccountPage.tsx), so a new language is added once. */
+export function shortLocaleLabel(code: string, nativeName: string): string {
   return SHORT_LOCALE[code] ?? nativeName;
 }
 

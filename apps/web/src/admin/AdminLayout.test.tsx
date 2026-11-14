@@ -1,18 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AdminLayout, visibleAdminNav } from './AdminLayout';
+import { AdminLayout, settingsHomeGroups, visibleAdminNav } from './AdminLayout';
 import { i18n } from '@/i18n';
 import { reportClientError } from '@/lib/error-reporter';
 import { ANCHOR_SPRINT_URL, CUSTOM_FEATURE_URL } from '@/lib/links';
-import { toast } from 'sonner';
 
-const logout = vi.hoisted(() => vi.fn());
+type InboxRow = { id: number; removed: boolean; status: { state: string } };
 /** What `useInboxes()` returns: Lite (`maxInboxes` 1) unless a test changes it. */
 const inboxes = vi.hoisted(() => ({
   current: { data: { inboxes: [], maxInboxes: 1, canAdd: false }, isPending: false } as {
-    data?: { inboxes: unknown[]; maxInboxes: number; canAdd: boolean };
+    data?: { inboxes: InboxRow[]; maxInboxes: number; canAdd: boolean };
     isPending: boolean;
   },
 }));
@@ -35,10 +34,12 @@ vi.mock('../api/ai', () => ({ useAiAgents: () => agents.current }));
 vi.mock('./InboxesPage', () => ({ InboxesPage: () => <h1>Inboxes</h1> }));
 
 vi.mock('../auth/AuthProvider', () => ({
-  useAuth: () => ({ user: { role: 'admin' }, isLoading: false, logout }),
+  useAuth: () => ({
+    user: { role: 'admin', displayName: 'Aisyah Rahman' },
+    isAdmin: true,
+    isLoading: false,
+  }),
 }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
-vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => null }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.0' }));
 vi.mock('@/lib/error-reporter', () => ({ reportClientError: vi.fn() }));
 vi.mock('./AiMemberPage', () => ({ AiMemberPage: () => <h1>AI member page</h1> }));
@@ -46,7 +47,7 @@ vi.mock('./MembersPage', () => ({ MembersPage: () => <h1>Members</h1> }));
 vi.mock('./QuickRepliesPage', () => ({ QuickRepliesPage: () => <h1>Quick replies</h1> }));
 vi.mock('./WhatsAppPage', () => ({ WhatsAppPage: () => <h1>WhatsApp</h1> }));
 vi.mock('./TunnelPage', () => ({ TunnelPage: () => <h1>Phone access</h1> }));
-vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>Settings</h1> }));
+vi.mock('./SettingsPage', () => ({ SettingsPage: () => <h1>App settings</h1> }));
 vi.mock('./AuditPage', () => ({ AuditPage: () => <h1>Audit</h1> }));
 vi.mock('./connectors/ConnectorsGalleryPage', () => ({
   ConnectorsGalleryPage: () => <h1>Connectors</h1>,
@@ -57,10 +58,10 @@ vi.mock('./connectors/ConnectorDetailPage', () => ({
 vi.mock('./ReportsPage', () => ({ ReportsPage: () => <h1>Reports</h1> }));
 vi.mock('./SafetyPage', () => ({ SafetyPage: () => <h1>Safety</h1> }));
 
-const ADMIN_NAV = visibleAdminNav(false).map((n) => ({
-  ...n,
-  label: i18n.t(`admin:${n.labelKey}`),
-}));
+/** The pages under Settings (the side menu); Reports and Members are rail places of their own. */
+const SETTINGS_NAV = visibleAdminNav(false)
+  .filter((n) => n.to !== 'reports' && n.to !== 'members')
+  .map((n) => ({ ...n, label: i18n.t(`admin:${n.labelKey}`) }));
 
 function Location() {
   return <output data-testid="location">{useLocation().pathname}</output>;
@@ -71,12 +72,29 @@ function setup(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/" element={<h1>Inbox</h1>} />
+        <Route path="/account" element={<h1>Account</h1>} />
         <Route path="/admin/*" element={<AdminLayout />} />
       </Routes>
       <Location />
     </MemoryRouter>,
   );
   return userEvent.setup();
+}
+
+/** The page's own heading (the phone app bar names the page too). */
+const pageHeading = (name: string) =>
+  within(screen.getByTestId('admin-main')).getByRole('heading', { name });
+const sideMenu = () => within(screen.getByTestId('settings-nav'));
+const phoneBar = () => screen.getByTestId('phone-bar');
+
+/** From 768 px the app shows the desktop layout. */
+function desktop(on: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: on,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
 }
 
 const LITE = { data: { inboxes: [], maxInboxes: 1, canAdd: false }, isPending: false };
@@ -89,56 +107,124 @@ beforeEach(() => {
     isPending: false,
     isError: false,
   };
-  logout.mockReset().mockResolvedValue(undefined);
-  vi.mocked(toast.error).mockClear();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('AdminLayout routing', () => {
-  it.each(ADMIN_NAV)('keeps every admin link anchored from $label', async ({ to }) => {
+  it.each(SETTINGS_NAV)('keeps every Settings link anchored from $label', async ({ to }) => {
     const user = setup(`/admin/${to}`);
-    for (const destination of ADMIN_NAV) {
-      const link = screen.getByRole('link', { name: destination.label });
+    for (const destination of SETTINGS_NAV) {
+      const link = sideMenu().getByRole('link', { name: destination.label });
       // Check before clicking so a broken relative fallback cannot enter an endless loop.
       expect(link.getAttribute('href')).toBe(`/admin/${destination.to}`);
       await user.click(link);
-      expect(screen.getByRole('heading', { name: destination.label })).toBeTruthy();
+      expect(pageHeading(destination.label)).toBeTruthy();
       expect(screen.getByTestId('location').textContent).toBe(`/admin/${destination.to}`);
       expect(
-        screen.getByRole('link', { name: destination.label }).getAttribute('aria-current'),
+        sideMenu().getByRole('link', { name: destination.label }).getAttribute('aria-current'),
       ).toBe('page');
     }
+    // the rail places are not in the Settings menu
+    expect(sideMenu().queryByRole('link', { name: 'Reports' })).toBeNull();
+    expect(sideMenu().queryByRole('link', { name: 'Members' })).toBeNull();
+  });
+
+  it.each(['/admin/reports', '/admin/members', '/admin/members/ai/1'])(
+    'shows %s full width, without the Settings side menu',
+    (path) => {
+      setup(path);
+      expect(screen.queryByTestId('settings-nav')).toBeNull();
+    },
+  );
+
+  it('names the Settings area "App settings" for its own page', () => {
+    setup('/admin/settings');
+    expect(sideMenu().getByRole('link', { name: 'App settings' })).toBeTruthy();
+    expect(i18n.t('admin:nav.settings')).toBe('App settings');
   });
 
   it.each([
-    '/admin',
-    '/admin/',
     '/admin/members/quick-replies/members/members',
+    '/admin/members/ai/1/extra',
+    '/admin/unknown',
+  ])('recovers %s to the Settings list on a phone and App settings on desktop', async (path) => {
+    setup(path);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin'));
+    expect(screen.getByTestId('settings-home')).toBeTruthy();
+    cleanup();
+    desktop(true);
+    setup(path);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/settings'));
+    expect(pageHeading('App settings')).toBeTruthy();
+  });
+
+  it.each([
     '/admin/members/ai/unknown',
     '/admin/members/ai/0',
     '/admin/members/ai/01',
     '/admin/members/ai/2x',
-    '/admin/members/ai/1/extra',
-    '/admin/unknown',
-  ])('recovers %s to the canonical Members page', async (path) => {
+  ])('recovers %s to the Members page', async (path) => {
     setup(path);
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/members'));
-    expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+    expect(pageHeading('Members')).toBeTruthy();
+  });
+
+  it('opens App settings on /admin from 768 px', async () => {
+    desktop(true);
+    setup('/admin');
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/settings'));
+  });
+
+  it('lists every admin page on the phone Settings page, the numbers first under Business', async () => {
+    desktop(false);
+    const user = setup('/admin');
+    const home = within(screen.getByTestId('settings-home'));
+    expect(screen.getByTestId('location').textContent).toBe('/admin');
+    const hrefs = home.getAllByRole('link').map((l) => l.getAttribute('href'));
+    expect(hrefs).toEqual([
+      '/admin/members',
+      '/admin/quick-replies',
+      '/admin/whatsapp',
+      '/admin/safety',
+      '/admin/connectors',
+      '/admin/tunnel',
+      '/admin/settings',
+      '/admin/audit',
+      '/account',
+    ]);
+    for (const group of ['Team', 'Business', 'App', 'Your account'])
+      expect(home.getByRole('heading', { name: group })).toBeTruthy();
+    expect(home.getByRole('link', { name: 'Aisyah Rahman' })).toBeTruthy();
+    // the Settings list is a tab's own page: no back arrow
+    expect(within(phoneBar()).queryByRole('link')).toBeNull();
+    expect(phoneBar().textContent).toBe('Settings');
+    await user.click(home.getByRole('link', { name: 'Quick replies' }));
+    expect(pageHeading('Quick replies')).toBeTruthy();
   });
 
   it('labels the tunnel section Phone access and keeps its /admin/tunnel route', () => {
-    setup('/admin/members');
-    const link = screen.getByRole('link', { name: 'Phone access' });
+    setup('/admin/settings');
+    const link = sideMenu().getByRole('link', { name: 'Phone access' });
     expect(link.getAttribute('href')).toBe('/admin/tunnel');
     expect(screen.queryByRole('link', { name: 'Cloudflare' })).toBeNull();
   });
 
-  it('opens an AI agent page under an active Members section', () => {
-    setup('/admin/members/ai/7');
-    expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Members' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByText('Admin · Members')).toBeTruthy();
-    expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/7');
+  it.each([
+    ['/admin/reports', 'Reports', null],
+    ['/admin/members', 'Members', '/admin'],
+    ['/admin/members/ai/7', 'Members', '/admin/members'],
+    ['/admin/settings/ai', 'App settings', '/admin'],
+    ['/admin/connectors', 'Connectors', '/admin'],
+    ['/admin/connectors/google-calendar', 'Connectors', '/admin/connectors'],
+    ['/admin/audit', 'Audit', '/admin'],
+  ])('the phone app bar of %s says %s and goes back to %s', (path, title, back) => {
+    setup(path);
+    expect(screen.getByTestId('phone-bar-title').textContent).toBe(title);
+    const link = within(phoneBar()).queryByRole('link');
+    expect(link?.getAttribute('href') ?? null).toBe(back);
   });
 
   it('opens the new-agent page with its preset', () => {
@@ -150,7 +236,7 @@ describe('AdminLayout routing', () => {
         <Location />
       </MemoryRouter>,
     );
-    expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
+    expect(pageHeading('AI member page')).toBeTruthy();
     expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/new');
   });
 
@@ -159,7 +245,7 @@ describe('AdminLayout routing', () => {
     await waitFor(() =>
       expect(screen.getByTestId('location').textContent).toBe('/admin/members/ai/1'),
     );
-    expect(screen.getByRole('heading', { name: 'AI member page' })).toBeTruthy();
+    expect(pageHeading('AI member page')).toBeTruthy();
   });
 
   it('sends Lite with no agent yet from /admin/members/ai to a new agent', async () => {
@@ -178,7 +264,7 @@ describe('AdminLayout routing', () => {
     };
     setup('/admin/members/ai');
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/members'));
-    expect(screen.getByRole('heading', { name: 'Members' })).toBeTruthy();
+    expect(pageHeading('Members')).toBeTruthy();
   });
 
   it('waits for the agent list on /admin/members/ai, and falls back to Members on an error', async () => {
@@ -193,15 +279,14 @@ describe('AdminLayout routing', () => {
   });
 
   it.each(['general', 'ai', 'device', 'maintenance'])(
-    'keeps Settings active and mounted on /admin/settings/%s',
+    'keeps App settings current and mounted on /admin/settings/%s',
     (tab) => {
       setup(`/admin/settings/${tab}`);
-      expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy();
-      expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe(
-        'page',
-      );
+      expect(pageHeading('App settings')).toBeTruthy();
+      expect(
+        sideMenu().getByRole('link', { name: 'App settings' }).getAttribute('aria-current'),
+      ).toBe('page');
       expect(screen.getByTestId('location').textContent).toBe(`/admin/settings/${tab}`);
-      expect(screen.getByText('Admin · Settings')).toBeTruthy();
     },
   );
 
@@ -214,122 +299,74 @@ describe('AdminLayout routing', () => {
         route: '/admin/members/quick-replies',
       }),
     );
-    expect(screen.getByTestId('location').textContent).toBe('/admin/members');
+    expect(screen.getByTestId('location').textContent).toBe('/admin');
   });
 
-  it('opens every section from the mobile menu and closes the sheet', async () => {
-    const user = setup('/admin/members');
-    for (const destination of ADMIN_NAV) {
-      await user.click(screen.getByRole('button', { name: 'Admin menu' }));
-      const menu = await screen.findByRole('dialog');
-      const link = within(menu).getByRole('link', { name: destination.label });
-      expect(link.getAttribute('href')).toBe(`/admin/${destination.to}`);
-      await user.click(link);
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(screen.getByRole('heading', { name: destination.label })).toBeTruthy();
-      expect(screen.getByTestId('location').textContent).toBe(`/admin/${destination.to}`);
+  it('puts an admin section that is in no group of the phone Settings list under More', () => {
+    const nav = [{ to: 'members' }, { to: 'reports' }, { to: 'billing' }, { to: 'audit' }];
+    const { groups, ungrouped } = settingsHomeGroups(nav);
+    expect(groups.map((g) => g.items.map((n) => n.to))).toEqual([['members'], [], ['audit']]);
+    // Reports has its own tab
+    expect(ungrouped.map((n) => n.to)).toEqual(['billing']);
+    // every core section today has a group
+    expect(settingsHomeGroups(visibleAdminNav(false)).ungrouped).toEqual([]);
+    expect(settingsHomeGroups(visibleAdminNav(true)).ungrouped).toEqual([]);
+  });
+
+  it('keeps version and support destinations in the Settings side menu', async () => {
+    const user = setup('/admin/audit');
+    const tools = within(screen.getByLabelText('Admin tools and support'));
+    expect(tools.getByText('v0.1.0')).toBeTruthy();
+    await user.click(tools.getByRole('button', { name: 'Help & feedback' }));
+    for (const [name, href] of [
+      ['Anchor Sprint', ANCHOR_SPRINT_URL],
+      ['Custom features', CUSTOM_FEATURE_URL],
+    ]) {
+      const link = tools.getByRole('link', { name });
+      expect(link.getAttribute('href')).toBe(href);
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     }
+    expect(tools.getByRole('button', { name: 'Send feedback' })).toBeTruthy();
+  });
+});
+
+describe('AdminLayout numbers that need attention', () => {
+  const inbox = (state: string, removed = false): InboxRow => ({
+    id: 1,
+    removed,
+    status: { state },
   });
 
-  it('keeps version and support destinations available in both footer layouts', async () => {
-    const user = setup('/admin/members');
-    const checkMenu = async (menu: HTMLElement) => {
-      // Back to inbox sits at the top of the menu, above the admin sections.
-      const back = within(menu).getByRole('link', { name: 'Back to inbox' });
-      expect(back.getAttribute('href')).toBe('/');
-      const sections = within(menu).getByRole('navigation', { name: 'Admin sections' });
-      expect(
-        back.compareDocumentPosition(sections) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      const footer = within(menu).getByLabelText('Admin tools and support');
-      const tools = within(footer);
-      expect(tools.getByText('v0.1.0')).toBeTruthy();
-      await user.click(tools.getByRole('button', { name: 'Help & feedback' }));
-      for (const [name, href] of [
-        ['Anchor Sprint', ANCHOR_SPRINT_URL],
-        ['Custom features', CUSTOM_FEATURE_URL],
-      ]) {
-        const link = tools.getByRole('link', { name });
-        expect(link.getAttribute('href')).toBe(href);
-        expect(link.getAttribute('target')).toBe('_blank');
-        expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-      }
-      expect(tools.getByRole('button', { name: 'Send feedback' })).toBeTruthy();
+  it.each(['qr', 'logged_out', 'disconnected', 'replaced', 'blocked'])(
+    'marks the WhatsApp row when the number is %s',
+    (state) => {
+      inboxes.current = { ...LITE, data: { ...LITE.data, inboxes: [inbox(state)] } };
+      setup('/admin/settings');
+      const row = sideMenu().getByRole('link', { name: /WhatsApp/ });
+      expect(within(row).getByTestId('settings-attention-dot')).toBeTruthy();
+      expect(row.textContent).toContain('A WhatsApp number needs attention');
+      cleanup();
+      setup('/admin');
+      const home = within(screen.getByTestId('settings-home'));
+      expect(home.getByRole('link', { name: /WhatsApp/ }).textContent).toContain('Needs attention');
+    },
+  );
+
+  it('shows no dot while connected, connecting, or for a removed inbox', () => {
+    inboxes.current = {
+      ...MULTI,
+      data: { ...MULTI.data, inboxes: [inbox('open'), inbox('connecting'), inbox('qr', true)] },
     };
-    await checkMenu(screen.getByRole('complementary'));
-    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
-    await checkMenu(await screen.findByRole('dialog'));
-  });
-
-  it('returns to the inbox and closes the mobile menu from its footer', async () => {
-    const user = setup('/admin/tunnel');
-    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('link', { name: 'Back to inbox' }),
-    );
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(screen.getByRole('heading', { name: 'Inbox' })).toBeTruthy();
-    expect(screen.getByTestId('location').textContent).toBe('/');
-  });
-
-  it('logs out of the inbox account from the desktop footer', async () => {
-    const user = setup('/admin/whatsapp');
-    await user.click(screen.getByRole('button', { name: 'Log out' }));
-    expect(logout).toHaveBeenCalledOnce();
-    expect(toast.error).not.toHaveBeenCalled();
-  });
-
-  it('logs out from the mobile footer and closes the drawer after success', async () => {
-    const user = setup('/admin/members');
-    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Log out' }),
-    );
-    expect(logout).toHaveBeenCalledOnce();
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  });
-
-  it('prevents repeat logout requests while signing out', async () => {
-    let finish!: () => void;
-    logout.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-    );
-    const user = setup('/admin/members');
-    await user.click(screen.getByRole('button', { name: 'Log out' }));
-    const pending = screen.getByRole('button', { name: 'Logging out…' }) as HTMLButtonElement;
-    expect(pending.disabled).toBe(true);
-    expect(pending.getAttribute('aria-busy')).toBe('true');
-    await user.click(pending);
-    expect(logout).toHaveBeenCalledOnce();
-    await act(async () => finish());
-    expect((screen.getByRole('button', { name: 'Log out' }) as HTMLButtonElement).disabled).toBe(
-      false,
-    );
-  });
-
-  it('reports a failed logout and allows a retry without closing the mobile drawer', async () => {
-    logout.mockRejectedValueOnce(new Error('Server unreachable'));
-    const user = setup('/admin/members');
-    await user.click(screen.getByRole('button', { name: 'Admin menu' }));
-    const menu = await screen.findByRole('dialog');
-    await user.click(within(menu).getByRole('button', { name: 'Log out' }));
-    expect(toast.error).toHaveBeenCalledWith('Could not log out: Server unreachable');
-    expect(screen.getByRole('dialog')).toBe(menu);
-    const retry = within(menu).getByRole('button', { name: 'Log out' }) as HTMLButtonElement;
-    expect(retry.disabled).toBe(false);
-    await user.click(retry);
-    expect(logout).toHaveBeenCalledTimes(2);
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    setup('/admin/settings');
+    expect(screen.queryByTestId('settings-attention-dot')).toBeNull();
   });
 });
 
 describe('AdminLayout inboxes', () => {
   it('shows WhatsApp, not Inboxes, in Lite (one number)', () => {
-    setup('/admin/members');
-    expect(screen.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')).toBe(
+    setup('/admin/settings');
+    expect(sideMenu().getByRole('link', { name: 'WhatsApp' }).getAttribute('href')).toBe(
       '/admin/whatsapp',
     );
     expect(screen.queryByRole('link', { name: 'Inboxes' })).toBeNull();
@@ -339,13 +376,13 @@ describe('AdminLayout inboxes', () => {
   it('sends Lite from /admin/inboxes back to its WhatsApp page', async () => {
     setup('/admin/inboxes');
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/whatsapp'));
-    expect(screen.getByRole('heading', { name: 'WhatsApp' })).toBeTruthy();
+    expect(pageHeading('WhatsApp')).toBeTruthy();
   });
 
   it('keeps the WhatsApp page while the inbox list loads, and waits on /admin/inboxes', () => {
     inboxes.current = { data: undefined, isPending: true };
     setup('/admin/whatsapp');
-    expect(screen.getByRole('heading', { name: 'WhatsApp' })).toBeTruthy();
+    expect(pageHeading('WhatsApp')).toBeTruthy();
     cleanup();
     setup('/admin/inboxes');
     expect(screen.getByLabelText('Loading').getAttribute('aria-busy')).toBe('true');
@@ -354,20 +391,20 @@ describe('AdminLayout inboxes', () => {
 
   it('shows Inboxes instead of WhatsApp when the edition allows several numbers', async () => {
     inboxes.current = MULTI;
-    const user = setup('/admin/members');
+    const user = setup('/admin/settings');
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
-    const link = screen.getByRole('link', { name: 'Inboxes' });
+    const link = sideMenu().getByRole('link', { name: 'Inboxes' });
     expect(link.getAttribute('href')).toBe('/admin/inboxes');
     await user.click(link);
-    expect(screen.getByRole('heading', { name: 'Inboxes' })).toBeTruthy();
+    expect(pageHeading('Inboxes')).toBeTruthy();
     expect(link.getAttribute('aria-current')).toBe('page');
-    expect(screen.getByText('Admin · Inboxes')).toBeTruthy();
+    expect(screen.getByTestId('phone-bar-title').textContent).toBe('Inboxes');
   });
 
   it('redirects /admin/whatsapp to /admin/inboxes with several numbers', async () => {
     inboxes.current = MULTI;
     setup('/admin/whatsapp');
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/admin/inboxes'));
-    expect(screen.getByRole('heading', { name: 'Inboxes' })).toBeTruthy();
+    expect(pageHeading('Inboxes')).toBeTruthy();
   });
 });

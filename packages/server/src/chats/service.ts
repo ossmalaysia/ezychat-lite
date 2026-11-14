@@ -41,6 +41,8 @@ export interface ChatService {
    */
   resolveJid(key: string): string;
   openCount(): number;
+  /** Open chats with unread messages in the caller's scope (the app navigation's Chats count). */
+  unreadCount(scope?: Omit<ChatListScope, 'inbox'>): number;
   resolveAll(actorId: number, ip?: string | null): number;
   events(jid: string): ChatEvent[];
   /**
@@ -208,6 +210,10 @@ export function createChatService(ctx: AppContext, deps?: { now?: () => number }
 
     openCount() {
       return repo.openCount();
+    },
+
+    unreadCount(scope = {}) {
+      return repo.unreadCount(scope);
     },
 
     resolveAll(actorId, ip = null) {

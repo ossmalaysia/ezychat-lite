@@ -58,7 +58,9 @@
     "about": "About {{appName}}",
     "signOut": "Sign out",
     "sendFeedback": "Send feedback",
-    "emailSupport": "Email support"
+    "emailSupport": "Email support",
+    "signingOut": "Signing out…",
+    "signOutFailed": "Could not sign out: {{error}}"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -228,5 +230,27 @@
       "step2": "Never sent: names, phone numbers, chats, messages, emails, IP addresses or keys.",
       "step3": "It goes to the EzyChat licence server, which counts it in Google Analytics. Turn it off here at any time."
     }
+  },
+  "appNav": {
+    "main": "Main",
+    "chats": "Chats",
+    "reports": "Reports",
+    "askEzy": "Ask Ezy",
+    "members": "Members",
+    "settings": "Settings",
+    "account": "Account",
+    "unread_one": "{{count}} chat with unread messages",
+    "unread_other": "{{count}} chats with unread messages",
+    "attention": "A WhatsApp number needs attention",
+    "settingsTitle": "Settings",
+    "team": "Team",
+    "business": "Business",
+    "app": "App",
+    "yourAccount": "Your account",
+    "accountTitle": "Account",
+    "accountDescription": "Your name, look and language on this device.",
+    "attentionRow": "Needs attention",
+    "backTo": "Back to {{place}}",
+    "more": "More"
   }
 }

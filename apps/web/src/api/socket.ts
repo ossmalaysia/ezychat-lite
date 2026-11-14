@@ -120,6 +120,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       chatRefreshTimer = setTimeout(() => {
         void qc.invalidateQueries({ queryKey: qk.chatsAll });
         void qc.invalidateQueries({ queryKey: qk.openChatCount });
+        void qc.invalidateQueries({ queryKey: qk.unreadChatCount });
       }, 50);
     };
 

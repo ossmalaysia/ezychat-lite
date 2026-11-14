@@ -50,6 +50,33 @@ export interface ChatRow extends ChatColumns {
 /** Chat columns plus the customer profile name; FROM `chats c`. Tags are attached by withTags(). */
 const CHAT_SELECT = `SELECT c.*, ${PROFILE_NAME_COLUMN} FROM chats c ${PROFILE_JOIN}`;
 
+/** Chats of inboxes that are not removed. */
+const ACTIVE_INBOX = 'c.inbox_id IN (SELECT id FROM inboxes WHERE removed_at IS NULL)';
+
+/** Which chats a caller may read: `inboxIds` omitted = every inbox, empty = none; `chatJids` replaces it. */
+export interface ChatScope {
+  inboxIds?: readonly number[];
+  /** An agent limited to chosen chats; empty = none. */
+  chatJids?: readonly string[];
+}
+
+/**
+ * Adds the caller's scope to a query on `chats c` (the one rule for `list` and `unreadCount`). False when nothing
+ * is in scope, so the caller answers empty without a query.
+ */
+function scopeWhere(f: ChatScope, where: string[], params: Record<string, unknown>): boolean {
+  if (f.chatJids?.length === 0 || (f.inboxIds?.length === 0 && !f.chatJids)) return false;
+  if (f.chatJids) {
+    // chosen chats of active inboxes only (a removed inbox is for admins)
+    where.push(`c.jid IN (SELECT value FROM json_each(@chatJids)) AND ${ACTIVE_INBOX}`);
+    params.chatJids = JSON.stringify(f.chatJids);
+  } else if (f.inboxIds) {
+    where.push('c.inbox_id IN (SELECT value FROM json_each(@inboxIds))');
+    params.inboxIds = JSON.stringify(f.inboxIds);
+  }
+  return true;
+}
+
 export interface ChatEventRow {
   id: number;
   chat_jid: string;
@@ -225,6 +252,18 @@ export class ChatRepo {
     ).count;
   }
 
+  /**
+   * Open chats with unread messages in the caller's scope (the same rule as `list`), of active inboxes only: a
+   * removed inbox's chats are read only, so nobody can answer them.
+   */
+  unreadCount(f: ChatScope): number {
+    const where = ["c.status = 'open'", 'c.unread_count > 0', ACTIVE_INBOX];
+    const params: Record<string, unknown> = {};
+    if (!scopeWhere(f, where, params)) return 0;
+    const sql = `SELECT COUNT(*) AS count FROM chats c WHERE ${where.join(' AND ')}`;
+    return (this.db.prepare(sql).get(params) as { count: number }).count;
+  }
+
   openChats(): ChatColumns[] {
     return this.db
       .prepare("SELECT * FROM chats WHERE status = 'open' ORDER BY jid")
@@ -297,26 +336,19 @@ export class ChatRepo {
     /** Narrows to one inbox (the inbox filter). */
     inbox?: number;
   }): ChatRow[] {
-    if (f.chatJids && f.chatJids.length === 0) return [];
-    if (f.inboxIds && f.inboxIds.length === 0 && !f.chatJids) return [];
     if (f.inbox !== undefined && f.inboxIds && !f.inboxIds.includes(f.inbox)) return [];
     const where: string[] = [];
     const params: Record<string, unknown> = { limit: f.limit };
     if (f.inbox !== undefined) {
       where.push('c.inbox_id = @inbox');
       params.inbox = f.inbox;
-    } else if (f.inboxIds && !f.chatJids) {
-      where.push('c.inbox_id IN (SELECT value FROM json_each(@inboxIds))');
-      params.inboxIds = JSON.stringify(f.inboxIds);
     }
-    if (f.chatJids) {
-      // chosen chats of active inboxes only (a removed inbox is for admins)
-      where.push(
-        `c.jid IN (SELECT value FROM json_each(@chatJids))
-         AND c.inbox_id IN (SELECT id FROM inboxes WHERE removed_at IS NULL)`,
-      );
-      params.chatJids = JSON.stringify(f.chatJids);
-    }
+    // One inbox already narrows below the caller's inboxes (checked above); chosen chats still apply.
+    const scope = {
+      inboxIds: f.inbox === undefined ? f.inboxIds : undefined,
+      chatJids: f.chatJids,
+    };
+    if (!scopeWhere(scope, where, params)) return [];
     if (f.status) {
       where.push('c.status = @status');
       params.status = f.status;

@@ -3,14 +3,20 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { AskEzyAnswer, AskEzyEvent } from '@ezychat/shared';
-import { AskEzyProvider } from './AskEzyContext';
+import { Button } from '@/components/ui/button';
+import { AskEzyProvider, useAskEzy } from './AskEzyContext';
 import { AskEzyPanel } from './AskEzyPanel';
-import { AskEzyButton } from './AskEzyButton';
 
 const auth = vi.hoisted(() => ({
   user: { id: 1, username: 'aisyah', displayName: 'Aisyah Rahman', role: 'admin' },
   isAdmin: true,
 }));
+/** Opens the panel, as the rail and tab button do (nav/AppNav.tsx). */
+function OpenAskEzy() {
+  const { openPanel } = useAskEzy();
+  return <Button onClick={() => openPanel()}>Ask Ezy</Button>;
+}
+
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => auth }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
@@ -82,7 +88,7 @@ function renderPanel() {
   render(
     <MemoryRouter>
       <AskEzyProvider>
-        <AskEzyButton />
+        <OpenAskEzy />
         <AskEzyPanel />
       </AskEzyProvider>
     </MemoryRouter>,
@@ -94,14 +100,6 @@ async function openAndAsk(user: ReturnType<typeof userEvent.setup>, question: st
   const box = await screen.findByRole('textbox');
   await user.type(box, `${question}{Enter}`);
 }
-
-it('hides the Ask Ezy button for an agent limited to chosen chats', () => {
-  auth.isAdmin = false;
-  auth.user.role = 'agent';
-  (auth.user as { chatScope?: string }).chatScope = 'chosen';
-  renderPanel();
-  expect(screen.queryByRole('button', { name: /ask ezy/i })).toBeNull();
-});
 
 describe('AskEzyPanel', () => {
   it('greets an admin with suggestions, streams what Ezy read, and shows every block', async () => {
