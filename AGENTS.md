@@ -976,6 +976,13 @@ details); a confirmed bug may be fixed and released.
 enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
 passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
 then leave the PR open until the owner requests the merge.
+**Healthy PR list: four days at most** (owner rule, 2026-11-14): a PR is open for at most 4 days, so branches stay
+free of merge conflicts. The goal is merged, never parked: drive every check to done in that time (CI, coverage, e2e,
+Dev Build, screen review, release review), then ask the owner for the merge as soon as all checks are done (the
+merge word per PR above still applies). Before starting a new feature, list your open PRs: those that are done go to
+the owner for the merge, the others are brought current with `main` and finished first. A PR near day 4 that waits on
+the owner (real WhatsApp, a hand test) is named in the session-end report with what is left; work that cannot finish
+is closed with a note in `docs/backlog.md`, not left open.
 **Release once a day** (owner rule): a merge does not start a release. Merged work goes out in one daily
 release of both editions (Lite, then Enterprise on that core); release in between only for an important
 change (security, data loss, a broken install or update) or when the owner asks "merge … and release".
