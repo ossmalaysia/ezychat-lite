@@ -808,7 +808,8 @@ export function buildInstallBrokerScript(plan: InstallPlan): string {
         `        if ($state.accepted) {`,
         // An accepted helper may fail before Electron sees the acknowledgement and exits.
         // Wait before relaunching, or the new process loses its single-instance lock and disappears.
-        `          if (-not $oldApp -or $oldApp.WaitForExit(120000)) { Start-Process -FilePath ${psQuote(plan.context.execPath)} -WindowStyle Hidden }`,
+        // Never with -WindowStyle Hidden: Windows then keeps the app's first window hidden as well.
+        `          if (-not $oldApp -or $oldApp.WaitForExit(120000)) { Start-Process -FilePath ${psQuote(plan.context.execPath)} }`,
         `        }`,
         `        exit 0`,
         `      }`,

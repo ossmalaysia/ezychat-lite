@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- After an update, the EzyChat window now opens again by itself. Before, the update finished but the window stayed hidden until you opened EzyChat yourself (Windows).
 - A WhatsApp number that stayed on "Connecting…" after WhatsApp dropped the connection now tries again by itself after one minute. Before, it could stay that way for hours until you unlinked and linked it again. Waiting for you to scan a QR code or type a pairing code is never cut off.
 - **Your own address stays when EzyChat Lite's number moves into EzyChat Enterprise.** When Enterprise already had
   data, the move left EzyChat Lite's own Cloudflare address behind: Enterprise said "This address is already in use"
