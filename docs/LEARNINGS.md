@@ -258,6 +258,10 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
   failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
 - Hunting an e2e flake with `--repeat-each` shares one signed-in user and one server: a per-user rate limit (reactions: 30 a minute) turns the repeats into 429s that look like the flake. Read the failing trace's `.network` for 4xx before blaming timing; cap repeats so the user's requests stay under the limit.
+- A screen change ships with at least one e2e spec that clicks it, not only component tests: the "?" tips
+  (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
+  no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
+  value it found in `finally`.
 
 ## Multi-agent process
 
