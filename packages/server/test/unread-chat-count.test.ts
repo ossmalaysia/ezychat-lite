@@ -80,6 +80,14 @@ describe('GET /api/chats/unread-count', () => {
     expect(await count(agent.cookie)).toBe(1);
   });
 
+  it('leaves out the chats hidden on Log out: they open for nobody', async () => {
+    expect(await count(admin.cookie)).toBe(3);
+    expect((await inject('POST', '/api/wa/logout', admin.cookie)).statusCode).toBe(200);
+    await settle();
+    expect(await count(admin.cookie)).toBe(0);
+    expect(await count(agent.cookie)).toBe(0);
+  });
+
   it('an agent limited to chosen chats counts only those; none chosen counts none', async () => {
     const put = (chats: string[]) =>
       inject('PUT', `/api/users/${agent.user.id}/chats`, admin.cookie, { scope: 'chosen', chats });

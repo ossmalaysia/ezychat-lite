@@ -42,7 +42,11 @@ export function searchWords(text: string): string {
   return out;
 }
 
-/** A label for `label:"…"`: no quotes or backslashes, at most LABEL_CHARACTERS; null when empty. */
+/**
+ * A label for `label:"…"`: no quotes or backslashes, at most LABEL_CHARACTERS; null when empty.
+ * Without a quote it cannot leave the quoted value, so a colon ("type: bug") stays part of the
+ * label name and is never read as a qualifier.
+ */
 export function cleanLabel(label: string | undefined): string | null {
   const clean = (label ?? '')
     .normalize('NFKC')
@@ -52,16 +56,6 @@ export function cleanLabel(label: string | undefined): string | null {
     .slice(0, LABEL_CHARACTERS)
     .trim();
   return clean || null;
-}
-
-/**
- * The label as a search filter, or null. A label with a colon ("type: bug") is left out of the
- * query (fail closed: nothing with a colon reaches GitHub's search syntax); the tool filters the
- * results by it instead.
- */
-export function searchLabel(label: string | undefined): string | null {
-  const clean = cleanLabel(label);
-  return clean && !clean.includes(':') ? clean : null;
 }
 
 export type SearchKind = 'issue' | 'pr';
@@ -87,7 +81,7 @@ export function buildSearchQuery(input: {
   parts.push(input.kind === 'pr' ? 'is:pr' : 'is:issue');
   if (input.state === 'merged') parts.push(input.kind === 'pr' ? 'is:merged' : 'state:closed');
   else if (input.state) parts.push(`state:${input.state}`);
-  const label = searchLabel(input.label);
+  const label = cleanLabel(input.label);
   if (label) parts.push(`label:"${label}"`);
   if (input.author && GITHUB_LOGIN.test(input.author)) parts.push(`author:${input.author}`);
   return parts.join(' ');

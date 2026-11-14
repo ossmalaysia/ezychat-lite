@@ -2,6 +2,8 @@
 // unlink from the phone hide every chat of a linked phone's inbox; a connection drop and the Business API
 // hide nothing; hidden chats are missing for every reader; the same number shows only chats WhatsApp
 // reports; a different number archives them for good.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HiddenChatsInfo, type Chat, type Message } from '@ezychat/shared';
 import { FakeWaAdapter, LINKED_PHONE_CAPABILITIES, type WaIncomingMessage } from '@ezychat/wa';
@@ -15,6 +17,8 @@ import { computeReport } from '../src/reports/report.js';
 import { canOpenChat, usersWhoCanOpenChat } from '../src/inboxes/access.js';
 import { findChats } from '../src/mcp/inbox.js';
 import { linkedChats } from '../src/customers/linked.js';
+import { HELD_EVENTS_MAX } from '../src/wa-bridge/bridge.js';
+import { avatarFileName } from '../src/avatars/store.js';
 
 const enc = encodeURIComponent;
 const OWN = '60000000000@s.whatsapp.net';
@@ -470,6 +474,22 @@ describe('a different number links', { timeout: 30_000 }, () => {
     expect(hiddenAt(`${A}~old2`)).not.toBeNull();
   });
 
+  it("moves the archived chat's stored photo with its row; the new chat has none of the old one", async () => {
+    await setUp();
+    await incoming(A, 'old');
+    const dir = join(t.ctx.config.dataDir, 'avatars');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, avatarFileName(A)), 'old photo');
+    t.ctx.db
+      .prepare('INSERT INTO avatars (key, has_photo, hash, fetched_at) VALUES (?, 1, ?, ?)')
+      .run(A, 'h1', Date.now());
+    expect((await post('/api/wa/logout')).statusCode).toBe(200);
+    link(t.wa, OTHER_OWN);
+    expect(t.ctx.db.prepare('SELECT key FROM avatars').all()).toEqual([{ key: `${A}~old1` }]);
+    expect(readFileSync(join(dir, avatarFileName(`${A}~old1`)), 'utf8')).toBe('old photo');
+    expect(existsSync(join(dir, avatarFileName(A)))).toBe(false);
+  });
+
   it('archives chats of another inbox under a key that still names the inbox', async () => {
     await setUp({ maxInboxes: 2, inboxes: 2 });
     const wa2 = t.inboxWa(2);
@@ -524,6 +544,36 @@ describe('events of a new link before it opens', { timeout: 30_000 }, () => {
     expect(hiddenAt(`${A}~old1`)).not.toBeNull();
   });
 
+  it('past the hold limit, history is dropped (never routed into the old chats) and live events still wait', async () => {
+    await setUp();
+    await incoming(A, 'secret old order');
+    expect((await post('/api/wa/logout')).statusCode).toBe(200);
+    t.wa.simulateStatus({ state: 'connecting', me: null });
+    for (let i = 0; i < HELD_EVENTS_MAX; i++) t.wa.emit('chats', []);
+    t.wa.emit('message', historyMessage(A, 'OVER-H1', 'history over the limit'), {
+      source: 'history',
+    });
+    t.wa.emit('chats', [{ jid: B, type: 'dm', name: 'B' }]);
+    t.wa.simulateIncoming({ chatJid: A, body: 'live over the limit', senderName: 'Customer' });
+    await new Promise((r) => setTimeout(r, 20));
+    const bodies = (jid: string) =>
+      (
+        t.ctx.db
+          .prepare('SELECT body FROM messages WHERE chat_jid = ? ORDER BY id')
+          .all(jid) as Array<{
+          body: string;
+        }>
+      ).map((r) => r.body);
+    expect(bodies(A)).toEqual(['secret old order']);
+    link(t.wa, OTHER_OWN);
+    await waitFor(() => bodies(A).length === 1);
+    expect(bodies(A)).toEqual(['live over the limit']);
+    expect(bodies(`${A}~old1`)).toEqual(['secret old order']);
+    expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM chats WHERE jid = ?').get(B)).toEqual({
+      n: 0,
+    });
+  });
+
   it('the same number: events before `open` wait, then show their chats', async () => {
     await setUp();
     await incoming(A, 'a1');
@@ -549,7 +599,7 @@ describe('the number is not known at Log out', { timeout: 30_000 }, () => {
     });
   });
 
-  it('never archives chats hidden with an unknown number; WhatsApp still shows them', async () => {
+  it('archives chats hidden with an unknown number at the next link (fail closed): WhatsApp never shows them', async () => {
     await setUp();
     await incoming(A, 'a1');
     t.ctx.db.prepare('UPDATE inboxes SET own_jid = NULL').run();
@@ -559,10 +609,14 @@ describe('the number is not known at Log out', { timeout: 30_000 }, () => {
       n: null,
     });
     expect(await info()).toEqual({ visible: 0, hidden: 0, number: null });
+    // any number may link next: an unknown old number never matches it
     link(t.wa, OWN);
-    expect(audits('chats.archived_on_relink')).toEqual([]);
-    expect(await info()).toEqual({ visible: 0, hidden: 1, number: '60000000000' });
+    expect(audits('chats.archived_on_relink')).toEqual([
+      { userId: null, meta: { inboxId: 1, count: 1 } },
+    ]);
+    expect(await info()).toEqual({ visible: 0, hidden: 0, number: null });
     t.wa.emit('chats', [{ jid: A, type: 'dm', name: null }]);
-    expect(hiddenAt(A)).toBeNull();
+    expect(hiddenAt(`${A}~old1`)).not.toBeNull();
+    expect(getChatHide(t.ctx).showIfHidden(1, [A])).toEqual([]);
   });
 });

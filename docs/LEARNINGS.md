@@ -214,6 +214,9 @@ into AGENTS.md.
   tokens from local caches.
 - A fake of an outside service must model the effects of our own writes (Google free/busy counts the events
   we add): a fake that ignored them hid a retry bug the unit tests passed; the Dev Build check found it.
+- A fake of a list or search API must page like the real one (`per_page`, `sort`, mixed item kinds): a fake that
+  returned everything hid "filter after one page" bugs (GitHub's issue list hid issues behind 30 pull requests).
+  Filter in the request (search qualifiers), never in a page after it.
 - A new button in the chat list header must fit the 360 px list beside Ask Ezy, Admin and the account menu: make it
   icon-only with `aria-label` + `title`, and measure the header children's right edges in the screen script (a mock
   made before a later header button looks fine and still overflows in the app).
@@ -894,7 +897,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   owner to-do, and before the release tag check `gh secret list` in both repos (names only).
 - Playwright on this PC has no downloaded Chromium: launch `{ channel: 'chrome' }` (installed Chrome).
   A `tsx` run outside npm needs `NODE_OPTIONS=--conditions=ezychat-source`: a `--conditions` flag before
-  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`.
+  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`. PowerShell
+  `Start-Process -ArgumentList` does not quote its items: a `--data` under `%TEMP%` (`C:\Users\Jazz Tong\…`)
+  splits at the space and the server exits "unexpected argument"; use a temp folder without a space (`D:\tmp\…`).
+  A dev script with a 0-chat result must first assert its setup worked (the chat exists), or every
+  "stays gone" check passes on nothing.
 - In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
   appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
   find the PID first, then kill it in a separate call.
@@ -1479,6 +1486,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `chats/hidden-sql.ts`; a socket emit for one chat goes through `toVisibleChat` and returns nothing instead of calling
   `io.to([])` (an empty room list broadcasts to every socket). Code that copies or re-keys a `chats` row builds its
   column list from `PRAGMA table_info`, and `chats/merge.ts` carries the hidden columns, so a later column is never lost.
+- Removing a chat's rows does not stop a send already in flight: WhatsApp echoes it back as a live `fromMe` message,
+  which starts the chat again unless ingest drops that id. A file named after a key (avatar `sha256(key).jpg`) moves
+  or goes with its row on a re-key. Safety checks fail closed: an unknown value (a hidden chat's number) never
+  matches, and a hold buffer that is full drops what cannot wait instead of handling everything at once.
 - A migration that adds a table also needs: an entry in `lite-import/merge-tables.ts` `TABLE_PLAN` (merged or a skip
   reason), its undo in `lite-import-merge.test.ts` "migrates an older Lite copy", and `chats/merge.ts` when it holds a
   chat key. A new `/api/ai…` route goes into the `ROUTES` table of `test/ai-routes-access.test.ts` (admin-only and

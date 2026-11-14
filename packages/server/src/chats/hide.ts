@@ -1,4 +1,7 @@
+import { renameSync } from 'node:fs';
+import { join } from 'node:path';
 import type { HiddenChatsInfo } from '@ezychat/shared';
+import { avatarFileName } from '../avatars/store.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { chatKey } from '../inboxes/keys.js';
@@ -32,8 +35,8 @@ export interface ChatHideService {
   /**
    * The inbox's linked phone logged out: hides every chat of the inbox (one transaction), fails its
    * queued sends and stops AI work for them. `lastJid`: the number the connection last reported, used
-   * when the inbox has none saved (else the chats keep an unknown number: never archived). Returns
-   * how many chats were hidden.
+   * when the inbox has none saved (else the chats keep an unknown number: archived at the next link,
+   * whatever number it is). Returns how many chats were hidden.
    */
   hideInbox(inboxId: number, lastJid?: string | null): number;
   /**
@@ -46,7 +49,7 @@ export interface ChatHideService {
    * A phone linked to the inbox (`ownJid` = its own WhatsApp JID), before the bridge saves the number.
    * The same number: hidden chats come back one by one as WhatsApp reports them (`showIfHidden`). A
    * different number: every hidden chat is archived and stays hidden for good. Chats hidden while
-   * the number was unknown are never archived (they stay showable).
+   * the number was unknown are archived too (fail closed: an unknown number never matches).
    */
   onLinked(inboxId: number, ownJid: string): void;
   /**
@@ -172,9 +175,13 @@ export function createChatHideService(
 
   /**
    * Re-keys one hidden chat to `<waJid>~old<n>` in every chat-keyed table (the `DELETE_PLAN` list of
-   * Delete chat), so the inbox's unique (inbox, WhatsApp JID) is free for the new number.
+   * Delete chat), so the inbox's unique (inbox, WhatsApp JID) is free for the new number. Returns the
+   * old and new key: the stored photo file (named after the key) moves after the commit.
    */
-  const archiveOne = (inboxId: number, row: Pick<ChatColumns, 'jid' | 'wa_jid'>) => {
+  const archiveOne = (
+    inboxId: number,
+    row: Pick<ChatColumns, 'jid' | 'wa_jid'>,
+  ): { from: string; to: string } => {
     const waJid = waJidOf(row);
     let n = 1;
     while (keyTaken.get(chatKey(inboxId, `${waJid}${ARCHIVED_MARK}${n}`))) n++;
@@ -186,6 +193,21 @@ export function createChatHideService(
     for (const m of moves) m.run({ to, from });
     moveAvatar.run({ to, from });
     dropChat.run({ from });
+    return { from, to };
+  };
+
+  /** Moves each archived chat's photo file with its `avatars` row, so the old key keeps no photo. */
+  const moveAvatarFiles = (moved: ReadonlyArray<{ from: string; to: string }>) => {
+    const dir = join(ctx.config.dataDir, 'avatars');
+    let failed = 0;
+    for (const { from, to } of moved) {
+      try {
+        renameSync(join(dir, avatarFileName(from)), join(dir, avatarFileName(to)));
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') failed++;
+      }
+    }
+    if (failed) log.warn({ failed }, 'archived chat photos not moved');
   };
 
   const svc: ChatHideService = {
@@ -248,18 +270,20 @@ export function createChatHideService(
         armed.delete(inboxId);
         return;
       }
-      // a chat hidden while the number was unknown is never archived
-      const other = rows.filter((r) => r.hidden_number !== null && r.hidden_number !== number);
+      // a chat hidden while the number was unknown never matches: another person's phone could link
+      const other = rows.filter((r) => r.hidden_number !== number);
       if (other.length) {
-        db.transaction(() => {
-          for (const r of other) archiveOne(inboxId, r);
+        const moved = db.transaction(() => {
+          const moved = other.map((r) => archiveOne(inboxId, r));
           audit(db, {
             userId: null,
             action: 'chats.archived_on_relink',
             ip: null,
             meta: { inboxId, count: other.length },
           });
+          return moved;
         })();
+        moveAvatarFiles(moved);
         log.info({ inboxId, count: other.length }, 'hidden chats archived: another number linked');
         hiddenKeys.delete(inboxId);
       }
@@ -285,7 +309,7 @@ export function createChatHideService(
       const out = db.transaction(() => {
         const rows = db
           .prepare(
-            `SELECT jid FROM chats WHERE inbox_id = ? AND (hidden_number = ? OR hidden_number IS NULL)
+            `SELECT jid FROM chats WHERE inbox_id = ? AND hidden_number = ?
                AND hidden_at IS NOT NULL AND ${NOT_ARCHIVED} AND jid IN (SELECT value FROM json_each(?))`,
           )
           .all(inboxId, number, list) as Array<{ jid: string }>;
@@ -316,7 +340,7 @@ export function createChatHideService(
             db
               .prepare(
                 `SELECT COUNT(*) AS n FROM chats WHERE inbox_id = ? AND hidden_at IS NOT NULL
-                   AND (hidden_number = ? OR hidden_number IS NULL) AND ${NOT_ARCHIVED}`,
+                   AND hidden_number = ? AND ${NOT_ARCHIVED}`,
               )
               .get(inboxId, number) as { n: number }
           ).n
