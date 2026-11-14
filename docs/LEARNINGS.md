@@ -358,6 +358,7 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   `git show :2:<file> > /tmp/o` wrote empty files, the `merge-file --union` result was empty, and #240 merged with
   `docs/LEARNINGS.md` and `docs/dev-build-checks.md` at 0 lines. After any scripted resolution, run
   `git diff --numstat origin/main -- <files>` before the commit: a docs file that loses every line is never right.
+  Count lines with `wc -l` (Bash), not PowerShell `Measure-Object -Line`: it skips blank lines (2,262 read as 2,173).
   `--union` on a table that one side reformatted keeps both copies of every changed row: insert the new rows by hand.
 - An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
   renumber or change them on that branch (later parts take the next number), or the official release cannot
