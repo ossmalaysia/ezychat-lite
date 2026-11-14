@@ -196,6 +196,12 @@ export function normalizePairingPhone(phone: string): string {
 
 const PAIRING_READY_TIMEOUT_MS = 20_000;
 
+/**
+ * Time one connect attempt may take to open or offer a QR code. A socket that does neither (no
+ * open, no close, no error) is closed and the connect retried with the normal backoff.
+ */
+export const CONNECT_ATTEMPT_TIMEOUT_MS = 60_000;
+
 export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private _status: WaStatus = { state: 'disconnected', me: null, qr: null, lastError: null };
   private sock: WASocket | null = null;
@@ -212,6 +218,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private readonly ownChanges = new Map<string, number>();
   private attempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  /** Ends a connect attempt that neither opens nor offers a QR code (CONNECT_ATTEMPT_TIMEOUT_MS). */
+  private connectTimer: NodeJS.Timeout | null = null;
   /** true when the socket was closed on purpose (disconnect/logout/replaced/blocked). */
   private stopped = true;
   private connecting: Promise<void> | null = null;
@@ -345,7 +353,31 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.reconnectTimer = null;
   }
 
+  private clearConnectTimer(): void {
+    if (this.connectTimer) clearTimeout(this.connectTimer);
+    this.connectTimer = null;
+  }
+
+  /** Started for each new socket; cleared on open, QR, close, disconnect, logout and takeover. */
+  private startConnectTimer(sock: WASocket): void {
+    this.clearConnectTimer();
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      if (this.stopped || this.sock !== sock) return;
+      this.logger.warn(
+        { ms: CONNECT_ATTEMPT_TIMEOUT_MS, attempt: this.attempt },
+        'wa connect attempt timed out',
+      );
+      // closeSocket drops this socket's connection.update listener first: its late events change nothing.
+      void this.closeSocket();
+      this.setStatus({ state: 'connecting', lastError: 'connect attempt timed out' });
+      this.scheduleReconnect();
+    }, CONNECT_ATTEMPT_TIMEOUT_MS);
+    this.connectTimer.unref?.();
+  }
+
   private async closeSocket(): Promise<void> {
+    this.clearConnectTimer();
     this.signalKeys = null;
     this.aliasGeneration++;
     const sock = this.sock;
@@ -409,6 +441,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
     this.sock = sock;
     this.signalKeys = keys;
     this.aliasGeneration++;
+    this.startConnectTimer(sock);
 
     const alive = () => !this.stopped && this.sock === sock;
 
@@ -467,6 +500,8 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
   private onConnectionUpdate(sock: WASocket, u: BaileysEventMap['connection.update']): void {
     if (u.qr) {
       // The server is talking to us again; don't let earlier failures stretch the next retry.
+      // A person may take minutes to scan or type a code: the attempt no longer has a time limit.
+      this.clearConnectTimer();
       this.attempt = 0;
       this.setStatus({ state: 'qr', qr: u.qr });
     }
@@ -474,6 +509,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       this.setStatus({ state: 'connecting' });
     }
     if (u.connection === 'open') {
+      this.clearConnectTimer();
       this.attempt = 0;
       const user = sock.user;
       this.setStatus({
@@ -493,6 +529,7 @@ export class BaileysAdapter extends EventEmitter implements WaAdapter {
       const err = u.lastDisconnect?.error as BoomLike | undefined;
       const code = err?.output?.statusCode;
       const message = err?.message ?? (code ? `closed (${code})` : 'connection closed');
+      this.clearConnectTimer();
       this.sock = null;
       this.signalKeys = null;
       this.aliasGeneration++;

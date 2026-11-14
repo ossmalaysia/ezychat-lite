@@ -1303,6 +1303,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Nothing on the connect path may await the network without a bound: `fetchLatestBaileysVersion()` has no timeout,
   and awaiting it in `open()` kept the QR on "connecting" forever. Connect with `waVersion.current()` and refresh in the
   background (`wa-version.ts`); a connect refused for an old version reconnects with the refreshed one.
+- A Baileys socket can hang after a reconnect with no open, no close and no error (1 h 45 min on a live service):
+  every connect attempt needs an adapter-level limit (`CONNECT_ATTEMPT_TIMEOUT_MS`) that closes it and reconnects,
+  cleared on open, QR, close and every stop. Never let it run while a QR or pairing code waits for a person.
 - A WhatsApp ERROR ack is not proof a message was not sent: in a group it is one ack for the whole message even when
   only some members' devices failed. A later delivered/read receipt overrides it, and a Retry of a message that has a
   WhatsApp id re-sends under that same id (`WaSendOptions.messageId`), never a new one: a new id is a second copy.

@@ -2,9 +2,10 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type * as Baileys from 'baileys';
 import { proto } from 'baileys';
+import { pino } from 'pino';
 import { createBaileysAdapter } from '../index.js';
 import { WaUnavailableError } from '../types.js';
 import type {
@@ -16,6 +17,7 @@ import type {
 } from '../types.js';
 import {
   BaileysAdapter,
+  CONNECT_ATTEMPT_TIMEOUT_MS,
   MEDIA_UPLOAD_TIMEOUT_MS,
   WA_BROWSER,
   forwardedContext,
@@ -737,5 +739,184 @@ describe('forwarding and large files', () => {
     await b.connect();
     expect(socketFactory.mock.calls.at(-1)![0].mediaCache).toBeInstanceOf(MediaCache);
     await b.disconnect();
+  });
+});
+
+/** An adapter on in-memory auth whose next sockets are fakes the test drives through `ev`. */
+function connectHarness() {
+  const records = new Map<string, string>();
+  const logger = pino({ level: 'silent' });
+  const warn = vi.spyOn(logger, 'warn');
+  const a = new BaileysAdapter({
+    authDir: 'connect-timeout',
+    historyDays: 0,
+    logger,
+    authStorage: {
+      get: async (keys) => Object.fromEntries(keys.map((key) => [key, records.get(key) ?? null])),
+      set: async (changes) => {
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null) records.delete(key);
+          else records.set(key, value);
+        }
+      },
+      clear: async () => records.clear(),
+      backup: async () => 'backup-ref',
+    },
+  });
+  const socks: Array<{ ev: EventEmitter; end: ReturnType<typeof vi.fn> }> = [];
+  socketFactory.mockReset();
+  socketFactory.mockImplementation(() => {
+    const sock = {
+      ev: new EventEmitter(),
+      end: vi.fn(async () => {}),
+      logout: vi.fn(async () => {}),
+      user: { id: '60123456789:1@s.whatsapp.net' },
+    };
+    socks.push(sock);
+    return sock;
+  });
+  return { a, socks, warn };
+}
+
+describe('connect attempt time limit', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    socketFactory.mockReset();
+  });
+
+  it('closes a socket that never opens and reconnects with the normal backoff', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    expect(socks).toHaveLength(1);
+    expect(a.status.state).toBe('connecting');
+
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 1);
+    expect(socks[0]!.end).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socks[0]!.end).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      { ms: CONNECT_ATTEMPT_TIMEOUT_MS, attempt: 0 },
+      'wa connect attempt timed out',
+    );
+    expect(a.status).toMatchObject({ state: 'connecting', lastError: 'connect attempt timed out' });
+
+    // backoffMs(0) is at most 2.4 s.
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    await a.disconnect();
+  });
+
+  it('keeps a connection that opens before the limit', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    socks[0]!.ev.emit('connection.update', { connection: 'open' });
+    expect(a.status.state).toBe('open');
+
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 3);
+    expect(socks[0]!.end).not.toHaveBeenCalled();
+    expect(socks).toHaveLength(1);
+    expect(warn).not.toHaveBeenCalledWith(expect.anything(), 'wa connect attempt timed out');
+    expect(a.status.state).toBe('open');
+    await a.disconnect();
+  });
+
+  it('never cuts off a QR code or pairing that waits for a person', async () => {
+    vi.useFakeTimers();
+    const { a, socks } = connectHarness();
+    await a.connect();
+    socks[0]!.ev.emit('connection.update', { connection: 'connecting' });
+    socks[0]!.ev.emit('connection.update', { qr: 'QR-1' });
+    expect(a.status).toMatchObject({ state: 'qr', qr: 'QR-1' });
+
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 5);
+    expect(socks[0]!.end).not.toHaveBeenCalled();
+    expect(socks).toHaveLength(1);
+    expect(a.status).toMatchObject({ state: 'qr', qr: 'QR-1' });
+    await a.disconnect();
+  });
+
+  it('cancels the limit on disconnect and on logout', async () => {
+    vi.useFakeTimers();
+    const { a, socks } = connectHarness();
+    await a.connect();
+    await a.disconnect();
+    expect(a.status.state).toBe('disconnected');
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 2);
+    expect(socks).toHaveLength(1);
+    expect(a.status.state).toBe('disconnected');
+    expect(a.status.lastError).toBeNull();
+
+    await a.connect();
+    expect(socks).toHaveLength(2);
+    await a.logout();
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS * 2);
+    expect(socks).toHaveLength(2);
+    expect(a.status.state).toBe('logged_out');
+  });
+
+  it('starts a new limit for the socket a takeover opens', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 1000);
+    await a.takeover();
+    expect(socks).toHaveLength(2);
+    expect(socks[0]!.end).toHaveBeenCalledOnce();
+    // The first socket's limit is gone: only the new socket's full minute counts.
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 1);
+    expect(warn).not.toHaveBeenCalledWith(expect.anything(), 'wa connect attempt timed out');
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socks[1]!.end).toHaveBeenCalledOnce();
+    await a.disconnect();
+  });
+
+  it('leaves a socket that closes before the limit to the normal reconnect', async () => {
+    vi.useFakeTimers();
+    const { a, socks, warn } = connectHarness();
+    await a.connect();
+    await vi.advanceTimersByTimeAsync(30_000);
+    socks[0]!.ev.emit('connection.update', {
+      connection: 'close',
+      lastDisconnect: { error: { output: { statusCode: 503 }, message: 'Stream Errored' } },
+    });
+    expect(a.status).toMatchObject({ state: 'connecting', lastError: 'Stream Errored' });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    // The closed socket's limit (due 30 s from now) does nothing to the new socket.
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS - 3001);
+    expect(warn).not.toHaveBeenCalledWith(expect.anything(), 'wa connect attempt timed out');
+    expect(socks[1]!.end).not.toHaveBeenCalled();
+    expect(socks).toHaveLength(2);
+    await a.disconnect();
+  });
+
+  it('ignores late events from the socket that timed out', async () => {
+    vi.useFakeTimers();
+    const { a, socks } = connectHarness();
+    const states: string[] = [];
+    a.on('status', (s) => states.push(s.state));
+    await a.connect();
+    await vi.advanceTimersByTimeAsync(CONNECT_ATTEMPT_TIMEOUT_MS);
+    expect(a.status.state).toBe('connecting');
+    states.length = 0;
+
+    const old = socks[0]!.ev;
+    old.emit('connection.update', { connection: 'open' });
+    old.emit('connection.update', { qr: 'LATE-QR' });
+    old.emit('connection.update', {
+      connection: 'close',
+      lastDisconnect: { error: { output: { statusCode: 503 }, message: 'late close' } },
+    });
+    expect(states).toEqual([]);
+    expect(a.status).toMatchObject({ state: 'connecting', lastError: 'connect attempt timed out' });
+
+    // Exactly one reconnect: the late close did not schedule a second one.
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socks).toHaveLength(2);
+    await a.disconnect();
   });
 });
