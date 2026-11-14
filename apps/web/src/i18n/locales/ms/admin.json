@@ -1384,6 +1384,74 @@
       "offHint": "{{name}} tidak menambah ayat semakan. Apabila pelanggan hanya berterima kasih, {{name}} memberi reaksi 👍 dan menutup chat; pasukan anda menutup chat yang lain.",
       "saveFailed": "Tidak dapat disimpan. Cuba lagi."
     },
+    "dream": {
+      "title": "Mod mimpi",
+      "description": "Setiap malam, {{name}} membaca sembang hari itu dan belajar daripada balasan pasukan anda selepas mereka mengambil alih sembang. Tiada apa-apa dihantar kepada pelanggan.",
+      "switch": "Mod mimpi",
+      "on": "Hidup",
+      "off": "Mati",
+      "runAt": "Berjalan setiap malam pada",
+      "runAtHint": "Dalam zon waktu perniagaan anda",
+      "autoApply": "Guna sendiri",
+      "autoApplyOn": "Hidup: fakta baharu terus masuk ke Konteks perniagaan. Arahan dan peraturan serahan masih menunggu anda.",
+      "autoApplyOff": "Mati: setiap perubahan menunggu anda menggunakannya.",
+      "paused": "Dijeda: AI tidak bersambung. Mod mimpi berjalan semula selepas anda menyambungkannya di Tetapan → AI.",
+      "history": "Sejarah",
+      "historyEmpty": "Belum ada malam. Larian pertama malam ini pada {{time}}.",
+      "more": "Tunjuk malam lebih lama",
+      "runStats": "Sembang dibaca: {{chats}} · Diambil alih: {{takeovers}} · Perubahan: {{changes}}",
+      "dropped": "Dibuang oleh semakan: {{count}}",
+      "run": {
+        "running": "Sedang berjalan",
+        "nothing": "Tiada perkara baharu untuk dipelajari",
+        "missed": "Tidak berjalan: aplikasi ditutup pada waktu itu",
+        "failed": "Tidak selesai. Ia berjalan semula malam berikutnya.",
+        "ai_unavailable": "Tidak berjalan: AI tidak bersambung",
+        "access_closed": "Tidak berjalan: aplikasi dijeda",
+        "agent_off": "Tidak berjalan: ejen dimatikan"
+      },
+      "status": {
+        "waiting": "Menunggu anda",
+        "applied": "Digunakan",
+        "dismissed": "Ditolak",
+        "undone": "Dibatalkan",
+        "stale": "Lapuk",
+        "expired": "Tamat tempoh"
+      },
+      "target": {
+        "context_text": "Konteks perniagaan",
+        "instructions": "Arahan",
+        "handoff_rules": "Peraturan serahan"
+      },
+      "appliedByItself": "Digunakan sendiri",
+      "sources": "Daripada {{count}} mesej",
+      "apply": "Guna",
+      "dismiss": "Tolak",
+      "undo": "Batal",
+      "seeChange": "Lihat perubahan",
+      "change": {
+        "title": "Perubahan daripada Mod mimpi",
+        "body": "Mod mimpi membuat perubahan ini pada malam {{when}}.",
+        "before": "Sebelum",
+        "after": "Selepas",
+        "newItem": "Item baharu: {{name}}",
+        "why": "Sebab: apa yang pasukan tulis selepas mengambil alih",
+        "whyEmpty": "Mesej asalnya telah dipadam.",
+        "customer": "Pelanggan",
+        "team": "Pasukan",
+        "checks": "Semakan yang lulus"
+      },
+      "check": {
+        "privacy": "Tiada nama, nombor telefon atau e-mel dalam teks baharu",
+        "leak": "Pengetahuan Dalaman kekal sulit",
+        "grounding": "Setiap nombor datang daripada balasan pasukan",
+        "replay": "Ulang main: ejen kini mengendalikan soalan itu",
+        "regression": "Tiada jawapan dari malam sebelumnya menjadi lebih teruk"
+      },
+      "saveFailed": "Tidak dapat menyimpan. Cuba lagi.",
+      "actionFailed": "Tidak dapat mengubah ini. Cuba lagi.",
+      "outdated": "Teks telah berubah selepas cadangan ini. Ia kini lapuk."
+    },
     "scheduled": {
       "title": "Tugasan berjadual",
       "description": "{{name}} menghantar satu mesej sendiri pada masa yang ditetapkan, ke satu chat atau kumpulan pilihan anda.",

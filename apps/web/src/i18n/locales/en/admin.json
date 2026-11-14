@@ -1397,6 +1397,74 @@
       "offHint": "{{name}} adds no check-in line. When the customer only says thanks, {{name}} reacts 👍 and closes the chat; your team closes the others.",
       "saveFailed": "Couldn't save. Try again."
     },
+    "dream": {
+      "title": "Dream mode",
+      "description": "Each night, {{name}} reads the day's chats and learns from the replies your team wrote after taking a chat over. Nothing is sent to customers.",
+      "switch": "Dream mode",
+      "on": "On",
+      "off": "Off",
+      "runAt": "Runs every night at",
+      "runAtHint": "In your business time zone",
+      "autoApply": "Apply by itself",
+      "autoApplyOn": "On: new facts go into Business context at once. Instructions and hand-off rules still wait for you.",
+      "autoApplyOff": "Off: every change waits for you to apply it.",
+      "paused": "Paused: the AI is not connected. Dream mode runs again after you connect it in Settings → AI.",
+      "history": "History",
+      "historyEmpty": "No nights yet. The first run is tonight at {{time}}.",
+      "more": "Show older nights",
+      "runStats": "Chats read: {{chats}} · Taken over: {{takeovers}} · Changes: {{changes}}",
+      "dropped": "Dropped by the checks: {{count}}",
+      "run": {
+        "running": "Running now",
+        "nothing": "Nothing new to learn",
+        "missed": "Did not run: the app was closed at that time",
+        "failed": "Did not finish. It runs again next night.",
+        "ai_unavailable": "Did not run: the AI was not connected",
+        "access_closed": "Did not run: the app was paused",
+        "agent_off": "Did not run: the agent was off"
+      },
+      "status": {
+        "waiting": "Waiting for you",
+        "applied": "Applied",
+        "dismissed": "Dismissed",
+        "undone": "Undone",
+        "stale": "Outdated",
+        "expired": "Expired"
+      },
+      "target": {
+        "context_text": "Business context",
+        "instructions": "Instructions",
+        "handoff_rules": "Hand-off rules"
+      },
+      "appliedByItself": "Applied by itself",
+      "sources": "From {{count}} messages",
+      "apply": "Apply",
+      "dismiss": "Dismiss",
+      "undo": "Undo",
+      "seeChange": "See change",
+      "change": {
+        "title": "Change from Dream mode",
+        "body": "Dream mode made this change on the night of {{when}}.",
+        "before": "Before",
+        "after": "After",
+        "newItem": "New item: {{name}}",
+        "why": "Why: what the team wrote after taking over",
+        "whyEmpty": "The messages it came from were deleted.",
+        "customer": "Customer",
+        "team": "Team",
+        "checks": "Checks it passed"
+      },
+      "check": {
+        "privacy": "No names, phone numbers or emails in the new text",
+        "leak": "Keeps Internal knowledge private",
+        "grounding": "Every number comes from the team's reply",
+        "replay": "Replay: the agent now handles the question",
+        "regression": "No answer from the night before got worse"
+      },
+      "saveFailed": "Could not save. Try again.",
+      "actionFailed": "Could not change this. Try again.",
+      "outdated": "The text changed after this suggestion. It is now outdated."
+    },
     "scheduled": {
       "title": "Scheduled tasks",
       "description": "{{name}} sends one message by itself at a set time, to one chat or group you choose.",

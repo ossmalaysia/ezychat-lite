@@ -1383,6 +1383,74 @@
       "offHint": "{{name}} 不会添加确认语句。客户只是道谢时，{{name}} 会回应 👍 并关闭对话；其他对话由您的团队关闭。",
       "saveFailed": "无法保存，请重试。"
     },
+    "dream": {
+      "title": "梦境模式",
+      "description": "{{name}} 每晚阅读当天的聊天，并从团队接手聊天后写下的回复中学习。不会向客户发送任何内容。",
+      "switch": "梦境模式",
+      "on": "开启",
+      "off": "关闭",
+      "runAt": "每晚运行时间",
+      "runAtHint": "按您的营业时区",
+      "autoApply": "自动应用",
+      "autoApplyOn": "开启：新的事实会立即加入业务资料。指令和转交规则仍需您确认。",
+      "autoApplyOff": "关闭：每项更改都等待您应用。",
+      "paused": "已暂停：AI 未连接。在 设置 → AI 中连接后，梦境模式会再次运行。",
+      "history": "记录",
+      "historyEmpty": "还没有记录。第一次运行在今晚 {{time}}。",
+      "more": "显示更早的记录",
+      "runStats": "已读聊天：{{chats}} · 团队接手：{{takeovers}} · 更改：{{changes}}",
+      "dropped": "未通过检查而丢弃：{{count}}",
+      "run": {
+        "running": "正在运行",
+        "nothing": "没有新的内容可学习",
+        "missed": "未运行：当时应用已关闭",
+        "failed": "未完成。将在下一晚再次运行。",
+        "ai_unavailable": "未运行：AI 未连接",
+        "access_closed": "未运行：应用已暂停",
+        "agent_off": "未运行：助理已关闭"
+      },
+      "status": {
+        "waiting": "等待您处理",
+        "applied": "已应用",
+        "dismissed": "已忽略",
+        "undone": "已撤销",
+        "stale": "已过时",
+        "expired": "已过期"
+      },
+      "target": {
+        "context_text": "业务资料",
+        "instructions": "指令",
+        "handoff_rules": "转交规则"
+      },
+      "appliedByItself": "已自动应用",
+      "sources": "来自 {{count}} 条消息",
+      "apply": "应用",
+      "dismiss": "忽略",
+      "undo": "撤销",
+      "seeChange": "查看更改",
+      "change": {
+        "title": "梦境模式的更改",
+        "body": "梦境模式在 {{when}} 当晚做出了这项更改。",
+        "before": "之前",
+        "after": "之后",
+        "newItem": "新条目：{{name}}",
+        "why": "原因：团队接手后写下的内容",
+        "whyEmpty": "原始消息已被删除。",
+        "customer": "客户",
+        "team": "团队",
+        "checks": "已通过的检查"
+      },
+      "check": {
+        "privacy": "新文本中没有姓名、电话号码或电子邮件",
+        "leak": "内部资料保持保密",
+        "grounding": "每个数字都来自团队的回复",
+        "replay": "重放：助理现在能处理这个问题",
+        "regression": "前一晚的回答没有变差"
+      },
+      "saveFailed": "无法保存。请重试。",
+      "actionFailed": "无法更改。请重试。",
+      "outdated": "此建议之后文本已更改，现已过时。"
+    },
     "scheduled": {
       "title": "定时任务",
       "description": "{{name}} 会在设定的时间自动发送一条消息，发到你选择的一个聊天或群组。",
