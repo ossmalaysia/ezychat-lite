@@ -149,6 +149,13 @@ import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 import type { z } from 'zod';
 import type { TakeoverChat } from './dream/collect.js';
+
+/** A Business context text item previewed, not saved (id null = a new item). */
+export interface PreviewItem {
+  id: number | null;
+  name: string;
+  text: string;
+}
 import {
   DREAM_LESSON_RULES,
   DREAM_MERGE_RULES,
@@ -338,7 +345,14 @@ export interface AiService {
   logout(): Promise<void>;
   models(): Promise<AiModelList>;
   testConnection(): Promise<AiTestResult>;
-  tryAnswer(body: AiTryBody): Promise<AiTryResult>;
+  /** `items` (server only, never from a request): previews Business context text items not saved yet. */
+  tryAnswer(body: AiTryBody & { items?: readonly PreviewItem[] }): Promise<AiTryResult>;
+  /** Dream mode replay: Try it with a proposed setup; nothing is saved, stored or sent. */
+  previewWithSetup(
+    agentId: number,
+    override: { instructions?: string; handoffRules?: string; items?: readonly PreviewItem[] },
+    question: string,
+  ): Promise<AiTryResult>;
   /** Edit with AI: a suggested rewrite of one AI agent text; nothing is saved. */
   /** `signal`: the admin cancelled (closed the popup) — stop the AI call. */
   /** `agentId`: whose business items inform the edit (null/absent = the default agent). */
@@ -775,6 +789,30 @@ export function createAiService(
             )
             .all(agentId) as Array<Omit<AiContextItem, 'internal'> & { internal: number }>
         ).map((item) => ({ ...item, internal: item.internal === 1 }));
+  /** Saved items with previewed texts: an item with an `id` gets the new text, one without is added. */
+  const withPreviewItems = (
+    saved: AiContextItem[],
+    preview: readonly PreviewItem[] | undefined,
+  ): AiContextItem[] => {
+    if (!preview?.length) return saved;
+    const byId = new Map(preview.filter((p) => p.id !== null).map((p) => [p.id, p]));
+    const added = preview
+      .filter((p) => p.id === null)
+      .map((p, i) => ({
+        id: -1 - i,
+        name: p.name,
+        kind: 'text' as const,
+        text: p.text,
+        internal: false,
+        createdAt: Date.now(),
+      }));
+    return [
+      ...saved.map((item) =>
+        byId.has(item.id) ? { ...item, text: byId.get(item.id)!.text } : item,
+      ),
+      ...added,
+    ];
+  };
   /** One agent's items as the page lists them (no text). */
   const documentsOf = (agentId: number | null): AiMemberStatus['documents'] =>
     agentId === null
@@ -2732,7 +2770,7 @@ export function createAiService(
           error: 'Set up the AI connection in Settings → AI first.',
         };
       // The draft name and instructions, with the saved Business context items.
-      const saved = contextItems(agent?.id ?? null);
+      const saved = withPreviewItems(contextItems(agent?.id ?? null), body.items);
       const items = splitKnowledge(saved);
       const internalTexts = saved.filter((item) => item.internal).map((item) => item.text);
       const knowledge = relevantKnowledge(items.business, body.question);
@@ -3204,6 +3242,19 @@ export function createAiService(
           'Fix English grammar check',
         );
       }
+    },
+    previewWithSetup(agentId, override, question) {
+      const status = service.agentStatus(agentId);
+      return service.tryAnswer({
+        question,
+        agentId,
+        knowledge: {
+          displayName: status.agent.displayName,
+          instructions: override.instructions ?? status.settings.instructions,
+          handoffRules: override.handoffRules ?? status.settings.handoffRules ?? '',
+        },
+        ...(override.items ? { items: override.items } : {}),
+      });
     },
     async dreamLessons(agentId, chat, signal) {
       const agent = dreamAgent(agentId);
