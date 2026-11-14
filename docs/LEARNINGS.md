@@ -1478,6 +1478,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   after the last night, so a second test run found no chats. A check on "what a change adds" must compare tokens, not
   lines: business items are often one long line, so an edit made every old price "new" and the grounding check dropped a
   correct change; numbers, contacts and names already in the old text are not new.
+- Removing customer names from text the AI learns from: a whole-word match (`(?<![\p{L}\p{N}])name(?!…)`) never finds
+  a Chinese name, because CJK text has no spaces ("陈明您好"), and a 3-character minimum drops most of them. Use
+  `phrases/check.ts#nameMatcher` / `isPersonName` (CJK: anywhere, from 2 characters) for every new name filter.
 - Ask Ezy unit tests mock the model and often `scheduledTurn` too, so only a Dev Build runs the real tool path: a new
   Ask Ezy ability gets a scripted `assist` in `e2e/agents-devbuild.ts` that calls the real tools with the field names
   their results really carry (`list_scheduled_tasks` gives `taskId`, not `id`). An unexpected tool error is logged as
