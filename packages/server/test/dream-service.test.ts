@@ -211,4 +211,29 @@ describe('dream mode nightly run', () => {
     expect(runId).toBeTypeOf('number');
     expect(s.runs()).toMatchObject([{ status: 'done', takeovers: 1, saved: 0 }]);
   });
+
+  it('reads the last 24 hours again on every run now, also after an earlier run', async () => {
+    const s = await setup();
+    s.setClock(SLOT + 5 * MIN);
+    await s.service.runNow(s.agent.id);
+    s.setClock(SLOT + 6 * MIN);
+    await s.service.runNow(s.agent.id);
+    expect(s.runs()).toMatchObject([{ takeovers: 1 }, { takeovers: 1 }]);
+  });
+
+  it('logs which checks dropped a change, by name only', async () => {
+    const s = await setup();
+    const lines: string[] = [];
+    const capture = pino({ level: 'debug' }, { write: (line: string) => lines.push(line) });
+    const child = s.t.ctx.log.child.bind(s.t.ctx.log);
+    vi.spyOn(s.t.ctx.log, 'child').mockImplementation(((b: Record<string, unknown>) =>
+      b.mod === 'dream' ? capture.child(b) : child(b)) as never);
+    const service = createDreamService(s.t.ctx, { now: () => SLOT + 5 * MIN, timers: false });
+    s.lesson();
+    s.fake.answers.merges.push({ changes: [{ ...fact, after: 'Saturday 9 am to 3 pm.' }] });
+    await service.tick();
+    const dropped = lines.map((l) => JSON.parse(l)).find((l) => l.event === 'dream_change_dropped');
+    expect(dropped).toMatchObject({ target: 'context_text', failed: ['grounding'] });
+    expect(lines.join('\n')).not.toMatch(/Saturday|3 pm/);
+  });
 });

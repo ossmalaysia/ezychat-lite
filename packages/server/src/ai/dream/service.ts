@@ -74,7 +74,8 @@ export function createDreamService(
           : (setup.items.find((i) => i.id === p.itemId)?.text ?? '');
 
   /** One night of one agent; records the run whatever happens. */
-  const run = async (agentId: number, slot: number): Promise<number | null> => {
+  /** `fromLastRun` (the nightly run) starts after the last finished night; run now reads the last 24 hours. */
+  const run = async (agentId: number, slot: number, fromLastRun = true): Promise<number | null> => {
     const runId = repo.claimRun(agentId, slot, now());
     if (runId === null) return null;
     const counts = { chatsRead: 0, takeovers: 0, saved: 0, dropped: 0 };
@@ -90,7 +91,7 @@ export function createDreamService(
     try {
       const window = {
         agentId,
-        from: Math.max(repo.lastFinishedAt(agentId) ?? 0, slot - DAY),
+        from: Math.max(fromLastRun ? (repo.lastFinishedAt(agentId) ?? 0) : 0, slot - DAY),
         to: slot,
       };
       const chats = collectTakeovers(ctx, window);
@@ -145,6 +146,18 @@ export function createDreamService(
         if (!agentOn(agentId)) throw new AgentOff();
         if (!result.ok) {
           counts.dropped++;
+          // Which checks failed, by name (and their fixed detail): never the text.
+          log.info(
+            {
+              event: 'dream_change_dropped',
+              agentId,
+              runId,
+              target: proposal.target,
+              failed: result.checks.filter((c) => !c.ok).map((c) => c.name),
+              detail: result.checks.find((c) => !c.ok && c.detail)?.detail ?? null,
+            },
+            'Dream mode dropped a change',
+          );
           continue;
         }
         const questions = sources.flatMap((c) =>
@@ -261,7 +274,7 @@ export function createDreamService(
   }
 
   return {
-    runNow: (agentId) => queue(() => run(agentId, now())),
+    runNow: (agentId) => queue(() => run(agentId, now(), false)),
     tick,
     async shutdown() {
       clearTimeout(first);
