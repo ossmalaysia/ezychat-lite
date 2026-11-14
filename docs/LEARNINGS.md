@@ -612,6 +612,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A release PR opened before later merges is rebuilt on a fresh `origin/main` (bump, `version:sync`, lockfile,
   changelog heading), never rebased; copy a single new `dev-build-checks.md` row by hand: `git apply --3way`
   of a table row garbled the whole file. Before a release, check `main`'s own CI and run e2e + links on it.
+- `gh run view --log-failed` prints nothing while other jobs of the run still go: read the failed job at once with
+  `gh api repos/<owner>/<repo>/actions/jobs/<jobId>/logs` (job id from `gh run view <id> --json jobs`).
 - A red check on a release (version-only) PR: read `gh run view --log-failed`, compare with `main`'s run
   on the same code, then `gh run rerun <id> --failed`; fix the flaky test in its own PR. After that fix
   merges, rebase and push each red PR: a rerun tests the PR's old merge commit, without the fix. A mac DMG job
