@@ -84,7 +84,6 @@ import {
   createStatusWindow,
   messagePage,
 } from './window.js';
-import { showWindow } from './window-show.js';
 import { appUserModelId } from './app-identity.js';
 import { activeProduct } from './product.js';
 import { isAllowedExternalHref, StatusSectionsHost } from './status-sections.js';
@@ -505,7 +504,7 @@ async function main(): Promise<void> {
       void mainWindow.loadURL(url + path);
     }
     if (mainWindow.isMinimized()) mainWindow.restore();
-    showWindow(mainWindow);
+    mainWindow.show();
     mainWindow.focus();
     if (moved.active())
       void moved.ask().catch((e: unknown) => log(`[desktop] moved dialog: ${String(e)}`));
@@ -517,7 +516,7 @@ async function main(): Promise<void> {
 
   const openStatus = () => {
     if (statusWindow && !statusWindow.isDestroyed()) {
-      showWindow(statusWindow);
+      statusWindow.show();
       statusWindow.focus();
       return;
     }
