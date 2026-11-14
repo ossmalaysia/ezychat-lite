@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).
 
+### Fixed
+
+- A WhatsApp number that stayed on "Connecting…" after WhatsApp dropped the connection now tries again by itself after one minute. Before, it could stay that way for hours until you unlinked and linked it again. Waiting for you to scan a QR code or type a pairing code is never cut off.
+
 ## [0.1.84] - 2026-11-13
 
 ### Added
@@ -28,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A WhatsApp number that stayed on "Connecting…" after WhatsApp dropped the connection now tries again by itself after one minute. Before, it could stay that way for hours until you unlinked and linked it again. Waiting for you to scan a QR code or type a pairing code is never cut off.
 - Customer details are no longer taken from a forwarded message: a name, email or address someone forwarded belongs to another person, so a forwarded message never fills in or changes the customer's details.
 - A reaction (or an edited message) that arrived while the chat was still loading could vanish until the chat was opened again; it now stays.
 - Opened on another computer over the local network (a plain `http://` address), EzyChat showed a blank page after sign-in since 0.1.77. It opens again, and Forward and New chat work there too.
