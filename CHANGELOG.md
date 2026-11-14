@@ -338,6 +338,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One customer, same details in every inbox.** With two or more WhatsApp numbers, a customer who chats with
   both now shows the same saved name, company, email, other phone and address in each inbox: an edit in one
   inbox updates the other, and a new chat of a known customer starts with their details. Tags stay per inbox.
+### Fixed
+
+- **Your own address stays when EzyChat Lite's number moves into EzyChat Enterprise.** When Enterprise already had
+  data, the move left EzyChat Lite's own Cloudflare address behind: Enterprise said "This address is already in use"
+  and the old DNS record had to be removed by hand. If Enterprise has no own address yet, the move now brings
+  EzyChat Lite's address with it, so your team keeps opening the same address. EzyChat Lite turns that address off,
+  so "Use EzyChat Lite again" never runs it beside Enterprise. Addresses set up in the Cloudflare dashboard are
+  still set up again.
 
 ## [0.1.68] - 2026-11-01
 
