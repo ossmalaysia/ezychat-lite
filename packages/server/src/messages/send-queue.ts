@@ -127,7 +127,9 @@ export class SendQueue {
   drop(chatJid: string): number {
     const q = this.queues.get(chatJid);
     if (!q) return 0;
-    // in place: a running worker holds this array and sees it empty on its next turn
+    // in place: a running worker holds this array and sees it empty on its next turn; a job enqueued
+    // later goes into a new array, so the in-flight send's `shift()` never removes it
+    this.queues.delete(chatJid);
     return q.splice(0).length;
   }
 

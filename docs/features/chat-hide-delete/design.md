@@ -57,8 +57,13 @@ A hidden chat behaves like a chat that does not exist, for everyone (admins, the
 
 - Archive key: `chatKey(inbox, '<wa_jid>~old<n>')`, so inbox 1 gets `<key>~old<n>` as above and another inbox
   `<wa_jid>~old<n>#<id>` (the `#<inbox>` suffix stays last, so the key still names its inbox). The moved tables are
-  Delete chat's `CHAT_TABLES` plus `avatars` (one list for both features). A hidden chat whose number was not known
-  when it was hidden counts as another number (archived).
+  Delete chat's `CHAT_TABLES` plus `avatars` (one list for both features; the photo file moves with its row). A
+  hidden chat whose number was not known when it was hidden counts as another number (archived at the next link,
+  whatever number it is: fail closed).
+- Events of a new link that arrive before its number is known wait in the bridge. History events (history
+  messages and changes, chat lists) wait up to `HELD_EVENTS_MAX` (50,000); later ones are dropped, never routed
+  into the old number's chats (the phone keeps them). Live events always wait (they need an open connection,
+  which knows its number).
 - `chats.shown_on_relink` is written after 30 s without another shown chat: one row for the link's sync, and a small
   row for each later live message that shows a chat.
 - New chat and a group member's **Message** show a hidden chat of the same number (the team starts that chat again),
@@ -83,7 +88,9 @@ A hidden chat behaves like a chat that does not exist, for everyone (admins, the
 - `DELETE /api/chats/:jid` (admin, Origin check, `chatJidParam` + `requireChatAccess`), 30 a minute per admin.
   Direct chats and groups (a group's next message starts a new empty chat).
 - `chats/delete.ts#deleteChat` is the only delete path:
-  1. Stop live work for the chat: fail its queued sends, abort an AI turn and its timers, clear group queues.
+  1. Stop live work for the chat: fail its queued sends, abort an AI turn and its timers, clear group queues. A
+     send already in flight still reaches WhatsApp; its echo is dropped (the message service remembers its id
+     for 10 minutes), so it never starts the deleted chat again.
   2. One transaction deletes the rows of every chat-keyed table (`messages`, `notes`, `chat_events`,
      `customer_profiles`, `customer_tags`, `member_chats`, `ai_group_chats`, `ai_scheduled_tasks`, `safety_items`,
      `message_changes_pending`, calendar, Sheets, Drive, partner-connector and SQL Account tables, `avatars`) and of

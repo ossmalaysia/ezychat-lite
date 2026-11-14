@@ -264,7 +264,8 @@ export class ChatRepo {
    * removed inbox's chats are read only, so nobody can answer them.
    */
   unreadCount(f: ChatScope): number {
-    const where = ["c.status = 'open'", 'c.unread_count > 0', ACTIVE_INBOX];
+    // a chat hidden on Log out opens for nobody, so it is not counted either
+    const where = ["c.status = 'open'", 'c.unread_count > 0', ACTIVE_INBOX, visibleChat('c')];
     const params: Record<string, unknown> = {};
     if (!scopeWhere(f, where, params)) return 0;
     const sql = `SELECT COUNT(*) AS count FROM chats c WHERE ${where.join(' AND ')}`;
