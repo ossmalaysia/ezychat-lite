@@ -897,7 +897,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   owner to-do, and before the release tag check `gh secret list` in both repos (names only).
 - Playwright on this PC has no downloaded Chromium: launch `{ channel: 'chrome' }` (installed Chrome).
   A `tsx` run outside npm needs `NODE_OPTIONS=--conditions=ezychat-source`: a `--conditions` flag before
-  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`.
+  `tsx/dist/cli.mjs` does not reach the child node, which then loads stale `dist/`. PowerShell
+  `Start-Process -ArgumentList` does not quote its items: a `--data` under `%TEMP%` (`C:\Users\Jazz Tong\…`)
+  splits at the space and the server exits "unexpected argument"; use a temp folder without a space (`D:\tmp\…`).
+  A dev script with a 0-chat result must first assert its setup worked (the chat exists), or every
+  "stays gone" check passes on nothing.
 - In this cloud shell, killing a process by matching `/proc/*/cmdline` (or `pkill -f`) with a pattern that
   appears in your own command line kills the shell itself (exit 144) and drops the rest of the command:
   find the PID first, then kill it in a separate call.

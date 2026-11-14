@@ -39,5 +39,7 @@ export function removeInboxChatsFromCache(qc: QueryClient, inboxId: number): voi
     if (data?.chat?.inboxId === inboxId && typeof key[1] === 'string') jids.add(key[1]);
   for (const jid of jids) removeChatFromCache(qc, jid);
   void qc.invalidateQueries({ queryKey: qk.chatsAll });
+  // also when no chat of the inbox was cached (e.g. on an Admin page): the count leaves hidden chats out
+  void qc.invalidateQueries({ queryKey: qk.unreadChatCount });
   void qc.invalidateQueries({ queryKey: hiddenChatsKey(inboxId) });
 }
