@@ -1,6 +1,6 @@
 # Dream mode — design
 
-Status: draft for owner approval (2026-11-14). Quick mock confirmed by the owner 2026-11-14 ("look good"):
+Status: approved by the owner 2026-11-14 ("approve"), after the builder check. Quick mock confirmed by the owner 2026-11-14 ("look good"):
 `docs/features/dream-mode/mock/index.html`, screenshots in `docs/features/dream-mode/mock/screens/`.
 
 ## Intent
