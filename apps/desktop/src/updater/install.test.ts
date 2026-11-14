@@ -269,6 +269,10 @@ describe('unprivileged outcome/relaunch broker', () => {
     expect(broker).toContain('if ($state.accepted)');
     expect(broker).toContain('Start-Process -FilePath');
     expect(broker).toContain('$oldApp.WaitForExit(120000)');
+    // A hidden start makes Windows keep the new app's first window hidden: the update ends with no window.
+    const relaunch = broker.split('\r\n').find((l) => l.includes('$oldApp.WaitForExit(120000)'));
+    expect(relaunch).toMatch(/Start-Process -FilePath '[^']+' \}$/);
+    expect(relaunch).not.toContain('Hidden');
     expect(buildWindowsInstallScript(windows)).not.toContain('install-result.json');
     const mac = fixture('darwin');
     expect(buildInstallBrokerScript(mac)).toContain('/usr/bin/open');
