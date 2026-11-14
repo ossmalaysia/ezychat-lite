@@ -317,6 +317,35 @@ describe('DELETE /api/chats/:jid', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(t.wa.sent.filter((s) => JSON.stringify(s).includes('queued reply'))).toEqual([]);
   });
+
+  it.each(['after', 'before'] as const)(
+    'the echo of a send in flight during the delete never starts the chat again (echo %s the send result)',
+    async (when) => {
+      await incoming(A, 'hi');
+      let finish!: (r: { id: string; timestamp: number }) => void;
+      const send = vi.spyOn(t.wa, 'sendText').mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      getMessages(t.ctx).sendText(A, { text: 'reply in flight', clientId: 'f-1' }, admin.id);
+      await waitFor(() => send.mock.calls.length === 1);
+      expect((await del(admin.cookie, A)).statusCode).toBe(204);
+      const echo = () =>
+        t.wa.simulateIncoming({ chatJid: A, body: 'reply in flight', fromMe: true, id: 'WA-F1' });
+      if (when === 'before') echo();
+      finish({ id: 'WA-F1', timestamp: Date.now() });
+      await new Promise((r) => setTimeout(r, 20));
+      if (when === 'after') echo();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(count('chats', 'jid = ?', A)).toBe(0);
+      expect(count('messages', '1 = 1 AND chat_jid = ?', A)).toBe(0);
+      // a new live message from the customer still starts a new empty chat
+      await incoming(A, 'hello again');
+      expect(count('messages', 'chat_jid = ?', A)).toBe(1);
+    },
+  );
 });
 
 describe('deleted chat tombstone', () => {

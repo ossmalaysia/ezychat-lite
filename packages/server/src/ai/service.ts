@@ -109,6 +109,7 @@ import {
   type AiScheduledSituation,
   type AiCustomer,
   type AiKnowledge,
+  type AiSituation,
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
 import { claudeModelId } from './claude.js';
@@ -122,7 +123,7 @@ import type {
 import { AI_LIVE_MEDIA_MS, AI_MAX_IMAGES, AI_MAX_RECORD_IMAGES } from './images.js';
 import { collectPromptFiles, promptFilesLog, skippedFilesNote } from './files.js';
 import { sheetsCanAddRows, type SheetRecordContext } from '../connectors/google-sheets/record.js';
-import { guardResolution, objectsToResolution } from './resolution.js';
+import { guardResolution, looksLikeConfirmation, objectsToResolution } from './resolution.js';
 import {
   AI_CLAUDE_SECRET_KEY,
   AI_PROVIDER_KEY,
@@ -599,7 +600,7 @@ export function createAiService(
     internal: string,
     business: string,
     conversation: AiConversationTurn[],
-    awaitingConfirmation: boolean,
+    awaitingConfirmation: AiSituation['awaitingConfirmation'],
     images: readonly AiPromptImage[] = [],
     customer: AiCustomer | null = null,
     /** A WhatsApp group answer (group rules and the group in the Current situation block). */
@@ -866,6 +867,8 @@ export function createAiService(
       .run(jid);
     cancel(jid);
   };
+  // Hidden chats (Log out) are released too, unlike a teammate's in `unassignLost`: kept, they would
+  // come back with the same number still assigned to an AI that no longer answers them.
   const ownedOpenChats = (userId: number) =>
     (
       ctx.db
@@ -1031,7 +1034,27 @@ export function createAiService(
   }
 
   /**
-   * A closing message the AI chose not to answer after it had resolved the chat: acknowledge it with a 👍
+   * The AI's answer is the chat's last outgoing message and nobody on the team wrote or acted since it:
+   * the customer's plain "thanks" closes the conversation the AI was holding.
+   */
+  function answeredByAgentSinceThen(jid: string, aiUserId: number): boolean {
+    const last = ctx.db
+      .prepare(
+        "SELECT sent_by_user_id, created_at FROM messages WHERE chat_jid = ? AND from_me = 1 AND type <> 'system' ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      )
+      .get(jid) as { sent_by_user_id: number | null; created_at: number } | undefined;
+    if (last?.sent_by_user_id !== aiUserId) return false;
+    const teamSince = ctx.db
+      .prepare(
+        'SELECT 1 FROM chat_events WHERE chat_jid = ? AND at >= ? AND actor_id IS NOT NULL AND actor_id <> ? LIMIT 1',
+      )
+      .get(jid, last.created_at, aiUserId);
+    return !teamSince;
+  }
+
+  /**
+   * A closing message the AI chose not to answer after it had resolved the chat (`after: 'resolved'`) or
+   * after its own answer (`'answer'`, a plain thanks only): acknowledge it with a 👍
    * reaction (a "👍" reply where the connection cannot react) and resolve the chat again, instead of keeping
    * an open chat nobody answers. The chat is resolved even when neither can be sent (offline, window closed).
    */
@@ -1040,6 +1063,7 @@ export function createAiService(
     userId: number,
     customerId: string,
     agentId: number,
+    after: 'resolved' | 'answer',
     signal: AbortSignal,
     owned: () => boolean,
   ) {
@@ -1061,9 +1085,9 @@ export function createAiService(
       userId,
       action: 'ai.resolve',
       ip: null,
-      meta: { chatJid: jid, agentId, after: 'thanks' },
+      meta: { chatJid: jid, agentId, after: 'thanks', previous: after },
     });
-    log.info({ jid, agentId, ack }, 'AI resolved the chat again after thanks');
+    log.info({ jid, agentId, ack, after }, 'AI resolved the chat after thanks');
   }
 
   async function sendReply(
@@ -1671,7 +1695,7 @@ export function createAiService(
       const decide = async (
         turns: AiConversationTurn[],
         facts: string,
-        awaitingConfirmation: boolean,
+        awaitingConfirmation: AiSituation['awaitingConfirmation'],
         given: typeof files,
       ): Promise<AiDecision> => {
         // A failed extension look-up ends the turn at once; the catch below hands over.
@@ -1850,9 +1874,31 @@ export function createAiService(
         .map(customerText)
         .join('\n');
       const proposed = decision.action;
-      decision = guardResolution(decision, asked, batchText, conversationText, {
-        resolutionCheck: agent.resolutionCheck,
-      });
+      const guard = (d: AiDecision) =>
+        guardResolution(d, asked, batchText, conversationText, {
+          resolutionCheck: agent.resolutionCheck,
+        });
+      decision = guard(decision);
+      // The guard refused the model's resolve after the resolution question (new facts, a plan or
+      // an objection): ask the model once more, so the reply follows what the customer said in
+      // their language instead of repeating the fixed English question.
+      let secondTry = false;
+      if (proposed === 'resolve' && awaiting && decision.action === 'ask_resolution') {
+        secondTry = true;
+        try {
+          const again = await decide(
+            conversation(history, aiUsers),
+            knowledge,
+            'not_confirmed',
+            files,
+          );
+          if (!owned()) return;
+          if (again.action !== 'resolve') decision = guard(again);
+        } catch {
+          if (controller.signal.aborted) return;
+          // Keep the guard's question: the first decision stands.
+        }
+      }
       // A reply that quotes an Internal item is never sent: the team takes over (no text logged).
       if (decision.action !== 'no_reply' && findLeak(decision.reply, internalTexts)) {
         log.warn({ jid, agentId: agent.id, reason: 'confidential_leak' }, 'AI reply withheld');
@@ -1868,6 +1914,7 @@ export function createAiService(
           jid,
           action: decision.action,
           proposed,
+          secondTry,
           handoffReason: decision.handoffReason ?? null,
           asked,
           ...promptFilesLog(files),
@@ -1881,9 +1928,23 @@ export function createAiService(
       // Nothing to say (e.g. a bare "ok" / "thanks"): the AI keeps the chat and sends nothing; the
       // batch counts as handled so it is not answered again.
       if (decision.action === 'no_reply') {
-        // The 👍 goes out first: the send guard lets an AI reply out only while the message is unanswered.
-        if (resolvedByAgentSinceThen(jid, user.id))
-          await closeAfterThanks(jid, user.id, customerId, agent.id, controller.signal, owned);
+        // A plain "thanks" after the AI resolved the chat, or after its own answer, closes it with a 👍
+        // whatever the resolution switch (owner rule). The 👍 goes out first: the send guard lets an AI
+        // reply out only while the message is unanswered.
+        let after: 'resolved' | 'answer' | null = null;
+        if (resolvedByAgentSinceThen(jid, user.id)) after = 'resolved';
+        else if (looksLikeConfirmation(batchText) && answeredByAgentSinceThen(jid, user.id))
+          after = 'answer';
+        if (after)
+          await closeAfterThanks(
+            jid,
+            user.id,
+            customerId,
+            agent.id,
+            after,
+            controller.signal,
+            owned,
+          );
         // Team-only line, so a silent turn is never invisible (the closed chat shows its own line).
         else if (owned())
           chats.addAiToolUsed(jid, user.id, [

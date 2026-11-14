@@ -690,3 +690,20 @@ it('drops every chat of an inbox whose phone logged out (lists, opened chats, me
   expect(qc.getQueryState(['hidden-chats', 1, 'open'])?.isInvalidated).toBe(true);
   qc.clear();
 });
+
+it('reads the Chats count again on Log out, also when no chat of the inbox is cached', async () => {
+  const { qk } = await vi.importActual<typeof Queries>('./queries');
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(qk.unreadChatCount, { count: 3 });
+  render(
+    <QueryClientProvider client={qc}>
+      <RealtimeProvider>
+        <span>ready</span>
+      </RealtimeProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText('ready');
+  act(() => socket.listeners.get('chats:hidden')!({ inboxId: 1 }));
+  expect(qc.getQueryState(qk.unreadChatCount)?.isInvalidated).toBe(true);
+  qc.clear();
+});

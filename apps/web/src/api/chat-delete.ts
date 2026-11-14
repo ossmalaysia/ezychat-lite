@@ -30,6 +30,7 @@ export function removeChatFromCache(qc: QueryClient, jid: string): void {
   ])
     qc.removeQueries({ queryKey: key, exact: true });
   void qc.invalidateQueries({ queryKey: qk.openChatCount });
+  void qc.invalidateQueries({ queryKey: qk.unreadChatCount });
 }
 
 const chatDeletePreviewKey = (jid: string) => ['chat-delete-preview', jid] as const;
