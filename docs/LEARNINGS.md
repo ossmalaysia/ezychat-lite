@@ -781,7 +781,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   that file after adding a page; split rarely used areas with `React.lazy` rather than raising the limit again.
 - Dependabot `@ai-sdk/openai` / `@ai-sdk/anthropic` bumps fail the typecheck alone (LanguageModelV4 mismatch): take them
   with the matching `ai` bump. A major version inside a Dependabot group (jsdom 31) can pass the typecheck and break
-  tests: run the failing test files and hold back that one package, not the whole group.
+  tests: run the failing test files and hold back that one package, not the whole group. A bump of a package that the
+  root `overrides` pins fails `npm ci` on every OS ("Missing … from lock file") until the override moves too; jsdom 31
+  then left 18 web tests with dialogs that never close. Run the web tests from `apps/web` (`npx vitest run`): the root
+  project is named `web`, and `--project @ezychat/web` matches nothing and starts no test.
 - On Windows `git worktree remove --force` can unregister a worktree and still leave its folder (`node_modules`):
   check `git worktree list`, then delete the leftover folder if it is yours.
 - Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
