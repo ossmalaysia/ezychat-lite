@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  releaseOfTag,
+  osslsigncodeStatus,
+  macSignatureProblem,
   checkReporter,
   checkVersion,
   liteAssets,
@@ -92,6 +95,61 @@ describe('signatureProblem', () => {
   });
 });
 
+describe('osslsigncodeStatus', () => {
+  const output = [
+    'Signer #0:',
+    '\t\tSubject: CN=Anchor Sprint Pte. Ltd.,O=Anchor Sprint Pte. Ltd.,L=Singapore,C=SG',
+    'Timestamp verified using:',
+    '\tSigner #0:',
+    '\t\tSubject: CN=Microsoft Public RSA Timestamping CA 2020,O=Microsoft Corporation,C=US',
+    'Timestamp Server Signature verification: ok',
+    'Signature verification: ok',
+    'Number of verified signatures: 1',
+    'Succeeded',
+  ].join('\n');
+
+  it('is Valid only when osslsigncode succeeded, and names the file signer, not the timestamp signer', () => {
+    const result = osslsigncodeStatus(output, 0);
+    expect(result).toEqual({
+      status: 'Valid',
+      subject: 'CN=Anchor Sprint Pte. Ltd.,O=Anchor Sprint Pte. Ltd.,L=Singapore,C=SG',
+    });
+    expect(signatureProblem(result.status, result.subject)).toBeNull();
+  });
+
+  it('is not Valid when the check failed or the exit code says so', () => {
+    expect(osslsigncodeStatus(output.replace('Succeeded', 'Failed'), 1).status).toBe('NotValid');
+    expect(osslsigncodeStatus(output, 1).status).toBe('NotValid');
+    expect(osslsigncodeStatus('', 255)).toEqual({ status: 'NotValid', subject: '' });
+  });
+});
+
+describe('macSignatureProblem', () => {
+  const signed = {
+    codesign:
+      'Authority=Developer ID Application: Anchor Sprint Pte. Ltd. (4N9HTT975Q)\nAuthority=Developer ID Certification Authority',
+    spctl: 'EzyChat Lite.app: accepted\nsource=Notarized Developer ID',
+    stapled: true,
+  };
+
+  it('accepts only our Developer ID, notarized, with the ticket stapled', () => {
+    expect(macSignatureProblem(signed)).toBeNull();
+    expect(macSignatureProblem({ ...signed, codesign: 'Signature=adhoc' })).toContain(
+      'Developer ID',
+    );
+    expect(
+      macSignatureProblem({
+        ...signed,
+        codesign: 'Authority=Developer ID Application: Someone Else (ABCDE12345)',
+      }),
+    ).toContain('Developer ID');
+    expect(
+      macSignatureProblem({ ...signed, spctl: 'rejected\nsource=Unnotarized Developer ID' }),
+    ).toContain('notarized');
+    expect(macSignatureProblem({ ...signed, stapled: false })).toContain('stapled');
+  });
+});
+
 describe('reportText', () => {
   const [win, mac] = pickAssets('enterprise', '0.1.28', enterprise);
 
@@ -102,6 +160,17 @@ describe('reportText', () => {
     expect(reportText({ edition: 'enterprise', asset: mac, zipName: 'm.zip' })).not.toMatch(
       /signature|signed/i,
     );
+  });
+
+  it('claims the Developer ID and notarization for a Mac file only when this run checked it', () => {
+    const text = reportText({ edition: 'lite', asset: mac, zipName: 'm.zip', macSigned: true });
+    expect(text).toContain('signed business software, Mac installer');
+    expect(text).toContain(
+      'Developer ID Application: Anchor Sprint Pte. Ltd. (4N9HTT975Q), notarized by Apple',
+    );
+    expect(
+      reportText({ edition: 'lite', asset: mac, zipName: 'm.zip', macSigned: false }),
+    ).not.toMatch(/signature|signed|notarized/i);
   });
 
   it('names the installer and its hash, and the ZIP only when one is attached', () => {
@@ -123,5 +192,30 @@ describe('checkReporter', () => {
     const reporter = { fullName: 'A', email: 'a@b.c', company: 'C' };
     expect(checkReporter(reporter)).toBe(reporter);
     expect(() => checkReporter({ ...reporter, email: ' ' })).toThrow('email');
+  });
+});
+
+describe('releaseOfTag', () => {
+  it('finds a draft by its tag, which releases/tags/ does not, and stops when there is none', () => {
+    const list = [
+      { tag_name: 'v0.1.83', draft: true },
+      { tag_name: 'v0.1.82', draft: false },
+    ];
+    expect(releaseOfTag(list, '0.1.83')).toEqual({ tag_name: 'v0.1.83', draft: true });
+    expect(() => releaseOfTag(list, '0.1.84')).toThrow('no release or draft for v0.1.84');
+  });
+
+  it("downloads a draft's files through the API, a published one through its public link", () => {
+    const asset = {
+      name: 'a.exe',
+      browser_download_url: 'https://pub',
+      url: 'https://api',
+      size: 1,
+    };
+    expect(liteAssets({ draft: true, assets: [asset] })[0]).toMatchObject({
+      url: 'https://pub',
+      apiUrl: 'https://api',
+    });
+    expect(liteAssets({ draft: false, assets: [asset] })[0]?.apiUrl).toBeUndefined();
   });
 });
