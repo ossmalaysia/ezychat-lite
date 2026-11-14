@@ -53,5 +53,8 @@
     "type": "git",
     "url": "https://github.com/ossmalaysia/ezychat-lite.git"
   },
-  "homepage": "https://ezychat.ai/"
+  "homepage": "https://ezychat.ai/",
+  "overrides": {
+    "jsdom": "^30.1.3"
+  }
 }
