@@ -338,6 +338,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
+  Merge them into one combined branch one by one (typecheck after each), run the full checks once, open one PR. After
+  a line-by-line union of CHANGELOG, move every PR's entries back under `[Unreleased]`: a PR cut before a release
+  lands its lines in the released section. Two PRs may take the same migration number: keep the one already applied
+  on an owner install and renumber the other (file, its `repo.ts` comment, AGENTS.md, the lite-import test).
 - An unmerged build installed on the owner's live data freezes the migrations it carries: from then on never
   renumber or change them on that branch (later parts take the next number), or the official release cannot
   upgrade that install. Build such an installer from a clean worktree of one commit, never from a folder another
@@ -759,6 +764,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Build, tooling and Windows
 
+- Dependabot `@ai-sdk/openai` / `@ai-sdk/anthropic` bumps fail the typecheck alone (LanguageModelV4 mismatch): take them
+  with the matching `ai` bump. A major version inside a Dependabot group (jsdom 31) can pass the typecheck and break
+  tests: run the failing test files and hold back that one package, not the whole group.
 - On Windows `git worktree remove --force` can unregister a worktree and still leave its folder (`node_modules`):
   check `git worktree list`, then delete the leftover folder if it is yours.
 - Edit code that holds backslashes (regex `\d`, Windows paths) with the Edit tool, not `sed` in bash: a `sed`
