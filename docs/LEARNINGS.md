@@ -75,8 +75,9 @@ into AGENTS.md.
   Ask the owner early for the vendor's own API collection (a Postman export from inside the product): it settled
   the host, the balance fields and where phones live, which no public page did. Check whether list answers carry
   detail rows; when they do not (SQL Account lists master fields only), a lookup index needs paced per-record reads.
-- `scripts/build-summary.mjs` needs `gh repo view` (GraphQL), which cloud sessions refuse: write the workbook rows by
-  hand in its table format there.
+- Repo scripts read GitHub through `gh api` REST only (cloud sessions answer every GraphQL call, `gh repo view` and
+  `gh pr view` included, with 403; review threads come from `pulls/<n>/ccr/review_threads`). There `gh auth status`
+  reports the token invalid while `gh api` works: test with a real `gh api` call, not `auth status`.
 
 - A bug report with a screenshot of the live app shows real customers: rebuild the case with demo names,
   companies and numbers in tests, docs and commits; grep the branch for the real values before pushing.
