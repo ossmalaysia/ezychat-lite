@@ -353,7 +353,7 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   merge is not enough: run the full unit suite on the combined branch (each PR passed alone, yet #347's new chat-keyed
   `github_activity` was missing from #352's `chats/delete.ts` plan, caught only by `chat-delete-coverage.test.ts`).
   To reuse a conflict resolution from the combined branch on one PR's own branch, first `git diff origin/main
-  <other PR> -- <file>` for every other PR in the combination: a copied file carries their lines into this PR.
+<other PR> -- <file>` for every other PR in the combination: a copied file carries their lines into this PR.
   Resolve conflicts only in the Bash or PowerShell tool, never in the context-mode sandbox (`ctx_execute`): there
   `git show :2:<file> > /tmp/o` wrote empty files, the `merge-file --union` result was empty, and #240 merged with
   `docs/LEARNINGS.md` and `docs/dev-build-checks.md` at 0 lines. After any scripted resolution, run
