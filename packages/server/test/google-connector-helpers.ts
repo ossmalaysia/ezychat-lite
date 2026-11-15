@@ -177,32 +177,31 @@ export async function expectRemoteCannotStart(
   startUrls: string[],
 ) {
   const remotes = [
-    { remoteAddress: '192.168.1.20' },
+    { remoteAddress: '192.168.1.20' }, // NOSONAR: a test peer on a private network
     { headers: { 'cf-connecting-ip': '203.0.113.9' } },
   ];
   const here = await t.app.inject({ method: 'GET', url: statusUrl, headers: { cookie: admin } });
   expect(here.json().onThisComputer).toBe(true);
-  for (const remote of remotes) {
-    const headers = { ...authHeaders(admin), ...remote.headers };
-    const status = await t.app.inject({
-      method: 'GET',
-      url: statusUrl,
-      headers,
+  const call = (remote: (typeof remotes)[number], method: 'GET' | 'POST', url: string) =>
+    t.app.inject({
+      method,
+      url,
+      headers: { ...authHeaders(admin), ...remote.headers },
+      payload: method === 'POST' ? {} : undefined,
       remoteAddress: remote.remoteAddress,
     });
-    expect(status.statusCode).toBe(200);
-    expect(status.json().onThisComputer).toBe(false);
-    for (const url of startUrls) {
-      const start = await t.app.inject({
-        method: 'POST',
-        url,
-        headers,
-        payload: {},
-        remoteAddress: remote.remoteAddress,
+  await Promise.all(
+    remotes.map(async (remote) => {
+      const status = await call(remote, 'GET', statusUrl);
+      expect(status.statusCode).toBe(200);
+      expect(status.json().onThisComputer).toBe(false);
+      const starts = await Promise.all(startUrls.map((url) => call(remote, 'POST', url)));
+      starts.forEach((start, n) => {
+        const url = startUrls[n];
+        expect(start.statusCode, url).toBe(409);
+        expect(start.json().error.code, url).toBe('host_only');
+        expect(start.body, url).not.toContain('127.0.0.1');
       });
-      expect(start.statusCode, url).toBe(409);
-      expect(start.json().error.code, url).toBe('host_only');
-      expect(start.body, url).not.toContain('127.0.0.1');
-    }
-  }
+    }),
+  );
 }

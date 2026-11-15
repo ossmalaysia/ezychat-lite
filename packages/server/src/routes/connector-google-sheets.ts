@@ -96,7 +96,7 @@ export default async function connectorGoogleSheetsRoutes(app: FastifyInstance, 
 
   // Google's file picker: the admin starts it here; its page, script, token and answer are served
   // only to this computer (like the sign-in callback), guarded by the one-time picker token.
-  app.post('/connectors/google-sheets/picker', admin, async (req) => {
+  app.post('/connectors/google-sheets/picker', admin, (req) => {
     requireHost(req);
     return sheets.startPicker(loopbackOrigin(req, ctx), actor(req));
   });

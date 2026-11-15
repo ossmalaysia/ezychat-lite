@@ -77,7 +77,7 @@ export default async function connectorsRoutes(app: FastifyInstance, ctx: AppCon
     withHostFlag(req, await calendar.status()),
   );
 
-  app.post('/connectors/google-calendar/connect', admin, async (req) => {
+  app.post('/connectors/google-calendar/connect', admin, (req) => {
     requireHost(req);
     return calendar.startConnect(redirectUri(req, ctx), actor(req));
   });
