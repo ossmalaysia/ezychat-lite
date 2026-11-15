@@ -1231,6 +1231,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   on the status (zod default `true`), refuse the start routes with 409 `host_only` (`requireHost`), and let the page
   show a notice instead of opening a window. Test it with a LAN peer and a `cf-connecting-ip` request, and assert the
   answer holds no `127.0.0.1` link; a status with a new field breaks every exact-equality test of that status.
+- Release review rates a PR by the files it touches: a one-line helper in a security-rule file (`http/errors.ts`) made
+  a small route fix "critical" (score 10, real-part test required). Build such an error where it is used
+  (`new HttpError(...)` in the route file) and check `release-review.mjs`'s "Tier … set by" line before the first push.
 - A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
   return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
   denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function
