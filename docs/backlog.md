@@ -5,7 +5,7 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Bugs
 
-- **Google picker and sign-in from a remote browser (Option B, assessed 2026-11-15, not built).** Fix A (PR
+- **Remote Google sign-in and file picker (Option B, assessed 2026-11-15, not built).** Fix A (PR
   `fix/picker-remote-device`) shows a notice instead of opening `127.0.0.1` on a remote or LAN device. Could the
   picker itself run in the remote browser through the tunnel? Verdict: **not feasible as it stands; feasible later
   only for a named https tunnel**, and not worth it before a customer asks. Assessed from Google's documentation and
@@ -26,6 +26,17 @@ are listed here until they get a branch. Newest first; remove an item when its P
 no-store` and a token valid for the one request, a security review (AGENTS.md "Security review for network changes"),
   a real-Google check, and a design decision from the owner. About 2–3 days. Recommendation: keep Fix A; Sheets can
   still be created from a remote device, and picking is a one-time setup step on the computer that runs EzyChat.
+  Sign-in has a second blocker: Google returns only to redirect addresses registered in advance, and the "Desktop
+  app" client allows loopback only; tunnel hostnames differ per install (and Quick Tunnel's change), so none can be
+  registered. Ways to make it work: (1) **a fixed Anchor-owned relay page** (e.g. `ezychat.ai/connect/google`) with a
+  "Web application" OAuth client (one redirect URI, one JS origin for the Picker key): the remote browser signs in and
+  picks there, then the page posts the result back to the install through its tunnel URL. Works from any device and
+  from a Quick Tunnel; costs hosting and securing the page, the token passing through the visitor's browser on our
+  page, a code exchange that needs a client secret kept on our side (never in the app), possibly a new Google
+  verification (client and scopes change) and a security review; Enterprise first. (2) **EzyChat Cloud**: one fixed
+  domain, so it works natively with no relay. (3) **Google's device flow** (enter a code on another device) covers
+  sign-in for a limited list of scopes (`drive.file` is on it, the Calendar scope is not, to be checked in Google's
+  docs) and never the Picker, so it does not solve this alone. Plan: build (1) only on customer demand.
 - Windows updater after an antivirus block (seen 2026-11-05, Enterprise 0.1.25 → 0.1.26 with McAfee, twice): the
   rollback that emptied Program Files is fixed (`WINDOWS_START_INSTALLER`, `WINDOWS_RESTORE_OLD_APP` in
   `apps/desktop/src/updater/install.ts`). Still to do: show the blocked-installer result in the app's own language
