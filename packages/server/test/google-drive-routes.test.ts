@@ -11,6 +11,7 @@ import {
   expectAdminOnly,
   expectCallbackHostOnly,
   expectPickerHostOnly,
+  expectRemoteCannotStart,
 } from './google-connector-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -48,6 +49,14 @@ const progress = async (admin: string, requestId: string) =>
   (await get(`/api/connectors/google-drive/picker/${requestId}`, admin)).json();
 
 describe('Google Drive routes', () => {
+  it('tells a remote browser the sign-in and file picker are not available and starts neither', async () => {
+    const { admin } = await setUp();
+    await expectRemoteCannotStart(t, admin, '/api/connectors/google-drive', [
+      '/api/connectors/google-drive/connect',
+      '/api/connectors/google-drive/picker',
+    ]);
+  });
+
   it('are admin only, and the callback answers only on this computer', async () => {
     const { agent, agentId } = await setUp();
     await expectAdminOnly(t, agent, [

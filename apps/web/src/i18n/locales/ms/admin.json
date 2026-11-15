@@ -1851,6 +1851,7 @@
       "blocked": "Pelayar anda menyekat tetingkap log masuk. Buka halaman log masuk untuk meneruskan.",
       "openSignIn": "Buka halaman log masuk",
       "sameComputer": "Google kembali ke komputer yang menjalankan {{product}}: log masuk hanya selesai dalam pelayar di komputer itu.",
+      "remoteSignIn": "Log masuk Google hanya berfungsi pada komputer yang menjalankan {{product}}. Buka {{product}} di sana dan log masuk; ia akan dipaparkan di sini juga.",
       "cancelSignIn": "Batal",
       "failed": {
         "denied": "Log masuk Google dibatalkan. Tiada apa-apa disambungkan.",
@@ -2156,6 +2157,7 @@
         "expired": "Pemilih fail mengambil masa terlalu lama. Cuba lagi."
       },
       "pickSameComputer": "Pemilih fail hanya berfungsi dalam pelayar pada komputer yang menjalankan {{product}}.",
+      "remotePick": "Memilih helaian hanya berfungsi pada komputer yang menjalankan {{product}}. Buka {{product}} di sana, pilih helaian itu, dan ia akan dipaparkan di sini juga. Anda masih boleh mencipta helaian baharu dari sini.",
       "tabsTitle": "Tab yang boleh digunakan ejen ini",
       "tabsHint": "Arahan ejen menyatakan bila menggunakannya. Nama lajur diambil daripada baris pertama setiap tab. Tukar tab dalam Google Sheets? Tekan Muat semula.",
       "refresh": "Muat semula",
@@ -2294,6 +2296,7 @@
       "pickBlocked": "Pelayar anda menyekat tetingkap itu. Buka pemilih fail untuk meneruskan.",
       "openPicker": "Buka pemilih fail",
       "pickSameComputer": "Pemilih fail hanya berfungsi dalam pelayar di komputer yang menjalankan {{product}}.",
+      "remotePick": "Memilih folder atau fail hanya berfungsi pada komputer yang menjalankan {{product}}. Buka {{product}} di sana, pilih folder atau fail itu, dan ia akan dipaparkan di sini juga.",
       "pickError": {
         "cancelled": "Tiada apa yang dipilih.",
         "failed": "{{product}} tidak dapat membuka pilihan anda. Pilih semula.",

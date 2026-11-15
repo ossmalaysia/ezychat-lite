@@ -164,3 +164,45 @@ export async function expectPickerHostOnly(
   expect(script.headers['content-type']).toContain('javascript');
   return script.body;
 }
+
+/**
+ * Google sign-in and the file picker finish on 127.0.0.1, so a request from the LAN or the tunnel
+ * is told it is not on the computer that runs EzyChat and can never start either: 409 `host_only`
+ * and no loopback link in the answer. The same admin on this computer is on it.
+ */
+export async function expectRemoteCannotStart(
+  t: TestApp,
+  admin: string,
+  statusUrl: string,
+  startUrls: string[],
+) {
+  const remotes = [
+    { remoteAddress: '192.168.1.20' },
+    { headers: { 'cf-connecting-ip': '203.0.113.9' } },
+  ];
+  const here = await t.app.inject({ method: 'GET', url: statusUrl, headers: { cookie: admin } });
+  expect(here.json().onThisComputer).toBe(true);
+  for (const remote of remotes) {
+    const headers = { ...authHeaders(admin), ...remote.headers };
+    const status = await t.app.inject({
+      method: 'GET',
+      url: statusUrl,
+      headers,
+      remoteAddress: remote.remoteAddress,
+    });
+    expect(status.statusCode).toBe(200);
+    expect(status.json().onThisComputer).toBe(false);
+    for (const url of startUrls) {
+      const start = await t.app.inject({
+        method: 'POST',
+        url,
+        headers,
+        payload: {},
+        remoteAddress: remote.remoteAddress,
+      });
+      expect(start.statusCode, url).toBe(409);
+      expect(start.json().error.code, url).toBe('host_only');
+      expect(start.body, url).not.toContain('127.0.0.1');
+    }
+  }
+}

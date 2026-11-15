@@ -237,6 +237,26 @@ export function ToolSwitchRow({
  * While Google's file picker is open in another window (Google Sheets, Google Drive): what is
  * happening, a link to open it again (the browser may have blocked the window) and Cancel.
  */
+/**
+ * Google sign-in and file picking finish in a browser on the computer that runs EzyChat. From
+ * another device (the tunnel address or the LAN) they never start: this says so, in plain words.
+ */
+export function RemoteOnlyNotice({
+  testId,
+  textKey,
+}: Readonly<{
+  testId: string;
+  textKey:
+    'connectors.gc.remoteSignIn' | 'connectors.sheets.remotePick' | 'connectors.drive.remotePick';
+}>) {
+  const { t } = useTranslation('admin');
+  return (
+    <div data-testid={testId}>
+      <Banner tone="info">{t(textKey)}</Banner>
+    </div>
+  );
+}
+
 export function PickerWaiting({
   testId,
   title,

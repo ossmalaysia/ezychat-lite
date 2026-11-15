@@ -428,6 +428,12 @@ using it and hands booking chats over. Chat lines are `ai_tool_used` events with
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.
 
+**Google sign-in and pickers from another device.** Google's sign-in callback and file pickers finish on `127.0.0.1`,
+so they work only in a browser on the computer that runs EzyChat. The Calendar, Sheets and Drive statuses carry
+`onThisComputer` (`isHostRequest`, zod default `true`); their `/connect` and picker start routes answer 409
+`host_only` from a remote or LAN request (`routes/connectors.ts#requireHost`); the cards show `RemoteOnlyNotice` instead
+of opening a tab. Assessment of running the picker remotely: `docs/backlog.md`.
+
 **Google Sheets** (design `docs/features/google-sheets/design.md`). Core built-in connector like Google Calendar,
 with its own Google sign-in (`connectors/google-account.ts`: the calendar's PKCE/loopback flow made generic; tokens in
 the encrypted `google_sheets_tokens` setting; scope `drive.file`: only files picked in Google's file picker, whose page

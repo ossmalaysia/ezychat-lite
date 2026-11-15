@@ -1225,6 +1225,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- A flow that must finish on 127.0.0.1 (Google sign-in callback, Google's file picker) cannot be started from a
+  remote or LAN browser: the page opened a tab on the visitor's own 127.0.0.1 ("refused to connect"). Decide "on this
+  computer" on the server with the same `isHostRequest` rule as the host-only routes, send it as `onThisComputer`
+  on the status (zod default `true`), refuse the start routes with 409 `host_only` (`requireHost`), and let the page
+  show a notice instead of opening a window. Test it with a LAN peer and a `cf-connecting-ip` request, and assert the
+  answer holds no `127.0.0.1` link; a status with a new field breaks every exact-equality test of that status.
 - A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
   return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
   denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function

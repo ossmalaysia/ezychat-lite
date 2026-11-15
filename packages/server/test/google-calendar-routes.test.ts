@@ -13,6 +13,7 @@ import {
   connectThroughFake,
   expectAdminOnly,
   expectCallbackHostOnly,
+  expectRemoteCannotStart,
 } from './google-connector-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -57,6 +58,13 @@ const connect = (cookie: string, choice: 'allow' | 'cancel' = 'allow') =>
   connectThroughFake(t, CALENDAR_PATHS, cookie, choice);
 
 describe('Google Calendar routes', () => {
+  it('tells a remote browser the sign-in is not available and starts none', async () => {
+    const { admin } = await setUp();
+    await expectRemoteCannotStart(t, admin, '/api/connectors/google-calendar', [
+      '/api/connectors/google-calendar/connect',
+    ]);
+  });
+
   it('are admin only', async () => {
     const { agent, agentId } = await setUp();
     await expectAdminOnly(t, agent, [
@@ -81,6 +89,7 @@ describe('Google Calendar routes', () => {
       calendars: [],
       connectedAt: null,
       problemSince: null,
+      onThisComputer: true,
     });
     const { requestId, callback } = await connect(admin);
     expect(callback.statusCode).toBe(200);
@@ -97,6 +106,7 @@ describe('Google Calendar routes', () => {
       state: 'connected',
       account: 'demo.bookings@example.com',
       problemSince: null,
+      onThisComputer: true,
     });
     expect(status.calendars).toEqual([
       {
@@ -287,6 +297,7 @@ describe('Google Calendar routes', () => {
     expect((await get('/api/connectors/google-calendar', admin)).json()).toMatchObject({
       state: 'connected',
       problemSince: null,
+      onThisComputer: true,
     });
   });
 

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Google Sheets, Google Drive and Google Calendar no longer send you to a dead page from another device.** Opened through your remote address or the local network, **Choose a sheet** (and the folder and file choices in Google Drive) opened a new tab that said "127.0.0.1 refused to connect", and Google sign-in ended the same way. Google's picker and sign-in only work in a browser on the computer that runs EzyChat, so on any other device EzyChat now says so in plain words (and what to do) instead of opening a tab. Everything else still works from there: status, tabs, switches, Refresh and creating a new sheet.
 - After an update, the EzyChat window now opens again by itself. Before, the update finished but the window stayed hidden until you opened EzyChat yourself (Windows).
 - A WhatsApp number that stayed on "Connecting…" after WhatsApp dropped the connection now tries again by itself after one minute. Before, it could stay that way for hours until you unlinked and linked it again. Waiting for you to scan a QR code or type a pairing code is never cut off.
 - **Your own address stays when EzyChat Lite's number moves into EzyChat Enterprise.** When Enterprise already had
