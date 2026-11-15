@@ -6,7 +6,7 @@ import type { AppContext } from '../context.js';
 import { getGoogleCalendar } from '../connectors/google-calendar/service.js';
 import { isHostRequest } from '../http/access.js';
 import { clientIp } from '../http/client-ip.js';
-import { errors, parse } from '../http/errors.js';
+import { errors, HttpError, parse } from '../http/errors.js';
 
 /** A connector's status for this request: adds whether the person is on the computer running EzyChat. */
 export const withHostFlag = <T extends object>(req: FastifyRequest, status: T) => ({
@@ -16,7 +16,8 @@ export const withHostFlag = <T extends object>(req: FastifyRequest, status: T) =
 
 /** Google sign-in and the file picker finish on 127.0.0.1: a remote or LAN request never starts them. */
 export function requireHost(req: FastifyRequest): void {
-  if (!isHostRequest(req)) throw errors.hostOnly();
+  if (!isHostRequest(req))
+    throw new HttpError(409, 'host_only', 'This works only on the computer that runs EzyChat');
 }
 
 const AgentParams = z.object({ agentId: z.coerce.number().int().positive() });

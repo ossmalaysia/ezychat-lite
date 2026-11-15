@@ -25,9 +25,6 @@ export const errors = {
       'retry-after': String(Math.max(1, Math.ceil(retryAfterSec))),
     }),
   waUnavailable: (msg = 'WhatsApp is not connected') => new HttpError(503, ErrorCode.WA_UNAVAILABLE, msg),
-  /** An action that finishes on the computer running EzyChat, asked from a remote or LAN browser. */
-  hostOnly: () =>
-    new HttpError(409, 'host_only', 'This works only on the computer that runs EzyChat'),
   badOrigin: () => new HttpError(403, ErrorCode.BAD_ORIGIN, 'Origin does not match host'),
 };
 
