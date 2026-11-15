@@ -43,10 +43,18 @@ const connect = (cookie: string, choice: 'allow' | 'cancel' = 'allow') =>
 describe('Google Sheets routes', () => {
   it('tells a remote browser the sign-in and file picker are not available and starts neither', async () => {
     const { admin } = await setUp();
-    await expectRemoteCannotStart(t, admin, '/api/connectors/google-sheets', [
-      '/api/connectors/google-sheets/connect',
-      '/api/connectors/google-sheets/picker',
-    ]);
+    // One check for every Google connector: they share the rule.
+    for (const [name, starts] of [
+      ['google-calendar', ['connect']],
+      ['google-sheets', ['connect', 'picker']],
+      ['google-drive', ['connect', 'picker']],
+    ] as const)
+      await expectRemoteCannotStart(
+        t,
+        admin,
+        `/api/connectors/${name}`,
+        starts.map((x) => `/api/connectors/${name}/${x}`),
+      );
   });
 
   it('are admin only', async () => {

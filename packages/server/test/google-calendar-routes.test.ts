@@ -13,7 +13,6 @@ import {
   connectThroughFake,
   expectAdminOnly,
   expectCallbackHostOnly,
-  expectRemoteCannotStart,
 } from './google-connector-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -58,13 +57,6 @@ const connect = (cookie: string, choice: 'allow' | 'cancel' = 'allow') =>
   connectThroughFake(t, CALENDAR_PATHS, cookie, choice);
 
 describe('Google Calendar routes', () => {
-  it('tells a remote browser the sign-in is not available and starts none', async () => {
-    const { admin } = await setUp();
-    await expectRemoteCannotStart(t, admin, '/api/connectors/google-calendar', [
-      '/api/connectors/google-calendar/connect',
-    ]);
-  });
-
   it('are admin only', async () => {
     const { agent, agentId } = await setUp();
     await expectAdminOnly(t, agent, [
