@@ -171,6 +171,19 @@ describe('collectTakeovers', () => {
 });
 
 describe('questionsAnsweredByAi', () => {
+  it('returns nothing for an unknown agent or one without an inbox', async () => {
+    const s = await setup();
+    s.chat(A, 'One');
+    s.msg(A, T0, 'customer', 'Where are you located?');
+    s.msg(A, T0 + MIN, 'ai', 'We are in George Town.');
+    const unknown = { ...s.window, agentId: 999 };
+    expect(questionsAnsweredByAi(s.t.ctx, unknown)).toEqual([]);
+    expect(collectTakeovers(s.t.ctx, unknown)).toEqual([]);
+    s.t.ctx.db.prepare('UPDATE ai_agents SET inbox_id = NULL WHERE id = ?').run(s.agent.id);
+    expect(questionsAnsweredByAi(s.t.ctx, s.window)).toEqual([]);
+    expect(collectTakeovers(s.t.ctx, s.window)).toEqual([]);
+  });
+
   it('returns customer questions the AI answered without a hand-off', async () => {
     const s = await setup();
     s.chat(A, 'One');

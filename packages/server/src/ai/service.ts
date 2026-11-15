@@ -624,9 +624,8 @@ export function createAiService(
   const dreamAgent = (agentId: number): AgentRow => {
     if (service.draftConnection() !== 'ready' || !gateOpen())
       throw new HttpError(503, 'ai_unavailable', 'The AI connection is not ready');
-    const agent = agentOrDefault(agentId);
-    if (!agent || agent.id !== agentId)
-      throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
+    const agent = agentById(ctx.db, agentId);
+    if (!agent) throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
     return agent;
   };
   /** One dream mode model call: no tools, no retries; logs counts, ms and model, never the text. */

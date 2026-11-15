@@ -106,14 +106,7 @@ export async function checkChange(
     proposal.itemId === null
       ? (proposal.name ?? 'Dream mode')
       : (status.documents.find((d) => d.id === proposal.itemId)?.name ?? '');
-  const override =
-    proposal.target === 'instructions'
-      ? { instructions: proposal.after }
-      : proposal.target === 'handoff_rules'
-        ? { handoffRules: proposal.after }
-        : {
-            items: [{ id: proposal.itemId, name: itemName, text: proposal.after }] as PreviewItem[],
-          };
+  const override = previewOverride(proposal, itemName);
   let leaked = false;
   const preview = async (question: string): Promise<AiTryResult> => {
     if (input.budget.previews <= 0) throw new OutOfPreviews();
@@ -146,4 +139,13 @@ export async function checkChange(
     else checks.push({ name: 'regression', ok: false, detail });
   }
   return { ok: checks.every((c) => c.ok), checks };
+}
+
+/** The proposed setup as a Try-it override: the one box the change rewrites. */
+function previewOverride(proposal: DreamProposal, itemName: string) {
+  if (proposal.target === 'instructions') return { instructions: proposal.after };
+  if (proposal.target === 'handoff_rules') return { handoffRules: proposal.after };
+  return {
+    items: [{ id: proposal.itemId, name: itemName, text: proposal.after }] as PreviewItem[],
+  };
 }

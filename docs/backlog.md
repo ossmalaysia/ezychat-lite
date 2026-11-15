@@ -10,9 +10,6 @@ are listed here until they get a branch. Newest first; remove an item when its P
   `apps/desktop/src/updater/install.ts`). Still to do: show the blocked-installer result in the app's own language
   and do not offer the same version again for some days, and an owner decision on a delay before offering new
   releases (frequent releases are always new, low-reputation installers).
-- `e2e/devbuild-multi-inbox-check.mjs` fails from its second step on a fresh `--fake-wa --mode dev --max-inboxes 3`
-  server (one inbox, adding Catering answers 409), also with `main`'s copy of the script (found 2026-10-30 in a cloud
-  session while verifying PR ossmalaysia/ezychat-lite#229). Find whether the CLI start line or the limit changed.
 - **Emoji reactions: receive and show done** (branch `feat/emoji-reactions`, 2026-10-23; design
   `docs/features/emoji-reactions/design.md`). Left: (1) a live smoke against real WhatsApp of the Baileys
   mapping (`mapWAReaction`, `mapStoredReactions`: live, change, removal, group, history), still
@@ -26,11 +23,6 @@ are listed here until they get a branch. Newest first; remove an item when its P
   default save path or dialog applies). Hand check in the next test release.
 - **Flag emoji show as letters on Windows** (2026-10-22): Chrome on Windows shows 🇲🇾 as "MY" (Windows has
   no flag glyphs). Fix with a bundled country-flag font (polyfill) for the web app.
-
-- **A live event right after the conversation loads can be lost** (seen in the message-changes e2e on mobile,
-  2026-10-28; older than that change): `upsertMessageInCache` drops an event that arrives before the first
-  messages fetch has answered, and that fetch carries the older snapshot, so the bubble stays stale until the next
-  refetch. Fix idea: keep early events per chat and apply them on top of the first page.
 
 ## Ideas and next steps
 
