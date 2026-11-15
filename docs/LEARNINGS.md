@@ -30,6 +30,8 @@ into AGENTS.md.
   its tool wrapper, account-card texts, picker waiting card or route-test setup are copied: put each in one shared helper
   (`connectors/tool-run.ts`, `googleAccountTexts`, `PickerWaiting`, `connectorTestApp`) and move the older connector onto
   it in the same PR. Read the duplicated blocks with `api/duplications/show?key=<project>:<path>&pullRequest=<n>`.
+  A same-shaped test added to each connector's test file (8 lines ×2) also fails it: write it once as a loop over
+  the connectors. Find the files with `api/measures/component_tree?metricKeys=new_duplicated_lines&strategy=leaves`.
 - `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
