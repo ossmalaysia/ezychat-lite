@@ -160,6 +160,9 @@ into AGENTS.md.
   leftovers (routes, keys, guards) survive a patch-out and drift from the design.
 - Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
   a faint, half-transparent card that reads like a z-index bug.
+- Screenshot of a state the page adds below the first screen: the app scrolls inside its own container, so
+  `fullPage` captures only the viewport. Scroll the element into view (`scrollIntoViewIfNeeded`) and open the image
+  before handing it over: all six first shots of a new notice showed the page without it.
 - Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
   technical terms (AI connection, Business API, auto-block, where files are kept) go behind an `InfoTip`.
 - Format only the mock files you changed (`npx prettier --write <paths>`), never a mock's whole `src/`: the
