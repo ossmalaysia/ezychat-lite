@@ -998,6 +998,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Measure before porting to Rust (or rewriting for speed): the 2026-11-07 review found only one measurable
   hot spot (the AI leak check), fixed in TypeScript. See `docs/DEBT.md` (Open) for the numbers and the
   ranked Rust candidates.
+- A changed line that no test reaches may be dead: check before writing a test for it (Dream mode's 404 after
+  `agentOrDefault`, which already throws for an unknown id, could never run; it now reads `agentById` and is tested).
 - Changed-lines coverage counts an untested entry `main()`: put new start-up logic in an exported function
   with injectable I/O (`startArgs` in `server-host.cts`) so `main()` gains one call line, and leave
   unrelated log text alone (each touched line counts).

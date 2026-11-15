@@ -28,8 +28,7 @@ const requireAgent = (ctx: AppContext, agentId: number) => {
 
 const requireChange = (repo: DreamRepo, agentId: number, id: number): ChangeRow => {
   const change = repo.change(id);
-  if (!change || change.agentId !== agentId)
-    throw new HttpError(404, 'change_not_found', 'Unknown change');
+  if (change?.agentId !== agentId) throw new HttpError(404, 'change_not_found', 'Unknown change');
   return change;
 };
 

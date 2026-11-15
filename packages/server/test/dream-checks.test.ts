@@ -101,6 +101,21 @@ const failed = (r: { checks: { name: string; ok: boolean }[] }) =>
   r.checks.filter((c) => !c.ok).map((c) => c.name);
 
 describe('checkChange', () => {
+  it('previews an instructions change with the new instructions', async () => {
+    const s = await setup();
+    const after = 'Be kind. We open on Saturday 9 am to 1 pm.';
+    const result = await checkChange(
+      s.t.ctx,
+      s.input({
+        proposal: { ...s.input().proposal, target: 'instructions', itemId: null, after },
+        before: 'Be kind.',
+      }),
+      new AbortController().signal,
+    );
+    expect(result.ok).toBe(true);
+    expect(JSON.stringify(s.generate.mock.calls[0])).toContain(after);
+  });
+
   it('passes a fact the AI now uses to answer, without saving anything', async () => {
     const s = await setup();
     const rows = () =>

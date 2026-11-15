@@ -114,7 +114,7 @@ function roleOf(m: RawMessage, aiUserId: number): TakeoverMessage['role'] | null
 
 export function collectTakeovers(ctx: AppContext, w: Window): TakeoverChat[] {
   const agent = agentOf(ctx, w.agentId);
-  if (!agent || agent.inboxId === null) return [];
+  if (agent?.inboxId == null) return [];
   const names = inboxCustomerNames(ctx.db, agent.inboxId);
   // The AI owns the chat again: replies after this no longer belong to the take-over.
   const backToAi = ctx.db.prepare(
@@ -163,7 +163,7 @@ export function collectTakeovers(ctx: AppContext, w: Window): TakeoverChat[] {
 /** Customer questions the AI answered in the window with no hand-off or take-over (regression checks). */
 export function questionsAnsweredByAi(ctx: AppContext, w: Window): string[] {
   const agent = agentOf(ctx, w.agentId);
-  if (!agent || agent.inboxId === null) return [];
+  if (agent?.inboxId == null) return [];
   const names = inboxCustomerNames(ctx.db, agent.inboxId);
   const taken = new Set(
     triggers(ctx, w.agentId, agent.userId, agent.inboxId, { ...w }).map((t) => t.jid),
