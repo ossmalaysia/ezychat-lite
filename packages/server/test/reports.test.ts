@@ -331,23 +331,37 @@ describe('computeReport', () => {
 });
 
 describe('cachedReport', () => {
-  it('reuses a report for a minute per period and scope, then counts again', () => {
+  it('reuses a report for a minute per period and scope while nothing was written, then counts again', () => {
     chat('a@s.whatsapp.net');
     msg('a@s.whatsapp.net', at(20, '10:00'), 'customer');
     const opts = { days: 7 as const, timeZone: TZ, now: NOW };
     const first = cachedReport(db, opts);
     expect(first.totals.messagesIn).toBe(1);
-    msg('a@s.whatsapp.net', at(20, '11:00'), 'customer');
     expect(cachedReport(db, { ...opts, now: NOW + REPORT_CACHE_MS - 1 })).toBe(first);
     // Another period or scope is counted on its own.
-    expect(cachedReport(db, { ...opts, days: 30 }).totals.messagesIn).toBe(2);
-    expect(cachedReport(db, { ...opts, inboxIds: [1] }).totals.messagesIn).toBe(2);
+    expect(cachedReport(db, { ...opts, days: 30 }).totals.messagesIn).toBe(1);
+    expect(cachedReport(db, { ...opts, inboxIds: [1] }).totals.messagesIn).toBe(1);
     // After a minute (or with a clock that went back) it counts again.
-    expect(cachedReport(db, { ...opts, now: NOW + REPORT_CACHE_MS }).totals.messagesIn).toBe(2);
-    expect(cachedReport(db, { ...opts, now: NOW - 1 }).totals.messagesIn).toBe(2);
+    expect(cachedReport(db, { ...opts, now: NOW + REPORT_CACHE_MS })).not.toBe(first);
+    expect(cachedReport(db, { ...opts, now: NOW - 1 })).not.toBe(first);
     // The same inboxes in another order share one entry.
     const two = cachedReport(db, { ...opts, inboxIds: [2, 1] });
     expect(cachedReport(db, { ...opts, inboxIds: [1, 2] })).toBe(two);
+  });
+
+  it('counts again inside the minute once the database changed', () => {
+    chat('a@s.whatsapp.net');
+    const opts = { days: 7 as const, timeZone: TZ, now: NOW };
+    // Opened before the first customer wrote (e2e: another page visited Reports first).
+    expect(cachedReport(db, opts).totals.newCustomers).toBe(0);
+    msg('a@s.whatsapp.net', at(20, '10:00'), 'customer');
+    const after = cachedReport(db, { ...opts, now: NOW + 1_000 });
+    expect(after.totals).toMatchObject({ messagesIn: 1, newCustomers: 1 });
+    // A changed row (here: a send that failed) also counts as a change.
+    msg('a@s.whatsapp.net', at(20, '10:05'), 'phone');
+    expect(cachedReport(db, { ...opts, now: NOW + 2_000 }).totals.messagesOut).toBe(1);
+    db.prepare("UPDATE messages SET status = 'failed' WHERE from_me = 1").run();
+    expect(cachedReport(db, { ...opts, now: NOW + 3_000 }).totals.messagesOut).toBe(0);
   });
 });
 
