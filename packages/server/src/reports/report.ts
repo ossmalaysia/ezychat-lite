@@ -34,6 +34,12 @@ function dayStarts(days: number, timeZone: string, now: number): number[] {
   return starts;
 }
 
+/**
+ * A live message is stored a few seconds after its WhatsApp time, so the very first message of a new install
+ * (no history) is a little older than the link time it sets. Within this gap it still counts as new.
+ */
+const LINK_GRACE_MS = 30_000;
+
 export function computeReport(db: DB, opts: Options): Report {
   const days = opts.days as ReportPeriod;
   const { timeZone, now } = opts;
@@ -92,7 +98,7 @@ export function computeReport(db: DB, opts: Options): Report {
     if (
       first.fromMe !== 0 ||
       first.at < previousFrom ||
-      first.at < (linkedAt.get(first.inbox) ?? Infinity)
+      first.at < (linkedAt.get(first.inbox) ?? Infinity) - LINK_GRACE_MS
     )
       continue;
     const reply = firstReply.get(chat, first.at) as { at: number | null };

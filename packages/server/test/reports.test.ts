@@ -293,6 +293,19 @@ describe('computeReport', () => {
     expect(r.totals.newCustomers).toBe(1);
   });
 
+  it('counts the very first customer of a new install, stored a moment after WhatsApp sent it', () => {
+    // No history: the first live message is stored a few seconds after its WhatsApp time, and that
+    // stored time is the link time. The customer is still new.
+    chat('a@s.whatsapp.net');
+    msg('a@s.whatsapp.net', at(20, '10:00'), 'customer', { storedAt: at(20, '10:00') + 3_000 });
+    // A history message only a minute older than the link is still an existing customer.
+    chat('h@s.whatsapp.net');
+    msg('h@s.whatsapp.net', at(20, '09:59'), 'customer', { storedAt: at(20, '10:00') + 3_000 });
+    const r = computeReport(db, { days: 7, timeZone: TZ, now: NOW });
+    expect(r.totals.newCustomers).toBe(1);
+    expect(r.daily.find((d) => d.date === '2026-10-20')!.newCustomers).toBe(1);
+  });
+
   it('is empty before any message', () => {
     const r = computeReport(db, { days: 7, timeZone: TZ, now: NOW });
     expect(r).toMatchObject({
