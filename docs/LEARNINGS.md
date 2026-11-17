@@ -33,6 +33,8 @@ into AGENTS.md.
 - A time-based cache of counted data (`cachedReport`) also keys on whether the database changed (SQLite
   `total_changes()` + `PRAGMA data_version`, both free): a TTL alone serves a count from before the newest write, which
   users see as missing data and the full e2e as an order-dependent flake (L-23).
+- WhatsApp's message `timestamp` is a few seconds older than our own `created_at` for the same live message: never
+  compare one with the other as if they were the same clock without a small grace (`LINK_GRACE_MS` in Reports, L-24).
 - `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
