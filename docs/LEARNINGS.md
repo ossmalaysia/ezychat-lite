@@ -1358,6 +1358,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Two signed lists that share keys sign a domain prefix before the bytes (`ezychat-templates-v1\n` + file): zod
   strips unknown keys, so a validly signed list of one kind can parse as the other and replace it with an empty list.
   Give each list file its own marker field too (`catalog: "templates"`).
+- A case-insensitive (`i`) regex lists one letter case in its classes (`[a-z0-9]`, not `[A-Za-z0-9]`; SonarCloud S5869).
+  When tidying a secret-redaction pattern, add assertions for upper, lower and mixed case first so a dropped flag fails a test.
 
 ## WhatsApp / Baileys
 

@@ -21,6 +21,11 @@ it('redacts Bearer tokens but leaves prose alone', () => {
   expect(redactSecretText('Bearer secret-bearer')).toBe('Bearer [REDACTED]');
   expect(redactSecretText('the bearer of bad news arrived')).toBe('the bearer of bad news arrived');
   expect(redactSecretText('Bearer token required')).toBe('Bearer token required');
+  // Upper case, lower case and any "Bearer" spelling are all token characters (case-insensitive).
+  expect(redactSecretText('Bearer ABCDEFGHIJKLMNOPQR')).toBe('Bearer [REDACTED]');
+  expect(redactSecretText('bearer abcdefghijklmnopqr')).toBe('Bearer [REDACTED]');
+  expect(redactSecretText('BEARER ABCD1234')).toBe('Bearer [REDACTED]');
+  expect(redactSecretText('Bearer ABCDEFGH')).toBe('Bearer ABCDEFGH');
 });
 
 it('redacts a JWT whose signature ends in a dash', () => {

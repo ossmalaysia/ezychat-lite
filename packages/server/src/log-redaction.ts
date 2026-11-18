@@ -52,9 +52,9 @@ const PAT = /\bezc_pat_[A-Za-z0-9_-]{8,}/g;
 // GitHub tokens: fine-grained (github_pat_) and classic/App/OAuth (ghp_, gho_, ghu_, ghs_, ghr_).
 const GITHUB_TOKEN = /\b(?:github_pat_[A-Za-z0-9_]{8,}|gh[pousr]_[A-Za-z0-9]{8,})/g;
 const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
-// A real token shape: 16+ token characters, or 8+ with a digit or token punctuation.
-const BEARER =
-  /\bBearer\s+(?:[A-Za-z0-9._~+/=-]{16,}|(?=[A-Za-z0-9]*[._~+/=0-9-])[A-Za-z0-9._~+/=-]{8,})/gi;
+// A real token shape: 16+ token characters, or 8+ with a digit or token punctuation. The `i` flag
+// already covers upper case, so the classes list `a-z` only (SonarCloud S5869).
+const BEARER = /\bBearer\s+(?:[a-z0-9._~+/=-]{16,}|(?=[a-z0-9]*[._~+/=0-9-])[a-z0-9._~+/=-]{8,})/gi;
 // JSON-embedded token fields, also inside a stringified (escaped) JSON message.
 const JSON_TOKEN =
   /(\\?"(?:access_token|refresh_token|id_token|code_verifier|code_challenge|device_code)\\?"\s*:\s*\\?")[^"\\]*/gi;
