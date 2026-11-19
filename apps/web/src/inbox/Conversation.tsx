@@ -375,6 +375,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           onError: (e) => {
             if (e instanceof ApiError && e.code === 'translation_changed')
               toast.error(t('liveTranslate.preview.errors.changed'));
+            // The checked draft is gone (too old, used, or another text): translate it again, nothing was sent.
+            if (e instanceof ApiError && e.code === 'translation_expired') {
+              toast.error(t('liveTranslate.preview.errors.expired'));
+              setPendingSend({ text: send.typedText, quotedId });
+            }
             onSendError(e);
           },
         },

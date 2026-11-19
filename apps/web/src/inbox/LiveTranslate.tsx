@@ -574,11 +574,12 @@ type PreviewState =
   | { kind: 'refused'; item: string; became: string }
   | { kind: 'error'; code: string };
 
-const ERROR_KEY: Record<string, 'limit' | 'noAi' | 'offline' | 'off'> = {
+const ERROR_KEY: Record<string, 'limit' | 'noAi' | 'offline' | 'off' | 'error'> = {
   translate_limit: 'limit',
   ai_unavailable: 'noAi',
   network: 'offline',
   translate_off: 'off',
+  translate_failed: 'error',
 };
 
 /** What "Send" hands to the conversation: the checked text and the record the server keeps beside it. */

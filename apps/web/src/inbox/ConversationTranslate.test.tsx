@@ -67,6 +67,7 @@ let on: boolean;
 let detected: string;
 let sendWithoutPreview: boolean;
 let draftAnswer: () => Response;
+let sendAnswer: (() => Response) | null;
 const sent: Record<string, unknown>[] = [];
 const drafts: unknown[] = [];
 
@@ -81,6 +82,7 @@ beforeAll(() => {
 beforeEach(() => {
   on = true;
   detected = 'zh';
+  sendAnswer = null;
   sendWithoutPreview = false;
   sent.length = 0;
   drafts.length = 0;
@@ -118,6 +120,7 @@ beforeEach(() => {
       }
       if (method === 'POST' && url === `${chatUrl}/messages`) {
         sent.push(body);
+        if (sendAnswer) return sendAnswer();
         return json(
           { ...incoming, id: 'S1', fromMe: true, body: String(body.text), status: 'sent' },
           201,
@@ -261,5 +264,27 @@ describe('Live translate in a conversation', () => {
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toEqual({ text: 'Terima kasih.', clientId: expect.any(String) });
     expect(drafts).toHaveLength(0);
+  });
+
+  it('asks to translate again when the server says the checked draft expired, and sends nothing more', async () => {
+    sendAnswer = () =>
+      json({ error: { code: 'translation_expired', message: 'Translate again.' } }, 400);
+    open();
+    await typeAndSend('Harganya RM42.00.');
+    await userEvent.click(await screen.findByTestId('translate-send'));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    // the preview comes back with the same typed text, to translate again
+    const preview = await screen.findByTestId('translate-preview');
+    expect(within(preview).getByText('Harganya RM42.00.')).toBeTruthy();
+    await waitFor(() => expect(drafts).toHaveLength(2));
+    expect(sent).toHaveLength(1);
+  });
+
+  it('says nothing was sent when the model failed (translate_failed)', async () => {
+    draftAnswer = () => json({ error: { code: 'translate_failed', message: 'x' } }, 503);
+    open();
+    await typeAndSend('Harganya RM42.00.');
+    expect(await screen.findByText('Could not translate. Nothing was sent.')).toBeTruthy();
+    expect(sent).toHaveLength(0);
   });
 });

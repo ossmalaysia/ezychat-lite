@@ -1360,7 +1360,8 @@
         "limit": "Had harian telah digunakan ({{count}} terjemahan). Tiada apa dihantar.",
         "off": "Admin telah mematikan Terjemah langsung. Tiada apa dihantar.",
         "error": "Tidak dapat menterjemah. Tiada apa dihantar.",
-        "changed": "Terjemahan mengubah nombor, pautan atau maklumat hubungan. Tiada apa-apa dihantar."
+        "changed": "Terjemahan mengubah nombor, pautan atau maklumat hubungan. Tiada apa-apa dihantar.",
+        "expired": "Terjemahan sudah lapuk. Terjemah semula. Tiada apa-apa dihantar."
       },
       "retry": "Cuba lagi",
       "sendOriginal": "Hantar teks asal",

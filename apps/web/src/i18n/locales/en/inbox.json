@@ -1367,7 +1367,8 @@
         "limit": "Daily limit used ({{count}} translations). Nothing was sent.",
         "off": "An admin turned Live translate off. Nothing was sent.",
         "error": "Could not translate. Nothing was sent.",
-        "changed": "The translation changed a number, link or contact. Nothing was sent."
+        "changed": "The translation changed a number, link or contact. Nothing was sent.",
+        "expired": "The translation is out of date. Translate it again. Nothing was sent."
       },
       "retry": "Try again",
       "sendOriginal": "Send original instead",
