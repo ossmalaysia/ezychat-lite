@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Country flags in messages (🇲🇾, 🇸🇬 …) now show as flags on Windows. Before, Windows showed two letters such as "MY".
 - Reports now counts the very first customer who writes after you link WhatsApp as a new customer. Before, that first customer was left out of **New customers**.
 - Reports now shows a new customer or message at once. It could show the numbers from your last visit for up to a minute.
 - After an update, the EzyChat window now opens again by itself. Before, the update finished but the window stayed hidden until you opened EzyChat yourself (Windows).

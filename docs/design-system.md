@@ -105,7 +105,9 @@ Keep the explicit dark tokens and the media-query fallback identical when adjust
 
 ### Type
 
-Inter (self-hosted via `@fontsource-variable/inter`), fallback system UI stack.
+Inter (self-hosted via `@fontsource-variable/inter`), fallback system UI stack. Country flag emoji come first
+from the self-hosted "Twemoji Country Flags" font (`unicode-range` = flag characters only, `index.css`), because
+Windows has no flag glyphs; do: keep it first in `--font-sans`; don't: load it from a CDN (CSP `font-src 'self'`).
 Scale: 12 (meta), 13 (dense lists), 14 (body, chips), 15 (list names and sheet rows on phones), 16 (inputs,
 mobile body), 18/20 (titles; 20 semibold for the phone app bar).
 Inputs are **≥16px** on mobile to avoid iOS zoom.
