@@ -2,18 +2,13 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Message } from '@ezychat/shared';
+import type { ChatTranslateState, LiveTranslateStatus, Message } from '@ezychat/shared';
 import {
   ChatTranslateContext,
   chatStateKey,
   statusKey,
   type ChatTranslateContextValue,
 } from '../api/live-translate';
-import type {
-  ChatTranslateState,
-  LiveTranslateStatus,
-  TranslatableMessage,
-} from '../api/live-translate-types';
 import {
   BubbleText,
   SendPreview,
@@ -100,7 +95,7 @@ const wrap = (node: React.ReactNode) => (
   <QueryClientProvider client={client}>{node}</QueryClientProvider>
 );
 
-const msg = (over: Partial<TranslatableMessage>): TranslatableMessage =>
+const msg = (over: Partial<Message>): Message =>
   ({
     id: 'm1',
     chatJid: JID,
@@ -121,9 +116,9 @@ const msg = (over: Partial<TranslatableMessage>): TranslatableMessage =>
     clientId: null,
     reactions: [],
     ...over,
-  }) as Message as TranslatableMessage;
+  }) as Message;
 
-function bubble(m: TranslatableMessage, ctx: Partial<ChatTranslateContextValue> = {}) {
+function bubble(m: Message, ctx: Partial<ChatTranslateContextValue> = {}) {
   const value: ChatTranslateContextValue = {
     active: true,
     my: 'ms',

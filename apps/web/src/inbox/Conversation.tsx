@@ -38,7 +38,6 @@ import {
   useShowOriginals,
   type ChatTranslateContextValue,
 } from '../api/live-translate';
-import type { TranslatableMessage } from '../api/live-translate-types';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
@@ -340,12 +339,7 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const translateOn = !!translateStatus.data?.enabled && !!chatTranslate.data?.on;
   // Replies go out in the customer's language (shared by the team); in a group, in the group's one language.
   const customerLang = outgoingLanguageOf(chatTranslate.data, chat?.type === 'group');
-  const translations = useChatTranslations(
-    jid,
-    messages as readonly TranslatableMessage[],
-    myLang,
-    translateOn,
-  );
+  const translations = useChatTranslations(jid, messages, myLang, translateOn);
   const translateContext = useMemo<ChatTranslateContextValue>(
     () => ({
       active: translateOn,

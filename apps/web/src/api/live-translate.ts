@@ -16,24 +16,25 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query';
-import type { Locale } from '@ezychat/shared';
 import { useAuth } from '../auth/AuthProvider';
 import { useLocale } from '@/i18n/locale-store';
 import { api, ApiError } from './client';
 import { qk } from './queries';
 import {
   TRANSLATE_LANGUAGES,
+  TRANSLATE_LANGUAGE_NAMES,
+  translateLanguageForLocale,
   type ChatTranslateBody,
   type ChatTranslateState,
   type LiveTranslateSettings,
   type LiveTranslateStatus,
-  type MeTranslate,
+  type Message,
   type MessageTranslation,
-  type TranslatableMessage,
   type TranslateDraft,
   type TranslateLanguage,
   type TranslationsResponse,
-} from './live-translate-types';
+  type MeResponse,
+} from '@ezychat/shared';
 
 export { TRANSLATE_LANGUAGES };
 export type { TranslateLanguage };
@@ -41,21 +42,7 @@ export type { TranslateLanguage };
 const enc = encodeURIComponent;
 
 /** Each language in its own name (the pickers show these). */
-export const NATIVE: Record<TranslateLanguage, string> = {
-  ms: 'Bahasa Melayu',
-  en: 'English',
-  zh: '中文',
-  id: 'Bahasa Indonesia',
-  ta: 'தமிழ்',
-  th: 'ไทย',
-  vi: 'Tiếng Việt',
-  ar: 'العربية',
-  ja: '日本語',
-  ko: '한국어',
-};
-
-/** My language until I pick one: the app language (design rule 1). */
-const FROM_APP_LOCALE: Record<Locale, TranslateLanguage> = { en: 'en', ms: 'ms', 'zh-CN': 'zh' };
+export const NATIVE = TRANSLATE_LANGUAGE_NAMES;
 
 export const statusKey = ['live-translate', 'status'] as const;
 export const chatStateKey = (jid: string) => ['live-translate', 'chat', jid] as const;
@@ -85,10 +72,11 @@ export function useSetLiveTranslateSettings() {
 export function useMyTranslate() {
   const { user } = useAuth();
   const locale = useLocale();
-  const me = user as (typeof user & MeTranslate) | null;
+  // `/api/me` parses with MeResponse, so the two Live translate fields are there at runtime.
+  const me = user as MeResponse | null;
   const chosen = me?.translateLanguage ?? null;
   return {
-    myLanguage: chosen ?? FROM_APP_LOCALE[locale],
+    myLanguage: chosen ?? translateLanguageForLocale(locale),
     myLanguageSet: chosen !== null,
     sendWithoutPreview: me?.sendWithoutPreview === true,
   };
@@ -178,14 +166,14 @@ export interface ChatTranslateContextValue {
 
 export const ChatTranslateContext = createContext<ChatTranslateContextValue | null>(null);
 
-export function useBubbleTranslation(m: TranslatableMessage) {
+export function useBubbleTranslation(m: Message) {
   const ctx = useContext(ChatTranslateContext);
   if (!ctx) return null;
   return { ctx, tr: ctx.translations[m.id] ?? null };
 }
 
 /** Texts that need a translation: with a typed record the writer's own text is already known, so no call. */
-export function needsTranslation(m: TranslatableMessage): boolean {
+export function needsTranslation(m: Message): boolean {
   return (
     !!m.body &&
     !m.id.startsWith('local-') &&
@@ -205,7 +193,7 @@ const BATCH = 50;
  */
 export function useChatTranslations(
   jid: string,
-  messages: readonly TranslatableMessage[],
+  messages: readonly Message[],
   my: TranslateLanguage,
   active: boolean,
 ) {
@@ -295,14 +283,14 @@ export function useChatTranslations(
 /** What this tab already holds of a chat's translations, for one chat-list row. */
 function cachedLastTranslation(
   qc: QueryClient,
-  me: (MeTranslate & { id?: number }) | null | undefined,
-  locale: Locale,
+  me: MeResponse | null | undefined,
+  locale: string,
   jid: string,
   preview: string | null,
 ): string | null {
   if (!preview) return null;
   if (!qc.getQueryData<ChatTranslateState>(chatStateKey(jid))?.on) return null;
-  const my = me?.translateLanguage ?? FROM_APP_LOCALE[locale];
+  const my = me?.translateLanguage ?? translateLanguageForLocale(locale);
   const cache = qc.getQueryData<EntryMap>(translationsKey(jid, my));
   if (!cache) return null;
   const head = preview.replace(/…$/, '');
@@ -342,7 +330,7 @@ export function useCachedLastTranslations(
   return useMemo(() => {
     const out = new Map<string, string>();
     if (!qc) return out;
-    const me = qc.getQueryData<(MeTranslate & { id?: number }) | null>(qk.me);
+    const me = qc.getQueryData<MeResponse | null>(qk.me);
     for (const c of chats) {
       const text = cachedLastTranslation(qc, me, locale, c.jid, c.lastMessagePreview);
       if (text) out.set(c.jid, text);

@@ -63,16 +63,14 @@ import {
   type Settings,
   type SettingsPatchBody,
   type TunnelStartBody,
+  MeResponse,
+  type SendTranslation,
+  type TranslateLanguage,
   type TunnelStatus,
   type User,
   type WaStatus,
 } from '@ezychat/shared';
 import { ApiError, api, apiUpload } from './client';
-import {
-  MeWithTranslate,
-  type SendTranslation,
-  type TranslateLanguage,
-} from './live-translate-types';
 import { setUploadProgress } from '@/lib/upload-progress';
 import { randomUuid } from '@/lib/random-id';
 import { unsubscribePush } from '../pwa/push';
@@ -375,7 +373,7 @@ export function useMe() {
     queryKey: qk.me,
     queryFn: async (): Promise<User | null> => {
       try {
-        return await api('/me', { schema: MeWithTranslate });
+        return await api('/me', { schema: MeResponse });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return null;
         throw e;
@@ -401,8 +399,8 @@ export function useSetupAdmin() {
   return useMutation({
     mutationFn: (body: SetupAdminBody) => api<unknown>('/setup/admin', { method: 'POST', body }),
     onSuccess: async (data) => {
-      const parsed = MeWithTranslate.safeParse(data);
-      const parsedNested = MeWithTranslate.safeParse((data as { user?: unknown } | null)?.user);
+      const parsed = MeResponse.safeParse(data);
+      const parsedNested = MeResponse.safeParse((data as { user?: unknown } | null)?.user);
       if (parsed.success) qc.setQueryData(qk.me, parsed.data);
       else if (parsedNested.success) qc.setQueryData(qk.me, parsedNested.data);
       qc.setQueryData(qk.setupStatus, { needsSetup: false });
@@ -416,12 +414,12 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (body: LoginBody): Promise<User | null> => {
       const data = await api<unknown>('/auth/login', { method: 'POST', body });
-      const parsed = MeWithTranslate.safeParse(data);
+      const parsed = MeResponse.safeParse(data);
       if (parsed.success) return parsed.data;
-      const nested = MeWithTranslate.safeParse((data as { user?: unknown } | null)?.user);
+      const nested = MeResponse.safeParse((data as { user?: unknown } | null)?.user);
       if (nested.success) return nested.data;
       // Server didn't echo the user — ask for it.
-      return api('/me', { schema: MeWithTranslate });
+      return api('/me', { schema: MeResponse });
     },
     onSuccess: (user) => {
       qc.setQueryData(qk.me, user);
@@ -471,7 +469,7 @@ export function useSetMyLocale() {
       api('/me', {
         method: 'PATCH',
         body: { locale } satisfies PatchMeBody,
-        schema: MeWithTranslate,
+        schema: MeResponse,
       }),
     onSuccess: (user) => qc.setQueryData(qk.me, user),
   });

@@ -44,7 +44,7 @@ import {
   useSetMyTranslate,
   type TranslateLanguage as Lang,
 } from '@/api/live-translate';
-import type { TranslatableMessage, TranslateDraft } from '@/api/live-translate-types';
+import type { Message, TranslateDraft } from '@ezychat/shared';
 
 /** Header button: turns Live translate on or off for this chat, for me only. Hidden while an admin has it off. */
 export function TranslateHeaderButton({ jid, className }: { jid: string; className?: string }) {
@@ -426,7 +426,7 @@ export function BubbleText({
   render,
   className,
 }: {
-  m: TranslatableMessage;
+  m: Message;
   render(text: string): React.ReactNode;
   className?: string;
 }) {

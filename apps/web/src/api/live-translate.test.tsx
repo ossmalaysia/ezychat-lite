@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Message } from '@ezychat/shared';
+import type { ChatTranslateState, Message } from '@ezychat/shared';
 import {
   chatStateKey,
   customerLanguageOf,
@@ -13,7 +13,6 @@ import {
   useMyTranslate,
   useShowOriginals,
 } from './live-translate';
-import type { ChatTranslateState, TranslatableMessage } from './live-translate-types';
 import { qk } from './queries';
 
 const auth = vi.hoisted(() => ({ user: null as Record<string, unknown> | null }));
@@ -39,7 +38,7 @@ const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
   return json({});
 });
 
-const m = (id: string, over: Partial<TranslatableMessage> = {}): TranslatableMessage =>
+const m = (id: string, over: Partial<Message> = {}): Message =>
   ({
     id,
     chatJid: JID,
@@ -47,7 +46,7 @@ const m = (id: string, over: Partial<TranslatableMessage> = {}): TranslatableMes
     type: 'text',
     body: `text ${id}`,
     ...over,
-  }) as Message as TranslatableMessage;
+  }) as Message;
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={client}>{children}</QueryClientProvider>
