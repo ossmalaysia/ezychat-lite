@@ -263,6 +263,11 @@ Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.m
 
 [MIT](LICENSE) © 2026 OSS Malaysia and contributors
 
+Country flag emoji come from the "Twemoji Country Flags" font
+([country-flag-emoji-polyfill](https://github.com/talkjs/country-flag-emoji-polyfill), MIT); the flag art is
+[Twemoji](https://github.com/twitter/twemoji) by Twitter, Inc. and other contributors, licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ---
 
 Built and maintained by [Anchor Sprint](https://www.anchorsprint.com). Need a custom feature?

@@ -49,6 +49,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cn": "^0.5.0",
+    "country-flag-emoji-polyfill": "0.1.10",
     "date-fns": "^4.4.0",
     "i18next": "^27.1.1",
     "lucide-react": "^1.71.0",
