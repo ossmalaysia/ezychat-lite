@@ -609,10 +609,12 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                   blocked
                     ? t('conversation.placeholderBlocked')
                     : translateReplies && customerLang
-                      ? t('liveTranslate.composer.placeholder', {
-                          my: NATIVE[myLang],
-                          customer: NATIVE[customerLang],
-                        })
+                      ? t(
+                          wideComposer
+                            ? 'liveTranslate.composer.placeholder'
+                            : 'liveTranslate.composer.placeholderShort',
+                          { my: NATIVE[myLang], customer: NATIVE[customerLang] },
+                        )
                       : wideComposer
                         ? t('conversation.placeholder')
                         : t('composer.placeholder')

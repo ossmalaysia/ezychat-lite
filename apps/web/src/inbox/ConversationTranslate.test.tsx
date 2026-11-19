@@ -183,7 +183,7 @@ describe('Live translate in a conversation', () => {
     expect(within(log).getByText('Translated from 中文')).toBeTruthy();
     expect(screen.getByTestId('translate-bar')).toBeTruthy();
     expect(
-      await screen.findByPlaceholderText('You type Bahasa Melayu, the customer gets 中文'),
+      await screen.findByPlaceholderText('Type in Bahasa Melayu → 中文'),
     ).toBeTruthy();
   });
 

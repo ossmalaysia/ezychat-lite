@@ -1282,7 +1282,8 @@
     "buttonOn": "Terjemah langsung aktif dalam sembang ini (untuk anda sahaja). Ketik untuk matikan.",
     "buttonOff": "Terjemah langsung: baca dan balas dalam bahasa anda",
     "composer": {
-      "placeholder": "Anda taip {{my}}, pelanggan terima {{customer}}"
+      "placeholder": "Anda taip {{my}}, pelanggan terima {{customer}}",
+      "placeholderShort": "Taip dalam {{my}} → {{customer}}"
     },
     "hint": {
       "text": "Pelanggan menulis dalam {{customer}}",

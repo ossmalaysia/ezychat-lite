@@ -1282,7 +1282,8 @@
     "buttonOn": "此聊天已开启实时翻译（仅对你）。点击关闭。",
     "buttonOff": "实时翻译：用你自己的语言阅读和回复",
     "composer": {
-      "placeholder": "你用{{my}}输入，客户收到{{customer}}"
+      "placeholder": "你用{{my}}输入，客户收到{{customer}}",
+      "placeholderShort": "用{{my}}输入 → {{customer}}"
     },
     "hint": {
       "text": "客户使用{{customer}}书写",

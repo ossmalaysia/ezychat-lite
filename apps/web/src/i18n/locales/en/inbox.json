@@ -1289,7 +1289,8 @@
     "buttonOn": "Live translate is on in this chat (only for you). Tap to turn off.",
     "buttonOff": "Live translate: read and reply in your own language",
     "composer": {
-      "placeholder": "You type {{my}}, the customer gets {{customer}}"
+      "placeholder": "You type {{my}}, the customer gets {{customer}}",
+      "placeholderShort": "Type in {{my}} → {{customer}}"
     },
     "hint": {
       "text": "Customer writes in {{customer}}",

@@ -132,9 +132,10 @@ test('a teammate reads a customer in their language, checks the translation, and
 
   // Send shows what the customer will get; nothing is sent until the person agrees.
   const composer = page.getByLabel('Message', { exact: true });
+  // Phones get the short placeholder.
   await expect(composer).toHaveAttribute(
     'placeholder',
-    'You type Bahasa Melayu, the customer gets 中文',
+    /You type Bahasa Melayu, the customer gets 中文|Type in Bahasa Melayu → 中文/,
   );
   await composer.fill('Satu kotak RM42.00.');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
