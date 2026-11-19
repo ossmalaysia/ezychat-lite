@@ -309,7 +309,7 @@ the signed-in user (team members: the inbox read tools of their own inboxes; adm
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
-Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
+Setup as a conversation (decisions `docs/ask-ezy.md` §5; archived design `git show a09e3a9b:docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
 optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
 question and card back into the assistant's history line. Setup runs on the **main model**: an admin's normal (fast)
 turn offers only `start_setup` (no arguments); calling it ends the fast turn and the same request (same history) reruns

@@ -171,6 +171,16 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   the same Tags editor (bottom sheet on phones, dialog on desktop): search or type to add, tick to keep, **Done**.
   Never a coloured or bordered tag, and never a second way to edit them. — mobile-redesign `14-chat-header`,
   `24-group-tags-saved`, `25-group-info-tags`, `32-desktop-group-info-tags`
+- **Translated text** (proposed, live-translate; not confirmed yet): a translated bubble shows the text in the
+  reader's language with one `text-[11px] text-muted-foreground` line under it: the languages icon, "Translated from
+  中文" and a `link` button "Show original"; the original opens inside the same bubble in a `bg-muted/60` block with a
+  left rule, never replacing the translation. Don't colour or badge translated bubbles, and don't hide that a text was
+  translated. — live-translate `03-chat-on`, `04-show-original`
+- **Check before sending** (proposed, live-translate): a card above the composer (like the reply bar), never a dialog:
+  what was typed, the editable result in the outbound colour, what it means, a primary send button that names the
+  language, a ghost way out ("Send in Bahasa Melayu instead") and ✕ Discard. Failures use an inline `Banner` in the
+  card and keep the way out; nothing is sent until a button is pressed. — live-translate `07-preview`,
+  `12-preview-refused`
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.
 - **Loading** uses `Skeleton` rows, not spinners, for lists.
 - **Upload progress** of a file this browser sends sits at the top of its pending bubble, above the file's
