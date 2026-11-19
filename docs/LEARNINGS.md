@@ -1493,6 +1493,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
+  `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
+  translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.
+- A row keyed by a message id with no foreign key must follow `MessageRepo.rename` (the optimistic `local-…` id becomes
+  WhatsApp's id after the send) and be in `DELETE_PLAN`; test the rename, not only the insert.
 - A step that silently drops a model's result (dream mode's checks, draft and phrase filters) logs which check dropped
   it, by name and fixed detail only, never the text: with counts alone the owner's first real-model test ("Dropped by
   the checks: 1") could not be diagnosed. A dev "run now" must not share the nightly window: dream mode's started

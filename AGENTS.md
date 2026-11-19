@@ -299,6 +299,24 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
+**Live translate** (design `docs/features/live-translate/design.md`, lasting rules and decision log
+`docs/live-translate.md`: read it before changing Live translate and add a decision line when you change a rule).
+Migration 046, `live-translate/` (`repo.ts` is its only SQL, `service.ts`, `routes.ts`), shared contract
+`packages/shared/src/live-translate.ts`. Admin switch `live_translate` {enabled (default on), dailyLimit (200, 0 =
+none)} at `PUT /api/live-translate/settings` (audit `settings.live_translate` before/after), status for everyone at
+`GET /api/live-translate`; My language and Send without preview on `PATCH /api/me` (`users.translate_language`, audit
+`user.translate_language`). Per chat (`chatJidParam`, 404 outside access): `GET/PUT /chats/:jid/live-translate` (my
+switch; the customer or group language is shared), `POST …/translations` (≤ 50 ids, cached per message, revision and
+target; the 70 % rule `shareInLanguage`; 120 a minute) and `POST …/translate-draft` (60 a minute; 409 `translate_off`,
+429 `translate_limit`, 503 `ai_unavailable` / `translate_failed`). `AiService.translate` (`ai/translate-prompt.ts`): one
+structured `draft` call on the "Model for suggestions" with the fixed `TRANSLATE_RULES`, no tools, no retries, no
+back-translation. Protected items (`protectedItems` / `changedItem`) must come through unchanged: else the incoming
+translation is `unsafe` (never shown), the draft `refused`, the send 400 `translation_changed`. A send carries
+`translation {draftId, typedText, typedLanguage, edited}` or `sentOriginal`; `message_typed` is stored in the message's
+insert transaction, follows the id rename, and `present()` adds `Message.typed` / `sentOriginal`. New tables are in
+`DELETE_PLAN`, `CHAT_TABLES`, the alias merge and the Lite import. Logs `live_translate`: counts, language codes, ms,
+model, result only.
+
 **Ask Ezy** (design and decision log `docs/ask-ezy.md`: read it before changing Ask Ezy and add a decision line when you change a rule). An in-app assistant
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
