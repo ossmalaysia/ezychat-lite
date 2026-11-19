@@ -38,3 +38,4 @@ export * from './scheduled-tasks.js';
 export * from './dream.js';
 export * from './new-chat.js';
 export * from './forward.js';
+export * from './live-translate.js';
