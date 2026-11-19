@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "live-translate",
+      "creationOrder": 47,
+      "createdAt": "2026-11-19",
+      "design": "docs/features/live-translate/design.md",
+      "mock": "docs/features/live-translate/mock/index.html",
+      "status": "proposal-owner-decisions",
+      "baselineFeature": "app-navigation",
+      "baselineGitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
+      "coverage": "Full app clone of the confirmed app-navigation reference; Live translate as decided by the owner 2026-11-19 (same labels and protected items as Cloud PR #107): Translate button per person and chat, bar (customer language shared per chat, detected, mixed \"中文 + English\", Show originals, Languages popover with usage and Turn off), translated bubbles (Translated from … · Show original; 70 % rule keeps mostly-Malay text), Customer will get · 中文 preview (no back-translation; Kept unchanged chips; Send, Edit translation, Send original instead, Keep editing), Sent in … · Show sent text, Written in … · Show what was typed, Sent without translation, refused (RM1,260.00 became RM4,260.00), daily limit used, no connection, no AI, failed with Try again, off-state hint, group with one outgoing language, admin switch off, Send without preview; Settings → AI card (for everyone, daily limit 200), Account → My language and Send without preview; desktop 1280 / phone 360, light/dark, en/ms/zh-CN (translate-shots.mjs, 43 shots).",
+      "note": "Requested 2026-11-19 (Lite, Enterprise, Cloud). Owner decisions 1-10 relayed 2026-11-19 and applied; the updated mock itself is not confirmed yet, so latestConfirmed stays app-navigation. Removes ask-ezy-setup (oldest counted folder; decisions in docs/ask-ezy.md) for retention; template-store stays (live tooling)."
+    },
+    {
       "feature": "dream-mode",
       "creationOrder": 46,
       "createdAt": "2026-11-14",
@@ -784,6 +796,20 @@
       "archivedAt": "2026-11-14",
       "archivedRevision": "ee978fa4f6ce76f5d46795bfe719521c5ad9c147",
       "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
+    },
+    {
+      "feature": "ask-ezy-setup",
+      "createdAt": "2026-11-12",
+      "design": "docs/features/ask-ezy-setup/design.md",
+      "mock": "docs/features/ask-ezy-setup/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-12",
+      "confirmation": "Owner (Jazz) confirmed the quick mock on 2026-11-12 (\"look good, implement\").",
+      "note": "Quick mock (not an app clone); lasting decisions live in docs/ask-ezy.md section 5.",
+      "archived": true,
+      "archivedAt": "2026-11-19",
+      "archivedRevision": "a09e3a9b9ac0d4ecef5e53c8c495c5aef0872002",
+      "archivedBy": "five-folder retention (live-translate)"
     }
   ]
 }

@@ -255,6 +255,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
 
+- Retention counts every feature folder in `docs/features/` (except the README, index and live tooling), also one
+  that has no entry in `mock-index.json` (ask-ezy-setup had none): date it with `git log --diff-filter=A`, and before
+  pruning point AGENTS.md and code links at its lasting doc or a `git show <rev>:<path>` reference.
+- Phone shot scripts (`isMobile`, `hasTouch`) press the composer's Send button: Enter adds a new line on touch, so a
+  step that waits for what Enter opens times out only in the 360 px pass.
 - Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
   that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
   so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
@@ -2226,6 +2231,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   backdrop (a ref), not handlers on plain `<div>`/`<img>` with `stopPropagation`: SonarCloud counts each click handler
   on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
   button already serve keyboard users.
+
+- A new chat-header button squeezes the assignee select at 360 px (the action row has no room left): show it beside the
+  name on narrow headers (`@2xl:hidden` copy) and in the action row from `@2xl`, icon-only below `@4xl`.
 
 ## Internationalization
 
