@@ -1282,5 +1282,96 @@
     "confirm": "Block",
     "done": "Number blocked.",
     "isBlocked": "This number is blocked on WhatsApp."
+  },
+  "liveTranslate": {
+    "button": "Live translate",
+    "buttonShort": "Translate",
+    "buttonOn": "Live translate is on in this chat (only for you). Tap to turn off.",
+    "buttonOff": "Live translate: read and reply in your own language",
+    "composer": {
+      "placeholder": "You type {{my}}, the customer gets {{customer}}"
+    },
+    "hint": {
+      "text": "Customer writes in {{customer}}",
+      "dismiss": "Not now"
+    },
+    "bar": {
+      "label": "Live translate",
+      "pair": "{{customer}} → {{my}}",
+      "groupPair": "Members → {{my}} · replies in {{out}}",
+      "unknown": "Customer's language",
+      "detected": "detected",
+      "showOriginals": "Show originals",
+      "languages": "Languages",
+      "languagesTitle": "Live translate in this chat",
+      "customerWrites": "Customer writes in",
+      "auto": "Detect",
+      "autoDetected": "{{lang}} (detected)",
+      "autoCommon": "{{lang}} (most used here)",
+      "customerHelp": "Shared with your team. Your replies go out in this language.",
+      "groupGets": "Replies go to the group in",
+      "groupHelp": "One language for the whole group, shared with your team.",
+      "youWrite": "You write in",
+      "youHelp": "Your language for every chat. Also in Account.",
+      "usage": "Today: {{used}} of {{limit}} translations",
+      "usageNoLimit": "Today: {{used}} translations",
+      "turnOff": "Turn off Live translate",
+      "noConnection": "Live translate needs AI. Ask an admin to connect AI in Settings → AI.",
+      "limit": "Daily limit used. Messages show as they were sent until tomorrow.",
+      "same": "This customer writes in your language. Nothing to translate.",
+      "notDetected": "We'll know the customer's language from their next message, or choose it under Languages.",
+      "groupNote": "Each member's messages are translated from their own language.",
+      "offline": "Cannot translate. No connection. Messages show as they were sent."
+    },
+    "bubble": {
+      "translatedFrom": "Translated from {{lang}}",
+      "showOriginal": "Show original",
+      "hide": "Hide",
+      "originalLabel": "Original",
+      "translating": "Translating…",
+      "retry": "Try again",
+      "failed": {
+        "error": "Could not translate",
+        "unsafe": "Could not translate safely",
+        "limit": "Not translated: daily limit used",
+        "ai": "Not translated: Live translate needs AI",
+        "offline": "Not translated: no connection"
+      },
+      "sentIn": "Sent in {{lang}}",
+      "showSent": "Show sent text",
+      "sentLabel": "Sent text",
+      "writtenIn": "Written in {{lang}}",
+      "showTyped": "Show what was typed",
+      "typedLabel": "What was typed",
+      "typedEdited": "What was typed (translation edited before sending)",
+      "sentOriginal": "Sent without translation"
+    },
+    "preview": {
+      "title": "Customer will get · {{lang}}",
+      "close": "Keep editing",
+      "youWrote": "You wrote ({{lang}})",
+      "editMine": "Change",
+      "translateAgain": "Translate again",
+      "translating": "Translating into {{lang}}…",
+      "sending": "Translating into {{lang}} and sending…",
+      "edit": "Edit translation",
+      "done": "Done",
+      "editLabel": "Edit the translation",
+      "edited": "edited",
+      "kept": "Kept unchanged:",
+      "refusedTitle": "Not sent",
+      "refused": "{{item}} became {{became}}. Nothing was sent.",
+      "errors": {
+        "offline": "Cannot translate. No connection. Nothing was sent.",
+        "noAi": "Live translate needs AI. Ask an admin to connect AI in Settings → AI. Nothing was sent.",
+        "limit": "Daily limit used ({{count}} translations). Nothing was sent.",
+        "off": "An admin turned Live translate off. Nothing was sent.",
+        "error": "Could not translate. Nothing was sent.",
+        "changed": "The translation changed a number, link or contact. Nothing was sent."
+      },
+      "retry": "Try again",
+      "sendOriginal": "Send original instead",
+      "send": "Send"
+    }
   }
 }

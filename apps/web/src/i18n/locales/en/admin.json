@@ -3267,5 +3267,18 @@
     "limitNone": "No limit: your team and AI assistants can message as many new numbers a day as they like.",
     "limitBanTitle": "A high limit can get your number banned",
     "limitBanBody": "WhatsApp can ban a number that messages many people who did not ask for it. Keep the limit low unless these people expect your message."
+  },
+  "liveTranslate": {
+    "title": "Live translate",
+    "description": "Your team reads and replies in their own language. Customers' messages show translated, and replies go out in the customer's language.",
+    "enable": "Live translate for everyone",
+    "enableHelp": "All staff may use it. Each person turns it on per chat with the Translate button in the chat header; it stays off in every chat until they do. Turn this off to stop it for everyone.",
+    "limit": "Daily limit per person",
+    "limitHelp": "Default 200; 0 = no limit. Each translated message and each sent translation counts once; a message already translated is free.",
+    "privacy": "Message text goes to your AI connection (the \"Model for suggestions\") to be translated. EzyChat's logs keep only counts and languages, never the text. Customers never see a \"translated\" mark.",
+    "usage_one": "Today: {{count}} translation by {{people}} people",
+    "usage_other": "Today: {{count}} translations by {{people}} people",
+    "noConnection": "Connect AI above first. Until then, chats show messages as they were sent.",
+    "languages": "People choose their own language in Account → My language."
   }
 }

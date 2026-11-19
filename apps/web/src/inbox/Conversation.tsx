@@ -27,6 +27,18 @@ import { acceptedWords, type ReplyPhraseListItem } from '@ezychat/shared';
 import { usePhraseList, useReplySuggestionsStatus } from '../api/reply-suggestions';
 import { addTeamWord, teamWordsKey, useFixEnglishStatus, useTeamWords } from '../api/fix-english';
 import { useGroupChatAi } from '../api/ai-groups';
+import {
+  ChatTranslateContext,
+  NATIVE,
+  outgoingLanguageOf,
+  useChatTranslate,
+  useChatTranslations,
+  useLiveTranslateStatus,
+  useMyTranslate,
+  useShowOriginals,
+  type ChatTranslateContextValue,
+} from '../api/live-translate';
+import type { TranslatableMessage } from '../api/live-translate-types';
 import { useRealtime } from '../api/socket';
 import { i18n } from '@/i18n';
 import { toast } from 'sonner';
@@ -61,6 +73,13 @@ import { assistantStartedChat } from './assistant-started';
 import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
 import { useInboxOfChat } from './useVisibleInboxes';
+import {
+  SendPreview,
+  TranslateBar,
+  TranslateHeaderButton,
+  TranslateHint,
+  type PreviewSend,
+} from './LiveTranslate';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
 import { ReplyWindowNote, WindowClosedPanel } from './ReplyWindow';
 import { SafetyChatBar } from './SafetyMessage';
@@ -313,6 +332,64 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   // The time windows are read when a bubble renders; the server checks them again.
   const rightsOf = useCallback((m: Message) => messageRights(m, me, caps, Date.now()), [me, caps]);
 
+  // Live translate: my switch in this chat, my language and the translations of its bubbles.
+  const translateStatus = useLiveTranslateStatus();
+  const chatTranslate = useChatTranslate(jid);
+  const { myLanguage: myLang, sendWithoutPreview } = useMyTranslate();
+  const [showOriginals, setShowOriginals] = useShowOriginals(jid);
+  const translateOn = !!translateStatus.data?.enabled && !!chatTranslate.data?.on;
+  // Replies go out in the customer's language (shared by the team); in a group, in the group's one language.
+  const customerLang = outgoingLanguageOf(chatTranslate.data, chat?.type === 'group');
+  const translations = useChatTranslations(
+    jid,
+    messages as readonly TranslatableMessage[],
+    myLang,
+    translateOn,
+  );
+  const translateContext = useMemo<ChatTranslateContextValue>(
+    () => ({
+      active: translateOn,
+      my: myLang,
+      showOriginals,
+      translations: translations.translations,
+      pending: translations.pending,
+      retry: translations.retry,
+    }),
+    [translateOn, myLang, showOriginals, translations],
+  );
+  // Replies are translated when the chat's language is known and is not mine (never a message that tags members).
+  const translateReplies = translateOn && customerLang !== null && customerLang !== myLang;
+  const [pendingSend, setPendingSend] = useState<{ text: string; quotedId?: string } | null>(null);
+  useEffect(() => setPendingSend(null), [jid]);
+  const sendTranslated = useCallback(
+    (quotedId: string | undefined, send: PreviewSend) => {
+      if (!customerLang) return;
+      sendText.mutate(
+        {
+          text: send.text,
+          clientId: newClientId(),
+          quotedId,
+          sentLanguage: customerLang,
+          translation: {
+            draftId: send.draftId,
+            typedText: send.typedText,
+            typedLanguage: myLang,
+            edited: send.edited,
+          },
+        },
+        {
+          onError: (e) => {
+            if (e instanceof ApiError && e.code === 'translation_changed')
+              toast.error(t('liveTranslate.preview.errors.changed'));
+            onSendError(e);
+          },
+        },
+      );
+      setPendingSend(null);
+    },
+    [customerLang, myLang, sendText, onSendError, t],
+  );
+
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = messagesQ;
   const loadOlder = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
@@ -388,6 +465,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
         onFiles={(files) => composerRef.current?.addFiles(files)}
       >
         <ConversationHeader
+          translateNarrow={<TranslateHeaderButton jid={jid} className="@2xl:hidden" />}
+          translateWide={<TranslateHeaderButton jid={jid} className="hidden @2xl:inline-flex" />}
           chat={chat}
           directory={directory}
           inbox={inboxOf(chat.inboxId)}
@@ -430,6 +509,13 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           onDelete={me?.role === 'admin' ? () => setDeletingChat(true) : undefined}
         />
         <SafetyChatBar jid={jid} />
+        {/* Live translate: languages and Show originals, while it is on in this chat. */}
+        <TranslateBar
+          jid={jid}
+          isGroup={chat.type === 'group'}
+          showOriginals={showOriginals}
+          onShowOriginals={setShowOriginals}
+        />
         {startedByAssistant && (
           <Banner
             tone="warning"
@@ -441,25 +527,27 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             </span>
           </Banner>
         )}
-        <MessageList
-          items={items}
-          messagesById={messagesById}
-          isGroup={chat.type === 'group'}
-          directory={directory}
-          loading={messagesQ.isPending}
-          hasOlder={!!hasNextPage}
-          loadingOlder={isFetchingNextPage}
-          onLoadOlder={loadOlder}
-          onRetry={onRetry}
-          retryingId={retryingId}
-          onReply={setReplyTo}
-          onReact={onReact}
-          reactDisabledReason={blocked || queued ? t('message.reactions.notConnected') : null}
-          contactName={contactName}
-          changes={changes}
-          onOpenQuote={openQuote}
-          jumpTo={jumpTarget}
-        />
+        <ChatTranslateContext.Provider value={translateContext}>
+          <MessageList
+            items={items}
+            messagesById={messagesById}
+            isGroup={chat.type === 'group'}
+            directory={directory}
+            loading={messagesQ.isPending}
+            hasOlder={!!hasNextPage}
+            loadingOlder={isFetchingNextPage}
+            onLoadOlder={loadOlder}
+            onRetry={onRetry}
+            retryingId={retryingId}
+            onReply={setReplyTo}
+            onReact={onReact}
+            reactDisabledReason={blocked || queued ? t('message.reactions.notConnected') : null}
+            contactName={contactName}
+            changes={changes}
+            onOpenQuote={openQuote}
+            jumpTo={jumpTarget}
+          />
+        </ChatTranslateContext.Provider>
         <div className="safe-bottom border-t bg-surface">
           <TypingIndicator entries={typing[jid] ?? []} meId={me?.id ?? null} />
           {(blocked || queued) && (
@@ -477,6 +565,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           {windowHours !== null && !windowClosed && (
             <ReplyWindowNote lastInboundAt={chat.lastInboundAt ?? null} windowHours={windowHours} />
           )}
+          {/* Live translate off, and the customer writes another language: a one-line hint. */}
+          <TranslateHint jid={jid} isGroup={chat.type === 'group'} />
           {windowClosed ? (
             <WindowClosedPanel
               jid={jid}
@@ -486,6 +576,31 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
             />
           ) : (
             <div className="px-2 py-2 sm:px-3">
+              {pendingSend && customerLang && (
+                <SendPreview
+                  key={pendingSend.text}
+                  jid={jid}
+                  typed={pendingSend.text}
+                  my={myLang}
+                  customer={customerLang}
+                  dailyLimit={translateStatus.data?.dailyLimit ?? 0}
+                  autoSend={sendWithoutPreview}
+                  onDiscard={() => setPendingSend(null)}
+                  onSendOriginal={(text) => {
+                    sendText.mutate(
+                      {
+                        text,
+                        clientId: newClientId(),
+                        quotedId: pendingSend.quotedId,
+                        sentOriginal: true,
+                      },
+                      { onError: onSendError },
+                    );
+                    setPendingSend(null);
+                  }}
+                  onSend={(send) => sendTranslated(pendingSend.quotedId, send)}
+                />
+              )}
               <Composer
                 key={jid}
                 ref={composerRef}
@@ -494,9 +609,14 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                 placeholder={
                   blocked
                     ? t('conversation.placeholderBlocked')
-                    : wideComposer
-                      ? t('conversation.placeholder')
-                      : t('composer.placeholder')
+                    : translateReplies && customerLang
+                      ? t('liveTranslate.composer.placeholder', {
+                          my: NATIVE[myLang],
+                          customer: NATIVE[customerLang],
+                        })
+                      : wideComposer
+                        ? t('conversation.placeholder')
+                        : t('composer.placeholder')
                 }
                 confirmSend={confirmSend}
                 onTyping={() => emitTyping(jid)}
@@ -526,7 +646,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                 fixEnglish={{
                   chatJid: chat.jid,
                   chatName: chat.name,
-                  status: fixEnglish.data,
+                  // The person types in My language while Live translate is on: no English marks then.
+                  status: translateOn ? undefined : fixEnglish.data,
                   teamWords: acceptedTeamWords,
                   onAddWord: (word) =>
                     addTeamWord(word).then((data) => qc.setQueryData(teamWordsKey, data)),
@@ -542,6 +663,12 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                     : null
                 }
                 onSend={(text, mentions, shown) => {
+                  // Live translate: check the translation before anything is sent.
+                  if (translateReplies && !mentions?.length) {
+                    setPendingSend({ text, quotedId: replyTo?.id });
+                    setReplyTo(null);
+                    return;
+                  }
                   sendText.mutate(
                     {
                       text,

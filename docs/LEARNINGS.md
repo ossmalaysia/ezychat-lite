@@ -2226,6 +2226,17 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   backdrop (a ref), not handlers on plain `<div>`/`<img>` with `stopPropagation`: SonarCloud counts each click handler
   on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
   button already serve keyboard users.
+- A hook that reads the query cache from a list (`useCachedLastTranslations`) must not `notify` on cache events that fire
+  while another component renders (`added`, `fetch`): React warns "Cannot update a component while rendering a
+  different component". Notify only on `updated` + `success`. A chat-list row also takes such data as a prop and never
+  calls `useQuery` itself: `ChatList.test` renders without a `QueryClientProvider` and counts row renders.
+- `/api/me` is parsed with a zod schema, which strips fields the web schema does not know: a new per-user field
+  (Live translate's `translateLanguage`) reads as missing until the schema carries it. A component test that mocks `fetch`
+  with the field catches it; one that mocks `useAuth` does not.
+- A header that has one button in two places (narrow beside the name, wide in the action row) takes two slot props, not a
+  render function with class-name strings: `i18next/no-literal-string` flags the string argument.
+- Never run `prettier --write` on a whole directory of an old checkout; run it on the files you changed. It reformatted
+  every `components/ui/*` file here and had to be reverted.
 
 ## Internationalization
 

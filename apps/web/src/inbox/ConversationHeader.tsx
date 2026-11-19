@@ -33,6 +33,9 @@ import { InboxChip } from './InboxChip';
 import type { Directory } from './useDirectory';
 
 export interface ConversationHeaderProps {
+  /** Live translate's button, once for a narrow header (beside the name) and once for a wide one (action row). */
+  translateNarrow?: React.ReactNode;
+  translateWide?: React.ReactNode;
   chat: Chat;
   directory: Directory;
   onBack(): void;
@@ -64,6 +67,8 @@ export interface ConversationHeaderProps {
 const UNASSIGNED = 'none';
 
 export function ConversationHeader({
+  translateNarrow,
+  translateWide,
   chat,
   directory,
   onBack,
@@ -167,6 +172,8 @@ export function ConversationHeader({
           )}
         </span>
       </Button>
+      {/* Live translate: on a narrow header the Translate button sits beside the name. */}
+      {translateNarrow}
       {/* One row from a 672px-wide header (Customer/Notes icon-only below 768px); narrower
           headers put the actions on their own row under the name, with Resolve on the right. */}
       <div className="flex w-full items-center gap-2 px-1 @2xl:w-auto @2xl:px-0">
@@ -216,6 +223,8 @@ export function ConversationHeader({
             <span className="@max-3xl:sr-only">{t('header.customer')}</span>
           </Button>
         )}
+        {/* Live translate on/off for this chat, for me only. */}
+        {translateWide}
         <Button
           variant="ghost"
           size="touch"

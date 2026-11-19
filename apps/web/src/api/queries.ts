@@ -23,7 +23,6 @@ import {
   OAuthDecisionResponse,
   type OAuthDecisionBody,
   type PatchMeBody,
-  MeResponse,
   OpenChatCountResponse,
   UnreadChatCountResponse,
   ResolveAllChatsResponse,
@@ -69,6 +68,11 @@ import {
   type WaStatus,
 } from '@ezychat/shared';
 import { ApiError, api, apiUpload } from './client';
+import {
+  MeWithTranslate,
+  type SendTranslation,
+  type TranslateLanguage,
+} from './live-translate-types';
 import { setUploadProgress } from '@/lib/upload-progress';
 import { randomUuid } from '@/lib/random-id';
 import { unsubscribePush } from '../pwa/push';
@@ -371,7 +375,7 @@ export function useMe() {
     queryKey: qk.me,
     queryFn: async (): Promise<User | null> => {
       try {
-        return await api('/me', { schema: MeResponse });
+        return await api('/me', { schema: MeWithTranslate });
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) return null;
         throw e;
@@ -397,8 +401,8 @@ export function useSetupAdmin() {
   return useMutation({
     mutationFn: (body: SetupAdminBody) => api<unknown>('/setup/admin', { method: 'POST', body }),
     onSuccess: async (data) => {
-      const parsed = MeResponse.safeParse(data);
-      const parsedNested = MeResponse.safeParse((data as { user?: unknown } | null)?.user);
+      const parsed = MeWithTranslate.safeParse(data);
+      const parsedNested = MeWithTranslate.safeParse((data as { user?: unknown } | null)?.user);
       if (parsed.success) qc.setQueryData(qk.me, parsed.data);
       else if (parsedNested.success) qc.setQueryData(qk.me, parsedNested.data);
       qc.setQueryData(qk.setupStatus, { needsSetup: false });
@@ -412,12 +416,12 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (body: LoginBody): Promise<User | null> => {
       const data = await api<unknown>('/auth/login', { method: 'POST', body });
-      const parsed = MeResponse.safeParse(data);
+      const parsed = MeWithTranslate.safeParse(data);
       if (parsed.success) return parsed.data;
-      const nested = MeResponse.safeParse((data as { user?: unknown } | null)?.user);
+      const nested = MeWithTranslate.safeParse((data as { user?: unknown } | null)?.user);
       if (nested.success) return nested.data;
       // Server didn't echo the user — ask for it.
-      return api('/me', { schema: MeResponse });
+      return api('/me', { schema: MeWithTranslate });
     },
     onSuccess: (user) => {
       qc.setQueryData(qk.me, user);
@@ -464,7 +468,11 @@ export function useSetMyLocale() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (locale: Locale | null) =>
-      api('/me', { method: 'PATCH', body: { locale } satisfies PatchMeBody, schema: MeResponse }),
+      api('/me', {
+        method: 'PATCH',
+        body: { locale } satisfies PatchMeBody,
+        schema: MeWithTranslate,
+      }),
     onSuccess: (user) => qc.setQueryData(qk.me, user),
   });
 }
@@ -607,6 +615,12 @@ export interface SendTextInput {
   shown?: string;
   /** Generate with `newClientId()` (a random UUID). */
   clientId: string;
+  /** Live translate: the checked translation being sent (the server keeps what was typed beside it). */
+  translation?: SendTranslation;
+  /** Live translate "Send original instead": the text goes out as typed. */
+  sentOriginal?: boolean;
+  /** Live translate: the language the text goes out in (for the pending bubble only). */
+  sentLanguage?: TranslateLanguage;
 }
 
 /** Optimistic text send: inserts a pending bubble immediately, reconciled by clientId. */
@@ -621,13 +635,26 @@ export function useSendText(jid: string) {
           quotedId: input.quotedId,
           clientId: input.clientId,
           ...(input.mentions?.length ? { mentions: input.mentions } : {}),
+          ...(input.translation ? { translation: input.translation } : {}),
+          ...(input.sentOriginal ? { sentOriginal: true } : {}),
         },
       }),
     onMutate: (input) => {
       const msg = optimisticMessage(qc, jid, input.clientId, {
         body: input.shown ?? input.text,
         quotedId: input.quotedId ?? null,
-      });
+        ...(input.translation && input.sentLanguage
+          ? {
+              typed: {
+                typedText: input.translation.typedText,
+                typedLanguage: input.translation.typedLanguage,
+                sentLanguage: input.sentLanguage,
+                edited: input.translation.edited,
+              },
+            }
+          : {}),
+        ...(input.sentOriginal ? { sentOriginal: true } : {}),
+      } as Partial<Message>);
       upsertMessageInCache(qc, msg);
       return { clientId: input.clientId };
     },
