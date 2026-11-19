@@ -11,17 +11,17 @@ node docs/features/live-translate/mock/translate-shots.mjs   # PW_CHROMIUM=<chro
 ```
 
 Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`, admin, My language = Bahasa Melayu) and open
-**Tan Wei Jie** (writes Chinese; Live translate is already on): bubbles show Malay with **Translated from 中文 · Show
-original**; **Show originals** in the bar opens them all; the ⚙ button changes the customer's language, your language,
-or turns it off. Type a Malay reply, e.g. `Boleh. Jumlahnya RM1,260.00 termasuk penghantaran. Saya hantar sebut harga
-hari ini.`, press Enter: the check shows what the customer gets (editable) and what it means; **Send in 中文** or **Send
-in Bahasa Melayu instead**. The dashed **Mock only** strip switches the behaviour (Slow, Fails, Limit reached, No AI,
-Changes a price) and **Customer writes** sends a new Chinese message. **Emily Carter** writes English (press the
-Translate button in the header); **Reseller Group Penang** shows a group (each member's language). Settings → App
-settings → AI → **Live translate** has the team switch, model and daily limit; **Account → My language** (desktop:
-`/account`). Sign in as `daniel` (Live translate off) to see **Written in Bahasa Melayu by Aisyah · Show what was
-typed**. Translations come from a fixed phrase table (`live-translate.ts`); other text gets a marked demo
-translation. Everything below is the inherited app-navigation README; every inherited flow still works.
+**Tan Wei Jie** (writes Chinese, mixed with English; Live translate already on): bubbles show Malay with **Translated
+from 中文 · Show original**; a mostly-Malay message stays as is (70 % rule); **Show originals** opens all; ⚙ Languages
+sets the customer's language (shared with the team), your language, and Turn off. Type a Malay reply, e.g.
+`Boleh. Jumlahnya RM1,260.00 termasuk penghantaran. Saya hantar sebut harga hari ini.` and press Enter: **Customer will
+get · 中文** shows the translation and the items kept unchanged; **Send**, **Edit translation** or **Send original
+instead**. The dashed **Mock only** strip picks the behaviour (Slow, Fails, Daily limit used, No connection, No AI,
+Changes a price) and **Customer writes** sends a new Chinese message. **Emily Carter** (English) shows the hint while
+off; **Reseller Group Penang** shows a group (each member's language, one outgoing language). Settings → App settings
+→ AI → **Live translate** (for everyone, daily limit 200); **Account** (`/account`) → My language and **Send without
+preview**. Sign in as `daniel` (off) to see **Written in Bahasa Melayu · Show what was typed**. Translations come from a
+fixed phrase table (`live-translate.ts`); other text gets a marked demo translation. Everything below is the inherited app-navigation README; every inherited flow still works.
 
 ---
 

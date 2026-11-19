@@ -8,26 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useLiveTranslateStatus, type LiveTranslateStatus } from '@/mock/liveTranslate';
 import { SaveBar } from './adminUi';
 
 interface Draft {
   enabled: boolean;
-  model: 'fast' | 'main';
   dailyLimit: string;
 }
 
 /**
- * Proposed (live-translate): Settings → AI card. The team switch (on by default; each person still turns it
- * on per chat), the model and a per-person daily limit. Audited before/after as `settings.live_translate`.
+ * Proposed (live-translate): Settings → AI card. The team switch (on by default: all staff may use it; each person
+ * turns it on per chat) and a per-person daily limit (default 200). It uses the "Model for suggestions".
+ * Audited before/after as `settings.live_translate`.
  */
 export function LiveTranslateSection() {
   const { t } = useTranslation('admin');
@@ -37,7 +30,6 @@ export function LiveTranslateSection() {
   const data = query.data;
   const current: Draft | undefined = data && {
     enabled: data.enabled,
-    model: data.model,
     dailyLimit: String(data.dailyLimit),
   };
   const value = draft ?? current;
@@ -45,17 +37,14 @@ export function LiveTranslateSection() {
   const dirty =
     !!draft &&
     !!current &&
-    (draft.enabled !== current.enabled ||
-      draft.model !== current.model ||
-      draft.dailyLimit !== current.dailyLimit);
-  const modelId = useId();
+    (draft.enabled !== current.enabled || draft.dailyLimit !== current.dailyLimit);
   const limitId = useId();
   const limitHelpId = useId();
   const save = useMutation({
     mutationFn: (d: Draft) =>
       api<LiveTranslateStatus>('/mock/live-translate/settings', {
         method: 'PUT',
-        body: { enabled: d.enabled, model: d.model, dailyLimit: Number(d.dailyLimit) },
+        body: { enabled: d.enabled, dailyLimit: Number(d.dailyLimit) },
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ['mock', 'live-translate'] });
@@ -95,25 +84,6 @@ export function LiveTranslateSection() {
         )}
         {value?.enabled && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor={modelId}>{t('mockTranslate.model')}</Label>
-              <Select
-                value={value.model}
-                onValueChange={(model) => change({ model: model as Draft['model'] })}
-              >
-                <SelectTrigger id={modelId} className="h-11! w-full md:h-9!">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="fast" className="min-h-11 md:min-h-8">
-                    {t('mockTranslate.modelFast')}
-                  </SelectItem>
-                  <SelectItem value="main" className="min-h-11 md:min-h-8">
-                    {t('mockTranslate.modelMain')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor={limitId}>{t('mockTranslate.limit')}</Label>
               <Input

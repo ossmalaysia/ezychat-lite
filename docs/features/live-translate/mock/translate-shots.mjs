@@ -107,7 +107,7 @@ const scrollBottom = (page) =>
   // One bubble's original.
   await page.getByRole('button', { name: 'Show original' }).last().click();
   await s.shot('04-show-original');
-  await page.getByRole('button', { name: 'Hide original' }).last().click();
+  await page.getByRole('button', { name: 'Hide', exact: true }).last().click();
 
   // Show originals for the whole chat.
   await page.getByTestId('translate-originals').click();
@@ -128,10 +128,13 @@ const scrollBottom = (page) =>
   );
   await s.shot('07-preview');
 
-  // The staff changes a word of the translation.
+  // Edit translation: the staff changes a word, then Done.
+  await page.getByTestId('translate-edit').click();
   const draft = page.getByTestId('translate-preview-text');
   await draft.fill((await draft.inputValue()).replace('今天', '今天下午'));
-  await s.shot('08-preview-edited');
+  await s.shot('08-preview-editing');
+  await page.getByTestId('translate-edit').click();
+  await s.shot('08b-preview-edited');
 
   // Sent: the bubble keeps what was typed; the customer got Chinese.
   await page.getByTestId('translate-send').click();
@@ -139,9 +142,9 @@ const scrollBottom = (page) =>
   await page.waitForTimeout(1500);
   await scrollBottom(page);
   await s.shot('09-sent');
-  await page.getByRole('button', { name: 'Show what was sent' }).last().click();
+  await page.getByRole('button', { name: 'Show sent text' }).last().click();
   await scrollBottom(page);
-  await s.shot('10-sent-show-what-was-sent');
+  await s.shot('10-sent-show-sent-text');
 
   // The customer writes again: translated as it arrives.
   await page.getByTestId('translate-mock-incoming').click();
@@ -152,27 +155,34 @@ const scrollBottom = (page) =>
   // Guard: the translation changed a price → refused.
   await s.scenario('number_changed');
   await s.type(REPLY);
-  await page.getByText('Translation not used').waitFor();
+  await page.getByText(/became .* Nothing was sent/).waitFor();
   await s.shot('12-preview-refused');
-  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
 
-  // Daily limit reached.
+  // Daily limit used.
   await s.scenario('limit');
   await s.type('Terima kasih! Kami tunggu jawapan anda.');
-  await page.getByText(/today's .* translations/).waitFor();
+  await page.getByText(/Daily limit used \(/).waitFor();
   await s.shot('13-preview-limit');
-  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
 
-  // No AI connection: bar warning, bubbles stay as sent, preview error with Send in Malay.
-  await s.scenario('no_connection');
+  // No connection.
+  await s.scenario('offline');
+  await s.type('Terima kasih! Kami tunggu jawapan anda.');
+  await page.getByText(/No connection\. Nothing was sent/).waitFor();
+  await s.shot('14-no-connection');
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+
+  // No AI: bar warning, bubbles stay as sent, preview error with Send original instead.
+  await s.scenario('no_ai');
   await page.reload();
   await page.getByTestId('translate-bar').waitFor();
   await page.waitForTimeout(1200);
   await scrollBottom(page);
   await s.type('Terima kasih! Kami tunggu jawapan anda.');
-  await page.getByText(/AI connection needs attention/).waitFor();
-  await s.shot('14-no-ai-connection');
-  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.getByText(/connect AI in Settings → AI\. Nothing/).waitFor();
+  await s.shot('14b-no-ai');
+  await page.getByRole('button', { name: 'Keep editing' }).click();
 
   // The model fails on new messages: "Couldn't translate · Try again".
   await s.scenario('error');
@@ -197,9 +207,10 @@ const scrollBottom = (page) =>
   await scrollBottom(page);
   await s.shot('17-chat-off');
 
-  // An English customer: detected, turned on from the header.
+  // An English customer: the hint while off, then turned on from the header.
   await s.open(EMILY);
-  await s.shot('18-english-off');
+  await page.getByTestId('translate-hint').waitFor();
+  await s.shot('18-english-off-hint');
   await page.locator('[data-testid="translate-toggle"]:visible').click();
   await page.getByTestId('translate-bar').waitFor();
   await page.waitForTimeout(1200);
@@ -209,15 +220,38 @@ const scrollBottom = (page) =>
     () => !document.querySelector('[data-testid="translate-send"]')?.disabled,
   );
   await s.shot('20-english-preview');
-  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
 
   // A group: each member's language.
   await s.chatPref(RESELLERS, { on: true });
   await s.open(RESELLERS);
   await scrollBottom(page);
   await s.shot('21-group-on');
+  await page.getByTestId('translate-languages').click();
+  await s.shot('21b-group-languages');
+  await page.keyboard.press('Escape');
   await s.chatPref(RESELLERS, { on: false });
+
+  // Send without preview (Account): Send translates and sends at once.
+  await s.ctx.request.put('/api/mock/live-translate/me', {
+    data: { sendWithoutPreview: true },
+    headers: { origin: BASE },
+  });
+  await page.goto('/account');
+  await page.getByTestId('send-without-preview').scrollIntoViewIfNeeded();
+  await s.shot('25-account-send-without-preview');
   await s.chatPref(TAN, { on: true });
+  await s.open(TAN);
+  const box = page.getByRole('textbox', { name: 'Message', exact: true });
+  await box.fill('Terima kasih! Kami tunggu jawapan anda.');
+  await box.press('Enter');
+  await page.waitForTimeout(2000);
+  await scrollBottom(page);
+  await s.shot('26-sent-without-preview');
+  await s.ctx.request.put('/api/mock/live-translate/me', {
+    data: { sendWithoutPreview: false },
+    headers: { origin: BASE },
+  });
   await s.ctx.close();
 }
 
@@ -265,7 +299,7 @@ for (const [size, scheme] of [
     () => !document.querySelector('[data-testid="translate-send"]')?.disabled,
   );
   await s.shot('07-preview');
-  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
   if (size === 'mobile') {
     await page.getByTestId('translate-languages').click();
     await s.shot('06-languages-popover');

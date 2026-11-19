@@ -58,7 +58,7 @@ import { buildTimeline } from './timeline';
 import { TypingIndicator } from './TypingIndicator';
 import type { Directory } from './useDirectory';
 import { waQueuesMessages, waSendingBlocked } from './WaBanner';
-import { SendPreview, TranslateBar, TranslateMockStrip } from './LiveTranslate';
+import { SendPreview, TranslateBar, TranslateHint, TranslateMockStrip } from './LiveTranslate';
 import {
   ChatTranslateContext,
   NATIVE,
@@ -232,7 +232,11 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
   const [showOriginals, setShowOriginals] = useShowOriginals(jid);
   const myLang = translateStatus.data?.myLanguage ?? 'en';
   const translateOn = !!translateStatus.data?.enabled && !!chatTranslate.data?.on;
-  const customerLang = chatTranslate.data?.customerLanguage ?? chatTranslate.data?.detected ?? null;
+  // Replies go out in the customer's language (shared by the team); in a group, in the group's one language.
+  const customerLang =
+    chat?.type === 'group'
+      ? (chatTranslate.data?.outgoingLanguage ?? chatTranslate.data?.outgoingDetected ?? null)
+      : (chatTranslate.data?.customerLanguage ?? chatTranslate.data?.detected ?? null);
   const translations = useChatTranslations(
     jid,
     messages,
@@ -245,18 +249,15 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
       jid,
       active: translateOn,
       my: myLang,
-      customer: customerLang,
       showOriginals,
       translations: translations.translations,
       pending: translations.pending,
       retry: translations.retry,
-      nameOf: (id) => directory.nameOf(id),
     }),
-    [jid, translateOn, myLang, customerLang, showOriginals, translations, directory],
+    [jid, translateOn, myLang, showOriginals, translations],
   );
-  // Replies go out translated only in a direct chat whose customer writes another language than mine.
-  const translateReplies =
-    translateOn && chat?.type === 'dm' && customerLang !== null && customerLang !== myLang;
+  // Replies go out translated when the chat's language is known and is not mine.
+  const translateReplies = translateOn && customerLang !== null && customerLang !== myLang;
   const [pendingSend, setPendingSend] = useState<{
     text: string;
     quotedId?: string;
@@ -436,6 +437,8 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
           />
           <div className="safe-bottom border-t bg-surface">
             <TypingIndicator entries={typing[jid] ?? []} meId={me?.id ?? null} />
+            {/* Proposed (live-translate): off, the customer writes another language → a one-line hint. */}
+            <TranslateHint jid={jid} isGroup={chat.type === 'group'} />
             {(blocked || queued) && (
               <p
                 className={
@@ -473,13 +476,23 @@ export function Conversation({ jid, directory, onBack }: ConversationProps) {
                     my={myLang}
                     customer={customerLang}
                     dailyLimit={translateStatus.data?.dailyLimit ?? 0}
+                    autoSend={translateStatus.data?.sendWithoutPreview ?? false}
                     onDiscard={() => setPendingSend(null)}
                     onSendOriginal={(text) => {
-                      sendText.mutate({
+                      void rememberSent(jid, {
                         text,
-                        clientId: newClientId(),
-                        quotedId: pendingSend.quotedId,
-                      });
+                        original: text,
+                        from: myLang,
+                        to: myLang,
+                        edited: false,
+                        kind: 'original',
+                      }).then(() =>
+                        sendText.mutate({
+                          text,
+                          clientId: newClientId(),
+                          quotedId: pendingSend.quotedId,
+                        }),
+                      );
                       setPendingSend(null);
                     }}
                     onSend={(text, original, edited) => {

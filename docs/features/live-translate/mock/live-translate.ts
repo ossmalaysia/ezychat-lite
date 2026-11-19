@@ -16,7 +16,15 @@ export type Lang = (typeof LANGS)[number];
 const Lang = z.enum(LANGS);
 
 /** Mock-only scenario switch (the dashed "Mock only" strip in a chat). */
-const SCENARIOS = ['normal', 'slow', 'error', 'limit', 'no_connection', 'number_changed'] as const;
+const SCENARIOS = [
+  'normal',
+  'slow',
+  'error',
+  'limit',
+  'offline',
+  'no_ai',
+  'number_changed',
+] as const;
 type Scenario = (typeof SCENARIOS)[number];
 
 interface Entry {
@@ -26,7 +34,7 @@ interface Entry {
 
 /**
  * The demo phrase table: every seeded customer message and the Malay replies the walkthrough types.
- * The real feature asks the "Model for suggestions" for {translation, backTranslation}.
+ * The real feature asks the "Model for suggestions" for one JSON translation per item (no back-translation).
  */
 const TABLE: Entry[] = [
   {
@@ -122,19 +130,37 @@ const NAMES: Record<Lang, string> = {
 };
 
 const MALAY =
-  /\b(saya|kami|boleh|tak|ada|nak|terima kasih|hantar|berapa|untuk|dengan|sila|esok|bila)\b/i;
-/** Script and word based guess; the app asks the model only when this is unsure (mixed text). */
+  /\b(saya|kami|boleh|tak|ada|nak|terima kasih|hantar|berapa|untuk|dengan|sila|esok|bila|datang|ambil)\b/i;
+const CJK = /[一-鿿]/g;
+const LATIN = /[A-Za-z]/g;
+
+/**
+ * Script first (Chinese, Tamil, Thai, Arabic, Japanese, Korean decide alone); Latin text by a word list here. The app
+ * lets the model decide Latin-script languages in the same call that translates.
+ */
 export function detect(text: string): Lang | null {
-  const cjk = (text.match(/[一-鿿]/g) ?? []).length;
-  if (cjk >= 2) return 'zh';
+  const cjk = (text.match(CJK) ?? []).length;
+  const latin = (text.match(LATIN) ?? []).length;
+  if (cjk >= 2 && cjk * 3 >= latin) return 'zh';
   if (/[஀-௿]/.test(text)) return 'ta';
   if (/[฀-๿]/.test(text)) return 'th';
   if (/[؀-ۿ]/.test(text)) return 'ar';
   if (/[぀-ヿ]/.test(text)) return 'ja';
   if (/[가-힯]/.test(text)) return 'ko';
-  const letters = text.replace(/[^\p{L}]/gu, '');
-  if (letters.length < 3) return null;
-  return MALAY.test(text) ? 'ms' : 'en';
+  if (latin < 3) return cjk >= 2 ? 'zh' : null;
+  return MALAY.test(text) ? 'ms' : cjk >= 2 ? 'zh' : 'en';
+}
+
+/** Share of a message already in `my` language (rule: translate only below 70 %). */
+export function shareIn(text: string, my: Lang): number {
+  const cjk = (text.match(CJK) ?? []).length;
+  const latin = (text.match(LATIN) ?? []).length;
+  const letters = cjk + latin;
+  if (letters === 0) return 1;
+  if (my === 'zh') return cjk / letters;
+  const latinPart = text.replace(CJK, ' ');
+  const latinLang = MALAY.test(latinPart) ? 'ms' : 'en';
+  return latinLang === my ? latin / letters : 0;
 }
 
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
@@ -145,8 +171,9 @@ function lookup(text: string, to: Lang): string | null {
 }
 
 /**
- * Things a translation must keep exactly (prices, numbers, links, emails, phones, @mentions, codes):
- * the same guard idea as Fix English grammar and the reply-suggestion fact check.
+ * Protected items (same list as Cloud): numbers, prices and amounts, dates and times in digits, links, emails, phone
+ * numbers, @mentions, order and tracking codes (letters with digits) and emoji. Each must appear unchanged in the
+ * translation (spaces ignored).
  */
 export function protectedItems(text: string): string[] {
   const out = new Set<string>();
@@ -156,9 +183,11 @@ export function protectedItems(text: string): string[] {
     /@\S+/g,
     /RM\s?\d[\d,]*(?:\.\d+)?/gi,
     /\b0\d{1,2}-?\d{3,4}\s?\d{3,4}\b/g,
+    /\b\d{1,2}[:/.]\d{2}(?:[/.]\d{2,4})?\b/g,
     /#\w+/g,
-    /\b[A-Z]{2,}-?\d+\b/g,
+    /\b(?=\w*\d)(?=\w*[A-Za-z])[A-Za-z0-9-]{3,}\b/g,
     /\d[\d,]*(?:\.\d+)?/g,
+    /\p{Extended_Pictographic}/gu,
   ];
   let rest = text;
   for (const re of res)
@@ -169,10 +198,16 @@ export function protectedItems(text: string): string[] {
   return [...out];
 }
 
-/** Which protected items of `from` the translation lost or changed (spaces ignored). */
-export function lostItems(from: string, translated: string): string[] {
+/** The first protected item the translation lost, and what it became (for "RM 45.00 became RM 54.00"). */
+export function changedItem(
+  from: string,
+  translated: string,
+): { item: string; became: string } | null {
   const flat = translated.replace(/\s/g, '');
-  return protectedItems(from).filter((item) => !flat.includes(item));
+  const lost = protectedItems(from).find((item) => !flat.includes(item));
+  if (!lost) return null;
+  const extra = protectedItems(translated).find((item) => !protectedItems(from).includes(item));
+  return { item: lost, became: extra ?? '—' };
 }
 
 function translate(text: string, to: Lang, scenario: Scenario): string {
@@ -183,39 +218,43 @@ function translate(text: string, to: Lang, scenario: Scenario): string {
   return out;
 }
 
-interface ChatPref {
-  on: boolean;
-  /** null = detected from the customer's messages. */
-  customerLanguage: Lang | null;
+interface ChatLanguage {
+  /** Set by a teammate; wins over detection. Shared by the team (a fact about the customer). */
+  chosen: Lang | null;
+  /** Groups: the one language replies go out in (null = most common of the last 20 messages). */
+  outgoing: Lang | null;
 }
 
-interface SentOriginal {
-  original: string;
-  from: Lang;
-  to: Lang;
-  byUserId: number;
-  /** The staff changed the translation before sending. */
+interface Typed {
+  typed: string;
+  typedLanguage: Lang;
+  sentLanguage: Lang;
   edited: boolean;
+  /** "Send original instead": sent as typed, no translation. */
+  original: boolean;
 }
 
 const state = {
   enabled: true,
-  model: 'fast' as 'fast' | 'main',
-  dailyLimit: 500,
+  dailyLimit: 200,
   scenario: 'normal' as Scenario,
   myLanguage: new Map<number, Lang>(),
-  chats: new Map<string, ChatPref>(),
-  sent: new Map<string, SentOriginal>(),
+  sendWithoutPreview: new Map<number, boolean>(),
+  /** Per person and chat: the Live translate switch. */
+  switches: new Set<string>(),
+  /** Per chat (shared): the customer's language and a group's outgoing language. */
+  chatLanguages: new Map<string, ChatLanguage>(),
+  typed: new Map<string, Typed>(),
   used: new Map<number, number>(),
-  /** Message id + language → translation (the app: a table, so re-opening a chat costs nothing). */
+  /** Message id + target → translation (the app: `message_translations`), so a reload costs nothing. */
   cache: new Map<string, string>(),
 };
 
-const prefKey = (userId: number, jid: string) => `${userId}|${jid}`;
-const sentKey = (jid: string, text: string) => `${jid}|${norm(text)}`;
+const switchKey = (userId: number, jid: string) => `${userId}|${jid}`;
+const typedKey = (jid: string, text: string) => `${jid}|${norm(text)}`;
 const userOf = (req: FastifyRequest) => req.user!;
 
-/** Default "My language": from the app language (en, ms, zh-CN). */
+/** Default My language: the app language (en, ms, zh-CN). */
 function myLanguage(userId: number, locale?: string): Lang {
   return (
     state.myLanguage.get(userId) ??
@@ -223,13 +262,15 @@ function myLanguage(userId: number, locale?: string): Lang {
   );
 }
 
-/** The customer's language: detected from their last messages (most frequent wins). */
-function detectedFor(ctx: AppContext, jid: string): Lang | null {
-  const rows = ctx.db
+function recent(ctx: AppContext, jid: string, inboundOnly: boolean, limit: number) {
+  return ctx.db
     .prepare(
-      'SELECT body FROM messages WHERE chat_jid = ? AND from_me = 0 AND body IS NOT NULL ORDER BY timestamp DESC LIMIT 10',
+      `SELECT body FROM messages WHERE chat_jid = ? ${inboundOnly ? 'AND from_me = 0' : ''} AND body IS NOT NULL ORDER BY timestamp DESC LIMIT ?`,
     )
-    .all(jid) as Array<{ body: string }>;
+    .all(jid, limit) as Array<{ body: string }>;
+}
+
+function mostCommon(rows: Array<{ body: string }>): Lang | null {
   const counts = new Map<Lang, number>();
   for (const r of rows) {
     const l = detect(r.body);
@@ -238,26 +279,36 @@ function detectedFor(ctx: AppContext, jid: string): Lang | null {
   return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-function connected(ctx: AppContext): boolean {
-  return (
-    state.scenario !== 'no_connection' && ctx.services.ai?.status().connection.state === 'connected'
-  );
+/** The customer's language from their last 10 messages; `mixed` names a second language they also use. */
+function detectedFor(ctx: AppContext, jid: string): { detected: Lang | null; mixed: Lang | null } {
+  const rows = recent(ctx, jid, true, 10);
+  const detected = mostCommon(rows);
+  const mixed =
+    detected === 'zh' &&
+    rows.some(
+      (r) => (r.body.match(CJK) ?? []).length >= 2 && /\b[a-z]{3,}\b.*\b[a-z]{3,}\b/i.test(r.body),
+    )
+      ? ('en' as const)
+      : null;
+  return { detected, mixed };
 }
 
-/** Each translated message or preview counts one; cached ones are free. */
+function connected(ctx: AppContext): boolean {
+  return state.scenario !== 'no_ai' && ctx.services.ai?.status().connection.state === 'connected';
+}
+
+/** Each translated item costs one; cache hits cost nothing. */
 function spend(userId: number) {
-  if (state.scenario === 'limit')
-    throw new HttpError(429, 'translate_limit', 'Daily translation limit reached');
   const used = state.used.get(userId) ?? 0;
-  if (state.dailyLimit > 0 && used >= state.dailyLimit)
-    throw new HttpError(429, 'translate_limit', 'Daily translation limit reached');
+  if (state.scenario === 'limit' || (state.dailyLimit > 0 && used >= state.dailyLimit))
+    throw new HttpError(429, 'translate_limit', 'Daily limit used');
   state.used.set(userId, used + 1);
 }
 
 function ready(ctx: AppContext) {
   if (!state.enabled) throw new HttpError(409, 'translate_off', 'Live translate is off');
-  if (!connected(ctx))
-    throw new HttpError(503, 'ai_unavailable', 'The AI connection needs attention');
+  if (state.scenario === 'offline') throw new HttpError(503, 'offline', 'No connection');
+  if (!connected(ctx)) throw new HttpError(503, 'ai_unavailable', 'Live translate needs AI');
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -266,51 +317,52 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
   const status = (req: FastifyRequest) => {
     const user = userOf(req);
     const locale = (req.query as { locale?: string } | undefined)?.locale;
-    const usedToday = [...state.used.values()].reduce((a, b) => a + b, 0);
     return {
       enabled: state.enabled,
-      model: state.model,
       dailyLimit: state.dailyLimit,
       connected: connected(ctx),
       scenario: state.scenario,
       myLanguage: myLanguage(user.id, locale),
       myLanguageSet: state.myLanguage.has(user.id),
+      sendWithoutPreview: state.sendWithoutPreview.get(user.id) ?? false,
       usedByMe: state.used.get(user.id) ?? 0,
-      usedToday,
+      usedToday: [...state.used.values()].reduce((a, b) => a + b, 0),
       peopleToday: state.used.size,
     };
   };
   app.get('/api/mock/live-translate', { preHandler: requireUser(ctx) }, async (req) => status(req));
 
+  // The app: GET/PUT /api/live-translate/settings (admins write).
   app.put('/api/mock/live-translate/settings', { preHandler: requireAdmin(ctx) }, async (req) => {
     const body = parse(
       z.object({
         enabled: z.boolean().optional(),
-        model: z.enum(['fast', 'main']).optional(),
         dailyLimit: z.number().int().min(0).max(10_000).optional(),
       }),
       req.body ?? {},
     );
-    const before = { enabled: state.enabled, model: state.model, dailyLimit: state.dailyLimit };
-    Object.assign(
-      state,
-      Object.fromEntries(Object.entries(body).filter(([, v]) => v !== undefined)),
-    );
+    const before = { enabled: state.enabled, dailyLimit: state.dailyLimit };
+    if (body.enabled !== undefined) state.enabled = body.enabled;
+    if (body.dailyLimit !== undefined) state.dailyLimit = body.dailyLimit;
     audit(ctx.db, {
       userId: userOf(req).id,
       action: 'settings.live_translate',
       ip: req.ip,
-      meta: {
-        before,
-        after: { enabled: state.enabled, model: state.model, dailyLimit: state.dailyLimit },
-      },
+      meta: { before, after: { enabled: state.enabled, dailyLimit: state.dailyLimit } },
     });
     return status(req);
   });
 
+  // The app: PATCH /api/me {translateLanguage?, sendWithoutPreview?}.
   app.put('/api/mock/live-translate/me', { preHandler: requireUser(ctx) }, async (req) => {
-    const { myLanguage: lang } = parse(z.object({ myLanguage: Lang }), req.body ?? {});
-    state.myLanguage.set(userOf(req).id, lang);
+    const body = parse(
+      z.object({ myLanguage: Lang.optional(), sendWithoutPreview: z.boolean().optional() }),
+      req.body ?? {},
+    );
+    const id = userOf(req).id;
+    if (body.myLanguage) state.myLanguage.set(id, body.myLanguage);
+    if (body.sendWithoutPreview !== undefined)
+      state.sendWithoutPreview.set(id, body.sendWithoutPreview);
     return status(req);
   });
 
@@ -322,12 +374,18 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
   });
 
   const chatState = (req: FastifyRequest, jid: string) => {
-    const pref = state.chats.get(prefKey(userOf(req).id, jid)) ?? {
-      on: false,
-      customerLanguage: null,
+    const lang = state.chatLanguages.get(jid) ?? { chosen: null, outgoing: null };
+    const { detected, mixed } = detectedFor(ctx, jid);
+    return {
+      on: state.switches.has(switchKey(userOf(req).id, jid)),
+      customerLanguage: lang.chosen,
+      detected,
+      mixed,
+      outgoingLanguage: lang.outgoing,
+      outgoingDetected: jid.endsWith('@g.us') ? mostCommon(recent(ctx, jid, false, 20)) : null,
     };
-    return { ...pref, detected: detectedFor(ctx, jid) };
   };
+  // The app: GET/PUT /api/chats/:jid/live-translate.
   app.get<{ Params: { jid: string } }>(
     '/api/mock/live-translate/chats/:jid',
     { preHandler: requireUser(ctx) },
@@ -338,24 +396,30 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
     { preHandler: requireUser(ctx) },
     async (req) => {
       const body = parse(
-        z.object({ on: z.boolean().optional(), customerLanguage: Lang.nullable().optional() }),
+        z.object({
+          on: z.boolean().optional(),
+          customerLanguage: Lang.nullable().optional(),
+          outgoingLanguage: Lang.nullable().optional(),
+        }),
         req.body ?? {},
       );
-      const key = prefKey(userOf(req).id, req.params.jid);
-      const prev = state.chats.get(key) ?? { on: false, customerLanguage: null };
-      state.chats.set(key, {
-        on: body.on ?? prev.on,
-        customerLanguage:
-          body.customerLanguage === undefined ? prev.customerLanguage : body.customerLanguage,
+      const jid = req.params.jid;
+      const key = switchKey(userOf(req).id, jid);
+      if (body.on === true) state.switches.add(key);
+      if (body.on === false) state.switches.delete(key);
+      const prev = state.chatLanguages.get(jid) ?? { chosen: null, outgoing: null };
+      state.chatLanguages.set(jid, {
+        chosen: body.customerLanguage === undefined ? prev.chosen : body.customerLanguage,
+        outgoing: body.outgoingLanguage === undefined ? prev.outgoing : body.outgoingLanguage,
       });
-      return chatState(req, req.params.jid);
+      return chatState(req, jid);
     },
   );
 
   /**
-   * Translations for the bubbles the viewer sees. Inbound (and outbound without a stored original, e.g. the
-   * AI agent's or the phone's replies) are translated into the viewer's language; a team message sent through
-   * Live translate answers with what its writer typed.
+   * The app: POST /api/chats/:jid/translations {messageIds, target} (≤ 50 visible messages). Inbound text and our
+   * replies without a typed record (the AI agent's, the phone's) are translated into `target`; replies sent through
+   * Live translate answer with what was typed.
    */
   app.post<{ Params: { jid: string } }>(
     '/api/mock/live-translate/chats/:jid/messages',
@@ -374,21 +438,23 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
       const user = userOf(req);
       const out: Record<string, unknown> = {};
       for (const m of body.messages) {
-        const sent = m.fromMe ? state.sent.get(sentKey(req.params.jid, m.body)) : undefined;
-        if (sent) {
-          out[m.id] = {
-            kind: 'written',
-            original: sent.original,
-            from: sent.from,
-            to: sent.to,
-            edited: sent.edited,
-            by: sent.byUserId === user.id ? null : sent.byUserId,
-          };
+        const typed = m.fromMe ? state.typed.get(typedKey(req.params.jid, m.body)) : undefined;
+        if (typed) {
+          out[m.id] = typed.original
+            ? { kind: 'original', from: typed.typedLanguage }
+            : {
+                kind: 'written',
+                original: typed.typed,
+                from: typed.typedLanguage,
+                to: typed.sentLanguage,
+                edited: typed.edited,
+              };
           continue;
         }
         if (!body.translate) continue;
         const from = detect(m.body);
-        if (!from || from === body.to) continue;
+        // Rule: translate only when less than 70 % of the text is already in My language.
+        if (!from || shareIn(m.body, body.to) >= 0.7) continue;
         const key = `${m.id}|${body.to}`;
         const cached = state.cache.get(key);
         if (cached) {
@@ -396,21 +462,31 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
           continue;
         }
         if (!state.enabled) continue;
+        const fail = (code: string) => (out[m.id] = { kind: 'failed', code, from });
+        if (state.scenario === 'offline') {
+          fail('offline');
+          continue;
+        }
         if (!connected(ctx)) {
-          out[m.id] = { kind: 'failed', code: 'ai_unavailable', from };
+          fail('ai_unavailable');
           continue;
         }
         if (state.scenario === 'error') {
-          out[m.id] = { kind: 'failed', code: 'error', from };
+          fail('error');
           continue;
         }
         try {
           spend(user.id);
         } catch {
-          out[m.id] = { kind: 'failed', code: 'translate_limit', from };
+          fail('translate_limit');
           continue;
         }
-        const text = translate(m.body, body.to, 'normal');
+        const text = translate(m.body, body.to, state.scenario);
+        // A translation that changed a protected item is never shown.
+        if (changedItem(m.body, text)) {
+          fail('unsafe');
+          continue;
+        }
         state.cache.set(key, text);
         out[m.id] = { kind: 'translated', text, from };
       }
@@ -419,7 +495,7 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
     },
   );
 
-  /** The send preview: the typed text in the customer's language, and what it says back in mine. */
+  /** The app: POST /api/chats/:jid/translate-draft {text, target}: one translation, no back-translation. */
   app.post<{ Params: { jid: string } }>(
     '/api/mock/live-translate/chats/:jid/preview',
     { preHandler: requireUser(ctx) },
@@ -430,23 +506,23 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
       );
       ready(ctx);
       if (state.scenario === 'slow') await wait(1800);
-      if (state.scenario === 'error')
-        throw new HttpError(503, 'ai_unavailable', 'The AI provider did not answer');
+      if (state.scenario === 'error') throw new HttpError(503, 'ai_failed', 'Could not translate');
       spend(userOf(req).id);
       const text = translate(body.text, body.to, state.scenario);
-      const lost = lostItems(body.text, text);
-      if (lost.length) return { status: 'refused', reason: 'changed', items: lost };
+      const changed = changedItem(body.text, text);
+      if (changed) return { status: 'refused', ...changed };
       return {
         status: 'ok',
         text,
-        back: lookup(text, body.from) ?? body.text,
         from: body.from,
         to: body.to,
+        protected: protectedItems(body.text),
+        draftId: `draft-${Math.random().toString(36).slice(2, 10)}`,
       };
     },
   );
 
-  /** After a send: keep what the writer typed beside the message (the app: on the message row). */
+  /** The app: the optional `translation` block of POST /api/chats/:jid/messages, stored with the message. */
   app.post<{ Params: { jid: string } }>(
     '/api/mock/live-translate/chats/:jid/sent',
     { preHandler: requireUser(ctx) },
@@ -458,15 +534,16 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
           from: Lang,
           to: Lang,
           edited: z.boolean().default(false),
+          kind: z.enum(['translated', 'original']).default('translated'),
         }),
         req.body ?? {},
       );
-      state.sent.set(sentKey(req.params.jid, body.text), {
-        original: body.original,
-        from: body.from,
-        to: body.to,
-        byUserId: userOf(req).id,
+      state.typed.set(typedKey(req.params.jid, body.text), {
+        typed: body.original,
+        typedLanguage: body.from,
+        sentLanguage: body.to,
         edited: body.edited,
+        original: body.kind === 'original',
       });
       return { ok: true };
     },
@@ -475,7 +552,7 @@ export function registerLiveTranslate(app: FastifyInstance, ctx: AppContext): vo
 
 type Call = (method: 'POST' | 'PUT' | 'PATCH', path: string, body: unknown) => Promise<any>;
 
-/** Demo data: Tan Wei Jie writes Chinese (long and mixed messages), Emily Carter English; Aisyah writes Malay. */
+/** Demo data: Tan Wei Jie writes Chinese (long, mixed), Emily Carter English, a reseller group mixes; Aisyah writes Malay. */
 export async function seedLiveTranslate(
   ctx: AppContext,
   call: Call,
@@ -484,35 +561,26 @@ export async function seedLiveTranslate(
   state.myLanguage.set(aisyahId, 'ms');
   const tan = '60127020388@s.whatsapp.net';
   const emily = '6591234567@s.whatsapp.net';
-  const reply = async (jid: string, ms: string, to: Lang) => {
-    const text = lookup(ms, to)!;
-    await call('POST', `/chats/${encodeURIComponent(jid)}/messages`, {
-      text,
-      clientId: `lt-${Math.random().toString(36).slice(2, 12)}`,
-    });
-    state.sent.set(sentKey(jid, text), {
-      original: ms,
-      from: 'ms',
-      to,
-      byUserId: aisyahId,
-      edited: false,
-    });
-  };
-  await reply(
-    tan,
-    'Boleh, kami hantar ke Gurney Drive. Penghantaran percuma untuk pesanan melebihi RM40.',
-    'zh',
-  );
-  await call('POST', '/dev/fake-incoming', {
-    chatJid: tan,
-    senderName: 'Tan Wei Jie',
-    text: TABLE[2]!.t.zh,
+  const ms = TABLE[1]!.t.ms!;
+  const zh = lookup(ms, 'zh')!;
+  await call('POST', `/chats/${encodeURIComponent(tan)}/messages`, {
+    text: zh,
+    clientId: `lt-${Math.random().toString(36).slice(2, 12)}`,
   });
-  await call('POST', '/dev/fake-incoming', {
-    chatJid: tan,
-    senderName: 'Tan Wei Jie',
-    text: TABLE[3]!.t.zh,
+  state.typed.set(typedKey(tan, zh), {
+    typed: ms,
+    typedLanguage: 'ms',
+    sentLanguage: 'zh',
+    edited: false,
+    original: false,
   });
+  for (const text of [
+    TABLE[2]!.t.zh!,
+    TABLE[3]!.t.zh!,
+    // Mostly Malay (≥ 70 % in My language): shown as is, no label.
+    'Ok boleh, esok saya datang ambil. 谢谢!',
+  ])
+    await call('POST', '/dev/fake-incoming', { chatJid: tan, senderName: 'Tan Wei Jie', text });
   await call('POST', '/dev/fake-incoming', {
     chatJid: emily,
     senderName: 'Emily Carter',
@@ -542,7 +610,7 @@ export async function seedLiveTranslate(
     await wait(300);
   }
   // Aisyah already uses Live translate in Tan Wei Jie's chat.
-  state.chats.set(prefKey(aisyahId, tan), { on: true, customerLanguage: null });
+  state.switches.add(switchKey(aisyahId, tan));
 }
 
 /** Mock only: a new message from Tan Wei Jie, as if it just arrived. */

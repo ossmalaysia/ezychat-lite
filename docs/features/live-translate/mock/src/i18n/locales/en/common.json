@@ -202,6 +202,8 @@
   "mockTranslate": {
     "label": "My language",
     "help": "Live translate shows customers' messages in this language, and you type your replies in it.",
-    "default": "Same as the app ({{lang}})"
+    "default": "Same as the app ({{lang}}).",
+    "skipPreview": "Send without preview",
+    "skipPreviewHelp": "Off: you see what the customer will get before it is sent. On: Send translates and sends at once; a translation that changes a number, price, link or contact is still stopped."
   }
 }

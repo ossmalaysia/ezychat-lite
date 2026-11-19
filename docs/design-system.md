@@ -176,11 +176,11 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   中文" and a `link` button "Show original"; the original opens inside the same bubble in a `bg-muted/60` block with a
   left rule, never replacing the translation. Don't colour or badge translated bubbles, and don't hide that a text was
   translated. — live-translate `03-chat-on`, `04-show-original`
-- **Check before sending** (proposed, live-translate): a card above the composer (like the reply bar), never a dialog:
-  what was typed, the editable result in the outbound colour, what it means, a primary send button that names the
-  language, a ghost way out ("Send in Bahasa Melayu instead") and ✕ Discard. Failures use an inline `Banner` in the
-  card and keep the way out; nothing is sent until a button is pressed. — live-translate `07-preview`,
-  `12-preview-refused`
+- **Translation preview** (proposed, live-translate): "Customer will get · 中文" is a card above the composer (like the
+  reply bar), never a dialog: what was typed (small, muted, with Change), the result in the outbound colour, "Kept
+  unchanged:" chips for the protected items, then Send (primary), Edit translation (outline) and a ghost way out
+  ("Send original instead"); ✕ is Keep editing. No back-translation. Failures use an inline `Banner` in the card and keep
+  the way out; nothing is sent until a button is pressed. — live-translate `07-preview`, `12-preview-refused`
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.
 - **Loading** uses `Skeleton` rows, not spinners, for lists.
 - **Upload progress** of a file this browser sends sits at the top of its pending bubble, above the file's

@@ -5,14 +5,15 @@ import { api } from '@/api/client';
 import { useLocale } from '@/i18n/locale-store';
 
 /**
- * Proposed (live-translate): client side of the mock. The app will carry the switch and "My language" in
- * the bootstrap payload and the per-chat state in the chat; the mock asks its `/api/mock/live-translate` routes.
+ * Proposed (live-translate): client side of the mock. The app will carry the switch, "My language" and "Send without
+ * preview" in the bootstrap payload and `/api/me`, and the chat state in `/api/chats/:jid/live-translate`; the mock asks
+ * its `/api/mock/live-translate` routes.
  */
 
 export const LANGS = ['ms', 'en', 'zh', 'id', 'ta', 'th', 'vi', 'ar', 'ja', 'ko'] as const;
 export type Lang = (typeof LANGS)[number];
 
-/** Each language in its own name (the picker shows these, as WhatsApp does). */
+/** Each language in its own name (the picker shows these). */
 export const NATIVE: Record<Lang, string> = {
   ms: 'Bahasa Melayu',
   en: 'English',
@@ -27,31 +28,51 @@ export const NATIVE: Record<Lang, string> = {
 };
 
 export type MockScenario =
-  'normal' | 'slow' | 'error' | 'limit' | 'no_connection' | 'number_changed';
+  'normal' | 'slow' | 'error' | 'limit' | 'offline' | 'no_ai' | 'number_changed';
+
+export const SCENARIOS: MockScenario[] = [
+  'normal',
+  'slow',
+  'error',
+  'limit',
+  'offline',
+  'no_ai',
+  'number_changed',
+];
 
 export interface LiveTranslateStatus {
   enabled: boolean;
-  model: 'fast' | 'main';
   dailyLimit: number;
   connected: boolean;
   scenario: MockScenario;
   myLanguage: Lang;
   myLanguageSet: boolean;
+  /** Per person, off by default: Send translates and sends at once (the protected-text check still runs). */
+  sendWithoutPreview: boolean;
   usedByMe: number;
   usedToday: number;
   peopleToday: number;
 }
 
 export interface ChatTranslateState {
+  /** My switch in this chat (per person). */
   on: boolean;
+  /** Chosen by a teammate (shared by the team); wins over `detected`. */
   customerLanguage: Lang | null;
   detected: Lang | null;
+  /** A second language the customer mixes in ("中文 + English"). */
+  mixed: Lang | null;
+  /** Groups: the one language replies go out in (null = `outgoingDetected`). */
+  outgoingLanguage: Lang | null;
+  outgoingDetected: Lang | null;
 }
 
 export type BubbleTranslation =
   | { kind: 'translated'; text: string; from: Lang }
   | { kind: 'failed'; code: string; from: Lang }
-  | { kind: 'written'; original: string; from: Lang; to: Lang; edited: boolean; by: number | null };
+  | { kind: 'written'; original: string; from: Lang; to: Lang; edited: boolean }
+  /** "Send original instead": sent as typed. */
+  | { kind: 'original'; from: Lang };
 
 export const statusKey = ['mock', 'live-translate'] as const;
 
@@ -64,11 +85,11 @@ export function useLiveTranslateStatus() {
   });
 }
 
-export function useSetMyLanguage() {
+export function useSetMe() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (myLanguage: Lang) =>
-      api<LiveTranslateStatus>('/mock/live-translate/me', { method: 'PUT', body: { myLanguage } }),
+    mutationFn: (body: { myLanguage?: Lang; sendWithoutPreview?: boolean }) =>
+      api<LiveTranslateStatus>('/mock/live-translate/me', { method: 'PUT', body }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['mock', 'live-translate'] }),
   });
 }
@@ -97,7 +118,11 @@ export function useChatTranslate(jid: string) {
 export function useSetChatTranslate(jid: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: { on?: boolean; customerLanguage?: Lang | null }) =>
+    mutationFn: (body: {
+      on?: boolean;
+      customerLanguage?: Lang | null;
+      outgoingLanguage?: Lang | null;
+    }) =>
       api<ChatTranslateState>(`/mock/live-translate/chats/${encodeURIComponent(jid)}`, {
         method: 'PUT',
         body,
@@ -114,12 +139,10 @@ export interface ChatTranslateContextValue {
   jid: string;
   active: boolean;
   my: Lang;
-  customer: Lang | null;
   showOriginals: boolean;
   translations: Record<string, BubbleTranslation>;
   pending: boolean;
   retry(): void;
-  nameOf(userId: number): string | null;
 }
 
 export const ChatTranslateContext = createContext<ChatTranslateContextValue | null>(null);
@@ -131,8 +154,8 @@ export function useBubbleTranslation(m: Message) {
 }
 
 /**
- * Asks for the translations of the visible text messages. Translated ones are cached by the server per
- * message and language, so re-opening a chat costs nothing.
+ * Asks for the translations of the visible text messages. Translations are cached by the server per message and
+ * target language, so a reload or a teammate with the same language costs nothing.
  */
 export function useChatTranslations(
   jid: string,
@@ -168,8 +191,8 @@ export function useChatTranslations(
 }
 
 export type PreviewResult =
-  | { status: 'ok'; text: string; back: string; from: Lang; to: Lang }
-  | { status: 'refused'; reason: 'changed'; items: string[] };
+  | { status: 'ok'; text: string; from: Lang; to: Lang; protected: string[]; draftId: string }
+  | { status: 'refused'; item: string; became: string };
 
 export function previewTranslation(jid: string, body: { text: string; from: Lang; to: Lang }) {
   return api<PreviewResult>(`/mock/live-translate/chats/${encodeURIComponent(jid)}/preview`, {
@@ -180,7 +203,14 @@ export function previewTranslation(jid: string, body: { text: string; from: Lang
 
 export function rememberSent(
   jid: string,
-  body: { text: string; original: string; from: Lang; to: Lang; edited: boolean },
+  body: {
+    text: string;
+    original: string;
+    from: Lang;
+    to: Lang;
+    edited: boolean;
+    kind?: 'translated' | 'original';
+  },
 ) {
   return api(`/mock/live-translate/chats/${encodeURIComponent(jid)}/sent`, {
     method: 'POST',

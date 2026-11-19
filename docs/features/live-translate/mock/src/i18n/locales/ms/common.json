@@ -202,6 +202,8 @@
   "mockTranslate": {
     "label": "Bahasa saya",
     "help": "Terjemah langsung memaparkan mesej pelanggan dalam bahasa ini, dan anda menaip balasan dalam bahasa ini.",
-    "default": "Sama seperti aplikasi ({{lang}})"
+    "default": "Sama seperti aplikasi ({{lang}}).",
+    "skipPreview": "Hantar tanpa pratonton",
+    "skipPreviewHelp": "Mati: anda nampak apa yang pelanggan akan terima sebelum dihantar. Hidup: Hantar terus menterjemah dan menghantar; terjemahan yang mengubah nombor, harga, pautan atau maklumat hubungan tetap dihalang."
   }
 }

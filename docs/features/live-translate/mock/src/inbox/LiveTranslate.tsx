@@ -1,18 +1,21 @@
-// Proposed (live-translate): the chat's Translate button, the Live translate bar, the translated bubble text and the
-// check-before-sending card. Design: docs/features/live-translate/design.md.
+// Proposed (live-translate): the chat's Translate button, the Live translate bar, the off-state hint, the translated
+// bubble text and the "Customer will get" preview. Labels match Cloud's proposal (anchorsprint/ezychat-cloud #107).
+// Design: docs/features/live-translate/design.md.
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
 import {
   AlertTriangle,
-  ArrowRight,
+  Check,
   Languages,
   Loader2,
+  Pencil,
   RotateCw,
   SendHorizontal,
   Settings2,
   X,
 } from 'lucide-react';
+import type { Message } from '@ezychat/shared';
 import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,18 +36,24 @@ import {
   LANGS,
   NATIVE,
   NEXT_CUSTOMER,
+  SCENARIOS,
   previewTranslation,
   useBubbleTranslation,
   useChatTranslate,
   useLiveTranslateStatus,
   useSetChatTranslate,
-  useSetMyLanguage,
+  useSetMe,
   useSetScenario,
+  type ChatTranslateState,
   type Lang,
   type MockScenario,
   type PreviewResult,
 } from '../mock/liveTranslate';
-import type { Message } from '@ezychat/shared';
+
+/** The customer's language: chosen by the team, else detected. */
+export function customerLanguageOf(chat: ChatTranslateState | undefined): Lang | null {
+  return chat?.customerLanguage ?? chat?.detected ?? null;
+}
 
 /** Header button: turns Live translate on or off for this chat, for me only. Hidden while an admin has it off. */
 export function TranslateHeaderButton({ jid, className }: { jid: string; className?: string }) {
@@ -81,17 +90,15 @@ function LanguageSelect({
   value,
   onChange,
   autoLabel,
-  className,
 }: {
   id: string;
   value: Lang | 'auto';
   onChange(v: Lang | 'auto'): void;
   autoLabel?: string;
-  className?: string;
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as Lang | 'auto')}>
-      <SelectTrigger id={id} className={cn('h-11! w-full bg-surface md:h-9!', className)}>
+      <SelectTrigger id={id} className="h-11! w-full bg-surface md:h-9!">
         <SelectValue />
       </SelectTrigger>
       <SelectContent position="popper">
@@ -126,24 +133,34 @@ export function TranslateBar({
   const status = useLiveTranslateStatus();
   const chat = useChatTranslate(jid);
   const set = useSetChatTranslate(jid);
-  const setMine = useSetMyLanguage();
+  const setMe = useSetMe();
   const customerId = useId();
   const myId = useId();
+  const outId = useId();
   const originalsId = useId();
   if (!status.data?.enabled || !chat.data?.on) return null;
   const my = status.data.myLanguage;
-  const customer = chat.data.customerLanguage ?? chat.data.detected;
+  const customer = customerLanguageOf(chat.data);
+  const outgoing = chat.data.outgoingLanguage ?? chat.data.outgoingDetected;
   const same = !isGroup && customer === my;
-  const notice = !status.data.connected
-    ? { tone: 'warning' as const, text: t('mockTranslate.bar.noConnection') }
-    : status.data.scenario === 'limit' ||
-        (status.data.dailyLimit > 0 && status.data.usedByMe >= status.data.dailyLimit)
-      ? { tone: 'warning' as const, text: t('mockTranslate.bar.limit') }
-      : same
-        ? { tone: 'info' as const, text: t('mockTranslate.bar.same') }
-        : !isGroup && !customer
-          ? { tone: 'info' as const, text: t('mockTranslate.bar.notDetected') }
-          : null;
+  const customerLabel = customer
+    ? chat.data.mixed && !chat.data.customerLanguage
+      ? `${NATIVE[customer]} + ${NATIVE[chat.data.mixed]}`
+      : NATIVE[customer]
+    : t('mockTranslate.bar.unknown');
+  const notice =
+    status.data.scenario === 'offline'
+      ? { tone: 'warning' as const, text: t('mockTranslate.bar.offline') }
+      : !status.data.connected
+        ? { tone: 'warning' as const, text: t('mockTranslate.bar.noConnection') }
+        : status.data.scenario === 'limit' ||
+            (status.data.dailyLimit > 0 && status.data.usedByMe >= status.data.dailyLimit)
+          ? { tone: 'warning' as const, text: t('mockTranslate.bar.limit') }
+          : same
+            ? { tone: 'info' as const, text: t('mockTranslate.bar.same') }
+            : !isGroup && !customer
+              ? { tone: 'info' as const, text: t('mockTranslate.bar.notDetected') }
+              : null;
   return (
     <div
       className="border-b bg-accent/40 px-3 py-1.5 text-sm md:px-4"
@@ -156,11 +173,11 @@ export function TranslateBar({
           <Languages className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">
             {isGroup
-              ? t('mockTranslate.bar.groupPair', { my: NATIVE[my] })
-              : t('mockTranslate.bar.pair', {
-                  customer: customer ? NATIVE[customer] : t('mockTranslate.bar.unknown'),
+              ? t('mockTranslate.bar.groupPair', {
                   my: NATIVE[my],
-                })}
+                  out: outgoing ? NATIVE[outgoing] : NATIVE[my],
+                })
+              : t('mockTranslate.bar.pair', { customer: customerLabel, my: NATIVE[my] })}
           </span>
           {!isGroup && !chat.data.customerLanguage && customer && (
             <span className="shrink-0 text-xs font-normal text-muted-foreground">
@@ -196,7 +213,26 @@ export function TranslateBar({
             </PopoverTrigger>
             <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] space-y-4">
               <p className="text-sm font-semibold">{t('mockTranslate.bar.languagesTitle')}</p>
-              {!isGroup && (
+              {isGroup ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor={outId}>{t('mockTranslate.bar.groupGets')}</Label>
+                  <LanguageSelect
+                    id={outId}
+                    value={chat.data.outgoingLanguage ?? 'auto'}
+                    autoLabel={
+                      chat.data.outgoingDetected
+                        ? t('mockTranslate.bar.autoCommon', {
+                            lang: NATIVE[chat.data.outgoingDetected],
+                          })
+                        : t('mockTranslate.bar.auto')
+                    }
+                    onChange={(v) => set.mutate({ outgoingLanguage: v === 'auto' ? null : v })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t('mockTranslate.bar.groupHelp')}
+                  </p>
+                </div>
+              ) : (
                 <div className="space-y-1.5">
                   <Label htmlFor={customerId}>{t('mockTranslate.bar.customerWrites')}</Label>
                   <LanguageSelect
@@ -219,10 +255,18 @@ export function TranslateBar({
                 <LanguageSelect
                   id={myId}
                   value={my}
-                  onChange={(v) => v !== 'auto' && setMine.mutate(v)}
+                  onChange={(v) => v !== 'auto' && setMe.mutate({ myLanguage: v })}
                 />
                 <p className="text-xs text-muted-foreground">{t('mockTranslate.bar.youHelp')}</p>
               </div>
+              <p className="text-xs text-muted-foreground" data-testid="translate-usage">
+                {status.data.dailyLimit > 0
+                  ? t('mockTranslate.bar.usage', {
+                      used: status.data.usedByMe,
+                      limit: status.data.dailyLimit,
+                    })
+                  : t('mockTranslate.bar.usageNoLimit', { used: status.data.usedByMe })}
+              </p>
               <Button
                 variant="outline"
                 size="touch"
@@ -253,6 +297,57 @@ export function TranslateBar({
           {notice.text}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Off, in a direct chat whose customer writes another language: a one-line hint above the composer. A hint only;
+ * Live translate never turns itself on.
+ */
+export function TranslateHint({ jid, isGroup }: { jid: string; isGroup: boolean }) {
+  const { t } = useTranslation('inbox');
+  const status = useLiveTranslateStatus();
+  const chat = useChatTranslate(jid);
+  const set = useSetChatTranslate(jid);
+  const [closed, setClosed] = useState(false);
+  const customer = customerLanguageOf(chat.data);
+  if (
+    closed ||
+    isGroup ||
+    !status.data?.enabled ||
+    !status.data.connected ||
+    !chat.data ||
+    chat.data.on ||
+    !customer ||
+    customer === status.data.myLanguage
+  )
+    return null;
+  return (
+    <div
+      className="flex items-center gap-2 px-3 pt-2 text-sm text-muted-foreground"
+      data-testid="translate-hint"
+    >
+      <Languages className="size-4 shrink-0 text-primary" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        {t('mockTranslate.hint.text', {
+          customer: NATIVE[customer],
+          my: NATIVE[status.data.myLanguage],
+        })}
+      </span>
+      <Button size="sm" variant="outline" onClick={() => set.mutate({ on: true })}>
+        {t('mockTranslate.button')}
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-touch"
+        className="size-8 text-muted-foreground"
+        aria-label={t('mockTranslate.hint.dismiss')}
+        title={t('mockTranslate.hint.dismiss')}
+        onClick={() => setClosed(true)}
+      >
+        <X className="size-4" aria-hidden="true" />
+      </Button>
     </div>
   );
 }
@@ -289,13 +384,11 @@ export function TranslateMockStrip({ jid }: { jid: string }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper">
-          {(['normal', 'slow', 'error', 'limit', 'no_connection', 'number_changed'] as const).map(
-            (v) => (
-              <SelectItem key={v} value={v} className="min-h-11 md:min-h-8">
-                {t(`mockTranslate.mock.${v}`)}
-              </SelectItem>
-            ),
-          )}
+          {SCENARIOS.map((v) => (
+            <SelectItem key={v} value={v} className="min-h-11 md:min-h-8">
+              {t(`mockTranslate.mock.${v}`)}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
       {jid === NEXT_CUSTOMER.chatJid && (
@@ -319,20 +412,26 @@ function TranslationLine({
   toggle,
   open,
   onToggle,
-  testId,
+  tone = 'muted',
 }: {
   label: string;
   toggle?: string;
   open?: boolean;
   onToggle?(): void;
-  testId?: string;
+  tone?: 'muted' | 'warning';
 }) {
   return (
     <p
-      className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground"
-      data-testid={testId}
+      className={cn(
+        'mt-0.5 flex flex-wrap items-center gap-x-1 text-[11px]',
+        tone === 'warning' ? 'text-warning' : 'text-muted-foreground',
+      )}
     >
-      <Languages className="size-3 shrink-0" aria-hidden="true" />
+      {tone === 'warning' ? (
+        <AlertTriangle className="size-3 shrink-0" aria-hidden="true" />
+      ) : (
+        <Languages className="size-3 shrink-0" aria-hidden="true" />
+      )}
       <span>{label}</span>
       {toggle && onToggle && (
         <>
@@ -351,7 +450,7 @@ function TranslationLine({
   );
 }
 
-/** The other version of a message, under the line (the original, or what was sent / typed). */
+/** The other version of a message, under the line (the original, the sent text or what was typed). */
 function OtherVersion({ label, text, lang }: { label: string; text: string; lang: string }) {
   return (
     <div className="mt-1 rounded-md border-l-2 border-muted-foreground/30 bg-muted/60 px-2 py-1">
@@ -366,10 +465,17 @@ function OtherVersion({ label, text, lang }: { label: string; text: string; lang
   );
 }
 
+const FAILED_KEY: Record<string, 'unsafe' | 'limit' | 'ai' | 'offline' | 'error'> = {
+  unsafe: 'unsafe',
+  translate_limit: 'limit',
+  ai_unavailable: 'ai',
+  offline: 'offline',
+  error: 'error',
+};
+
 /**
- * The text of a bubble. Live translate on: the customer's words in my language (or what I typed for my own
- * replies), with the original one tap away. Off: the real message, plus "Written in …" on a reply that went
- * through Live translate.
+ * The text of a bubble. On: the message in my language (what I typed for my own replies), with the other version
+ * one tap away. Off: the real message, plus "Written in …" on a reply that went through Live translate.
  */
 export function BubbleText({ m, render }: { m: Message; render(text: string): React.ReactNode }) {
   const { t } = useTranslation('inbox');
@@ -387,9 +493,16 @@ export function BubbleText({ m, render }: { m: Message; render(text: string): Re
   if (!found) return main(body);
   const { ctx, tr } = found;
   const expanded = open ?? ctx.showOriginals;
+  const flip = () => setOpen(!expanded);
+  if (tr?.kind === 'original')
+    return (
+      <div data-testid="bubble-sent-original">
+        {main(body, tr.from)}
+        {ctx.active && <TranslationLine label={t('mockTranslate.bubble.sentOriginal')} />}
+      </div>
+    );
   if (tr?.kind === 'written') {
-    const writer = tr.by == null ? null : ctx.nameOf(tr.by);
-    // On, and I can read what was typed: show it, with what the customer got one tap away.
+    // On, and I read the language it was typed in: what was typed, with what the customer got one tap away.
     if (ctx.active && tr.from === ctx.my)
       return (
         <div data-testid="bubble-written-mine">
@@ -398,7 +511,7 @@ export function BubbleText({ m, render }: { m: Message; render(text: string): Re
             label={t('mockTranslate.bubble.sentIn', { lang: NATIVE[tr.to] })}
             toggle={expanded ? t('mockTranslate.bubble.hide') : t('mockTranslate.bubble.showSent')}
             open={expanded}
-            onToggle={() => setOpen(!expanded)}
+            onToggle={flip}
           />
           {expanded && (
             <OtherVersion label={t('mockTranslate.bubble.sentLabel')} text={body} lang={tr.to} />
@@ -409,14 +522,10 @@ export function BubbleText({ m, render }: { m: Message; render(text: string): Re
       <div data-testid="bubble-written">
         {main(body, tr.to)}
         <TranslationLine
-          label={
-            writer
-              ? t('mockTranslate.bubble.writtenInBy', { lang: NATIVE[tr.from], name: writer })
-              : t('mockTranslate.bubble.writtenIn', { lang: NATIVE[tr.from] })
-          }
+          label={t('mockTranslate.bubble.writtenIn', { lang: NATIVE[tr.from] })}
           toggle={expanded ? t('mockTranslate.bubble.hide') : t('mockTranslate.bubble.showTyped')}
           open={expanded}
-          onToggle={() => setOpen(!expanded)}
+          onToggle={flip}
         />
         {expanded && (
           <OtherVersion
@@ -434,53 +543,55 @@ export function BubbleText({ m, render }: { m: Message; render(text: string): Re
   }
   if (!ctx.active) return main(body);
   if (tr?.kind === 'translated')
+    // Our replies without a typed record (the AI agent's, the phone's) read "Sent in …".
     return (
       <div data-testid="bubble-translated">
         {main(tr.text, ctx.my)}
         <TranslationLine
-          label={t('mockTranslate.bubble.translatedFrom', { lang: NATIVE[tr.from] })}
+          label={
+            m.fromMe
+              ? t('mockTranslate.bubble.sentIn', { lang: NATIVE[tr.from] })
+              : t('mockTranslate.bubble.translatedFrom', { lang: NATIVE[tr.from] })
+          }
           toggle={
             expanded
-              ? t('mockTranslate.bubble.hideOriginal')
-              : t('mockTranslate.bubble.showOriginal')
+              ? t('mockTranslate.bubble.hide')
+              : m.fromMe
+                ? t('mockTranslate.bubble.showSent')
+                : t('mockTranslate.bubble.showOriginal')
           }
           open={expanded}
-          onToggle={() => setOpen(!expanded)}
+          onToggle={flip}
         />
         {expanded && (
           <OtherVersion
-            label={t('mockTranslate.bubble.originalLabel')}
+            label={
+              m.fromMe
+                ? t('mockTranslate.bubble.sentLabel')
+                : t('mockTranslate.bubble.originalLabel')
+            }
             text={body}
             lang={tr.from}
           />
         )}
       </div>
     );
-  if (tr?.kind === 'failed')
+  if (tr?.kind === 'failed') {
+    const key = FAILED_KEY[tr.code] ?? ('error' as const);
+    const canRetry = key === 'error' || key === 'offline';
     return (
       <div data-testid="bubble-failed">
         {main(body, tr.from)}
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[11px] text-warning">
-          <AlertTriangle className="size-3 shrink-0" aria-hidden="true" />
-          {t(
-            `mockTranslate.bubble.failed.${tr.code === 'translate_limit' ? 'limit' : tr.code === 'ai_unavailable' ? 'ai' : 'error'}`,
-          )}
-          {tr.code === 'error' && (
-            <>
-              <span aria-hidden="true">·</span>
-              <Button
-                variant="link"
-                onClick={ctx.retry}
-                className="h-auto p-0 text-[11px] font-medium text-primary pointer-coarse:min-h-8"
-              >
-                {t('mockTranslate.bubble.retry')}
-              </Button>
-            </>
-          )}
-        </p>
+        <TranslationLine
+          tone="warning"
+          label={t(`mockTranslate.bubble.failed.${key}`)}
+          toggle={canRetry ? t('mockTranslate.bubble.retry') : undefined}
+          onToggle={canRetry ? ctx.retry : undefined}
+        />
       </div>
     );
-  // Not translated yet (just arrived) and in another language than mine.
+  }
+  // Just arrived and in another language: the original until its translation comes.
   if (!tr && ctx.pending && !m.fromMe)
     return (
       <div>
@@ -497,12 +608,20 @@ export function BubbleText({ m, render }: { m: Message; render(text: string): Re
 type PreviewState =
   | { kind: 'loading' }
   | { kind: 'ready'; result: Extract<PreviewResult, { status: 'ok' }> }
-  | { kind: 'refused'; items: string[] }
+  | { kind: 'refused'; item: string; became: string }
   | { kind: 'error'; code: string };
 
+const ERROR_KEY: Record<string, 'limit' | 'noAi' | 'offline' | 'off'> = {
+  translate_limit: 'limit',
+  ai_unavailable: 'noAi',
+  offline: 'offline',
+  translate_off: 'off',
+};
+
 /**
- * Check before sending: what the customer will get (editable), what it means in my language, and the way out
- * (send what I typed). Nothing is sent until the person presses a button.
+ * "Customer will get · 中文": the translation, the protected items kept, Send / Edit translation / Send original
+ * instead. With "Send without preview" on it sends as soon as the translation passes the check, and stays only when
+ * something went wrong. Nothing is sent until the person presses a send button (or chose to skip the preview).
  */
 export function SendPreview({
   jid,
@@ -510,6 +629,7 @@ export function SendPreview({
   my,
   customer,
   dailyLimit,
+  autoSend,
   onSend,
   onSendOriginal,
   onDiscard,
@@ -519,6 +639,7 @@ export function SendPreview({
   my: Lang;
   customer: Lang;
   dailyLimit: number;
+  autoSend: boolean;
   onSend(text: string, original: string, edited: boolean): void;
   onSendOriginal(text: string): void;
   onDiscard(): void;
@@ -526,6 +647,7 @@ export function SendPreview({
   const { t } = useTranslation('inbox');
   const [mine, setMine] = useState(typed);
   const [editingMine, setEditingMine] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [state, setState] = useState<PreviewState>({ kind: 'loading' });
   const [draft, setDraft] = useState('');
   const [round, setRound] = useState(0);
@@ -534,10 +656,13 @@ export function SendPreview({
   useEffect(() => {
     let live = true;
     setState({ kind: 'loading' });
+    setEditing(false);
     previewTranslation(jid, { text: mine, from: my, to: customer }).then(
       (result) => {
         if (!live) return;
-        if (result.status === 'refused') return setState({ kind: 'refused', items: result.items });
+        if (result.status === 'refused')
+          return setState({ kind: 'refused', item: result.item, became: result.became });
+        if (autoSend && round === 0) return onSend(result.text, mine, false);
         setDraft(result.text);
         setState({ kind: 'ready', result });
       },
@@ -547,18 +672,18 @@ export function SendPreview({
     return () => {
       live = false;
     };
-    // Re-run only on "Translate again" (round), not on every keystroke in "You wrote".
+    // Re-run only on Try again / Translate again (round), not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round]);
   useEffect(() => {
-    if (state.kind === 'ready') sendRef.current?.focus();
-  }, [state.kind]);
+    if (state.kind === 'ready' && !editing) sendRef.current?.focus();
+  }, [state.kind, editing]);
   const edited = state.kind === 'ready' && draft.trim() !== state.result.text.trim();
   const send = () => state.kind === 'ready' && draft.trim() && onSend(draft.trim(), mine, edited);
   return (
     <section
       className="mb-2 rounded-xl border bg-surface shadow-sm"
-      aria-label={t('mockTranslate.preview.title')}
+      aria-label={t('mockTranslate.preview.title', { lang: NATIVE[customer] })}
       data-testid="translate-preview"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onDiscard();
@@ -570,16 +695,15 @@ export function SendPreview({
     >
       <div className="flex items-center gap-2 border-b px-3 py-1.5">
         <Languages className="size-4 text-primary" aria-hidden="true" />
-        <p className="flex-1 text-sm font-semibold">{t('mockTranslate.preview.title')}</p>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          {NATIVE[my]} <ArrowRight className="size-3" aria-hidden="true" /> {NATIVE[customer]}
-        </span>
+        <p className="flex-1 text-sm font-semibold">
+          {t('mockTranslate.preview.title', { lang: NATIVE[customer] })}
+        </p>
         <Button
           variant="ghost"
           size="icon-touch"
           onClick={onDiscard}
-          aria-label={t('mockTranslate.preview.discard')}
-          title={t('mockTranslate.preview.discard')}
+          aria-label={t('mockTranslate.preview.close')}
+          title={t('mockTranslate.preview.close')}
           className="text-muted-foreground"
         >
           <X className="size-4" aria-hidden="true" />
@@ -589,7 +713,7 @@ export function SendPreview({
         <div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-muted-foreground">
-              {t('mockTranslate.preview.youWrote')}
+              {t('mockTranslate.preview.youWrote', { lang: NATIVE[my] })}
             </p>
             {!editingMine && (
               <Button
@@ -607,7 +731,7 @@ export function SendPreview({
                 value={mine}
                 onChange={(e) => setMine(e.target.value)}
                 lang={my}
-                aria-label={t('mockTranslate.preview.youWrote')}
+                aria-label={t('mockTranslate.preview.youWrote', { lang: NATIVE[my] })}
                 className="min-h-16 text-[15px]"
               />
               <Button
@@ -626,7 +750,7 @@ export function SendPreview({
           ) : (
             <p
               lang={my}
-              className="whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere]"
+              className="whitespace-pre-wrap break-words text-sm text-muted-foreground [overflow-wrap:anywhere]"
             >
               {mine}
             </p>
@@ -635,54 +759,65 @@ export function SendPreview({
         {state.kind === 'loading' && (
           <p className="flex items-center gap-2 py-2 text-sm text-muted-foreground" role="status">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            {t('mockTranslate.preview.translating', { lang: NATIVE[customer] })}
+            {autoSend
+              ? t('mockTranslate.preview.sending', { lang: NATIVE[customer] })
+              : t('mockTranslate.preview.translating', { lang: NATIVE[customer] })}
           </p>
         )}
         {state.kind === 'ready' && (
-          <>
-            <div className="space-y-1">
-              <Label htmlFor={textId} className="text-xs font-medium text-muted-foreground">
-                {t('mockTranslate.preview.willSend', { lang: NATIVE[customer] })}
-              </Label>
-              <Textarea
-                id={textId}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                lang={customer}
-                className="min-h-16 bg-outbound text-[15px] text-outbound-foreground"
-                data-testid="translate-preview-text"
-              />
-            </div>
-            <div className="text-sm">
-              <p className="text-xs font-medium text-muted-foreground">
-                {t('mockTranslate.preview.means', { lang: NATIVE[my] })}
-              </p>
+          <div className="space-y-1.5">
+            {editing ? (
+              <>
+                <Label htmlFor={textId} className="text-xs font-medium text-muted-foreground">
+                  {t('mockTranslate.preview.editLabel')}
+                </Label>
+                <Textarea
+                  id={textId}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  lang={customer}
+                  autoFocus
+                  className="min-h-16 bg-outbound text-[15px] text-outbound-foreground"
+                  data-testid="translate-preview-text"
+                />
+              </>
+            ) : (
               <p
-                lang={my}
-                className="whitespace-pre-wrap break-words text-muted-foreground [overflow-wrap:anywhere]"
+                lang={customer}
+                className="whitespace-pre-wrap break-words rounded-lg border border-primary/15 bg-outbound px-3 py-2 text-[15px] text-outbound-foreground [overflow-wrap:anywhere]"
+                data-testid="translate-preview-result"
               >
-                {state.result.back}
+                {draft}
+                {edited && (
+                  <Badge variant="secondary" className="ml-2 align-middle text-[11px]">
+                    {t('mockTranslate.preview.edited')}
+                  </Badge>
+                )}
               </p>
-              {edited && (
-                <p className="mt-1 text-xs text-warning">{t('mockTranslate.preview.editedNote')}</p>
-              )}
-            </div>
-          </>
+            )}
+            {state.result.protected.length > 0 && (
+              <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                <Check className="size-3.5 text-primary" aria-hidden="true" />
+                {t('mockTranslate.preview.kept')}
+                {state.result.protected.map((item) => (
+                  <Badge key={item} variant="secondary" className="font-normal">
+                    {item}
+                  </Badge>
+                ))}
+              </p>
+            )}
+          </div>
         )}
         {state.kind === 'refused' && (
           <Banner tone="warning" title={t('mockTranslate.preview.refusedTitle')}>
-            {t('mockTranslate.preview.refused', { items: state.items.join(', ') })}
+            {t('mockTranslate.preview.refused', { item: state.item, became: state.became })}
           </Banner>
         )}
         {state.kind === 'error' && (
           <Banner tone={state.code === 'translate_limit' ? 'warning' : 'danger'}>
-            {state.code === 'translate_limit'
-              ? t('mockTranslate.preview.limit', { count: dailyLimit })
-              : state.code === 'ai_unavailable'
-                ? t('mockTranslate.preview.errorAi')
-                : state.code === 'translate_off'
-                  ? t('mockTranslate.preview.off')
-                  : t('mockTranslate.preview.error')}
+            {t(`mockTranslate.preview.errors.${ERROR_KEY[state.code] ?? ('error' as const)}`, {
+              count: dailyLimit,
+            })}
           </Banner>
         )}
       </div>
@@ -694,12 +829,23 @@ export function SendPreview({
           data-testid="translate-send-original"
           className="mr-auto"
         >
-          {t('mockTranslate.preview.sendOriginal', { lang: NATIVE[my] })}
+          {t('mockTranslate.preview.sendOriginal')}
         </Button>
         {(state.kind === 'refused' || state.kind === 'error') && (
           <Button variant="outline" size="touch" onClick={() => setRound((n) => n + 1)}>
             <RotateCw aria-hidden="true" />
             {t('mockTranslate.preview.retry')}
+          </Button>
+        )}
+        {state.kind === 'ready' && (
+          <Button
+            variant="outline"
+            size="touch"
+            onClick={() => setEditing((e) => !e)}
+            data-testid="translate-edit"
+          >
+            {editing ? <Check aria-hidden="true" /> : <Pencil aria-hidden="true" />}
+            {editing ? t('mockTranslate.preview.done') : t('mockTranslate.preview.edit')}
           </Button>
         )}
         <Button
@@ -710,7 +856,7 @@ export function SendPreview({
           data-testid="translate-send"
         >
           <SendHorizontal aria-hidden="true" />
-          {t('mockTranslate.preview.send', { lang: NATIVE[customer] })}
+          {t('mockTranslate.preview.send')}
         </Button>
       </div>
     </section>
