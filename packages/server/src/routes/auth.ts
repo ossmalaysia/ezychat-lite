@@ -69,7 +69,10 @@ export default async function authRoutes(app: FastifyInstance, ctx: AppContext) 
   // Self-service preferences only; role, name and password changes have their own guarded routes.
   app.patch('/me', { preHandler: requireUser(ctx) }, async (req) => {
     const body = parse(PatchMeBody, req.body);
-    const user = auth.setLocale(req.user!.id, body.locale);
+    const user =
+      body.locale !== undefined
+        ? auth.setLocale(req.user!.id, body.locale)
+        : auth.getUser(req.user!.id);
     if (!user) throw errors.notFound('User');
     return user;
   });
