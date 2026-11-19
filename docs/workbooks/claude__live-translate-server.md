@@ -7,7 +7,7 @@ Branch: `claude/live-translate-server` · Every agent updates its stage with
 | --- | --- | --- | --- | --- |
 | Design | done | Mock confirmed by the owner 2026-11-19 ("ok mock"); docs/features/live-translate/design.md, docs/live-translate.md | bb6b0e0 | 2026-11-19 |
 | Dev | done | Shared contract fa9e351; server routes, cache, limit, guard, send check; review fixes | bb6b0e0 | 2026-11-19 |
-| Unit tests | todo |  |  |  |
+| Unit tests | pass | Full suite 5979 passed; changed-lines coverage 97.2 % (495/509) | 4339b2b | 2026-11-19 |
 | E2E | todo |  |  |  |
 | Dev Build | todo |  |  |  |
 | Screen review | todo |  |  |  |
@@ -16,3 +16,4 @@ Branch: `claude/live-translate-server` · Every agent updates its stage with
 
 - 2026-11-19 Design: done — Mock confirmed by the owner 2026-11-19 ("ok mock"); docs/features/live-translate/design.md, docs/live-translate.md (bb6b0e0)
 - 2026-11-19 Dev: done — Shared contract fa9e351; server routes, cache, limit, guard, send check; review fixes (bb6b0e0)
+- 2026-11-19 Unit tests: pass — Full suite 5979 passed; changed-lines coverage 97.2 % (495/509) (4339b2b)
