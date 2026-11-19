@@ -2230,9 +2230,10 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   while another component renders (`added`, `fetch`): React warns "Cannot update a component while rendering a
   different component". Notify only on `updated` + `success`. A chat-list row also takes such data as a prop and never
   calls `useQuery` itself: `ChatList.test` renders without a `QueryClientProvider` and counts row renders.
-- `/api/me` is parsed with a zod schema, which strips fields the web schema does not know: a new per-user field
-  (Live translate's `translateLanguage`) reads as missing until the schema carries it. A component test that mocks `fetch`
-  with the field catches it; one that mocks `useAuth` does not.
+- `/api/me` is parsed with `MeResponse` (the user schema plus per-user preferences), and `useAuth().user` is typed
+  `User`: a new per-user field (Live translate's `translateLanguage`) is stripped until `MeResponse` carries it, and
+  the web reads it through a `MeResponse` cast. A component test that mocks `fetch` with the field catches a missing
+  schema entry; one that mocks `useAuth` does not.
 - A header that has one button in two places (narrow beside the name, wide in the action row) takes two slot props, not a
   render function with class-name strings: `i18next/no-literal-string` flags the string argument.
 - Never run `prettier --write` on a whole directory of an old checkout; run it on the files you changed. It reformatted
