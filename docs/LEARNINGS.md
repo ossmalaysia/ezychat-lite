@@ -2238,6 +2238,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   render function with class-name strings: `i18next/no-literal-string` flags the string argument.
 - Never run `prettier --write` on a whole directory of an old checkout; run it on the files you changed. It reformatted
   every `components/ui/*` file here and had to be reverted.
+- A web feature built beside a server PR is tested in the browser with the new routes answered by `page.route` (no model, as
+  `reply-suggestions.spec.ts` does), so the spec is green before the server exists; the full e2e then runs once on a local
+  throwaway branch that merges the server branch, never on the PR branch. A failure that appears only after that merge is
+  the server branch's: confirm it by running the spec on `main` and on the web-only branch before reporting it.
+- Placeholder and label text that fits a 1280 px composer wraps to three lines at 360 px: give phones a short variant
+  (`wideComposer` picks it) and check the 360 px screenshot, not only the 360 px overflow test.
 
 ## Internationalization
 
