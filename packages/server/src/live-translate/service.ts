@@ -36,7 +36,8 @@ import { LiveTranslateRepo, type SourceMessage, type UserTranslatePrefs } from '
 export const LIVE_TRANSLATE_KEY = 'live_translate';
 /** A draft (the "Customer will get" card) can be sent for this long. */
 export const DRAFT_TTL_MS = 30 * 60_000;
-const DRAFTS_MAX = 2_000;
+/** Drafts kept per person (oldest dropped first): one person never pushes out another's. */
+const DRAFTS_PER_USER = 50;
 /** The customer's language comes from their last 10 messages; a group's from the last 20. */
 const DETECT_MESSAGES = 10;
 const GROUP_DETECT_MESSAGES = 20;
@@ -49,9 +50,13 @@ export interface Actor {
   ip: string | null;
 }
 
+/** One "Customer will get" card: a send must carry exactly this typed text. */
 interface Draft {
   userId: number;
   chatJid: string;
+  typedText: string;
+  typedLanguage: TranslateLanguage;
+  translation: string;
   target: TranslateLanguage;
   createdAt: number;
 }
@@ -125,6 +130,9 @@ export function createLiveTranslateService(
     repo.addUsage(userId, today(), count);
     repo.pruneUsage(dayOf(now() - USAGE_KEEP_MS));
   };
+  const refundUsage = (userId: number, count: number) => repo.addUsage(userId, today(), -count);
+  const sourceOf = (stored: string, target: TranslateLanguage): TranslateLanguage =>
+    (stored || fallbackSource(target)) as TranslateLanguage;
   const connected = () => ctx.services.ai?.draftConnection() === 'ready' && ctx.access.state().open;
   const myLanguage = (user: Pick<User, 'id' | 'locale'>): TranslateLanguage =>
     repo.prefs(user.id).translateLanguage ?? translateLanguageForLocale(user.locale);
@@ -202,8 +210,19 @@ export function createLiveTranslateService(
   const pruneDrafts = () => {
     const cutoff = now() - DRAFT_TTL_MS;
     for (const [id, d] of drafts) if (d.createdAt < cutoff) drafts.delete(id);
-    while (drafts.size > DRAFTS_MAX) drafts.delete(drafts.keys().next().value!);
   };
+  const keepDraft = (draft: Draft): string => {
+    pruneDrafts();
+    const mine = [...drafts].filter(([, d]) => d.userId === draft.userId);
+    for (const [id] of mine.slice(0, Math.max(0, mine.length - DRAFTS_PER_USER + 1)))
+      drafts.delete(id);
+    const id = randomUUID();
+    drafts.set(id, draft);
+    return id;
+  };
+  /** The source language of a message for the answer when nobody could tell (never stored as known). */
+  const fallbackSource = (target: TranslateLanguage): TranslateLanguage =>
+    target === 'en' ? 'ms' : 'en';
 
   // A message deleted for everyone (or hidden) keeps no translations.
   ctx.bus.on('message:updated', (m) => {
@@ -288,10 +307,11 @@ export function createLiveTranslateService(
       const todo: SourceMessage[] = [];
       for (const m of rows) {
         const text = textOf(m).trim();
-        // A reply typed with Live translate shows what was typed: nothing to translate.
+        // A reply typed in the target language shows what was typed: nothing to translate.
+        const own = typed.get(m.id);
         if (
           !text ||
-          typed.has(m.id) ||
+          (own && own.sent_original === 0 && own.typed_lang === target) ||
           shareInLanguage(text, target) >= LIVE_TRANSLATE_SAME_LANGUAGE_SHARE
         )
           out[m.id] = { status: 'same_language' };
@@ -306,9 +326,9 @@ export function createLiveTranslateService(
         const hit = cache.get(m.id);
         if (!hit) missing.push(m);
         else if (hit.status === 'ok')
-          out[m.id] = { status: 'ok', text: hit.text, from: hit.source as TranslateLanguage };
+          out[m.id] = { status: 'ok', text: hit.text, from: sourceOf(hit.source, target) };
         else if (hit.status === 'unsafe')
-          out[m.id] = { status: 'unsafe', from: hit.source as TranslateLanguage };
+          out[m.id] = { status: 'unsafe', from: sourceOf(hit.source, target) };
         else out[m.id] = { status: 'same_language' };
       }
       const cached = todo.length - missing.length;
@@ -343,6 +363,9 @@ export function createLiveTranslateService(
       const allowed = remaining(user.id);
       const batch = missing.slice(0, allowed === Infinity ? missing.length : allowed);
       for (const m of missing.slice(batch.length)) out[m.id] = { status: 'limit' };
+      // Counted before the call (no await in between), so parallel requests cannot pass the limit;
+      // given back when the call fails.
+      if (batch.length) recordUsage(user.id, batch.length);
       if (!batch.length) {
         logLine({
           kind: 'messages',
@@ -369,8 +392,10 @@ export function createLiveTranslateService(
           for (const m of batch) {
             const item = byId.get(m.id)!;
             const text = textOf(m);
-            const from = item.detected ?? guessLanguage(text) ?? (target === 'en' ? 'ms' : 'en');
-            sources.add(from);
+            // An unknown source is stored as '' and never counts for the chat's language.
+            const known = item.detected ?? guessLanguage(text);
+            const from = known ?? fallbackSource(target);
+            if (known) sources.add(known);
             const same = from === target && item.translation.trim() === text.trim();
             const unsafe = !same && changedItem(text, item.translation) !== null;
             const status = same ? 'same' : unsafe ? 'unsafe' : 'ok';
@@ -378,7 +403,7 @@ export function createLiveTranslateService(
               message_id: m.id,
               revision: revisionOf(m),
               target,
-              source: from,
+              source: known ?? '',
               text: status === 'ok' ? item.translation : '',
               status,
               model: answer.model,
@@ -391,7 +416,6 @@ export function createLiveTranslateService(
                   ? { status: 'unsafe', from }
                   : { status: 'same_language' };
           }
-          recordUsage(user.id, batch.length);
         })();
         detect(jid);
         logLine({
@@ -405,6 +429,7 @@ export function createLiveTranslateService(
           result: 'ok',
         });
       } catch (error) {
+        refundUsage(user.id, batch.length);
         if (signal.aborted) throw error;
         for (const m of batch)
           out[m.id] = { status: error instanceof HttpError ? 'ai_unavailable' : 'failed' };
@@ -451,6 +476,7 @@ export function createLiveTranslateService(
         );
       if (remaining(user.id) <= 0)
         throw fail('limit', new HttpError(429, 'translate_limit', 'Daily limit used'));
+      recordUsage(user.id, 1); // before the call: parallel drafts cannot pass the limit
       let answer: Awaited<ReturnType<NonNullable<AppContext['services']['ai']>['translate']>>;
       try {
         answer = await ctx.services.ai!.translate(
@@ -459,6 +485,7 @@ export function createLiveTranslateService(
           signal,
         );
       } catch (error) {
+        refundUsage(user.id, 1);
         if (signal.aborted) throw error;
         if (error instanceof HttpError) throw fail('ai_unavailable', error);
         throw fail(
@@ -467,7 +494,6 @@ export function createLiveTranslateService(
           error instanceof TranslateFailedError ? error : null,
         );
       }
-      recordUsage(user.id, 1);
       const translation = answer.items[0]!.translation;
       const changed = changedItem(text, translation);
       logLine({
@@ -481,9 +507,15 @@ export function createLiveTranslateService(
         result: changed ? 'refused' : 'ok',
       });
       if (changed) return { status: 'refused', ...changed };
-      pruneDrafts();
-      const draftId = randomUUID();
-      drafts.set(draftId, { userId: user.id, chatJid: jid, target, createdAt: now() });
+      const draftId = keepDraft({
+        userId: user.id,
+        chatJid: jid,
+        typedText: text,
+        typedLanguage: source,
+        translation,
+        target,
+        createdAt: now(),
+      });
       return { status: 'ok', translation, from: source, protected: protectedItems(text), draftId };
     },
 
@@ -491,10 +523,17 @@ export function createLiveTranslateService(
       if (body.translation) {
         if (!settings().enabled) throw translateOff();
         pruneDrafts();
-        const draft = drafts.get(body.translation.draftId);
-        if (!draft || draft.userId !== user.id || draft.chatJid !== jid)
+        const draftId = body.translation.draftId;
+        const draft = drafts.get(draftId);
+        // The draft is the caller's, for this chat, and for exactly this typed text.
+        if (
+          !draft ||
+          draft.userId !== user.id ||
+          draft.chatJid !== jid ||
+          draft.typedText !== body.translation.typedText
+        )
           throw new HttpError(400, 'translation_expired', 'Translate again before sending');
-        const changed = changedItem(body.translation.typedText, body.text);
+        const changed = changedItem(draft.typedText, body.text);
         if (changed)
           throw new HttpError(
             400,
@@ -503,18 +542,21 @@ export function createLiveTranslateService(
               ? `${changed.item} became ${changed.became}. Nothing was sent.`
               : `${changed.item} is missing. Nothing was sent.`,
           );
-        const t = body.translation;
-        return (messageId) =>
+        return (messageId) => {
+          // used once: a second send needs a new translation
+          drafts.delete(draftId);
           repo.putTyped({
             message_id: messageId,
             user_id: user.id,
-            typed_text: t.typedText,
-            typed_lang: t.typedLanguage,
+            typed_text: draft.typedText,
+            typed_lang: draft.typedLanguage,
             sent_lang: draft.target,
-            edited: t.edited ? 1 : 0,
+            // decided here, not by the client: the sent text differs from the translation
+            edited: body.text.trim() === draft.translation.trim() ? 0 : 1,
             sent_original: 0,
             created_at: now(),
           });
+        };
       }
       if (body.sentOriginal && settings().enabled) {
         const lang = myLanguage(user);

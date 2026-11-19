@@ -51,6 +51,12 @@ export function renameTranslateRows(db: DB, from: string, to: string): void {
   );
 }
 
+/** A message removed from the database takes its Live translate rows with it. */
+export function dropTranslateRows(db: DB, messageId: string): void {
+  db.prepare('DELETE FROM message_typed WHERE message_id = ?').run(messageId);
+  db.prepare('DELETE FROM message_translations WHERE message_id = ?').run(messageId);
+}
+
 /**
  * Moves a chat's shared languages and the switches to the surviving chat of an alias merge: its own
  * values win, a language only the other chat had chosen is kept.
@@ -239,8 +245,17 @@ export class LiveTranslateRepo {
     return row?.count ?? 0;
   }
 
+  /** Adds `count`; a negative count gives back a reserved one (never below 0). */
   addUsage(userId: number, day: string, count: number): void {
-    if (count <= 0) return;
+    if (count === 0) return;
+    if (count < 0) {
+      this.db
+        .prepare(
+          'UPDATE live_translate_usage SET count = MAX(0, count + ?) WHERE user_id = ? AND day = ?',
+        )
+        .run(count, userId, day);
+      return;
+    }
     this.db
       .prepare(
         `INSERT INTO live_translate_usage (user_id, day, count) VALUES (?, ?, ?)

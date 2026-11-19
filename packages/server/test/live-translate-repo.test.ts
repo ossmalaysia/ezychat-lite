@@ -8,7 +8,11 @@ import {
   translateInput,
 } from '../src/ai/translate-prompt.js';
 import { mergeChat } from '../src/chats/merge.js';
-import { LiveTranslateRepo, renameTranslateRows } from '../src/live-translate/repo.js';
+import {
+  LiveTranslateRepo,
+  dropTranslateRows,
+  renameTranslateRows,
+} from '../src/live-translate/repo.js';
 import { getChats } from '../src/wa-bridge/index.js';
 import { createUserAndLogin } from './auth-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -52,6 +56,9 @@ describe('Live translate rows', () => {
     expect([...repo.typed(['WA-1']).keys()]).toEqual(['WA-1']);
     expect(repo.translations([{ id: 'WA-1', revision: 0 }], 'en').get('WA-1')?.text).toBe('Hi');
     expect(repo.typed(['local-1']).size).toBe(0);
+    dropTranslateRows(t.ctx.db, 'WA-1');
+    expect(repo.typed(['WA-1']).size).toBe(0);
+    expect(repo.translations([{ id: 'WA-1', revision: 0 }], 'en').size).toBe(0);
 
     const chats = getChats(t.ctx);
     chats.upsertFromWa({ jid: PN, type: 'dm', name: 'Mei' }, 1);
@@ -81,6 +88,10 @@ describe('Live translate rows', () => {
     repo.addUsage(2, '2026-11-19', 0);
     expect(repo.used(1, '2026-11-19')).toBe(4);
     expect(repo.usageOn('2026-11-19')).toEqual({ people: 1, translations: 4 });
+    repo.addUsage(1, '2026-11-19', -10);
+    expect(repo.used(1, '2026-11-19')).toBe(0);
+    repo.addUsage(3, '2026-11-19', -1);
+    expect(repo.used(3, '2026-11-19')).toBe(0);
     repo.pruneUsage('2026-11-19');
     expect(repo.used(1, '2026-11-18')).toBe(0);
   });

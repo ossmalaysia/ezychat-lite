@@ -1,4 +1,4 @@
-import { renameTranslateRows } from '../live-translate/repo.js';
+import { dropTranslateRows, renameTranslateRows } from '../live-translate/repo.js';
 import type {
   MediaStatus,
   Message,
@@ -300,6 +300,7 @@ export class MessageRepo {
 
   delete(id: string): void {
     this.db.prepare('DELETE FROM messages WHERE id = ?').run(id);
+    dropTranslateRows(this.db, id);
     this.dropMediaRef(id);
     this.dropMediaThumb(id);
   }

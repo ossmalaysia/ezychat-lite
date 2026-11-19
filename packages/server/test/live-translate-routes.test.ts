@@ -34,7 +34,7 @@ const DICT: Record<string, string> = {
   'Harga RM1,260.00 sahaja.': '价格RM4,260.00。',
 };
 
-type Mode = 'ok' | 'fail' | 'drop';
+type Mode = 'ok' | 'fail' | 'drop' | 'slow';
 
 const open: TestApp[] = [];
 afterEach(async () => {
@@ -46,6 +46,7 @@ async function setup(opts: { connected?: boolean } = {}) {
   let mode: Mode = 'ok';
   const draft = vi.fn(async (_settings: unknown, _key: unknown, prompt: { input: string }) => {
     if (mode === 'fail') throw Object.assign(new Error('boom'), { status: 500 });
+    if (mode === 'slow') await new Promise((r) => setTimeout(r, 50));
     const input = JSON.parse(prompt.input) as {
       target: { code: string };
       items: Array<{ id: string; text: string }>;
@@ -405,8 +406,8 @@ describe('draft and send', () => {
     const sent = list.find((m) => m.body === d.translation)!;
     expect(sent.id.startsWith('local-')).toBe(false);
     expect(sent.typed?.typedText).toBe(typed);
-    // a translation of our own typed reply is never asked for
-    const tr = await translate(t, admin.cookie, CN, [sent.id], 'en');
+    // a teammate who reads the typed language needs no translation of our own typed reply
+    const tr = await translate(t, admin.cookie, CN, [sent.id], 'ms');
     expect(tr.body!.translations[sent.id]).toEqual({ status: 'same_language' });
   });
 
@@ -474,6 +475,101 @@ describe('draft and send', () => {
     });
     expect(res.statusCode).toBe(503);
     expect(res.json().error.code).toBe('translate_failed');
+  });
+});
+
+describe('review fixes', () => {
+  it('uses a draft once, only with its own typed text, and decides "edited" itself', async () => {
+    const { t, agent } = await setup();
+    const res = await inject(t, 'POST', `/api/chats/${enc(CN)}/translate-draft`, agent.cookie, {
+      text: 'Hantar esok',
+      target: 'zh',
+    });
+    const d = TranslateDraft.parse(res.json());
+    if (d.status !== 'ok') throw new Error('refused');
+    const send = (clientId: string, typedText: string, text = d.translation) =>
+      inject(t, 'POST', `/api/chats/${enc(CN)}/messages`, agent.cookie, {
+        text,
+        clientId,
+        translation: { draftId: d.draftId, typedText, typedLanguage: 'en', edited: false },
+      });
+    const other = await send('r-1', 'Something else I never translated');
+    expect(other.json().error.code).toBe('translation_expired');
+    const ok = await send('r-2', 'Hantar esok', `${d.translation} 好的`);
+    expect(ok.statusCode).toBe(201);
+    // the server's own record: the draft's language, and edited because the text differs
+    expect(MessageSchema.parse(ok.json()).typed).toEqual({
+      typedText: 'Hantar esok',
+      typedLanguage: 'ms',
+      sentLanguage: 'zh',
+      edited: true,
+    });
+    const again = await send('r-3', 'Hantar esok');
+    expect(again.json().error.code).toBe('translation_expired');
+  });
+
+  it('counts a batch before the model answers, so parallel requests cannot pass the limit', async () => {
+    const { t, admin, agent, draft, setMode } = await setup();
+    await inject(t, 'PUT', '/api/live-translate/settings', admin.cookie, { dailyLimit: 1 });
+    setMode('slow');
+    const ids = messageIds(t, CN);
+    const [a, b] = await Promise.all([
+      translate(t, agent.cookie, CN, [ids[0]!]),
+      translate(t, agent.cookie, CN, [ids[1]!]),
+    ]);
+    const statuses = [a, b].flatMap((r) =>
+      Object.values(r.body!.translations).map((x) => x.status),
+    );
+    expect(statuses.sort()).toEqual(['limit', 'ok']);
+    expect(draft).toHaveBeenCalledTimes(1);
+  });
+
+  it("translates a teammate's Send original reply for someone with another language", async () => {
+    const { t, admin, agent, draft } = await setup();
+    const sent = await inject(t, 'POST', `/api/chats/${enc(CN)}/messages`, agent.cookie, {
+      text: 'Kami akan hantar barang anda esok pagi',
+      clientId: 'so-1',
+      sentOriginal: true,
+    });
+    expect(MessageSchema.parse(sent.json()).sentOriginal).toBe(true);
+    await settle();
+    const id = messageIds(t, CN).at(-1)!;
+    await inject(t, 'PATCH', '/api/me', admin.cookie, { translateLanguage: 'zh' });
+    const res = await translate(t, admin.cookie, CN, [id], 'zh');
+    expect(res.body!.translations[id]).toMatchObject({ status: 'ok', from: 'ms' });
+    expect(draft).toHaveBeenCalledTimes(1);
+  });
+
+  it('never stores a guessed language as known, so detection is not misled', async () => {
+    const { t, agent } = await setup();
+    const chat = '60123000999@s.whatsapp.net';
+    t.inboxWa(1).simulateIncoming({
+      chatJid: chat,
+      body: 'Bonjour, je voudrais un café',
+      senderName: 'Luc',
+    });
+    await settle();
+    const [id] = messageIds(t, chat);
+    // the mock names Latin text 'ms'; make it unknown for this case
+    const ai = t.ctx.services.ai!;
+    const real = ai.translate.bind(ai);
+    vi.spyOn(ai, 'translate').mockImplementation(async (...args) => {
+      const answer = await real(...args);
+      return { ...answer, items: answer.items.map((i) => ({ ...i, detected: null })) };
+    });
+    const res = await translate(t, agent.cookie, chat, [id!], 'zh');
+    expect(res.body!.translations[id!]).toMatchObject({ status: 'ok', from: 'en' });
+    expect(t.ctx.db.prepare('SELECT source FROM message_translations').get()).toEqual({
+      source: '',
+    });
+    expect(
+      (await inject(t, 'GET', `/api/chats/${enc(chat)}/live-translate`, agent.cookie)).json(),
+    ).toMatchObject({
+      detected: null,
+    });
+    // from the cache the answer is the same
+    const again = await translate(t, agent.cookie, chat, [id!], 'zh');
+    expect(again.body!.translations[id!]).toMatchObject({ status: 'ok', from: 'en' });
   });
 });
 
