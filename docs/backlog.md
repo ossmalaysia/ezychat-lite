@@ -21,8 +21,6 @@ are listed here until they get a branch. Newest first; remove an item when its P
 - **Desktop drag-out not checked in the real window** (PR #196): drag an image or document from a chat to the
   desktop or a folder in the installed app (Electron `DownloadURL` drag; no `will-download` handler, so the
   default save path or dialog applies). Hand check in the next test release.
-- **Flag emoji show as letters on Windows** (2026-10-22): Chrome on Windows shows 🇲🇾 as "MY" (Windows has
-  no flag glyphs). Fix with a bundled country-flag font (polyfill) for the web app.
 
 ## Ideas and next steps
 

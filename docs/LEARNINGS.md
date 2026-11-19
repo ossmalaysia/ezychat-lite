@@ -1864,6 +1864,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
+  `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
+  it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through
+  `document.fonts` status and a canvas colour check, not a screenshot; and never assert a page-wide "nothing loaded
+  yet" state there: the three projects share one server, so a parallel project's chat may already be on screen.
 - Never start the app with `Start-Process -WindowStyle Hidden` or `windowsHide`: Windows applies that show state to the
   app's first window, so the first `show()` leaves it invisible (measured: hidden start → invisible, a second `show()` →
   visible). Windows the user must see go through `window-show.ts#showWindow` (shows again when still invisible). The
