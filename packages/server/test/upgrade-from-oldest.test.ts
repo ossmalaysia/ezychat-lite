@@ -141,6 +141,24 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
       t.ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE chat_scope != 'all'").get(),
     ).toEqual({ n: 0 });
     expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM member_chats').get()).toEqual({ n: 0 });
+    // 046: Live translate is on for updated installs too (owner decision), with the default limit;
+    // nobody has My language yet (it follows the app language) and old replies have no typed text.
+    expect(
+      (
+        await t.app.inject({ method: 'GET', url: '/api/live-translate', headers: { cookie } })
+      ).json(),
+    ).toMatchObject({ enabled: true, dailyLimit: 200, usedToday: 0 });
+    expect(
+      (await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json(),
+    ).toMatchObject({ translateLanguage: null, sendWithoutPreview: false });
+    expect(
+      (messages as Array<{ typed?: unknown; sentOriginal?: unknown }>).every(
+        (m) => m.typed === undefined && m.sentOriginal === undefined,
+      ),
+    ).toBe(true);
+    expect(
+      t.ctx.db.prepare('SELECT translate_language AS l FROM users WHERE id = 1').get(),
+    ).toEqual({ l: null });
 
     // The linked WhatsApp session is left exactly as it was: no relink after an update.
     expect(readFileSync(join(dir, 'wa-auth', 'creds.json'), 'utf8')).toBe(CREDS);

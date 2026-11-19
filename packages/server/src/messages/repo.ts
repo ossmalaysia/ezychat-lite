@@ -1,3 +1,4 @@
+import { renameTranslateRows } from '../live-translate/repo.js';
 import type {
   MediaStatus,
   Message,
@@ -293,6 +294,8 @@ export class MessageRepo {
 
   rename(oldId: string, newId: string): void {
     this.db.prepare('UPDATE messages SET id = ? WHERE id = ?').run(newId, oldId);
+    // Live translate's typed record and cache follow the message (no foreign key).
+    renameTranslateRows(this.db, oldId, newId);
   }
 
   delete(id: string): void {
