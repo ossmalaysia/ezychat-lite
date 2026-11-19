@@ -1,0 +1,18 @@
+# Workbook: Live translate (server)
+
+Branch: `claude/live-translate-server` · Every agent updates its stage with
+`node scripts/build-summary.mjs record <stage> <status> "<detail>"` and commits it with the work.
+
+| Stage | Status | Detail | Commit | Updated |
+| --- | --- | --- | --- | --- |
+| Design | done | Mock confirmed by the owner 2026-11-19 ("ok mock"); docs/features/live-translate/design.md, docs/live-translate.md | bb6b0e0 | 2026-11-19 |
+| Dev | done | Shared contract fa9e351; server routes, cache, limit, guard, send check; review fixes | bb6b0e0 | 2026-11-19 |
+| Unit tests | todo |  |  |  |
+| E2E | todo |  |  |  |
+| Dev Build | todo |  |  |  |
+| Screen review | todo |  |  |  |
+
+## Log
+
+- 2026-11-19 Design: done — Mock confirmed by the owner 2026-11-19 ("ok mock"); docs/features/live-translate/design.md, docs/live-translate.md (bb6b0e0)
+- 2026-11-19 Dev: done — Shared contract fa9e351; server routes, cache, limit, guard, send check; review fixes (bb6b0e0)
