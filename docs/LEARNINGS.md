@@ -1496,6 +1496,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
   `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
   translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.
+- A per-person quota checked before an awaited model call is counted (reserved) before the `await` and given back
+  on failure; counting after the answer lets parallel requests pass it (Live translate's daily limit). A server-held
+  draft a later request refers to is bound to its owner, chat and exact input, and used once.
 - A row keyed by a message id with no foreign key must follow `MessageRepo.rename` (the optimistic `local-…` id becomes
   WhatsApp's id after the send) and be in `DELETE_PLAN`; test the rename, not only the insert.
 - A step that silently drops a model's result (dream mode's checks, draft and phrase filters) logs which check dropped
