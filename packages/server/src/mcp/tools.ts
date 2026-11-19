@@ -12,6 +12,7 @@ import type { ApiPrincipal, TokenScope } from '../api-tokens/index.js';
 import type { AiSetupPort } from './ai-setup.js';
 import type { MessageFilePort } from './file.js';
 import type { InboxInfo, InboxReadPort } from './inbox.js';
+import type { InboxManagePort } from './manage.js';
 import type { InboxSendPort } from './send.js';
 
 /** Longest message text returned per message; longer text is cut and flagged `truncated`. */
@@ -27,6 +28,8 @@ export interface ToolContext {
   aiSetup: AiSetupPort;
   /** Text replies into existing chats (scope `inbox:send` tools only). */
   send: InboxSendPort;
+  /** Resolve and reopen chats (scope `inbox:manage` tools only; Ask Ezy never). */
+  manage: InboxManagePort;
   /** Message files for `get_message_file` (MCP only; Ask Ezy has none). */
   files?: MessageFilePort;
   principal: ApiPrincipal;

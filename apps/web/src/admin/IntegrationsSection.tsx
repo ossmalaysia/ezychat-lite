@@ -392,7 +392,7 @@ function TokenRow({
           {token.prefix}…
         </code>
         <span className="[overflow-wrap:anywhere]">{token.userName}</span>
-        {/* Tokens that may send messages, or message new numbers, say so. */}
+        {/* Tokens that may send messages, message new numbers or resolve chats say so. */}
         {token.canSend && (
           <Badge variant="outline" data-testid="token-can-send">
             {t('integrations.tokens.canSendBadge')}
@@ -405,6 +405,11 @@ function TokenRow({
             data-testid="token-can-message-new"
           >
             {t('integrations.tokens.canNewBadge')}
+          </Badge>
+        )}
+        {token.canResolveChats && (
+          <Badge variant="outline" data-testid="token-can-resolve">
+            {t('integrations.tokens.canResolveBadge')}
           </Badge>
         )}
         <span>{t('integrations.tokens.created', { date: formatDate(token.createdAt) })}</span>

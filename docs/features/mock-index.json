@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "mcp-resolve-chat",
+      "creationOrder": 47,
+      "createdAt": "2026-11-19",
+      "design": "docs/features/mcp-resolve-chat/design.md",
+      "mock": "docs/features/mcp-resolve-chat/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "app-navigation",
+      "baselineGitRevision": "f4b650b81ae259f6f71d820007d7e53d187f43fc",
+      "coverage": "Full clone of the confirmed app-navigation mock; adds the Can resolve chats checkbox to Create access token and Permissions and the Resolves chats badge in the token list (Settings → Integrations); 1280/360, light/dark (mock/resolve-shots.mjs, docs/features/mcp-resolve-chat/screenshots).",
+      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed (app-navigation). Retention: five counted folders (app-navigation, chat-hide-delete, github, dream-mode, mcp-resolve-chat); ask-ezy-setup is already archived in this index but kept on disk because docs/ask-ezy.md and AGENTS.md link its design; template-store stays (live tooling). Nothing removed."
+    },
+    {
       "feature": "dream-mode",
       "creationOrder": 46,
       "createdAt": "2026-11-14",

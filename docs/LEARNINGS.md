@@ -1314,6 +1314,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   mutation hands them to the showing component's state via a callback and returns metadata only;
   clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- MCP tools register `input.shape`, so the SDK validates fields but drops unknown keys (no `strictObject` at the
+  tool): never rely on an extra key being refused; test refusals with a bad value of a real field. A new token
+  permission (`inbox:manage`) is optional in `UpdateApiTokenBody` (omitted = unchanged) and defaults in
+  `ApiTokenSchema`, so an older client or Enterprise build never turns it off by accident.
+- `PATCH /api/integrations/tokens/:id` shares Create token's 10-a-minute limiter per admin: a test suite with many
+  permission changes uses a second admin's token for the extra cases instead of raising the limit.
 - An MCP tool that takes a link (e.g. `send_image` `imageUrl`) downloads it only through `guardedFetch` (https,
   public address checked at connect, size and time cap) and checks the file type on the bytes; a large-body tool
   raises `bodyLimit` on its own route only, after the token check in `onRequest`, never the app-wide 1 MB.
