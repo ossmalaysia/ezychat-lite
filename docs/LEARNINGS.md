@@ -714,7 +714,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
   PR CI never runs `release.yml`: for actions used only there, read the breaking changes and update the
-  allowlist SHA in the same change.
+  allowlist SHA in the same change (a Dependabot bump or a combined merge too). The Lite repo keeps its own
+  list (`gh api repos/ossmalaysia/ezychat-lite/actions/permissions/selected-actions`): before pushing a
+  release tag, check every `uses:` SHA in `release.yml` is on it, else the tag run is a `startup_failure`.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve. The
