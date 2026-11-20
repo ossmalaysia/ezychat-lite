@@ -36,6 +36,7 @@ function token(over: Partial<ApiToken> = {}): ApiToken {
     canSend: false,
     canMessageNewNumbers: false,
     connectedApp: false,
+    memberToken: false,
     ...over,
   };
 }
@@ -48,15 +49,29 @@ function json(data: unknown, code = 200) {
 }
 
 function setup({
-  mcp = { enabled: true, endpointPath: '/mcp', publicUrl: null, localUrl: LOCAL },
+  mcp = {
+    enabled: true,
+    endpointPath: '/mcp',
+    publicUrl: null,
+    localUrl: LOCAL,
+    membersEnabled: false,
+    canConnect: true,
+    canMessageNewNumbers: true,
+  },
   tokens = [],
   fail = {},
 }: {
-  mcp?: McpSettingsResponse;
+  mcp?: Omit<McpSettingsResponse, 'membersEnabled' | 'canConnect' | 'canMessageNewNumbers'> &
+    Partial<McpSettingsResponse>;
   tokens?: ApiToken[];
   fail?: { patch?: boolean; post?: boolean; revokeGone?: boolean; permissions?: boolean };
 } = {}) {
-  let settings = mcp;
+  let settings: McpSettingsResponse = {
+    membersEnabled: false,
+    canConnect: true,
+    canMessageNewNumbers: true,
+    ...mcp,
+  };
   let list = tokens;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -120,6 +135,9 @@ const OFF: McpSettingsResponse = {
   endpointPath: '/mcp',
   publicUrl: null,
   localUrl: LOCAL,
+  membersEnabled: false,
+  canConnect: true,
+  canMessageNewNumbers: true,
 };
 
 /** Create token sits under "For developer tools" (closed by default) in the Connect card. */

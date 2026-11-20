@@ -19,6 +19,7 @@ import { registerUploadRoute } from './upload-route.js';
 import { uploadStore } from '../uploads/store.js';
 import { handleMcpRequest } from './transport.js';
 import { clearMcpNotice } from '../lite-import/notice.js';
+import { chosenChats } from '../inboxes/access.js';
 
 /**
  * Largest /mcp request body: a base64 file of up to about 6 MB plus the JSON-RPC envelope. Larger
@@ -33,8 +34,9 @@ const unauthorized = (req: FastifyRequest) =>
   });
 
 /**
- * POST /mcp: MCP (Streamable HTTP, stateless JSON) for the owner's AI assistant: reads, AI setup and,
- * only for a token with scope `inbox:send`, text replies into existing chats. Outside /api,
+ * POST /mcp: MCP (Streamable HTTP, stateless JSON) for an admin's or (while members may connect) a team
+ * member's AI assistant: reads, AI setup (admins only) and, only for a token with scope `inbox:send`,
+ * replies into existing chats; a member's token reaches only the chats that member can open. Outside /api,
  * so the cookie CSRF hook does not apply; it accepts only a personal access token, never a cookie.
  * Order: off → 404 (invisible), LAN peer → 403, Origin check, IP limit, token, token limit.
  */
@@ -122,6 +124,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
         stillValid: () => tokens.stillValid(principal.tokenId),
         version: ctx.config.version,
         edition: ctx.edition,
+        chosenChatsOnly: chosenChats(ctx, principal.user) !== null,
       });
       const res = await handleMcpRequest(req, server);
       return reply

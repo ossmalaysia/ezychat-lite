@@ -117,7 +117,7 @@ describe('changing a token’s permissions', () => {
     expect((await patch(old.id, { canSend: true, canMessageNewNumbers: false })).statusCode).toBe(
       400,
     );
-    t.ctx.services.apiTokens!.revoke(old.id, owner.id, 'ip');
+    t.ctx.services.apiTokens!.revoke(old.id, owner, 'ip');
     expect((await patch(old.id, { canSend: true, canMessageNewNumbers: false })).statusCode).toBe(
       404,
     );

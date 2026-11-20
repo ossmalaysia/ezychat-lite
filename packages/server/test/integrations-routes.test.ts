@@ -35,15 +35,47 @@ afterAll(async () => {
   await t.close();
 });
 
-it.each(ROUTES)('$method $url is admin-only', async ({ method, url }) => {
+it.each(ROUTES)('$method $url needs a session', async ({ method, url }) => {
   const anonymous = await t.app.inject({
     method,
     url,
     headers: { host: 'localhost', origin: 'http://localhost' },
   });
   expect(anonymous.statusCode).toBe(401);
-  const agent = await t.app.inject({ method, url, headers: authHeaders(agentCookie) });
-  expect(agent.statusCode).toBe(403);
+});
+
+it('lets only admins change the settings; a member sees them with canConnect false', async () => {
+  const patch = await t.app.inject({
+    method: 'PATCH',
+    url: '/api/integrations/mcp',
+    headers: authHeaders(agentCookie),
+    payload: { membersEnabled: true },
+  });
+  expect(patch.statusCode).toBe(403);
+  const get = await t.app.inject({
+    method: 'GET',
+    url: '/api/integrations/mcp',
+    headers: authHeaders(agentCookie),
+  });
+  expect(get.statusCode).toBe(200);
+  expect(get.json()).toMatchObject({ membersEnabled: false, canConnect: false });
+});
+
+it('refuses a member token while members may not connect', async () => {
+  const res = await t.app.inject({
+    method: 'POST',
+    url: '/api/integrations/tokens',
+    headers: authHeaders(agentCookie),
+    payload: { name: 'mine' },
+  });
+  expect(res.statusCode).toBe(403);
+  expect(res.json().error.code).toBe('mcp_members_off');
+  const list = await t.app.inject({
+    method: 'GET',
+    url: '/api/integrations/tokens',
+    headers: authHeaders(agentCookie),
+  });
+  expect(list.json()).toEqual({ tokens: [] });
 });
 
 it.each(ROUTES.filter((r) => r.method !== 'GET'))(
@@ -134,6 +166,9 @@ it('turns Claude access on and off (off by default) and audits it', async () => 
     endpointPath: '/mcp',
     publicUrl: null,
     localUrl: `http://127.0.0.1:${t.ctx.config.port}`,
+    membersEnabled: false,
+    canConnect: true,
+    canMessageNewNumbers: true,
   });
   const on = await t.app.inject({
     method: 'PATCH',

@@ -746,8 +746,18 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   `'unsafe-eval'` or inline scripts). The desktop window grants `media` only for audio from the inbox
   main frame (`inboxPermissionAllowed`), never the camera.
 - AI assistant access (MCP: `/mcp`, `mcp/route.ts`) is off by default, answers only direct loopback or the
-  tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed, owner rechecked as
-  an active admin on every call). `/api` never accepts a token, so a token cannot manage tokens.
+  tunnel, and accepts only a personal access token (`ezc_pat_…`, SHA-256 hashed). Its owner is rechecked on
+  every call and again before every tool (`mcp/settings.ts#mcpHolderRefusal`, the only holder rule): an
+  active human admin, or an active human team member (`agent`) while the admin switch "Members can connect AI
+  assistants" (`mcp_members_enabled`, default off, audit `settings.mcp_members` before/after + revoked count)
+  is on (design `docs/features/mcp-for-members/design.md`). A member's token never holds `ai:setup` (refused at
+  creation, dropped at resolve via `ROLE_SCOPES`), reaches only what the member opens in the app (every chat
+  through `canOpenChat`, `list_chats` by `chatJids` for chosen-chat agents, no `get_stats`/`get_activity` for
+  them), sends only into existing chats they can open, and `send_to_new_number` only while the New chat
+  service allows them (`openChecked` rechecks `inboxFor`). Turning the switch off revokes every member
+  token; any role change (either way) revokes the person's tokens. `/api/integrations/tokens*` serve a
+  member for their own tokens only (another's id → 404); admins see and revoke all.
+  `/api` never accepts a token, so a token cannot manage tokens.
   Inbox tools get only `InboxReadPort` (reads) and return media metadata, never links;
   the one exception is `get_message_file` (`mcp/file.ts` `MessageFilePort`, scope `inbox:read`): the content of
   one message's photo (JPEG/PNG/WebP from the bytes, ≤ 1.5 MB, MCP image content) or the text of its PDF/.docx
@@ -784,10 +794,11 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   token, then the inbox's shared daily limit, counted before the check; audit `chat.new_number` via `mcp`); its description and every result carry the WhatsApp ban warning.
   Tools log tool name, counts and token id, never arguments, phone numbers or message text.
 - MCP sign-in (OAuth, `mcp/oauth.ts`, `mcp/oauth-routes.ts`, `routes/oauth.ts`): apps register at
-  `/mcp/oauth/register` (https, loopback http or an app scheme only), an admin approves on the web page
+  `/mcp/oauth/register` (https, loopback http or an app scheme only), an admin (or a member while members may
+  connect; 403 `mcp_members_off` otherwise) approves **for themselves only** on the web page
   `/oauth/authorize` through `/api/oauth/*` (session + Origin), PKCE S256 only, one-time 5-minute codes
   kept hashed in memory. The token endpoint issues an ordinary `ezc_pat_` token (`createForApp`: no
-  expiry, no send scopes, replaces the app's earlier token). An unchecked request is never redirected;
+  expiry, no send scopes, a member's without `ai:setup`; replaces the app's earlier token). An unchecked request is never redirected;
   same reach as `/mcp` (off 404, LAN 403).
 - Inbox access (`inboxes/access.ts`, `inboxes/service.ts`): admins and the AI member see every inbox,
   agents only their `inbox_members` rows (Lite with one inbox: everyone). Every per-chat, media and

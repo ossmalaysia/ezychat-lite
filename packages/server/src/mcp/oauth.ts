@@ -406,8 +406,8 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
           ip,
         );
       } catch {
-        // The approving admin was disabled or demoted after approving.
-        throw new OAuthError(400, 'invalid_grant', 'The approving admin can no longer sign in');
+        // The approving person was disabled, changed role or (a member) lost the members switch.
+        throw new OAuthError(400, 'invalid_grant', 'The approving person can no longer connect');
       }
       q.touch.run(t, client.id);
       log.info({ clientId: client.id, tokenId: issued.token.id }, 'mcp app token issued');
