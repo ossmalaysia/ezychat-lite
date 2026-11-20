@@ -359,6 +359,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- The merge rule is enforced twice: AGENTS.md text and the PreToolUse hook `.claude/hooks/merge-gate.mjs` (denies the CLI
+  merge command, GitHub auto-merge and pushes to main; allows the MCP merge only on the owner's newest-message merge word
+  or `MERGE OK` risk:auto/pipeline). The hook matches Bash text, so even a heredoc that merely contains the command is
+  refused: write such text with Edit/Write. The gate's own files are `security: true` in `components.json`, so changing
+  them is always `risk:human`; never weaken the hook or its map entries to reach `MERGE OK`.
 - `gh pr merge --match-head-commit` takes the full 40-character SHA only (a short one fails "Could not coerce …
   to GitObjectID"): pass `gh pr view <n> --json headRefOid --jq .headRefOid`, the head the merge check scored.
 - Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
