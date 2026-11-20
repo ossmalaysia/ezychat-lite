@@ -204,13 +204,11 @@ export function MemberChatsField({
  * the id tail only when another shown group of the same inbox has its name.
  */
 function detail(c: Suggestion, duplicated: boolean, inbox: string | null): string | null {
-  const own =
-    c.type === 'dm'
-      ? c.phone
-        ? `+${c.phone}`
-        : null
-      : duplicated
-        ? `…${c.waJid.split('@')[0]!.slice(-6)}`
-        : null;
+  let own: string | null = null;
+  if (c.type === 'dm') {
+    if (c.phone) own = `+${c.phone}`;
+  } else if (duplicated) {
+    own = `…${c.waJid.split('@')[0]!.slice(-6)}`;
+  }
   return [inbox, own].filter(Boolean).join(' · ') || null;
 }

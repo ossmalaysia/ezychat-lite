@@ -3,16 +3,24 @@
 //   npm run build -w @ezychat/web
 //   npx tsx packages/server/src/cli.ts --data <tmp> --port 7478 --fake-wa --mode dev --max-inboxes 2 --web-dist apps/web/dist
 //   node e2e/member-chats-screens.mjs 7478 docs/screenshots/member-chats
-/* global window -- used inside addInitScript (runs in the browser) */
+/* global window, getComputedStyle -- used inside addInitScript and page.evaluate (run in the browser) */
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 const PORT = Number.parseInt(process.argv[2] ?? '7478', 10);
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535)
   throw new Error('Usage: node e2e/member-chats-screens.mjs <port> [outDir]');
 const BASE = `http://127.0.0.1:${PORT}`;
-const OUT = process.argv[3] ?? 'docs/screenshots/member-chats';
+const inside = (base, path) => {
+  const rel = relative(base, path);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+};
+const repo = resolve(import.meta.dirname, '..');
+const OUT = resolve(repo, process.argv[3] ?? 'docs/screenshots/member-chats');
+if (!inside(repo, OUT) && !inside(resolve(tmpdir()), OUT))
+  throw new Error('The output folder must be inside the repository or the temp folder.');
 const PASSWORD = 'demo-pass-123';
 const headers = { 'content-type': 'application/json', origin: BASE };
 
