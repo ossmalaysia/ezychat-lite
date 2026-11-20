@@ -34,8 +34,9 @@ a merge alone is not a request.
    run on Windows, claims no Mac signature.
 
    Before publishing (owner rule from 2026-11-09: McAfee gets the installers first):
-   - Lite: push the tag by hand (`release.yml` then leaves a draft), run `--edition lite --version <x.y.z>` (it finds the
-     draft and downloads through the API), then publish that draft (`docs/release.md` §3).
+   - Lite: every release is held as a draft until McAfee clears it (`docs/release.md` §3), so run
+     `--edition lite --version <x.y.z>` (it finds the draft and downloads through the API). Never publish the draft
+     by hand: Promote release does it once McAfee clears every file.
    - Enterprise: run Installers from `main` (`gh workflow run installers.yml --ref main`; no tag, so nothing is
      published), run `--edition enterprise --run <run id>`, then publish the same run in the Enterprise repo with
      `node scripts/publish-release.mjs --run <run id>` (a logged-in wrangler), and put the Windows hold back.
@@ -67,6 +68,11 @@ Claude in Chrome cannot attach these files (10 MB limit), which is why the scrip
 2. Read which file the answer names. It can name the `.dmg` inside a ZIP, or only the ZIP; we do not know yet. Quote
    the name to the owner. Only a named file becomes **Whitelisted** in the record.
 3. For an Enterprise Windows file, follow "After each release" in the record to move the permanent link.
+4. Website calendar and download (owner rule, 2026-11-20): when every installer of a version (Windows, Mac Apple
+   silicon, Mac Intel) is Whitelisted or the owner's Passed, open an ossmalaysia/ezychat-website PR that sets that
+   version's `security` to `"whitelisted"` in `src/lib/release-calendar.json` and moves that edition's download pin
+   to it if it is newer. Release it with the website's release skill. Never mark a version whitelisted on a
+   submission alone.
 
 The form says about 2 business days; one answer came within the hour.
 
@@ -74,5 +80,10 @@ The form says about 2 business days; one answer came within the hour.
 
 - A Windows **Enterprise** file is not "latest" until McAfee whitelists it. The hold and the commands that move the
   link are in the record, section "After each release". Changing a live link needs the owner's request.
-- Lite releases on GitHub have no such hold. Do not move a Lite link without the owner's word.
+- A **Lite** version stays a held draft until McAfee clears all three files (Whitelisted, or the owner's Passed).
+  Then start Promote release (`docs/release.md` §3):
+  `gh workflow run promote-release.yml --ref main -f version=<x.y.z> -f confirm=<x.y.z> -f mcafee_cleared=true -f hold_newer=false`
+  (from a cloud session: the GitHub tools' workflow run on `promote-release.yml`, `main`, same inputs). Only on the
+  owner's word that the version is cleared; never on a submission alone. Then the website PR (calendar ✓ and the
+  download pin).
 - Never say that a file is whitelisted because the form accepted the report.

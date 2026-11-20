@@ -82,6 +82,7 @@ function setup(opts: {
   chats?: Record<number, MemberChatsResponse>;
   inboxes?: InboxListResponse;
   putStatus?: number;
+  chatList?: Chat[];
 }) {
   const members = opts.members ?? [admin, bob];
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -90,13 +91,26 @@ function setup(opts: {
     if (url === '/api/users' && method === 'GET') return json({ users: members });
     if (url === '/api/inboxes' && opts.inboxes) return json(opts.inboxes);
     if (url === '/api/me') return json(admin);
-    if (url.startsWith('/api/chats?'))
-      return json({
-        chats: url.includes('status=resolved')
-          ? [chat(B, 'Bob Customer')]
-          : [chat(A, 'Ann'), chat(G, 'Regulars', 'group')],
-        nextCursor: null,
-      });
+    if (url.startsWith('/api/chats?')) {
+      const params = new URLSearchParams(url.split('?')[1]);
+      const q = (params.get('q') ?? '').toLowerCase().replace(/\D/g, '') || params.get('q') || '';
+      const all = opts.chatList ?? [
+        chat(A, 'Ann'),
+        chat(G, 'Regulars', 'group'),
+        chat(B, 'Bob Customer'),
+      ];
+      const hit = all.filter(
+        (c) =>
+          !q ||
+          c.name.toLowerCase().includes(q.toLowerCase()) ||
+          (c.phone ?? '').includes(q) ||
+          c.waJid.includes(q),
+      );
+      // two chats a page, so a search has to reach the later pages
+      const from = Number(params.get('cursor') ?? 0);
+      const page = hit.slice(from, from + 2);
+      return json({ chats: page, nextCursor: from + 2 < hit.length ? String(from + 2) : null });
+    }
     const m = /^\/api\/users\/(\d+)\/chats$/.exec(url);
     if (m && method === 'GET')
       return json(opts.chats?.[Number(m[1])] ?? { scope: 'all', chats: [] });
@@ -192,7 +206,7 @@ it('Edit member: All chats by default; Only chosen chats adds from the search an
   await user.click(within(field).getByRole('button', { name: 'Add Bob Customer' }));
   expect(within(field).getByText('2 chats chosen')).toBeTruthy();
   await user.type(within(field).getByRole('searchbox'), 'zzz');
-  expect(within(field).getByText('No other chats match.')).toBeTruthy();
+  expect(await within(field).findByText('No other chats match.')).toBeTruthy();
   await user.click(within(dialog).getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(calls(fetchMock, 'PUT', '/api/users/2/chats')).toHaveLength(1));
   const body = JSON.parse(String(calls(fetchMock, 'PUT', '/api/users/2/chats')[0]![1]!.body));
@@ -257,4 +271,78 @@ it('closes without a call when nothing changed', async () => {
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(calls(fetchMock, 'PUT', '/api/users/2/chats')).toHaveLength(0);
   expect(calls(fetchMock, 'PATCH', '/api/users/2')).toHaveLength(0);
+});
+
+const many = [
+  ...Array.from({ length: 12 }, (_, i) =>
+    chat(`6019000${String(i).padStart(4, '0')}@s.whatsapp.net`, `Recent ${i}`),
+  ),
+  {
+    ...chat('60177777777@s.whatsapp.net', 'Old Customer'),
+    phone: '60177777777',
+    status: 'resolved' as const,
+  },
+  chat('120363000000000011@g.us', 'AS x Kaki Deco', 'group'),
+  chat('120363000000000022@g.us', 'AS x Kaki Deco', 'group'),
+];
+
+async function openChosenPicker(opts: Parameters<typeof setup>[0]) {
+  const fetchMock = setup(opts);
+  const { user, dialog } = await openEdit('Bob Agent');
+  await user.click(within(dialog).getByRole('radio', { name: /Only chosen chats/ }));
+  const field = within(dialog).getByTestId('member-chats');
+  return { fetchMock, user, field };
+}
+
+it('finds an older resolved chat and a chat by a typed phone number through the server search', async () => {
+  const { fetchMock, user, field } = await openChosenPicker({ chatList: many });
+  // empty search: a short list of recent chats, no status filter
+  expect((await within(field).findAllByRole('button', { name: /^Add Recent/ })).length).toBe(10);
+  expect(within(field).queryByRole('button', { name: 'Add Old Customer' })).toBeNull();
+  await user.type(within(field).getByRole('searchbox'), '+60 17-777 7777');
+  await user.click(await within(field).findByRole('button', { name: 'Add Old Customer' }));
+  expect(within(field).getByText('1 chat chosen')).toBeTruthy();
+  const searched = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('q='));
+  expect(searched.length).toBeGreaterThan(0);
+  expect(searched.every((u) => !u.includes('status='))).toBe(true);
+});
+
+it('shows a chat once, tells same-named groups apart and leaves out the chosen ones', async () => {
+  const { user, field } = await openChosenPicker({ chatList: [...many, many[0]!] });
+  await user.type(within(field).getByRole('searchbox'), 'kaki');
+  const add = await within(field).findAllByRole('button', { name: 'Add AS x Kaki Deco' });
+  expect(add).toHaveLength(2);
+  expect(add[0]!.textContent).toContain('…000011');
+  expect(add[1]!.textContent).toContain('…000022');
+  await user.click(add[0]!);
+  // the chosen group leaves the add list; the other one with the same name stays
+  expect(within(field).getAllByRole('button', { name: 'Add AS x Kaki Deco' })).toHaveLength(1);
+  expect(within(field).getAllByText('AS x Kaki Deco').length).toBe(2);
+  await user.clear(within(field).getByRole('searchbox'));
+  await waitFor(() =>
+    expect(within(field).getAllByRole('button', { name: /^Add Recent 0$/ })).toHaveLength(1),
+  );
+});
+
+it('tells the same group on two linked numbers apart by the inbox name, also in the chosen list', async () => {
+  const G2 = `${G}#2`;
+  const { user, field } = await openChosenPicker({
+    inboxes: twoInboxes,
+    chatList: [
+      chat(G, 'AS x Kaki Deco', 'group'),
+      { ...chat(G2, 'AS x Kaki Deco', 'group'), inboxId: 2, waJid: G },
+    ],
+  });
+  await user.type(within(field).getByRole('searchbox'), 'kaki');
+  const add = await within(field).findAllByRole('button', { name: 'Add AS x Kaki Deco' });
+  expect(add).toHaveLength(2);
+  // different inboxes: the inbox name tells them apart, no id tail
+  expect(add[0]!.textContent).toContain('Inbox 1');
+  expect(add[0]!.textContent).not.toContain('…');
+  expect(add[1]!.textContent).toContain('Inbox 2');
+  await user.click(add[1]!);
+  const chosen = within(field).getByTestId('chosen-chats');
+  expect(within(chosen).getByText('Inbox 2')).toBeTruthy();
+  // the one on the first number is still there to add
+  expect(within(field).getAllByRole('button', { name: 'Add AS x Kaki Deco' })).toHaveLength(1);
 });

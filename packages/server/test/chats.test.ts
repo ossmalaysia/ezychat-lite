@@ -4,7 +4,7 @@ import { ChatDetailResponse, ChatListResponse, ChatSchema, NoteSchema } from '@e
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
-import { ChatRepo, rowToChat, type ChatRow } from '../src/chats/repo.js';
+import { ChatRepo, phoneSearchDigits, rowToChat, type ChatRow } from '../src/chats/repo.js';
 import { runIdentityMigration } from '../src/chats/identity-migration.js';
 
 let t: TestApp;
@@ -358,6 +358,23 @@ describe('chat profile images', () => {
     expect(repo.ensure('60188888888@s.whatsapp.net', {}, 1).phone).toBe('60188888888');
     const res = getChats(t.ctx).list({ assigned: 'any', limit: 10, q: '60199999999' }, 1);
     expect(res.chats.map((c) => c.jid)).toEqual(['555@lid']);
+  });
+
+  it('search finds a chat by a formatted or local phone number, and a group by its name', () => {
+    const repo = new ChatRepo(t.ctx.db);
+    repo.ensure('60123456789@s.whatsapp.net', { name: 'Ann' }, 1);
+    repo.ensure('60198765432@s.whatsapp.net', { name: 'Bob' }, 1);
+    repo.ensure('120363000000000009@g.us', { name: 'AS x Kaki Deco', type: 'group' }, 1);
+    const find = (q: string) =>
+      getChats(t.ctx)
+        .list({ assigned: 'any', limit: 10, q }, 1)
+        .chats.map((c) => c.name);
+    expect(find('+60 12-345 6789')).toEqual(['Ann']);
+    expect(find('012 345 6789')).toEqual(['Ann']);
+    expect(find('(0123) 456789')).toEqual(['Ann']);
+    expect(find('kaki deco')).toEqual(['AS x Kaki Deco']);
+    expect(phoneSearchDigits('hello 12345')).toBeNull();
+    expect(phoneSearchDigits('0123')).toBeNull();
   });
 });
 

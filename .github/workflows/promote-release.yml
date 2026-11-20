@@ -1,0 +1,111 @@
+name: Promote release
+
+# Owner rule 2026-11-20 (docs/release.md §3): every release is held as a complete draft; "latest" (the in-app updater,
+# GitHub releases/latest and its permanent download links) stays on the newest version whose installers McAfee has
+# cleared (Whitelisted, or the owner's Passed, in anchorsprint/ezychat-enterprise docs/antivirus-allowlist.md).
+# This workflow makes one cleared version the newest published release and Latest. Started on main by a user with
+# write access, `confirm` equal to `version` and `mcafee_cleared` ticked; every check runs before the first write.
+#
+# - Normal: publish the held draft v<version> (complete, newer than every published release).
+# - hold_newer (switch-over, or a promoted version McAfee later flags): v<version> may already be published; every
+#   newer published release is turned back into a draft first. Installed apps never downgrade, so this only stops
+#   newer versions reaching the others; promoting the newer version later publishes it again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Held version whose installers McAfee cleared, x.y.z (e.g. 0.1.83)
+        required: true
+        type: string
+      confirm:
+        description: Type the version again to confirm
+        required: true
+        type: string
+      mcafee_cleared:
+        description: Every installer of this version (Windows, Mac Apple silicon, Mac Intel) is Whitelisted or Passed
+        required: true
+        type: boolean
+        default: false
+      hold_newer:
+        description: Turn every newer published release back into a draft first (switch-over only)
+        required: true
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: release-approve # never beside a release run
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote v${{ inputs.version }} to Latest
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release-approval
+    permissions:
+      contents: write # publish the draft
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+      CONFIRM: ${{ inputs.confirm }}
+      CLEARED: ${{ inputs.mcafee_cleared }}
+      HOLD_NEWER: ${{ inputs.hold_newer }}
+    steps:
+      # The inputs reach shells only through env and only after this check (never ${{ }} inside run).
+      - name: Inputs are x.y.z, confirmed and cleared
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must be x.y.z, got: $VERSION"
+            exit 1
+          fi
+          if [ "$CONFIRM" != "$VERSION" ]; then
+            echo "::error::confirm must repeat the version exactly"
+            exit 1
+          fi
+          if [ "$CLEARED" != "true" ]; then
+            echo "::error::tick mcafee_cleared only when every installer of v$VERSION is Whitelisted or Passed"
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Plan (v<version> complete; newer published releases)
+        run: |
+          set -euo pipefail
+          node scripts/release-publish.mjs version "$VERSION"
+          gh release view "v$VERSION" --repo "$REPO" --json isDraft,body,assets > release.json
+          gh api --paginate "repos/$REPO/releases?per_page=100" --jq '.[] | {tag_name, draft}' > releases.jsonl
+          flag=()
+          if [ "$HOLD_NEWER" = "true" ]; then flag=(--hold-newer); fi
+          node scripts/release-publish.mjs promote "$VERSION" release.json releases.jsonl "${flag[@]}" > hold.txt
+          echo "PREVIOUS=$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || true)" >> "$GITHUB_ENV"
+      - name: Turn newer published releases back into drafts
+        run: |
+          set -euo pipefail
+          while read -r tag; do
+            [ -n "$tag" ] || continue
+            gh release edit "$tag" --repo "$REPO" --draft=true
+            echo "Held $tag back as a draft" >> "$GITHUB_STEP_SUMMARY"
+          done < hold.txt
+      # One call: without --prerelease=false GitHub refuses Latest.
+      - name: Publish as Latest
+        run: gh release edit "v$VERSION" --repo "$REPO" --draft=false --prerelease=false --latest
+      - name: Check Latest and the newest published release
+        run: |
+          set -euo pipefail
+          latest="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
+          gh api --paginate "repos/$REPO/releases?per_page=100" --jq '.[] | {tag_name, draft}' > after.jsonl
+          newest="$(node scripts/release-publish.mjs newest after.jsonl)"
+          if [ "$latest" != "v$VERSION" ] || [ "$newest" != "v$VERSION" ]; then
+            echo "::error::releases/latest is $latest and the newest published release is $newest, not v$VERSION"
+            exit 1
+          fi
+          echo "Promoted v$VERSION (Latest was ${PREVIOUS:-unset}). Installed apps update at their next check." >> "$GITHUB_STEP_SUMMARY"
