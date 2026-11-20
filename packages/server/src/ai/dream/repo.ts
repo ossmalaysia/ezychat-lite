@@ -271,7 +271,7 @@ export class DreamRepo {
       dropped: r.dropped,
       changes: changes.filter((c) => c.run_id === r.id).map((c) => changeView(toChange(c))),
     }));
-    return { runs, nextBefore: rows.length > limit ? page[page.length - 1]!.id : null };
+    return { runs, nextBefore: rows.length > limit ? page.at(-1)!.id : null };
   }
 
   /** Waiting changes older than 14 days become `expired`. */

@@ -8,8 +8,10 @@
 //
 // --dry-run does everything except clicking Submit. Every file is downloaded and checked before the first report
 // goes out, and a report that went out is remembered in <work>/results.json, so a rerun does not send it twice.
-// The reporter's details come only from REPORTER_FILE: its fields go to an outside form, so no argument can name
-// another file.
+// The reporter's details come only from REPORTER_FILE, or from the MCAFEE_REPORTER_JSON environment variable when that
+// file is missing (a cloud session): its fields go to an outside form, so no argument can name another file.
+// On Linux (a cloud container) it drives headless Playwright Chromium, checks a Windows signature with osslsigncode when
+// that is installed (else the report claims no signature), and stops at a captcha like everywhere else.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -29,6 +31,7 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { resolveTool } from './build-summary.mjs';
@@ -46,7 +49,13 @@ const HDIUTIL = '/usr/bin/hdiutil';
 const CODESIGN = '/usr/bin/codesign';
 const SPCTL = '/usr/sbin/spctl';
 const XCRUN = '/usr/bin/xcrun';
-const OSSLSIGNCODE = ['/opt/homebrew/bin/osslsigncode', '/usr/local/bin/osslsigncode'];
+const OSSLSIGNCODE = [
+  '/opt/homebrew/bin/osslsigncode',
+  '/usr/local/bin/osslsigncode',
+  '/usr/bin/osslsigncode',
+];
+const CLOUD_CHROMIUM = '/opt/pw-browsers/chromium';
+const REPORTER_ENV = 'MCAFEE_REPORTER_JSON';
 const WINDOWS_POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 // Microsoft's code-signing root (Artifact Signing and its timestamps chain to it), public, from
 // microsoft.com/pkiops; SHA-256 fingerprint 53:67:F2:0C:7A:DE:0E:2B:CA:79:09:15:05:6D:08:6B:72:0C:33:C1:FA:2A:26:61:AC:F7:87:E3:29:2E:12:70.
@@ -153,17 +162,20 @@ export function macSignatureProblem({ codesign, spctl, stapled }) {
 
 /**
  * The report says only what was checked: a Windows file has a checked signature, a Mac file only when this run
- * checked the app inside it (`macSigned`, on a Mac).
+ * checked the app inside it (`macSigned`, on a Mac). A Windows file claims its signature unless this run could not
+ * check it (`winSigned: false`, a Linux run without osslsigncode).
  */
-export function reportText({ edition, asset, zipName, macSigned = false }) {
+export function reportText({ edition, asset, zipName, macSigned = false, winSigned = true }) {
   const { label } = KINDS[asset.kind];
   const windows = asset.kind === 'win';
   let heading = 'Allowlist request: business software, Mac installer.';
   let publisher = 'Publisher: Anchor Sprint Pte. Ltd.';
-  if (windows) {
+  if (windows && winSigned) {
     heading = 'Allowlist request: signed business software.';
     publisher =
       'Publisher / code signature: Anchor Sprint Pte. Ltd. (valid Authenticode signature).';
+  } else if (windows) {
+    heading = 'Allowlist request: business software, Windows installer.';
   } else if (macSigned) {
     heading = 'Allowlist request: signed business software, Mac installer.';
     publisher = `Publisher / code signature: Anchor Sprint Pte. Ltd. (${MAC_SIGNER}, notarized by Apple).`;
@@ -195,6 +207,48 @@ export function checkReporter(reporter) {
       throw new Error(`reporter file has no ${field}`);
   }
   return reporter;
+}
+
+/**
+ * The reporter's details: the private file when it exists, else the MCAFEE_REPORTER_JSON variable (a cloud session has
+ * no home folder file). The text is only parsed, never printed: its fields are personal.
+ */
+export function loadReporter({
+  file = REPORTER_FILE,
+  env = process.env,
+  exists = existsSync,
+  read = readFileSync,
+} = {}) {
+  let text;
+  if (exists(file)) text = read(file, 'utf8');
+  else if (env[REPORTER_ENV]) text = env[REPORTER_ENV];
+  else throw new Error(`no reporter details: ${file} is missing and ${REPORTER_ENV} is not set`);
+  let reporter;
+  try {
+    reporter = JSON.parse(text);
+  } catch {
+    throw new Error('the reporter details are not valid JSON');
+  }
+  return checkReporter(reporter);
+}
+
+/** Browser launch options: a visible Chrome window where a person sits, headless Chromium (no channel) on Linux. */
+export function browserLaunch(platform = process.platform, env = process.env, exists = existsSync) {
+  if (platform !== 'linux') return { channel: 'chrome', headless: false };
+  // Chromium ignores HTTPS_PROXY by itself; a cloud container reaches the web only through its agent proxy.
+  const server = env.HTTPS_PROXY || env.https_proxy;
+  // The project's own Playwright may want a newer browser build than the container ships: use the shipped one.
+  return {
+    headless: true,
+    ...(exists(CLOUD_CHROMIUM) ? { executablePath: CLOUD_CHROMIUM } : {}),
+    ...(server ? { proxy: { server } } : {}),
+  };
+}
+
+/** The Playwright to use: `playwright` in a cloud container (browsers preinstalled there), else the project's. */
+async function loadPlaywright(platform = process.platform) {
+  if (platform === 'linux') return createRequire(import.meta.url)('playwright');
+  return import('@playwright/test');
 }
 
 const ENTERPRISE_REPO = 'anchorsprint/ezychat-enterprise';
@@ -298,6 +352,7 @@ function powershell(command, env) {
   }).trim();
 }
 
+/** True when the signature was checked and is valid (a problem throws); false when this machine cannot check it. */
 function checkSignature(file) {
   if (process.platform !== 'win32') return checkSignatureElsewhere(file);
   const [status, subject] = powershell(
@@ -306,22 +361,31 @@ function checkSignature(file) {
   ).split('|');
   const problem = signatureProblem(status, subject ?? '');
   if (problem) throw new Error(`${basename(file)}: ${problem}`);
+  return true;
 }
 
 // Off Windows: osslsigncode (Homebrew) checks the signature and the timestamp against the system list plus Microsoft's
 // root, the same chain Windows checks.
 function checkSignatureElsewhere(file) {
+  const tool = OSSLSIGNCODE.find((path) => existsSync(path));
+  if (!tool) {
+    // In a cloud container (Linux) a missing tool is not fatal, but the report then claims no signature.
+    if (process.platform === 'linux') {
+      console.log(
+        `${basename(file)}: osslsigncode is not installed (apt install osslsigncode): the signature is not checked and the report will not claim one`,
+      );
+      return false;
+    }
+    throw new Error(
+      `${basename(file)}: osslsigncode is needed to check a Windows file off Windows (brew install osslsigncode)`,
+    );
+  }
   const ca = join(mkdtempSync(join(tmpdir(), 'ezychat-ca-')), 'ca.pem');
   const system = ['/etc/ssl/cert.pem', '/etc/ssl/certs/ca-certificates.crt'].find((f) =>
     existsSync(f),
   );
   if (!system) throw new Error('no system certificate list for osslsigncode');
   writeFileSync(ca, readFileSync(system, 'utf8') + readFileSync(MICROSOFT_ROOT, 'utf8'));
-  const tool = OSSLSIGNCODE.find((path) => existsSync(path));
-  if (!tool)
-    throw new Error(
-      `${basename(file)}: osslsigncode is needed to check a Windows file off Windows (brew install osslsigncode)`,
-    );
   const r = spawnSync(tool, ['verify', '-CAfile', ca, '-TSA-CAfile', ca, '-in', file], {
     encoding: 'utf8',
   });
@@ -332,6 +396,7 @@ function checkSignatureElsewhere(file) {
   const { status, subject } = osslsigncodeStatus(`${r.stdout}${r.stderr}`, r.status);
   const problem = signatureProblem(status, subject);
   if (problem) throw new Error(`${basename(file)}: ${problem}`);
+  return true;
 }
 
 function zipFile(file) {
@@ -452,7 +517,7 @@ async function main() {
   if (values.run && (values.edition !== 'enterprise' || values.version))
     throw new Error('--run is for --edition enterprise only, without --version (the run names it)');
   const kinds = selectKinds(values.only);
-  const reporter = checkReporter(JSON.parse(readFileSync(REPORTER_FILE, 'utf8')));
+  const reporter = loadReporter();
   const dryRun = values['dry-run'];
 
   // Prepare everything first: a bad file then stops the run before any report goes out.
@@ -465,7 +530,7 @@ async function main() {
     mkdirSync(dir, { recursive: true });
     for (const asset of release.assets.filter((a) => kinds.includes(a.kind))) {
       const file = await download(asset, dir);
-      if (asset.kind === 'win') checkSignature(file);
+      const winSigned = asset.kind === 'win' && checkSignature(file);
       const macSigned = asset.kind !== 'win' && checkMacSignature(file);
       const attach = asset.kind === 'win' ? file : zipFile(file);
       const zipName = attach === file ? undefined : basename(attach);
@@ -475,14 +540,14 @@ async function main() {
         asset,
         attach,
         dir,
-        details: reportText({ edition, asset, zipName, macSigned }),
+        details: reportText({ edition, asset, zipName, macSigned, winSigned }),
       });
       console.log(`ready ${asset.name} sha256=${asset.sha256}`);
     }
   }
 
-  const { chromium } = await import('@playwright/test');
-  const browser = await chromium.launch({ channel: 'chrome', headless: false });
+  const { chromium } = await loadPlaywright();
+  const browser = await chromium.launch(browserLaunch());
   try {
     for (const job of jobs) {
       const resultsFile = join(job.dir, 'results.json');

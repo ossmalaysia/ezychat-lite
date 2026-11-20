@@ -26,6 +26,7 @@ import type {
   ChatEvent,
   Message,
   ScheduledRunReason,
+  TranslateLanguage,
 } from '@ezychat/shared';
 import {
   AI_GROUP_CONTEXT_MESSAGES,
@@ -145,6 +146,15 @@ import { CHATGPT_FAST_DRAFT_MODELS, DRAFT_FAST_MODELS } from './agent/draft.js';
 import { FIX_GRAMMAR_RULES, FixGrammarOutput, grammarIssues } from '../fix-english/grammar.js';
 import { SAFETY_CHECK_RULES, SafetyAiOutput } from '../safety/ai-check.js';
 import { fixEnglishEnabled } from '../fix-english/setting.js';
+import {
+  TRANSLATE_RULES,
+  TranslateOutput,
+  detectedLanguage,
+  keepWords,
+  translateInput,
+  type TranslateItem,
+} from './translate-prompt.js';
+import { TeamWordStore } from '../fix-english/words.js';
 import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 import type { z } from 'zod';
@@ -395,6 +405,24 @@ export interface AiService {
    * is sent or stored. Throws 409 `fix_english_off` / 503 `ai_unavailable`.
    */
   fixGrammar(jid: string, text: string, signal: AbortSignal): Promise<FixGrammarResult>;
+  /**
+   * Live translate (docs/live-translate.md): one structured call on the "Model for suggestions" with
+   * the fixed `TRANSLATE_RULES` and the items as data; no tools, no retries. Logs nothing here (the
+   * caller logs counts). Throws 503 `ai_unavailable` when no AI is ready, `TranslateFailedError` when
+   * the call fails or answers without an item.
+   */
+  translate(
+    jid: string,
+    request: {
+      items: readonly TranslateItem[];
+      target: TranslateLanguage;
+      source?: TranslateLanguage | undefined;
+    },
+    signal: AbortSignal,
+  ): Promise<{
+    items: Array<{ id: string; translation: string; detected: TranslateLanguage | null }>;
+    model: string;
+  }>;
   /** Dream mode step 1: what the team's replies in one take-over chat teach (Model for suggestions). */
   dreamLessons(agentId: number, chat: TakeoverChat, signal: AbortSignal): Promise<DreamLesson[]>;
   /** Dream mode step 2: lessons merged into at most 5 setup changes (the connection's main model). */
@@ -468,6 +496,19 @@ export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
 /** A grammar check slower than this is dropped: the teammate has typed on or sent by then. */
 export const FIX_GRAMMAR_TIMEOUT_MS = 10_000;
+/** A batch of up to 50 messages: more output than a grammar check. */
+export const TRANSLATE_TIMEOUT_MS = 45_000;
+
+/** A Live translate call failed or did not translate every item (nothing is shown or sent). */
+export class TranslateFailedError extends Error {
+  constructor(
+    readonly causeName: string | null,
+    readonly status: number | null,
+  ) {
+    super('translation failed');
+    this.name = 'TranslateFailedError';
+  }
+}
 /** One dream mode model call (a night has time; a stuck call must still end). */
 export const DREAM_CALL_TIMEOUT_MS = 120_000;
 /** WhatsApp Safety's AI check: past this the rules' result stands. */
@@ -624,9 +665,8 @@ export function createAiService(
   const dreamAgent = (agentId: number): AgentRow => {
     if (service.draftConnection() !== 'ready' || !gateOpen())
       throw new HttpError(503, 'ai_unavailable', 'The AI connection is not ready');
-    const agent = agentOrDefault(agentId);
-    if (!agent || agent.id !== agentId)
-      throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
+    const agent = agentById(ctx.db, agentId);
+    if (!agent) throw new HttpError(404, 'agent_not_found', 'Unknown AI agent');
     return agent;
   };
   /** One dream mode model call: no tools, no retries; logs counts, ms and model, never the text. */
@@ -3242,6 +3282,49 @@ export function createAiService(
           'Fix English grammar check',
         );
       }
+    },
+    async translate(jid, request, signal) {
+      if (service.draftConnection() !== 'ready' || !gateOpen())
+        throw new HttpError(503, 'ai_unavailable', 'Live translate needs AI');
+      const choice = draftChoice(settingsFor(agentOfChat(jid)));
+      const texts = request.items.map((i) => i.text);
+      const keep = keepWords(
+        new TeamWordStore(ctx.db).list().words.map((w) => w.word),
+        texts,
+      );
+      const chars = texts.reduce((sum, t) => sum + t.length, 0);
+      let answer: { output: TranslateOutput; model: string };
+      try {
+        answer = await provider.draft!(
+          choice.settings,
+          aiApiKey(ctx.settings),
+          {
+            instructions: TRANSLATE_RULES,
+            input: translateInput({ ...request, keep }),
+            cacheId: `${installId()}#live-translate`,
+          },
+          {
+            schema: TranslateOutput,
+            fast: choice.fast,
+            maxOutputTokens: Math.min(16_000, 500 + Math.ceil(chars * 3)),
+          },
+          AbortSignal.any([signal, AbortSignal.timeout(TRANSLATE_TIMEOUT_MS)]),
+        );
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const failure = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
+        const code = failure.statusCode ?? failure.status;
+        throw new TranslateFailedError(errorNameOf(error), typeof code === 'number' ? code : null);
+      }
+      const byId = new Map(answer.output.items.map((i) => [i.id, i]));
+      const items = request.items.map((item) => {
+        const got = byId.get(item.id);
+        return got && got.translation.trim()
+          ? { id: item.id, translation: got.translation, detected: detectedLanguage(got.detected) }
+          : null;
+      });
+      if (items.some((i) => i === null)) throw new TranslateFailedError('MissingItem', null);
+      return { items: items as NonNullable<(typeof items)[number]>[], model: answer.model };
     },
     previewWithSetup(agentId, override, question) {
       const status = service.agentStatus(agentId);

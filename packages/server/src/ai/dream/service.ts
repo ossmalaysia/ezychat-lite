@@ -65,18 +65,16 @@ export function createDreamService(
     if (!ctx.access.state().open) return 'access_closed';
     if (!agentOn(agentId)) return 'agent_off';
     const ai = ctx.services.ai;
-    if (!ai || ai.draftConnection() !== 'ready') return 'ai_unavailable';
+    if (ai?.draftConnection() !== 'ready') return 'ai_unavailable';
     return null;
   };
 
-  const targetText = (p: DreamProposal, setup: DreamSetup): string =>
-    p.target === 'instructions'
-      ? setup.instructions
-      : p.target === 'handoff_rules'
-        ? setup.handoffRules
-        : p.itemId === null
-          ? ''
-          : (setup.items.find((i) => i.id === p.itemId)?.text ?? '');
+  const targetText = (p: DreamProposal, setup: DreamSetup): string => {
+    if (p.target === 'instructions') return setup.instructions;
+    if (p.target === 'handoff_rules') return setup.handoffRules;
+    if (p.itemId === null) return '';
+    return setup.items.find((i) => i.id === p.itemId)?.text ?? '';
+  };
 
   /** One night of one agent; records the run whatever happens. */
   /** `fromLastRun` (the nightly run) starts after the last finished night; run now reads the last 24 hours. */

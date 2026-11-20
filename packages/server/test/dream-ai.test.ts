@@ -112,6 +112,14 @@ describe('AiService.dreamLessons / dreamMerge', () => {
     expect(prompt.input).not.toContain('Cost RM 3.');
   });
 
+  it('refuses an unknown agent before any model call', async () => {
+    const s = await setup();
+    await expect(
+      s.ai.dreamLessons(s.agentId + 1, chat, new AbortController().signal),
+    ).rejects.toMatchObject({ code: 'agent_not_found' });
+    expect(s.draft).not.toHaveBeenCalled();
+  });
+
   it('refuses while the AI connection is not ready', async () => {
     const s = await setup(false);
     await expect(

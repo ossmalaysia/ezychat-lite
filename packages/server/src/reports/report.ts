@@ -34,6 +34,12 @@ function dayStarts(days: number, timeZone: string, now: number): number[] {
   return starts;
 }
 
+/**
+ * A live message is stored a few seconds after its WhatsApp time, so the very first message of a new install
+ * (no history) is a little older than the link time it sets. Within this gap it still counts as new.
+ */
+const LINK_GRACE_MS = 30_000;
+
 export function computeReport(db: DB, opts: Options): Report {
   const days = opts.days as ReportPeriod;
   const { timeZone, now } = opts;
@@ -92,7 +98,7 @@ export function computeReport(db: DB, opts: Options): Report {
     if (
       first.fromMe !== 0 ||
       first.at < previousFrom ||
-      first.at < (linkedAt.get(first.inbox) ?? Infinity)
+      first.at < (linkedAt.get(first.inbox) ?? Infinity) - LINK_GRACE_MS
     )
       continue;
     const reply = firstReply.get(chat, first.at) as { at: number | null };
@@ -269,11 +275,21 @@ function openAiChats(db: DB, scope: string, from: number): number {
 
 /** How long a counted report is reused: opening Reports or asking `get_stats` again costs nothing. */
 export const REPORT_CACHE_MS = 60_000;
-const reportCache = new WeakMap<DB, Map<string, { at: number; report: Report }>>();
+const reportCache = new WeakMap<DB, Map<string, { at: number; version: string; report: Report }>>();
+
+/**
+ * Whether anything was written since: rows changed on this connection (`total_changes()`) plus commits
+ * of any other connection (`data_version`). Both are counters SQLite keeps, so reading them costs nothing.
+ */
+function dataVersion(db: DB): string {
+  const own = (db.prepare('SELECT total_changes() AS n').get() as { n: number }).n;
+  return `${own}:${String(db.pragma('data_version', { simple: true }))}`;
+}
 
 /**
  * `computeReport` with a short cache per database, period, time zone and inbox scope. Counting reads
- * the whole period on the server's only thread, so repeated views within a minute reuse the result.
+ * the whole period on the server's only thread, so repeated views within a minute reuse the result, but
+ * only while nothing was written: a new message right after a view is counted at once.
  */
 export function cachedReport(db: DB, opts: Options, ttlMs = REPORT_CACHE_MS): Report {
   let byKey = reportCache.get(db);
@@ -283,12 +299,14 @@ export function cachedReport(db: DB, opts: Options, ttlMs = REPORT_CACHE_MS): Re
   }
   const scope = opts.inboxIds ? [...opts.inboxIds].sort((a, b) => a - b).join(',') : '*';
   const key = `${opts.days}|${opts.timeZone}|${scope}`;
+  const version = dataVersion(db);
   const hit = byKey.get(key);
-  if (hit && opts.now - hit.at >= 0 && opts.now - hit.at < ttlMs) return hit.report;
+  if (hit && hit.version === version && opts.now - hit.at >= 0 && opts.now - hit.at < ttlMs)
+    return hit.report;
   const report = computeReport(db, opts);
   // Drop expired entries so the cache never holds more than the reports of the last minute.
   for (const [k, entry] of byKey) if (opts.now - entry.at >= ttlMs) byKey.delete(k);
-  byKey.set(key, { at: opts.now, report });
+  byKey.set(key, { at: opts.now, version, report });
   return report;
 }
 

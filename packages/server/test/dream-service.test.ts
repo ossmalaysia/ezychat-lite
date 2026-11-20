@@ -75,6 +75,38 @@ const rule = {
 };
 
 describe('dream mode nightly run', () => {
+  it('keeps the current text as the before of an instructions change and of an item it edits', async () => {
+    const s = await setup();
+    s.ai.addText(
+      null,
+      { name: 'Hours', text: 'Monday to Friday 9 am to 6 pm.' },
+      {
+        userId: s.admin.id,
+        ip: null,
+      },
+    );
+    const item = s.ai.agentStatus(s.agent.id).documents.find((d) => d.name === 'Hours')!;
+    s.lesson();
+    s.fake.answers.merges.push({
+      changes: [
+        { ...fact, target: 'instructions', name: null, after: 'Be kind. Saturday 9 am to 1 pm.' },
+        {
+          ...fact,
+          itemId: item.id,
+          name: null,
+          after: 'Monday to Friday 9 am to 6 pm.\nSaturday 9 am to 1 pm.',
+        },
+      ],
+    });
+    await s.service.tick();
+    expect(
+      s.t.ctx.db.prepare('SELECT target, before FROM ai_dream_changes ORDER BY id').all(),
+    ).toEqual([
+      { target: 'instructions', before: 'Be kind.' },
+      { target: 'context_text', before: 'Monday to Friday 9 am to 6 pm.' },
+    ]);
+  });
+
   it('runs a night once, at 02:00 business time', async () => {
     const s = await setup();
     s.lesson();

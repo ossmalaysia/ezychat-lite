@@ -6,15 +6,29 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "app-navigation",
-    "gitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
-    "mock": "docs/features/app-navigation/mock/index.html",
-    "design": "docs/features/app-navigation/design.md",
-    "confirmedAt": "2026-11-13",
-    "confirmation": "Owner (Jazz) confirmed the app navigation mock 2026-11-13 (\"other also fine\", \"design good, go ahead\") with the recommended answers: Members as a Settings row on phones, Report a problem stays in the account menu, list title renamed Inbox -> Chats in the build, rail Settings opens App settings or the numbers page when a number needs attention.",
-    "note": "Clone of forward-message (2549b7af) with Ask Ezy copied in and the desktop icon rail / phone bottom tabs added; replaces mobile-redesign's phone list header. Inherits forward-message's coverage gaps."
+    "feature": "live-translate",
+    "gitRevision": "ea070366d62d4ecf72a57479c0829861d74cfee5",
+    "mock": "docs/features/live-translate/mock/index.html",
+    "design": "docs/features/live-translate/design.md",
+    "confirmedAt": "2026-11-19",
+    "confirmation": "Owner (Jazz) confirmed the updated mock 2026-11-19 (\"ok mock\"), relayed by the main session, with the final decisions: the admin switch Live translate for everyone is on by default for new and updated installs, and the off-state hint \"Customer writes in 中文 · Translate\" is shown.",
+    "note": "Clone of app-navigation (dc0d5ce6) with Live translate added (Translate button, bar, Languages popover, translated bubbles, Customer will get preview, Settings → AI card, Account → My language). Inherits app-navigation coverage gaps; does not cover voice-note transcript translation, the chat-list line, editing a sent reply, reply suggestions in My language or Fix English being turned off."
   },
   "proposals": [
+    {
+      "feature": "live-translate",
+      "creationOrder": 47,
+      "createdAt": "2026-11-19",
+      "design": "docs/features/live-translate/design.md",
+      "mock": "docs/features/live-translate/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "app-navigation",
+      "baselineGitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
+      "coverage": "Full app clone of the confirmed app-navigation reference; Live translate as decided by the owner 2026-11-19 (same labels and protected items as Cloud PR #107): Translate button per person and chat, bar (customer language shared per chat, detected, mixed \"中文 + English\", Show originals, Languages popover with usage and Turn off), translated bubbles (Translated from … · Show original; 70 % rule keeps mostly-Malay text), Customer will get · 中文 preview (no back-translation; Kept unchanged chips; Send, Edit translation, Send original instead, Keep editing), Sent in … · Show sent text, Written in … · Show what was typed, Sent without translation, refused (RM1,260.00 became RM4,260.00), daily limit used, no connection, no AI, failed with Try again, off-state hint, group with one outgoing language, admin switch off, Send without preview; Settings → AI card (for everyone, daily limit 200), Account → My language and Send without preview; desktop 1280 / phone 360, light/dark, en/ms/zh-CN (translate-shots.mjs, 43 shots).",
+      "note": "Requested 2026-11-19 (Lite, Enterprise, Cloud). Owner decisions 1-10 and the mock confirmed 2026-11-19; the next clone starts from this revision. Removes ask-ezy-setup (oldest counted folder; decisions in docs/ask-ezy.md) for retention; template-store stays (live tooling).",
+      "confirmedAt": "2026-11-19",
+      "confirmation": "Owner (Jazz) confirmed the updated mock 2026-11-19 (\"ok mock\"), relayed by the main session, with the final decisions: the admin switch Live translate for everyone is on by default for new and updated installs, and the off-state hint \"Customer writes in 中文 · Translate\" is shown."
+    },
     {
       "feature": "dream-mode",
       "creationOrder": 46,
@@ -784,6 +798,20 @@
       "archivedAt": "2026-11-14",
       "archivedRevision": "ee978fa4f6ce76f5d46795bfe719521c5ad9c147",
       "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
+    },
+    {
+      "feature": "ask-ezy-setup",
+      "createdAt": "2026-11-12",
+      "design": "docs/features/ask-ezy-setup/design.md",
+      "mock": "docs/features/ask-ezy-setup/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-12",
+      "confirmation": "Owner (Jazz) confirmed the quick mock on 2026-11-12 (\"look good, implement\").",
+      "note": "Quick mock (not an app clone); lasting decisions live in docs/ask-ezy.md section 5.",
+      "archived": true,
+      "archivedAt": "2026-11-19",
+      "archivedRevision": "a09e3a9b9ac0d4ecef5e53c8c495c5aef0872002",
+      "archivedBy": "five-folder retention (live-translate)"
     }
   ]
 }

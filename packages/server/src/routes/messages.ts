@@ -59,7 +59,11 @@ export default async function messagesRoutes(app: FastifyInstance, ctx: AppConte
   app.post('/chats/:jid/messages', async (req, reply) => {
     const jid = chatJidParam(ctx, req);
     const body = parse(SendTextBody, req.body);
-    const msg = messages.sendText(jid, body, req.user!.id);
+    // Live translate: checked before anything is stored (400 translation_changed / _expired).
+    const onStored = messages.byClientId(body.clientId)
+      ? null
+      : (ctx.services.liveTranslate?.prepareSend(req.user!, jid, body) ?? null);
+    const msg = messages.sendText(jid, body, req.user!.id, onStored ? { onStored } : undefined);
     return reply.status(201).send(msg);
   });
 
