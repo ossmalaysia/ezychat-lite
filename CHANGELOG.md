@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart (by the inbox name when they are on different WhatsApp numbers).
 - **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
   answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
   chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
