@@ -34,7 +34,11 @@ describe('origin hook', () => {
     expect(r.statusCode).toBe(200);
   });
   it('rejects POST with cookie but no Origin', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/thing', headers: { host, cookie: 'sid=x' } });
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/thing',
+      headers: { host, cookie: 'sid=x' },
+    });
     expect(r.statusCode).toBe(403);
   });
   it('allows POST with no Origin and no cookie', async () => {
@@ -42,7 +46,11 @@ describe('origin hook', () => {
     expect(r.statusCode).toBe(200);
   });
   it('rejects mismatched Origin even without cookie', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/thing', headers: { host, origin: 'http://evil.com' } });
+    const r = await app.inject({
+      method: 'POST',
+      url: '/api/thing',
+      headers: { host, origin: 'http://evil.com' },
+    });
     expect(r.statusCode).toBe(403);
   });
   it('ignores GET and non-/api paths', async () => {

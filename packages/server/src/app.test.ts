@@ -43,7 +43,9 @@ describe('app', () => {
     expect(t.ctx.settings.get('missing', 'x')).toBe('x');
     t.ctx.settings.setSecret('tok', 'abc');
     expect(t.ctx.settings.getSecret('tok')).toBe('abc');
-    const raw = t.ctx.db.prepare("SELECT value FROM settings WHERE key='tok'").get() as { value: string };
+    const raw = t.ctx.db.prepare("SELECT value FROM settings WHERE key='tok'").get() as {
+      value: string;
+    };
     expect(raw.value).not.toContain('abc');
     t.ctx.settings.setSecret('tok', null);
     expect(t.ctx.settings.getSecret('tok')).toBeNull();

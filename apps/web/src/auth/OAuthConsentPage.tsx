@@ -13,12 +13,13 @@ import { AuthShell, ButtonSpinner, FullPageLoader } from './AuthShell';
 import { useAuth } from './AuthProvider';
 
 /** Why the page cannot ask for approval, in the admin's language. */
-function useProblem() {
+function useProblem(isAdmin: boolean) {
   const { t } = useTranslation('auth');
   return (e: unknown): string => {
     if (e instanceof ApiError) {
       if (e.code === 'mcp_members_off') return t('oauth.member.off');
-      if (e.status === 403) return t('oauth.adminOnly');
+      // "Only an admin can approve" is wrong for a member: they get the server's own reason.
+      if (e.status === 403) return isAdmin ? t('oauth.adminOnly') : errorMessage(e);
       if (e.status === 409) return t('oauth.accessOff');
       if (e.status === 400) return t('oauth.badRequest');
     }
@@ -39,13 +40,13 @@ export function OAuthConsentPage() {
   const query = search.startsWith('?') ? search.slice(1) : search;
   const request = useOAuthRequest(query);
   const decision = useOAuthDecision();
-  const problem = useProblem();
   // The button the admin pressed: it spins until the browser has left for the app.
   const [choice, setChoice] = useState<boolean | null>(null);
   const { user, isAdmin } = useAuth();
   const [canSend, setCanSend] = useState(false);
   const sendId = useId();
   const member = !isAdmin;
+  const problem = useProblem(isAdmin);
 
   if (request.isPending) return <FullPageLoader />;
   if (request.isError) {

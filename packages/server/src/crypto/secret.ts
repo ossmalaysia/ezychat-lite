@@ -45,7 +45,9 @@ export class SecretBox {
     const [ivB, tagB, ctB] = parts as [string, string, string];
     const decipher = createDecipheriv('aes-256-gcm', this.key, Buffer.from(ivB, 'base64'));
     decipher.setAuthTag(Buffer.from(tagB, 'base64'));
-    return Buffer.concat([decipher.update(Buffer.from(ctB, 'base64')), decipher.final()]).toString('utf8');
+    return Buffer.concat([decipher.update(Buffer.from(ctB, 'base64')), decipher.final()]).toString(
+      'utf8',
+    );
   }
 }
 

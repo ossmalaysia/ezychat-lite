@@ -276,7 +276,9 @@ export function createApiTokenService(
       // connects an assistant only through its app sign-in (OAuth), never with a pasted token.
       const role = auth.getUser(userId)?.role;
       if (role !== 'admin')
-        throw errors.forbidden('Access tokens are for admins; connect your assistant with its sign-in');
+        throw errors.forbidden(
+          'Access tokens are for admins; connect your assistant with its sign-in',
+        );
       return issue(
         userId,
         body.name,
@@ -312,8 +314,11 @@ export function createApiTokenService(
       // Unknown and revoked tokens alike: a revoked row has a non-null revoked_at.
       if (row?.revoked_at !== null) throw errors.notFound('Token');
       // A token acts as its owner: only the owner may let it send in their name.
-      if (row.user_id !== actorId)
+      if (row.user_id !== actorId) {
+        // A member never learns that someone else's token exists (as revoke): not found.
+        if (auth.getUser(actorId)?.role !== 'admin') throw errors.notFound('Token');
         throw errors.forbidden('Only the owner of a token can change what it may do');
+      }
       if (row.expires_at !== null && row.expires_at <= now())
         throw errors.validation('This token has expired; create a new one');
       const owner = auth.getUser(actorId);

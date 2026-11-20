@@ -62,7 +62,9 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   ai_scheduled_runs: { skip: 'run history: the imported tasks start switched off, with no runs' },
   ai_dream_settings: { merged: true },
   ai_dream_runs: { skip: 'run history: dream mode arrives switched off, with no runs' },
-  ai_dream_changes: { skip: "suggestions name the Lite install's setup texts; the target's own setup is kept" },
+  ai_dream_changes: {
+    skip: "suggestions name the Lite install's setup texts; the target's own setup is kept",
+  },
   safety_downloads: { merged: true },
   safety_numbers: { merged: true },
   sql_account_agent_settings: { merged: true },

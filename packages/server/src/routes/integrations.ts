@@ -9,6 +9,7 @@ import { clientIp } from '../http/client-ip.js';
 import { errors, parse } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import {
+  isMcpEnabled,
   isMcpMembersEnabled,
   mcpSettings,
   setMcpEnabled,
@@ -35,9 +36,15 @@ export default async function integrationsRoutes(app: FastifyInstance, ctx: AppC
     const body = parse(McpSettingsPatch, req.body);
     const userId = req.user!.id;
     const ip = clientIp(req);
+    // Members connect only while AI assistant access is on: never armed in advance.
+    if (body.membersEnabled === true && !(body.enabled ?? isMcpEnabled(ctx)))
+      throw errors.conflict('Turn on AI assistant access first');
     if (body.enabled !== undefined) {
       setMcpEnabled(ctx, body.enabled);
       audit(ctx.db, { userId, action: body.enabled ? 'mcp.enable' : 'mcp.disable', ip });
+      // Access off also cancels members' connections (they connect again once it is back on).
+      if (!body.enabled && body.membersEnabled === undefined && isMcpMembersEnabled(ctx))
+        body.membersEnabled = false;
     }
     if (body.membersEnabled !== undefined) {
       const before = isMcpMembersEnabled(ctx);

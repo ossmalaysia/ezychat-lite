@@ -276,6 +276,30 @@ describe('a member token', () => {
 });
 
 describe('stopping a member token', () => {
+  it('turning AI assistant access off also revokes members, and members cannot be armed while off', async () => {
+    const member = memberToken(dan).secret;
+    const adminTok = t.ctx.services.apiTokens!.create(
+      admin.id,
+      { name: 'keep', expiresInDays: 90 },
+      'ip',
+    );
+    const patch = (payload: unknown) =>
+      t.app.inject({
+        method: 'PATCH',
+        url: '/api/integrations/mcp',
+        headers: authHeaders(adminCookie),
+        payload,
+      });
+    const off = await patch({ enabled: false });
+    expect(off.json()).toMatchObject({ enabled: false, membersEnabled: false });
+    const armed = await patch({ membersEnabled: true });
+    expect(armed.statusCode).toBe(409);
+    const on = await patch({ enabled: true, membersEnabled: true });
+    expect(on.json()).toMatchObject({ enabled: true, membersEnabled: true });
+    expect(await status(member)).toBe(401);
+    expect(await status(adminTok.secret)).toBe(200);
+  });
+
   it('stops at once when the member is disabled', async () => {
     const temp = user('temp1', 'agent');
     const secret = memberToken(temp).secret;
@@ -365,7 +389,8 @@ describe('token pages for members', () => {
       headers: authHeaders(danCookie),
       payload: { canSend: true, canMessageNewNumbers: false },
     });
-    expect(patch.statusCode).toBe(403);
+    // another person's token reads as missing for a member, as on DELETE
+    expect(patch.statusCode).toBe(404);
 
     const allow = await t.app.inject({
       method: 'PATCH',
