@@ -1333,6 +1333,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - To screenshot the app "through the tunnel" locally: set the `named_tunnel_hostname` setting, launch Chromium with
   `--host-resolver-rules=MAP <host> 127.0.0.1` and `--unsafely-treat-insecure-origin-as-secure=http://<host>:<port>`
   (the session cookie is Secure off loopback), as `docs/features/mcp-file-upload/screens/shots.mjs` does.
+- Widening who may call a path (e.g. MCP tokens for team members) means re-auditing every service entry the old
+  callers reached: a method written for admins only (`newChat.openChecked`) may skip the who/which-inbox check its
+  sibling does (`inboxFor`). Per-chat checks go through `canOpenChat`, never `canOpen(scopeFor(...))`, which
+  misses chosen-chat agents (empty scope) and hidden chats; test each role (admin, member, chosen-chat) live.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
