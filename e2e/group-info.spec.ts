@@ -62,6 +62,9 @@ test('group info: members from WhatsApp, search, details and starting a chat', a
 
   // A member without a chat: asks first, then opens a new empty chat (nothing is sent).
   await panel.getByRole('searchbox', { name: 'Search members' }).fill(`18439201773${tag}`);
+  // The search is a deferred render: until it lands the list still shows the first 100 members, five
+  // of them named members with hidden numbers, so wait for the filtered list before clicking.
+  await expect(list.getByRole('listitem')).toHaveCount(1);
   await list.getByRole('button', { name: /Number hidden by WhatsApp/ }).click();
   await panel.getByRole('button', { name: 'Message' }).click();
   const confirm = page.getByRole('alertdialog');

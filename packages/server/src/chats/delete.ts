@@ -23,6 +23,8 @@ export const MESSAGE_TABLES = [
   'message_edits',
   'media_refs',
   'media_thumbs',
+  'message_translations',
+  'message_typed',
 ] as const;
 
 /** Tables keyed by the chat key (`chat_jid`); `messages` last but one, the `chats` row last. */
@@ -52,6 +54,8 @@ export const CHAT_TABLES = [
   'sql_account_quotes',
   'sql_account_activity',
   'github_activity',
+  'chat_languages',
+  'live_translate_switches',
   'messages',
 ] as const;
 

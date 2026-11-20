@@ -43,6 +43,10 @@ initializers.push(initNewChat);
 import { initAi } from './ai/service.js';
 initializers.push(initAi);
 
+// Live translate (docs/live-translate.md): translates through the AI service.
+import { initLiveTranslate } from './live-translate/service.js';
+initializers.push(initLiveTranslate);
+
 // Delete chat (admins): stops the chat's sends and AI work first, so it follows both.
 import { initChatDelete } from './chats/delete.js';
 initializers.push(initChatDelete);

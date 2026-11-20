@@ -7,7 +7,7 @@ Ask Ezy, and add a line to the decision log when you change a rule. Feature fold
 `apps/web/src/askezy/`; contract `packages/shared/src/ask-ezy.ts`.
 
 History: first design `docs/features/ask-ezy/design.md` (owner request 2026-10-30, pruned; read it with
-`git show 2e820c94^:docs/features/ask-ezy/design.md`); setup design `docs/features/ask-ezy-setup/design.md`
+`git show 2e820c94^:docs/features/ask-ezy/design.md`); setup design `git show a09e3a9b:docs/features/ask-ezy-setup/design.md` (folder archived 2026-11-19)
 (2026-11-12; same rule, read it from git once pruned).
 
 ## 1. What it is for (owner decisions)

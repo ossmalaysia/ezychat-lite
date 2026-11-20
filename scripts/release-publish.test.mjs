@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { PRESERVED_NOTE } from './release-notes.mjs';
-import { draftProblems, expectedInstallers, isReleaseVersion, main } from './release-publish.mjs';
+import {
+  compareReleaseVersions,
+  draftProblems,
+  expectedInstallers,
+  isReleaseVersion,
+  main,
+  newestPublished,
+  parseJsonLines,
+  promotePlan,
+} from './release-publish.mjs';
 
 const NOTES = `### Added\n\n- Something new.\n\n${PRESERVED_NOTE}\n`;
 const draft = (over = {}) => ({
@@ -90,6 +99,85 @@ describe('draftProblems', () => {
   });
 });
 
+describe('compareReleaseVersions', () => {
+  it('orders by number, not by text', () => {
+    expect(compareReleaseVersions('0.1.10', '0.1.9')).toBeGreaterThan(0);
+    expect(compareReleaseVersions('0.2.0', '0.1.99')).toBeGreaterThan(0);
+    expect(compareReleaseVersions('1.0.0', '0.99.99')).toBeGreaterThan(0);
+    expect(compareReleaseVersions('0.1.83', '0.1.83')).toBe(0);
+    expect(compareReleaseVersions('0.1.83', '0.1.85')).toBeLessThan(0);
+  });
+});
+
+const list = (...items) => items.map(([tag_name, draft = false]) => ({ tag_name, draft }));
+
+describe('promotePlan', () => {
+  it('promotes a complete held draft newer than every published release, or the first one', () => {
+    const releases = list(['v0.1.74'], ['v0.1.75', true], ['v0.1.76', true]);
+    expect(promotePlan(draft(), '0.1.75', releases)).toEqual({ problems: [], hold: [] });
+    expect(promotePlan(draft(), '0.1.75', [])).toEqual({ problems: [], hold: [] });
+  });
+
+  it('orders by number: v0.1.100 is newer than v0.1.75', () => {
+    expect(promotePlan(draft(), '0.1.75', list(['v0.1.100'])).problems).toEqual([
+      'newer published release v0.1.100: run with hold_newer to turn it back into a draft',
+    ]);
+  });
+
+  it('holds every newer published release, a published pre-release included, only with holdNewer', () => {
+    const releases = [
+      ...list(['v0.1.77'], ['v0.1.76'], ['v0.1.74'], ['v0.1.78', true], ['v0.2.0-beta.1']),
+      { tag_name: 'v0.1.79', draft: false, prerelease: true },
+    ];
+    expect(promotePlan(draft(), '0.1.75', releases).problems).toEqual([
+      'newer published releases v0.1.76, v0.1.77, v0.1.79: run with hold_newer to turn them back into a draft',
+    ]);
+    expect(promotePlan(draft(), '0.1.75', releases, { holdNewer: true })).toEqual({
+      problems: [],
+      hold: ['v0.1.76', 'v0.1.77', 'v0.1.79'],
+    });
+  });
+
+  it('switches back to an already published version that still has its installers', () => {
+    const published = draft({ isDraft: false });
+    expect(
+      promotePlan(published, '0.1.75', list(['v0.1.75'], ['v0.1.76']), { holdNewer: true }),
+    ).toEqual({ problems: [], hold: ['v0.1.76'] });
+    expect(promotePlan(published, '0.1.75', list(['v0.1.75']))).toEqual({ problems: [], hold: [] });
+    expect(
+      promotePlan(draft({ isDraft: false, assets: [] }), '0.1.75', [], { holdNewer: true })
+        .problems,
+    ).toHaveLength(6);
+  });
+
+  it('keeps every draft check and refuses no release at all', () => {
+    expect(promotePlan(draft({ body: '' }), '0.1.75', []).problems).toEqual([
+      'the release notes are empty',
+    ]);
+    expect(promotePlan(null, '0.1.75', [])).toEqual({ problems: ['no release found'], hold: [] });
+    expect(promotePlan(draft(), '0.1.75', null)).toEqual({ problems: [], hold: [] });
+  });
+});
+
+describe('newestPublished', () => {
+  it('gives the highest published plain tag, skipping drafts and previews', () => {
+    expect(
+      newestPublished([
+        ...list(['v0.1.9'], ['v0.1.10'], ['v0.1.11', true], ['v0.2.0-rc.1'], ['x']),
+        null,
+      ]),
+    ).toBe('v0.1.10');
+    expect(newestPublished([])).toBe('');
+    expect(newestPublished(undefined)).toBe('');
+  });
+});
+
+describe('parseJsonLines', () => {
+  it('reads one object per line and skips blank lines', () => {
+    expect(parseJsonLines('{"a":1}\n\n {"a":2} \n')).toEqual([{ a: 1 }, { a: 2 }]);
+  });
+});
+
 describe('main', () => {
   const run = (argv, files = {}) => {
     const out = [];
@@ -122,6 +210,41 @@ describe('main', () => {
     expect(bad.code).toBe(1);
     expect(bad.err).toHaveLength(6);
     expect(bad.err[0]).toBe('::error::v0.1.75: missing installer EzyChat-Lite-0.1.75-win-x64.exe');
+  });
+
+  it('promote prints the tags to hold and fails with every reason', () => {
+    const files = {
+      'r.json': JSON.stringify(draft()),
+      'l.jsonl': '{"tag_name":"v0.1.74","draft":false}\n{"tag_name":"v0.1.76","draft":false}\n',
+      'none.jsonl': '',
+    };
+    expect(run(['promote', '0.1.75', 'r.json', 'none.jsonl'], files)).toEqual({
+      code: 0,
+      out: [],
+      err: [],
+    });
+    expect(run(['promote', '0.1.75', 'r.json', 'l.jsonl', '--hold-newer'], files)).toEqual({
+      code: 0,
+      out: ['v0.1.76'],
+      err: [],
+    });
+    const refused = run(['promote', '0.1.75', 'r.json', 'l.jsonl'], files);
+    expect(refused.code).toBe(1);
+    expect(refused.err).toEqual([
+      '::error::v0.1.75: newer published release v0.1.76: run with hold_newer to turn it back into a draft',
+    ]);
+    expect(run(['promote', '0.1.75', 'r.json', 'missing.jsonl'], files).code).toBe(1);
+    expect(run(['promote', '0.1.75', 'r.json', 'l.jsonl', '--yes'], files).code).toBe(2);
+    expect(run(['promote', '0.1.75', 'r.json'], files).code).toBe(2);
+    expect(run(['promote', '0.1.75 ;id', 'r.json', 'l.jsonl'], files).code).toBe(2);
+  });
+
+  it('newest prints the newest published tag', () => {
+    const files = {
+      'l.jsonl': '{"tag_name":"v0.1.74","draft":false}\n{"tag_name":"v0.1.76","draft":true}\n',
+    };
+    expect(run(['newest', 'l.jsonl'], files)).toEqual({ code: 0, out: ['v0.1.74'], err: [] });
+    expect(run(['newest', 'missing.jsonl'], files).code).toBe(1);
   });
 
   it('fails on an unreadable file and on unknown commands', () => {
