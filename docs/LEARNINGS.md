@@ -440,6 +440,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
   A long-lived branch can also land its entry in an old released section (#240 went into 0.1.66): every release PR
   checks `git diff v<prev>..main -- CHANGELOG.md` for lines added outside `[Unreleased]` and moves them in.
+- A workflow run that ends in `startup_failure` with 0 jobs never reaches a log: diff the workflow against the last
+  green run of it first (an action bump is the usual suspect), and dry-run release.yml with a dispatch on main
+  (`publish=false`, draft only) after any action bump, before release day.
 - The update helper is built by the app that is running, so an updater fix protects only updates that start from a
   version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
   an updater fix.
