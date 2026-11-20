@@ -1883,6 +1883,7 @@
       "blocked": "Your browser blocked the sign-in window. Open the sign-in page to continue.",
       "openSignIn": "Open the sign-in page",
       "sameComputer": "Google returns to the computer that runs {{product}}: the sign-in only finishes in a browser on that computer.",
+      "remoteSignIn": "Google sign-in works only on the computer that runs {{product}}. Open {{product}} there and sign in; it will show here too.",
       "cancelSignIn": "Cancel",
       "failed": {
         "denied": "Google sign-in was cancelled. Nothing was connected.",
@@ -2195,6 +2196,7 @@
         "expired": "The file picker took too long. Try again."
       },
       "pickSameComputer": "The file picker works only in a browser on the computer that runs {{product}}.",
+      "remotePick": "Choosing a sheet works only on the computer that runs {{product}}. Open {{product}} there, choose the sheet, and it will show here too. You can still create a new sheet from here.",
       "tabsTitle": "Tabs this agent may use",
       "tabsHint": "The agent's instructions say when to use them. Column names come from the first row of each tab. Changed a tab in Google Sheets? Press Refresh.",
       "refresh": "Refresh",
@@ -2333,6 +2335,7 @@
       "pickBlocked": "Your browser blocked the window. Open the file picker to continue.",
       "openPicker": "Open the file picker",
       "pickSameComputer": "The file picker works only in a browser on the computer that runs {{product}}.",
+      "remotePick": "Choosing a folder or files works only on the computer that runs {{product}}. Open {{product}} there, choose them, and they will show here too.",
       "pickError": {
         "cancelled": "Nothing was chosen.",
         "failed": "{{product}} could not open what you chose. Choose it again.",

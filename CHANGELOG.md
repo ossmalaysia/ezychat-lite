@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Team members can connect Claude or ChatGPT to their own account (off until an admin turns on **Members can connect AI assistants** in Settings → Integrations). A member adds EzyChat as a connector in the assistant and approves it on the sign-in page; it then sees only the chats that member can open, and sends WhatsApp messages only if they tick **Let it send** (only into chats they can open). Each member finds their assistants under **Your account → My AI assistants**, where they can change what it may do or disconnect it. Admins see every member's assistant in Settings → Integrations and can revoke it; turning the switch off, or changing a member's role, disconnects them. Access tokens stay for admins only.
 - **AI assistants can resolve chats.** Tick **Can resolve chats** for a connected AI app (Settings → Integrations → Create token or **Permissions**; off unless you tick it) and you can ask it to resolve chats for you, for example the ones where the customer only said thanks, or to reopen one. It works exactly like Resolve and Reopen in the inbox, as you; the customer is not messaged. It can add a note for your team saying why. Up to 30 changes a minute and 300 a day per app.
 
+### Fixed
+
+- **Google Sheets, Google Drive and Google Calendar no longer send you to a dead page from another device.** Opened through your remote address or the local network, **Choose a sheet** (and the folder and file choices in Google Drive) opened a new tab that said "127.0.0.1 refused to connect", and Google sign-in ended the same way. Google's picker and sign-in only work in a browser on the computer that runs EzyChat, so on any other device EzyChat now says so in plain words (and what to do) instead of opening a tab. Everything else still works from there: status, tabs, switches, Refresh and creating a new sheet.
+
 ## [0.1.85] - 2026-11-20
 
 ### Added

@@ -81,6 +81,7 @@ describe('Google Calendar routes', () => {
       calendars: [],
       connectedAt: null,
       problemSince: null,
+      onThisComputer: true,
     });
     const { requestId, callback } = await connect(admin);
     expect(callback.statusCode).toBe(200);
@@ -97,6 +98,7 @@ describe('Google Calendar routes', () => {
       state: 'connected',
       account: 'demo.bookings@example.com',
       problemSince: null,
+      onThisComputer: true,
     });
     expect(status.calendars).toEqual([
       {
@@ -287,6 +289,7 @@ describe('Google Calendar routes', () => {
     expect((await get('/api/connectors/google-calendar', admin)).json()).toMatchObject({
       state: 'connected',
       problemSince: null,
+      onThisComputer: true,
     });
   });
 

@@ -30,6 +30,8 @@ into AGENTS.md.
   its tool wrapper, account-card texts, picker waiting card or route-test setup are copied: put each in one shared helper
   (`connectors/tool-run.ts`, `googleAccountTexts`, `PickerWaiting`, `connectorTestApp`) and move the older connector onto
   it in the same PR. Read the duplicated blocks with `api/duplications/show?key=<project>:<path>&pullRequest=<n>`.
+  A same-shaped test added to each connector's test file (8 lines ×2) also fails it: write it once as a loop over
+  the connectors. Find the files with `api/measures/component_tree?metricKeys=new_duplicated_lines&strategy=leaves`.
 - A time-based cache of counted data (`cachedReport`) also keys on whether the database changed (SQLite
   `total_changes()` + `PRAGMA data_version`, both free): a TTL alone serves a count from before the newest write, which
   users see as missing data and the full e2e as an order-dependent flake (L-23).
@@ -164,6 +166,9 @@ into AGENTS.md.
   leftovers (routes, keys, guards) survive a patch-out and drift from the design.
 - Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
   a faint, half-transparent card that reads like a z-index bug.
+- Screenshot of a state the page adds below the first screen: the app scrolls inside its own container, so
+  `fullPage` captures only the viewport. Scroll the element into view (`scrollIntoViewIfNeeded`) and open the image
+  before handing it over: all six first shots of a new notice showed the page without it.
 - Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
   technical terms (AI connection, Business API, auto-block, where files are kept) go behind an `InfoTip`.
 - Format only the mock files you changed (`npx prettier --write <paths>`), never a mock's whole `src/`: the
@@ -1263,6 +1268,15 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- A flow that must finish on 127.0.0.1 (Google sign-in callback, Google's file picker) cannot be started from a
+  remote or LAN browser: the page opened a tab on the visitor's own 127.0.0.1 ("refused to connect"). Decide "on this
+  computer" on the server with the same `isHostRequest` rule as the host-only routes, send it as `onThisComputer`
+  on the status (zod default `true`), refuse the start routes with 409 `host_only` (`requireHost`), and let the page
+  show a notice instead of opening a window. Test it with a LAN peer and a `cf-connecting-ip` request, and assert the
+  answer holds no `127.0.0.1` link; a status with a new field breaks every exact-equality test of that status.
+- Release review rates a PR by the files it touches: a one-line helper in a security-rule file (`http/errors.ts`) made
+  a small route fix "critical" (score 10, real-part test required). Build such an error where it is used
+  (`new HttpError(...)` in the route file) and check `release-review.mjs`'s "Tier … set by" line before the first push.
 - A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
   return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
   denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function

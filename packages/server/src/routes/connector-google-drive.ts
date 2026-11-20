@@ -13,7 +13,7 @@ import { FOLDER_MIME } from '../connectors/google-drive/drive.js';
 import { isHostRequest } from '../http/access.js';
 import { clientIp } from '../http/client-ip.js';
 import { errors, parse } from '../http/errors.js';
-import { escapeHtml, sendPage } from './connectors.js';
+import { escapeHtml, requireHost, sendPage, withHostFlag } from './connectors.js';
 
 const AgentParams = z.object({ agentId: z.coerce.number().int().positive() });
 const RequestParams = z.object({ requestId: z.string().regex(/^[a-f0-9]{24}$/) });
@@ -53,11 +53,12 @@ export default async function connectorGoogleDriveRoutes(app: FastifyInstance, c
   const admin = { preHandler: requireAdmin(ctx) };
   const actor = (req: FastifyRequest) => ({ userId: req.user!.id, ip: clientIp(req) });
 
-  app.get('/connectors/google-drive', admin, async () => drive.status());
+  app.get('/connectors/google-drive', admin, async (req) => withHostFlag(req, drive.status()));
 
-  app.post('/connectors/google-drive/connect', admin, async (req) =>
-    drive.startConnect(`${loopbackOrigin(req, ctx)}${DRIVE_CALLBACK_PATH}`, actor(req)),
-  );
+  app.post('/connectors/google-drive/connect', admin, async (req) => {
+    requireHost(req);
+    return drive.startConnect(`${loopbackOrigin(req, ctx)}${DRIVE_CALLBACK_PATH}`, actor(req));
+  });
 
   app.get('/connectors/google-drive/connect/:requestId', admin, async (req) => {
     const { requestId } = parse(RequestParams, req.params);
@@ -83,12 +84,13 @@ export default async function connectorGoogleDriveRoutes(app: FastifyInstance, c
 
   app.post('/connectors/google-drive/disconnect', admin, async (req) => {
     await drive.disconnect(actor(req));
-    return drive.status();
+    return withHostFlag(req, drive.status());
   });
 
   // Google's file picker: the admin starts it here; its page, script, token and answer are served
   // only to this computer (like the sign-in callback), guarded by the one-time picker token.
   app.post('/connectors/google-drive/picker', admin, async (req) => {
+    requireHost(req);
     const body = parse(DrivePickerBody, req.body ?? {});
     return drive.startPicker(loopbackOrigin(req, ctx), body, actor(req));
   });
@@ -228,7 +230,7 @@ export default async function connectorGoogleDriveRoutes(app: FastifyInstance, c
 
   app.post('/dev/fake-google-drive', admin, async (req) => {
     fake.mode = parse(FakeDriveBody, req.body ?? {}).state;
-    return drive.status();
+    return withHostFlag(req, drive.status());
   });
 
   app.get('/dev/fake-google-drive', admin, async () => ({

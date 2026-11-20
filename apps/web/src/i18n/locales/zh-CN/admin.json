@@ -1869,6 +1869,7 @@
       "blocked": "浏览器阻止了登录窗口。请打开登录页面继续。",
       "openSignIn": "打开登录页面",
       "sameComputer": "Google 会返回到运行 {{product}} 的电脑：只有在那台电脑的浏览器中才能完成登录。",
+      "remoteSignIn": "Google 登录只能在运行 {{product}} 的电脑上完成。请在那台电脑上打开 {{product}} 并登录，这里也会显示结果。",
       "cancelSignIn": "取消",
       "failed": {
         "denied": "Google 登录已取消。未连接任何内容。",
@@ -2174,6 +2175,7 @@
         "expired": "文件选择器等待时间过长。请重试。"
       },
       "pickSameComputer": "文件选择器只能在运行 {{product}} 的电脑上的浏览器中使用。",
+      "remotePick": "选择表格只能在运行 {{product}} 的电脑上进行。请在那台电脑上打开 {{product}} 并选择表格，这里也会显示。您仍可在此创建新表格。",
       "tabsTitle": "此代理可使用的工作表",
       "tabsHint": "代理的指示说明何时使用它们。列名来自每个工作表的第一行。在 Google Sheets 中改了工作表？请按“刷新”。",
       "refresh": "刷新",
@@ -2310,6 +2312,7 @@
       "pickBlocked": "浏览器拦截了窗口。请打开文件选择器继续。",
       "openPicker": "打开文件选择器",
       "pickSameComputer": "文件选择器只能在运行 {{product}} 的电脑上的浏览器中使用。",
+      "remotePick": "选择文件夹或文件只能在运行 {{product}} 的电脑上进行。请在那台电脑上打开 {{product}} 并选择，这里也会显示。",
       "pickError": {
         "cancelled": "没有选择任何内容。",
         "failed": "{{product}} 无法打开您选择的内容。请重新选择。",

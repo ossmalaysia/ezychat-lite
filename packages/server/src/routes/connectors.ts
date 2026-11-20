@@ -6,7 +6,19 @@ import type { AppContext } from '../context.js';
 import { getGoogleCalendar } from '../connectors/google-calendar/service.js';
 import { isHostRequest } from '../http/access.js';
 import { clientIp } from '../http/client-ip.js';
-import { errors, parse } from '../http/errors.js';
+import { errors, HttpError, parse } from '../http/errors.js';
+
+/** A connector's status for this request: adds whether the person is on the computer running EzyChat. */
+export const withHostFlag = <T extends object>(req: FastifyRequest, status: T) => ({
+  ...status,
+  onThisComputer: isHostRequest(req),
+});
+
+/** Google sign-in and the file picker finish on 127.0.0.1: a remote or LAN request never starts them. */
+export function requireHost(req: FastifyRequest): void {
+  if (!isHostRequest(req))
+    throw new HttpError(409, 'host_only', 'This works only on the computer that runs EzyChat');
+}
 
 const AgentParams = z.object({ agentId: z.coerce.number().int().positive() });
 const RequestParams = z.object({ requestId: z.string().regex(/^[a-f0-9]{24}$/) });
@@ -61,11 +73,14 @@ export default async function connectorsRoutes(app: FastifyInstance, ctx: AppCon
   const admin = { preHandler: requireAdmin(ctx) };
   const actor = (req: FastifyRequest) => ({ userId: req.user!.id, ip: clientIp(req) });
 
-  app.get('/connectors/google-calendar', admin, async () => calendar.status());
-
-  app.post('/connectors/google-calendar/connect', admin, async (req) =>
-    calendar.startConnect(redirectUri(req, ctx), actor(req)),
+  app.get('/connectors/google-calendar', admin, async (req) =>
+    withHostFlag(req, await calendar.status()),
   );
+
+  app.post('/connectors/google-calendar/connect', admin, (req) => {
+    requireHost(req);
+    return calendar.startConnect(redirectUri(req, ctx), actor(req));
+  });
 
   app.get('/connectors/google-calendar/connect/:requestId', admin, async (req) => {
     const { requestId } = parse(RequestParams, req.params);
@@ -91,7 +106,7 @@ export default async function connectorsRoutes(app: FastifyInstance, ctx: AppCon
 
   app.post('/connectors/google-calendar/disconnect', admin, async (req) => {
     await calendar.disconnect(actor(req));
-    return calendar.status();
+    return withHostFlag(req, await calendar.status());
   });
 
   app.get('/connectors/google-calendar/agents/:agentId', admin, async (req) => {
@@ -135,7 +150,7 @@ export default async function connectorsRoutes(app: FastifyInstance, ctx: AppCon
     const body = parse(FakeGoogleBody, req.body ?? {});
     if (body.state) fake.mode = body.state;
     if (body.busy) fake.busy = body.busy;
-    return calendar.refreshStatus();
+    return withHostFlag(req, await calendar.refreshStatus());
   });
 
   app.get('/dev/fake-google-calendar', admin, async () => ({
