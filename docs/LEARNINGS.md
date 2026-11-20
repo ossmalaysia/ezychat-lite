@@ -1337,6 +1337,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   callers reached: a method written for admins only (`newChat.openChecked`) may skip the who/which-inbox check its
   sibling does (`inboxFor`). Per-chat checks go through `canOpenChat`, never `canOpen(scopeFor(...))`, which
   misses chosen-chat agents (empty scope) and hidden chats; test each role (admin, member, chosen-chat) live.
+- A switch that depends on another (members ← AI assistant access) must follow it on the server: turning the parent
+  off also turns the child off and revokes what it granted, and the child cannot be armed while the parent is off;
+  a greyed web switch is not enough. A "not yours" answer is 404 on every verb (PATCH like DELETE), never 403.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
