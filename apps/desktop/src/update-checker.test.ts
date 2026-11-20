@@ -171,6 +171,23 @@ describe('GitHubUpdateChecker', () => {
     },
   );
 
+  // Release hold contract (owner rule 2026-11-20, docs/release.md §3, scripts/release-publish.mjs): a new version
+  // stays a draft until McAfee clears its installers. A 0.x install takes a published pre-release and never reads
+  // releases/latest, so only a draft holds every shipped updater on the cleared version.
+  it('holds a 0.x install on the cleared version while the newer one is a draft, not a pre-release', async () => {
+    const cleared = release('0.1.83', { prerelease: false });
+    const held = await checker(
+      vi.fn().mockResolvedValue(response([release('0.1.86', { draft: true }), cleared])),
+      { currentVersion: '0.1.80' },
+    ).check();
+    expect(held.release?.version).toBe('0.1.83');
+    const asPreRelease = await checker(
+      vi.fn().mockResolvedValue(response([release('0.1.86', { prerelease: true }), cleared])),
+      { currentVersion: '0.1.80' },
+    ).check();
+    expect(asPreRelease.release?.version).toBe('0.1.86');
+  });
+
   it('stable installs ignore both marked previews and semantic prereleases', async () => {
     const data = [
       release('3.0.0'),

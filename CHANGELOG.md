@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.85] - 2026-11-20
+
 ### Added
 
 - **Dream mode** for AI agents (off until an admin turns it on, on the agent page). Each night, at the time you pick, the agent reads the day's chats that your team took over, learns from what your team replied, and suggests better facts, answers and hand-off rules. Each suggestion is checked first: no customer names, phone numbers or emails, nothing from your Internal knowledge, numbers only from your team's replies, and a replay that shows the agent now handles the question without getting other answers wrong. You see every night in a history and can apply, dismiss or undo each change. Turn on **Apply by itself** to add new facts to Business context at once; changes to instructions and hand-off rules always wait for you. Forwarded messages are never learned from.
@@ -17,10 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A new version now reaches the in-app update and the download links only after McAfee has checked all its installers (Windows and both Macs), usually a day or two after the release, so antivirus software does not block the update.
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).
 
 ### Fixed
 
+- Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart (by the inbox name when they are on different WhatsApp numbers).
+- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
+  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
+  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
+  keeps the chat open.
 - Country flags in messages (🇲🇾, 🇸🇬 …) now show as flags on Windows. Before, Windows showed two letters such as "MY".
 - Reports now counts the very first customer who writes after you link WhatsApp as a new customer. Before, that first customer was left out of **New customers**.
 - Reports now shows a new customer or message at once. It could show the numbers from your last visit for up to a minute.
@@ -414,10 +422,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
-  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
-  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
-  keeps the chat open.
 - **The AI agent follows your hand-over rules.** A request to book a consultation, meeting, demo or call is now
   treated as a sales conversation: the agent asks what the customer needs instead of handing the chat over, and
   your "never hand over" rules win over the agent's built-in reasons (except safety ones). The agent only says a
