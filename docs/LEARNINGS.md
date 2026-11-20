@@ -133,6 +133,7 @@ into AGENTS.md.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
+  Run the package's `tsc --noEmit` after every test edit too, before pushing: green tests can still fail CI's typecheck.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Before production UI work, commit a complete interactive HTML mock in `docs/features/<feature>/mock/`
