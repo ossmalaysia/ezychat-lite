@@ -93,6 +93,7 @@ export interface ApiTokenService {
     userId: number,
     app: { clientId: string; name: string },
     ip: string,
+    opts?: { canSend?: boolean },
   ): CreateApiTokenResponse;
   /**
    * Tokens that are not revoked (expired ones included, so the owner can see them): every token for an
@@ -271,7 +272,11 @@ export function createApiTokenService(
 
   return {
     create(userId, body, ip) {
-      const role = auth.getUser(userId)?.role ?? 'agent';
+      // Personal access tokens are admins' "master tokens" (owner decision 2026-11-20): a team member
+      // connects an assistant only through its app sign-in (OAuth), never with a pasted token.
+      const role = auth.getUser(userId)?.role;
+      if (role !== 'admin')
+        throw errors.forbidden('Access tokens are for admins; connect your assistant with its sign-in');
       return issue(
         userId,
         body.name,
@@ -282,11 +287,12 @@ export function createApiTokenService(
       );
     },
 
-    createForApp(userId, app, ip) {
+    createForApp(userId, app, ip, opts) {
       return ctx.db.transaction(() => {
         q.revokeForApp.run(now(), userId, app.clientId);
         const role = auth.getUser(userId)?.role ?? 'agent';
-        return issue(userId, app.name, null, baseScopes(role), app.clientId, ip);
+        const scopes = withSendScopes(baseScopes(role), { canSend: opts?.canSend === true });
+        return issue(userId, app.name, null, scopes, app.clientId, ip);
       })();
     },
 

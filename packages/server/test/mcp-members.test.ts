@@ -49,11 +49,17 @@ function user(username: string, role: 'admin' | 'agent'): User {
 const cookieOf = (u: User) =>
   `sid=${t.ctx.services.auth!.createSession(u.id, { ip: '127.0.0.1', userAgent: 't' })}`;
 
+let app = 0;
+/**
+ * A member's token as their app sign-in issues it (members never create access tokens by hand), with
+ * Can send ticked on the approval page when asked.
+ */
 function memberToken(u: User, opts: { canSend?: boolean } = {}) {
-  return t.ctx.services.apiTokens!.create(
+  return t.ctx.services.apiTokens!.createForApp(
     u.id,
-    { name: `${u.username}-tok`, expiresInDays: 90, canSend: opts.canSend ?? false },
+    { clientId: `ezc_app_test${++app}`, name: `${u.username}-app` },
     'ip',
+    { canSend: opts.canSend ?? false },
   );
 }
 
@@ -210,19 +216,26 @@ describe('a member token', () => {
 
   it('may message new numbers only while the member could start a new chat in the app', async () => {
     const tokens = t.ctx.services.apiTokens!;
-    const create = (u: User) =>
-      tokens.create(
-        u.id,
-        { name: 'new', expiresInDays: 90, canSend: true, canMessageNewNumbers: true },
-        'ip',
-      );
-    expect(() => create(dan)).toThrow(/cannot start new chats/);
+    // ticked later on the member's own list of connected apps (owner only)
+    const allowNew = (u: User) => {
+      const made = memberToken(u, { canSend: true });
+      return {
+        ...made,
+        token: tokens.updatePermissions(
+          made.token.id,
+          u.id,
+          { canSend: true, canMessageNewNumbers: true },
+          'ip',
+        ),
+      };
+    };
+    expect(() => allowNew(dan)).toThrow(/cannot start new chats/);
     t.ctx.settings.set(NEW_CHAT_STAFF_KEY, true);
-    const ok = create(dan);
+    const ok = allowNew(dan);
     expect(ok.token.canMessageNewNumbers).toBe(true);
     expect(await toolNames(ok.secret)).toContain('send_to_new_number');
     // a member limited to chosen chats never starts new chats
-    expect(() => create(ravi)).toThrow(/cannot start new chats/);
+    expect(() => allowNew(ravi)).toThrow(/cannot start new chats/);
     // the switch going off again stops it on the next call (rechecked by the New chat service)
     t.ctx.settings.set(NEW_CHAT_STAFF_KEY, false);
     const r = await mcp.call(
@@ -379,31 +392,28 @@ describe('token pages for members', () => {
     expect(adminRevokes.statusCode).toBe(204);
   });
 
-  it('a member creates a token over HTTP, without AI setup', async () => {
+  it('a member never creates a personal access token (admins only, owner decision)', async () => {
     const res = await t.app.inject({
       method: 'POST',
       url: '/api/integrations/tokens',
       headers: authHeaders(raviCookie),
       payload: { name: 'Claude', canSend: true },
     });
-    expect(res.statusCode).toBe(201);
-    const row = t.ctx.db
-      .prepare('SELECT scopes FROM api_tokens WHERE id = ?')
-      .get(res.json().token.id) as { scopes: string };
-    expect(row.scopes).toBe('inbox:read inbox:send');
-    expect(res.json().token.memberToken).toBe(true);
+    expect(res.statusCode).toBe(403);
+    expect(() =>
+      t.ctx.services.apiTokens!.create(dan.id, { name: 'x', expiresInDays: 90 }, 'ip'),
+    ).toThrow(/for admins/);
+    expect(
+      mcp.count(
+        'SELECT COUNT(*) AS n FROM api_tokens WHERE user_id = ? AND oauth_client_id IS NULL',
+        ravi.id,
+      ),
+    ).toBe(0);
   });
 
-  it('refuses a member token while AI assistant access itself is off', async () => {
+  it('shows a member canConnect false while AI assistant access itself is off', async () => {
     setMcpEnabled(t.ctx, false);
     try {
-      const res = await t.app.inject({
-        method: 'POST',
-        url: '/api/integrations/tokens',
-        headers: authHeaders(danCookie),
-        payload: { name: 'x' },
-      });
-      expect(res.statusCode).toBe(403);
       const settings = await t.app.inject({
         method: 'GET',
         url: '/api/integrations/mcp',
@@ -445,7 +455,7 @@ describe('app sign-in (OAuth) as a member', () => {
     state: 'st-1',
     resource: 'http://localhost/mcp',
   });
-  const decide = (p: Record<string, string>, cookie: string) =>
+  const decide = (p: Record<string, string>, cookie: string, extra: { canSend?: boolean } = {}) =>
     t.app.inject({
       method: 'POST',
       url: '/api/oauth/decision',
@@ -456,7 +466,7 @@ describe('app sign-in (OAuth) as a member', () => {
         cookie,
         'content-type': 'application/json',
       },
-      payload: JSON.stringify({ ...p, approve: true }),
+      payload: JSON.stringify({ ...p, approve: true, ...extra }),
     });
 
   it('approves for the member only; the app token reads only their chats and cannot send', async () => {
@@ -490,6 +500,41 @@ describe('app sign-in (OAuth) as a member', () => {
     expect(
       data(await mcp.call('list_chats', {}, secret)).chats.map((c: { jid: string }) => c.jid),
     ).toEqual([C]);
+  });
+
+  it('Can send ticked on the approval page gives the app send access, nothing more', async () => {
+    const clientId = await register();
+    const res = await decide(params(clientId), raviCookie, { canSend: true });
+    const code = new URL(res.json().redirectTo).searchParams.get('code')!;
+    const tok = await t.app.inject({
+      method: 'POST',
+      url: '/mcp/oauth/token',
+      ...local,
+      headers: { host: 'localhost', 'content-type': 'application/x-www-form-urlencoded' },
+      payload: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code,
+        redirect_uri: REDIRECT,
+        code_verifier: VERIFIER,
+        resource: 'http://localhost/mcp',
+      }).toString(),
+    });
+    const row = t.ctx.db
+      .prepare('SELECT user_id, scopes FROM api_tokens WHERE oauth_client_id = ?')
+      .get(clientId) as { user_id: number; scopes: string };
+    expect(row).toEqual({ user_id: ravi.id, scopes: 'inbox:read inbox:send' });
+    const secret = tok.json().access_token as string;
+    const outside = await mcp.call(
+      'send_message',
+      { jid: C, text: 'x', requestId: requestId() },
+      secret,
+    );
+    expect(outside.content[0]!.text).toMatch(/No chat found/);
+    const audit = t.ctx.db
+      .prepare("SELECT meta FROM audit_log WHERE action = 'mcp.app_approve' ORDER BY id DESC")
+      .get() as { meta: string };
+    expect(JSON.parse(audit.meta)).toMatchObject({ clientId, canSend: true });
   });
 
   it('refuses the approve page while members may not connect', async () => {

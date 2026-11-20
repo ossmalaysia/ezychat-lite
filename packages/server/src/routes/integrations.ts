@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { CreateApiTokenBody, McpSettingsPatch, UpdateApiTokenBody } from '@ezychat/shared';
 import { getApiTokens } from '../api-tokens/index.js';
@@ -6,10 +6,9 @@ import { requireAdmin, requireUser } from '../auth/guards.js';
 import type { AppContext } from '../context.js';
 import { audit } from '../db/audit.js';
 import { clientIp } from '../http/client-ip.js';
-import { HttpError, errors, parse } from '../http/errors.js';
+import { errors, parse } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
 import {
-  isMcpEnabled,
   isMcpMembersEnabled,
   mcpSettings,
   setMcpEnabled,
@@ -21,26 +20,15 @@ const IdParams = z.object({ id: z.coerce.number().int().positive() });
 /**
  * AI assistant (MCP) access settings and personal access tokens. Cookie session only: a token never
  * authenticates /api, so a token can never create, list or revoke tokens. The settings change is for
- * admins; the token routes also serve a team member for their own tokens (design
- * docs/features/mcp-for-members/design.md): they list, create, change and revoke only their own, and
- * create only while AI assistant access and the members switch are on (checked again by the service).
+ * admins, and so is creating a personal access token. A team member's assistants connect only through
+ * the app sign-in (design docs/features/mcp-for-members/design.md); the member lists, changes (Can
+ * send) and revokes only their own connected apps here.
  */
 export default async function integrationsRoutes(app: FastifyInstance, ctx: AppContext) {
   app.addHook('preHandler', requireUser(ctx));
   const admin = { preHandler: requireAdmin(ctx) };
   const tokens = getApiTokens(ctx);
   const createLimiter = new WindowLimiter({ windowMs: 60_000, max: 10 });
-
-  /** A member may create tokens only while AI assistant access itself is on (admins as before). */
-  const ensureMemberMayCreate = (req: FastifyRequest) => {
-    if (req.user!.role === 'admin') return;
-    if (!isMcpEnabled(ctx) || !isMcpMembersEnabled(ctx))
-      throw new HttpError(
-        403,
-        'mcp_members_off',
-        'Your admin has not let members connect AI assistants',
-      );
-  };
 
   app.get('/integrations/mcp', async (req) => mcpSettings(ctx, req.user!));
   app.patch('/integrations/mcp', admin, async (req) => {
@@ -70,10 +58,11 @@ export default async function integrationsRoutes(app: FastifyInstance, ctx: AppC
   });
 
   app.get('/integrations/tokens', async (req) => ({ tokens: tokens.list(req.user!) }));
-  app.post('/integrations/tokens', async (req, reply) => {
+  // Personal access tokens ("master tokens") are created by admins only; a member's assistant
+  // connects through its app sign-in (OAuth) and appears here as a connected app.
+  app.post('/integrations/tokens', admin, async (req, reply) => {
     const limited = createLimiter.hit(String(req.user!.id));
     if (!limited.allowed) throw errors.rateLimited(limited.retryAfterSec);
-    ensureMemberMayCreate(req);
     const body = parse(CreateApiTokenBody, req.body);
     reply.header('cache-control', 'no-store').status(201);
     return tokens.create(req.user!.id, body, clientIp(req));

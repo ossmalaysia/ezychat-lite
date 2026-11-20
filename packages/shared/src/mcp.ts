@@ -116,7 +116,11 @@ export const OAuthRequestInfo = z.object({
 });
 export type OAuthRequestInfo = z.infer<typeof OAuthRequestInfo>;
 
-export const OAuthDecisionBody = OAuthAuthorizeParams.extend({ approve: z.boolean() });
+export const OAuthDecisionBody = OAuthAuthorizeParams.extend({
+  approve: z.boolean(),
+  /** The approving person lets this app send WhatsApp messages as them (off unless ticked). */
+  canSend: z.boolean().optional(),
+});
 export type OAuthDecisionBody = z.infer<typeof OAuthDecisionBody>;
 
 /** Where the page sends the browser next: back to the app with a code, or with access_denied. */

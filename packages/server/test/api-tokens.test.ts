@@ -120,7 +120,7 @@ describe('api tokens', () => {
     expect(lastUsed()).toBe(clock);
   });
 
-  it('a member owns a token only while members may connect', () => {
+  it('only admins create personal access tokens', () => {
     const agent = t.ctx.services.auth!.createUser({
       username: 'agent',
       displayName: 'agent',
@@ -129,7 +129,7 @@ describe('api tokens', () => {
       mustChangePassword: false,
     });
     expect(() => tokens.create(agent.id, { name: 'x', expiresInDays: 90 }, 'ip')).toThrow(
-      /not let members/,
+      /for admins/,
     );
   });
 

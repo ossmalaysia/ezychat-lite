@@ -74,6 +74,8 @@ interface PendingCode {
   redirectUri: string;
   challenge: string;
   userId: number;
+  /** Ticked on the approval page: the app's token may send (scope `inbox:send`). */
+  canSend: boolean;
   expiresAt: number;
 }
 
@@ -165,6 +167,7 @@ export interface McpOAuth {
     user: User,
     approve: boolean,
     ip: string,
+    opts?: { canSend?: boolean },
   ): string;
   /** Token endpoint: a one-time code for an access token; throws OAuthError. */
   exchange(
@@ -325,7 +328,7 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
 
     check,
 
-    decide(params, issuer, user, approve, ip) {
+    decide(params, issuer, user, approve, ip, opts) {
       const { client, redirectUri } = check(params, issuer);
       const target = new URL(redirectUri);
       const host = redirectHost(redirectUri);
@@ -333,7 +336,11 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
         userId: user.id,
         action: approve ? 'mcp.app_approve' : 'mcp.app_deny',
         ip,
-        meta: { clientId: client.id, redirectHost: host },
+        meta: {
+          clientId: client.id,
+          redirectHost: host,
+          ...(approve ? { canSend: opts?.canSend === true } : {}),
+        },
       });
       if (approve) {
         const t = now();
@@ -345,6 +352,7 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
           redirectUri,
           challenge: params.code_challenge!,
           userId: user.id,
+          canSend: opts?.canSend === true,
           expiresAt: t + CODE_TTL_MS,
         });
         target.searchParams.set('code', code);
@@ -404,6 +412,7 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
           pending.userId,
           { clientId: client.id, name: client.name || redirectHost(pending.redirectUri) },
           ip,
+          { canSend: pending.canSend },
         );
       } catch {
         // The approving person was disabled, changed role or (a member) lost the members switch.

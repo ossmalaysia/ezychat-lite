@@ -61,7 +61,7 @@ it('lets only admins change the settings; a member sees them with canConnect fal
   expect(get.json()).toMatchObject({ membersEnabled: false, canConnect: false });
 });
 
-it('refuses a member token while members may not connect', async () => {
+it('refuses a personal access token for a member (admins only)', async () => {
   const res = await t.app.inject({
     method: 'POST',
     url: '/api/integrations/tokens',
@@ -69,7 +69,7 @@ it('refuses a member token while members may not connect', async () => {
     payload: { name: 'mine' },
   });
   expect(res.statusCode).toBe(403);
-  expect(res.json().error.code).toBe('mcp_members_off');
+  expect(res.json().error.code).toBe('forbidden');
   const list = await t.app.inject({
     method: 'GET',
     url: '/api/integrations/tokens',

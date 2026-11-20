@@ -46,10 +46,12 @@ export default async function oauthRoutes(app: FastifyInstance, ctx: AppContext)
     const limited = decisionLimiter.hit(String(req.user!.id));
     if (!limited.allowed) throw errors.rateLimited(limited.retryAfterSec);
     ensureEnabled();
-    const { approve, ...params } = parse(OAuthDecisionBody, req.body);
+    const { approve, canSend, ...params } = parse(OAuthDecisionBody, req.body);
     reply.header('cache-control', 'no-store');
     return {
-      redirectTo: oauth.decide(params, issuerFor(req), req.user!, approve, clientIp(req)),
+      redirectTo: oauth.decide(params, issuerFor(req), req.user!, approve, clientIp(req), {
+        canSend,
+      }),
     };
   });
 }
