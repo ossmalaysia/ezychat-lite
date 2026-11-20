@@ -23,6 +23,19 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__github__merge_pull_request|mcp__github__enable_pr_auto_merge|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/merge-gate.mjs\"",
+            "timeout": 90,
+            "statusMessage": "Checking the merge rule"
+          }
+        ]
+      }
     ]
   },
   "permissions": {

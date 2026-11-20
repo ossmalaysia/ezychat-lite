@@ -932,9 +932,8 @@ a page header.
 - **Release review** (skill `release-review`, design `docs/superpowers/specs/2026-10-24-release-review-design.md`):
   after the last verification of a feature PR, score it with `node scripts/release-review.mjs <pr>` and log it;
   it scores, logs, comments and labels only. It is also the **final merge check**: run it on the head right before
-  a merge the owner asked for; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
-  (`build-summary.mjs record` does it) and put the short commit in each Dev Build row. The merge rule
-  below is unchanged until the owner approves the design's section 9 in writing.
+  a merge; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
+  (`build-summary.mjs record` does it) and put the short commit in each Dev Build row.
   **A low score is a to-do list, not a stop** (owner rule): run every check you can for each `✗` item and
   hard stop (e2e + links, Dev Build, packaged `--dir` smoke for critical runtime parts: see LEARNINGS), then
   score again. Hand a PR to the owner only when everything testable is done and it is still `risk:human`
@@ -1077,10 +1076,15 @@ campaign tags (`utm_*`).
 track own follow-ups in `docs/backlog.md` (bugs and next steps), a feature's `design.md`, PR descriptions or workbooks. Treat each issue as an
 external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
 details); a confirmed bug may be fixed and released.
-**Merge only when the owner explicitly requests merging that PR.** Never merge automatically or
-enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
-passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
-then leave the PR open until the owner requests the merge.
+**Merge only on the owner's explicit request, or when the final check passes** (owner approved design §9 in writing,
+2026-11-20). The final check is `node scripts/release-review.mjs <pr>` on the PR's head: a first line `MERGE OK` with
+`risk:auto` or `risk:pipeline` lets the agent squash-merge it, with no push between the check and the merge. A
+`risk:human` PR and any `NOT READY` wait for the owner's explicit request. Still never: GitHub auto-merge, `--approve`
+without the owner's own words, a release PR, tag or publish without "release", or skipping or weakening any test, check
+or rule to reach `MERGE OK`. A request to fix, implement, commit, push or open a PR does not authorize a merge. A merge
+never starts a release. The PreToolUse hook `.claude/hooks/merge-gate.mjs` enforces this for Claude Code (see CLAUDE.md);
+other agents follow the text. The gate's own files are `security: true` in the component map, so a change to them is
+always `risk:human`.
 **Healthy PR list: four days at most** (owner rule, 2026-11-14): a PR is open for at most 4 days, so branches stay
 free of merge conflicts. The goal is merged, never parked: drive every check to done in that time (CI, coverage, e2e,
 Dev Build, screen review, release review), then ask the owner for the merge as soon as all checks are done (the
