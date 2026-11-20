@@ -290,6 +290,10 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 - A message from another session can arrive long after it was sent: before acting on it, read the PR's current
   state (merged, head, conflicts) and do only what is still open.
+- A session the master did not create cannot `send_message` back to it (`elevated_session_untrusted_device`): start
+  workers with `create_session` from the master so they can report, else end each worker turn with a status block
+  the owner can paste. Every `claude-code-remote` tool a worker uses unattended (`send_later`,
+  `subscribe_pr_activity`) must be in `.claude/settings.json` `allow`, or it stalls on an approval nobody answers.
 - A change to an owner rule (e.g. "No tracking in Lite") needs the owner's own words in the session doing it: child
   cloud sessions refuse approvals relayed by another session. When the owner approves in the main session, do the
   work there (or in a fork of it), not in a child.
