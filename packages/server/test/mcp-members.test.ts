@@ -98,18 +98,17 @@ afterAll(async () => {
 });
 
 describe('a member token', () => {
-  it('never lists AI setup tools, and send tools only with Can send', async () => {
+  it('lists chat tools only: no AI setup, no counts, send only with Can send', async () => {
     const read = memberToken(dan).secret;
     const names = await toolNames(read);
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'list_chats',
-        'get_chat',
-        'get_messages',
-        'get_stats',
-        'get_message_file',
-      ]),
-    );
+    expect([...names].sort()).toEqual([
+      'get_chat',
+      'get_message_file',
+      'get_messages',
+      'list_chats',
+    ]);
+    // counts are admins only over MCP (owner decision 2026-11-20)
+    expect((await mcp.call('get_stats', {}, read)).isError).toBe(true);
     expect(names.some((x) => x.includes('ai_') || x === 'try_ai_reply')).toBe(false);
     expect(names).not.toContain('send_message');
     const send = memberToken(dan, { canSend: true }).secret;
@@ -150,7 +149,7 @@ describe('a member token', () => {
     expect(own.content[0]!.text).toMatch(/no file/);
   });
 
-  it('a member limited to chosen chats reads only those chats and gets no counts', async () => {
+  it('a member limited to chosen chats reads only those chats', async () => {
     const secret = memberToken(ravi).secret;
     const names = await toolNames(secret);
     expect(names).not.toContain('get_stats');

@@ -19,7 +19,6 @@ import { registerUploadRoute } from './upload-route.js';
 import { uploadStore } from '../uploads/store.js';
 import { handleMcpRequest } from './transport.js';
 import { clearMcpNotice } from '../lite-import/notice.js';
-import { chosenChats } from '../inboxes/access.js';
 
 /**
  * Largest /mcp request body: a base64 file of up to about 6 MB plus the JSON-RPC envelope. Larger
@@ -124,7 +123,6 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
         stillValid: () => tokens.stillValid(principal.tokenId),
         version: ctx.config.version,
         edition: ctx.edition,
-        chosenChatsOnly: chosenChats(ctx, principal.user) !== null,
       });
       const res = await handleMcpRequest(req, server);
       return reply

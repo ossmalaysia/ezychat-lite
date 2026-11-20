@@ -62,8 +62,6 @@ export interface McpServerDeps {
   version: string;
   /** Product edition ('lite' unless another build passes one). */
   edition: string;
-  /** The owner is a team member limited to chosen chats: no whole-inbox tools (counts). */
-  chosenChatsOnly?: boolean;
 }
 
 const textResult = (text: string, isError = false): CallToolResult => ({
@@ -122,7 +120,7 @@ export function createMcpServer(deps: McpServerDeps): McpServer {
   );
   for (const tool of TOOLS) {
     if (!deps.principal.scopes.has(tool.scope)) continue;
-    if (tool.wholeInbox && deps.chosenChatsOnly) continue;
+    if (tool.adminOnly && !isAdmin) continue;
     server.registerTool(
       tool.name,
       {

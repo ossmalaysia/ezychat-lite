@@ -106,9 +106,6 @@ export interface InboxReadPort {
   aiUserIds(): Set<number>;
 }
 
-/** Counts cover whole inboxes; a member limited to chosen chats has none (as Ask Ezy is off for them). */
-const WHOLE_INBOX_ONLY = 'Counts are only for people who can open a whole inbox.';
-
 const sum = <T>(rows: readonly T[], pick: (r: T) => number) =>
   rows.reduce((total, r) => total + pick(r), 0);
 
@@ -256,8 +253,7 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
       return chat ? messages.list(chat.jid, q) : null;
     },
     stats(days, reader, inboxId) {
-      const { inboxIds, breakdown, chatJids } = cover(reader, inboxId);
-      if (chatJids) throw new ToolError(WHOLE_INBOX_ONLY);
+      const { inboxIds, breakdown } = cover(reader, inboxId);
       const total = { ...statsOf(days, inboxIds), customers: customersOf(days, inboxIds) };
       if (!breakdown.length) return total;
       const byInbox = breakdown.map((id): InboxStatsRow => {
@@ -275,8 +271,7 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
       return { ...total, byInbox };
     },
     activity(days, reader, inboxId) {
-      const { inboxIds, breakdown, chatJids } = cover(reader, inboxId);
-      if (chatJids) throw new ToolError(WHOLE_INBOX_ONLY);
+      const { inboxIds, breakdown } = cover(reader, inboxId);
       const total = activityOf(days, inboxIds);
       if (!breakdown.length) return total;
       const byInbox = breakdown.map((id): InboxActivityRow => {
