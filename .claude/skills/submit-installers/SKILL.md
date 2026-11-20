@@ -33,6 +33,14 @@ a merge alone is not a request.
    Developer ID and notarized by Apple" (Lite 0.1.82 and Enterprise 0.1.30 onwards); an older ad-hoc build, or a
    run on Windows, claims no Mac signature.
 
+   In a cloud session (Linux container): the script uses headless Playwright Chromium (`require('playwright')`,
+   preinstalled; install no browser) through the session's `HTTPS_PROXY`. If `~/.ezychat/mcafee-reporter.json` is
+   missing it reads the JSON from the `MCAFEE_REPORTER_JSON` variable; no argument names another file. Put the details
+   in the file with mode 600 only for the run and delete it at the end; never print them or commit them (this repo is
+   public). A Windows file is checked with `osslsigncode` (`apt install osslsigncode`) when present; without it the
+   report claims no signature. Mac ZIPs never claim "notarized" off a Mac. A captcha stops the run: report it, never
+   work around it. Run `--dry-run` first.
+
    Before publishing (owner rule from 2026-11-09: McAfee gets the installers first):
    - Lite: push the tag by hand (`release.yml` then leaves a draft), run `--edition lite --version <x.y.z>` (it finds the
      draft and downloads through the API), then publish that draft (`docs/release.md` §3).
