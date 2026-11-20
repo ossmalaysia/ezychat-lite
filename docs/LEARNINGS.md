@@ -2235,6 +2235,11 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   and by its WhatsApp id, and tell same-named items apart with a detail line instead of hiding one
   (`admin/MemberChatsField.tsx`, `phoneSearchDigits` in `chats/repo.ts`).
 
+- Screenshots of a dialog that scrolls inside (a phone sheet) must scroll its body to the end before the capture, or a
+  list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
+  that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
+  key's `#<id>` suffix, never by an id tail alone.
+
 ## Internationalization
 
 - Searchable catalog content (template gallery `keywords`) keeps the English words beside the
