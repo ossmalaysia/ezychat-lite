@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ChatStatus, MessageType, Role } from './enums.js';
 import { LocaleSchema } from './i18n/locales.js';
+import { SendTranslation, TranslateLanguage } from './live-translate.js';
 import {
   ChatEventSchema,
   ChatSchema,
@@ -35,11 +36,20 @@ export const ChangePasswordBody = z.object({
 });
 export type ChangePasswordBody = z.infer<typeof ChangePasswordBody>;
 
-export const MeResponse = UserSchema;
+export const MeResponse = UserSchema.extend({
+  /** Live translate: My language; null = from the app language (`translateLanguageForLocale`). */
+  translateLanguage: TranslateLanguage.nullable().default(null),
+  /** Live translate: Send translates and sends at once (no "Customer will get" card). */
+  sendWithoutPreview: z.boolean().default(false),
+});
 export type MeResponse = z.infer<typeof MeResponse>;
 
-/** Self-service preferences of the signed-in user. */
-export const PatchMeBody = z.strictObject({ locale: LocaleSchema.nullable() });
+/** Self-service preferences of the signed-in user (only the fields sent change). */
+export const PatchMeBody = z.strictObject({
+  locale: LocaleSchema.nullable().optional(),
+  translateLanguage: TranslateLanguage.nullable().optional(),
+  sendWithoutPreview: z.boolean().optional(),
+});
 export type PatchMeBody = z.infer<typeof PatchMeBody>;
 
 export const ChatListQuery = z.object({
@@ -140,6 +150,10 @@ export const SendTextBody = z.object({
    * (the user part of the JID, as WhatsApp does); the server sends them as WhatsApp mentions.
    */
   mentions: z.array(z.string().min(1).max(256)).max(MAX_MESSAGE_MENTIONS).optional(),
+  /** Live translate: `text` is the translation of `translation.typedText` (checked by the server). */
+  translation: SendTranslation.optional(),
+  /** Live translate: "Send original instead" (`text` is what was typed). */
+  sentOriginal: z.boolean().optional(),
 });
 export type SendTextBody = z.infer<typeof SendTextBody>;
 

@@ -950,6 +950,13 @@ describe('mergeLiteInbox refusals and rollback', () => {
     db.exec('DROP TABLE github_agent_settings; DROP TABLE github_activity;');
     // and 045 (dream mode)
     db.exec('DROP TABLE ai_dream_changes; DROP TABLE ai_dream_runs; DROP TABLE ai_dream_settings;');
+    // and 046 (Live translate)
+    db.exec(
+      'DROP TABLE message_translations; DROP TABLE message_typed; DROP TABLE chat_languages; DROP TABLE live_translate_switches; DROP TABLE live_translate_usage;',
+    );
+    db.exec(
+      'ALTER TABLE users DROP COLUMN translate_language; ALTER TABLE users DROP COLUMN translate_send_without_preview;',
+    );
     db.pragma('user_version = 27');
     db.close();
     const { result } = await merge(t.dir, lite.dir);

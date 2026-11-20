@@ -149,7 +149,12 @@ export interface MessageService {
      * `scheduledTaskId`: an AI agent's scheduled task sends it (the "Scheduled" mark); such a send
      * never claims or assigns the chat.
      */
-    opts?: { viaTokenId?: number; scheduledTaskId?: number },
+    opts?: {
+      viaTokenId?: number;
+      scheduledTaskId?: number;
+      /** Live translate: stores the typed record in the same transaction as the message. */
+      onStored?: (messageId: string) => void;
+    },
   ): Message;
   /**
    * Sends an approved template (also outside the reply window): the stored message is the filled
@@ -420,9 +425,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           : m,
     );
     // Nor a Safety finding: its reasons name the file and text the deletion hides.
-    return (ctx.services.safety?.attach(shown) ?? shown).map((m) =>
+    const safe = (ctx.services.safety?.attach(shown) ?? shown).map((m) =>
       m.deletedAt != null && m.safety ? { ...m, safety: null } : m,
     );
+    // Live translate: what a teammate typed before the reply was translated.
+    return ctx.services.liveTranslate?.attach(safe) ?? safe;
   };
   const present = (row: MessageRow): Message => presentAll([row])[0]!;
 
@@ -954,9 +961,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     ctx.bus.emit('chat:event', ev);
   };
 
-  const insertOutgoing = (row: MessageRow): Message => {
+  const insertOutgoing = (row: MessageRow, onStored?: (id: string) => void): Message => {
     const t = row.created_at;
-    repo.insert(row);
+    if (onStored)
+      ctx.db.transaction(() => {
+        repo.insert(row);
+        onStored(row.id);
+      })();
+    else repo.insert(row);
     touchChat(row, t);
     const msg = present(repo.get(row.id)!);
     ctx.bus.emit('message:new', msg);
@@ -1434,31 +1446,34 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const mentions = checkMentions(jid, body.text, body.mentions);
       const t = now();
       if (opts?.scheduledTaskId === undefined) claimOnReply(jid, userId, t);
-      return insertOutgoing({
-        id: `local-${body.clientId}`,
-        chat_jid: jid,
-        sender_jid: ownJidOf(jid),
-        sender_name: null,
-        from_me: 1,
-        sent_by_user_id: userId,
-        type: 'text',
-        body: body.text,
-        media_path: null,
-        media_mime: null,
-        media_name: null,
-        media_status: 'none',
-        quoted_id: quotedId,
-        status: 'pending',
-        error: null,
-        timestamp: t,
-        created_at: t,
-        client_id: body.clientId,
-        wa_remote_jid: replyTarget(jid),
-        sent_via_token_id: opts?.viaTokenId ?? null,
-        scheduled_task_id: opts?.scheduledTaskId ?? null,
-        // Kept with the message: the queue sends them, and the bubble names the tagged members.
-        mentioned_jids: mentions.length ? JSON.stringify(mentions) : '[]',
-      });
+      return insertOutgoing(
+        {
+          id: `local-${body.clientId}`,
+          chat_jid: jid,
+          sender_jid: ownJidOf(jid),
+          sender_name: null,
+          from_me: 1,
+          sent_by_user_id: userId,
+          type: 'text',
+          body: body.text,
+          media_path: null,
+          media_mime: null,
+          media_name: null,
+          media_status: 'none',
+          quoted_id: quotedId,
+          status: 'pending',
+          error: null,
+          timestamp: t,
+          created_at: t,
+          client_id: body.clientId,
+          wa_remote_jid: replyTarget(jid),
+          sent_via_token_id: opts?.viaTokenId ?? null,
+          scheduled_task_id: opts?.scheduledTaskId ?? null,
+          // Kept with the message: the queue sends them, and the bubble names the tagged members.
+          mentioned_jids: mentions.length ? JSON.stringify(mentions) : '[]',
+        },
+        opts?.onStored,
+      );
     },
 
     async listTemplates(inboxId, refresh = false) {

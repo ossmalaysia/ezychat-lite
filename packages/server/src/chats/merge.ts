@@ -1,3 +1,4 @@
+import { mergeTranslateRows } from '../live-translate/repo.js';
 import { mergeCalendarRows } from '../connectors/google-calendar/repo.js';
 import { mergeGitHubRows } from '../connectors/github/repo.js';
 import { mergeDriveRows } from '../connectors/google-drive/repo.js';
@@ -220,6 +221,8 @@ export function mergeChat(
     mergeGitHubRows(db, from, to);
     // Partner (MCP) connector activity, returned values and call counts (no foreign key either).
     mergeConnectorRows(db, from, to);
+    // Live translate: the chat's shared languages and each teammate's switch (no foreign key).
+    mergeTranslateRows(db, from, to);
     // WhatsApp Safety findings follow their messages (no foreign key).
     db.prepare('UPDATE safety_items SET chat_jid = ? WHERE chat_jid = ?').run(to, from);
     // An agent limited to chosen chats keeps the chat under its new key (no foreign key either).

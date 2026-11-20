@@ -7,7 +7,7 @@ import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders, createUserAndLogin } from './auth-helpers.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { getAliases } from '../src/chats/aliases.js';
-import { chatDeletedAt, DELETE_PLAN } from '../src/chats/delete.js';
+import { chatDeletedAt, DELETE_PLAN, MESSAGE_TABLES } from '../src/chats/delete.js';
 import { avatarFileName } from '../src/avatars/store.js';
 import { chatMediaDir } from '../src/messages/media-store.js';
 
@@ -206,7 +206,7 @@ describe('DELETE /api/chats/:jid', () => {
           ? 'jid = ?'
           : table === 'avatars'
             ? 'key = ?'
-            : ['message_reactions', 'message_edits', 'media_refs', 'media_thumbs'].includes(table)
+            : (MESSAGE_TABLES as readonly string[]).includes(table)
               ? 'message_id IN (?, ?)'
               : table === 'ai_scheduled_runs' || table === 'safety_downloads'
                 ? '1 = 1'
@@ -218,7 +218,7 @@ describe('DELETE /api/chats/:jid', () => {
     // B keeps everything, its copy of the photo included
     for (const { table } of DELETE_PLAN)
       if (!['ai_scheduled_runs', 'safety_downloads', 'avatars', 'chats'].includes(table))
-        if (!['message_reactions', 'message_edits', 'media_refs', 'media_thumbs'].includes(table))
+        if (!(MESSAGE_TABLES as readonly string[]).includes(table))
           expect(count(table, 'chat_jid = ?', B), table).toBeGreaterThan(0);
     expect(count('chats', 'jid = ?', B)).toBe(1);
     expect(existsSync(mediaAbs(copyPath))).toBe(true);

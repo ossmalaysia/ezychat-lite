@@ -45,7 +45,32 @@
     {
       "glob": "docs/release-review/components.json",
       "tier": "core",
-      "name": "Release review map"
+      "name": "Release review map (merge gate)",
+      "security": true
+    },
+    {
+      "glob": ".claude/hooks/**",
+      "tier": "core",
+      "name": "Agent hooks (merge gate)",
+      "security": true
+    },
+    {
+      "glob": ".claude/settings.json",
+      "tier": "core",
+      "name": "Agent hook registration (merge gate)",
+      "security": true
+    },
+    {
+      "glob": "scripts/release-review.mjs",
+      "tier": "core",
+      "name": "Release review script (merge gate)",
+      "security": true
+    },
+    {
+      "glob": "scripts/review/**",
+      "tier": "core",
+      "name": "Release review rubric (merge gate)",
+      "security": true
     },
     {
       "glob": "docs/**",
