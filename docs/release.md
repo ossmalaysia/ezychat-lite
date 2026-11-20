@@ -102,6 +102,14 @@ version until the release is published (§3 or §4). Never rename the copies: sh
   ossmalaysia/ezychat-website PR that adds the day to `/releases`: rows in `src/lib/release-calendar.json`
   written in plain words from this CHANGELOG section (and Enterprise's), shipped `upcoming` items moved into
   them, every new line in BM, 中文 and ID in `release-calendar-i18n.json` (feature names from the app's own `ms` /
-  `zh-CN` locales). Merge the guide PRs held for this release in the same round. The website build also
-  refreshes `/download` to the new version. The release is done only when that PR is merged (the website's
+  `zh-CN` locales). Merge the guide PRs held for this release in the same round. The website's `/download`
+  stays on the newest whitelisted version (below). The release is done only when that PR is merged (the website's
   release skill).
+- **Security mark on the calendar** (owner rule, 2026-11-20): every new Lite and Enterprise version goes into
+  `release-calendar.json` with `security: "pending"`, shown as "!" (Security scan pending). It becomes
+  `"whitelisted"` (✓ Scanned by McAfee) only when every installer of that version (Windows, Mac Apple silicon, Mac
+  Intel) is **Whitelisted** or the owner's **Passed** in the allowlist record. Releases keep going out daily
+  regardless.
+- **Website download stays one release behind**: the website's download links are pinned to the newest version
+  marked `whitelisted`, never to a `pending` one. The pin moves only when McAfee answers (the `submit-installers`
+  skill). The GitHub `releases/latest` links in §5 still serve the newest release.
