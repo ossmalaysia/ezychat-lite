@@ -300,7 +300,14 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   the head SHA right before the merge (pass it as `expectedHeadSha`), because a child session may still be pushing.
 - Cloud sessions cannot push git tags (the git proxy answers 403 on tag refs) or run `gh release edit`. Release
   from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
-  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
+  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and holds a complete
+  draft. **Promote release** (`promote-release.yml`, §3) publishes it once McAfee clears every installer.
+- To hold installed Lite apps on a version, keep the newer release a **draft**: the updater reads the whole release
+  list (never `releases/latest`) and a 0.x install takes published pre-releases, so `make_latest=false` or a
+  pre-release holds nothing. Check what the real client reads before choosing a GitHub release flag.
+- Test a workflow's `run:` steps with a fake `gh` on PATH that serves fixtures, each step in its own `bash -e`; copy
+  the scripts, never symlink them (a symlinked `argv[1]` fails `import.meta.url` main checks, so the CLI silently
+  does nothing and every check "passes").
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only

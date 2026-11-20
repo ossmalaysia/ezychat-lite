@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A new version now reaches the in-app update and the download links only after McAfee has checked all its installers (Windows and both Macs), usually a day or two after the release, so antivirus software does not block the update.
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).
 
 ### Fixed

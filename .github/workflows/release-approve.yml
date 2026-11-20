@@ -3,7 +3,7 @@ name: Release (approved)
 # One-click release (docs/release.md §4): started on main with the version of a merged release PR (agents start it
 # only when the owner says "release" in chat). The gate is: workflow_dispatch on main by a user with write access,
 # `confirm` equal to `version` (typo guard) and the checks below. It then tags main and starts release.yml (build,
-# draft, publish when the draft is complete) and publish-packages.yml on that tag. A tag created with GITHUB_TOKEN
+# a complete draft held until McAfee clears it, then promote-release.yml) and publish-packages.yml on that tag. A tag created with GITHUB_TOKEN
 # does not start `on: push: tags` workflows, so both are started here with workflow_dispatch, which GITHUB_TOKEN may
 # trigger.
 #
@@ -137,6 +137,6 @@ jobs:
           gh workflow run release.yml --repo "$REPO" --ref "v$VERSION" -f ref="v$VERSION" -f publish=true
           gh workflow run publish-packages.yml --repo "$REPO" --ref "v$VERSION" -f ref="v$VERSION"
           {
-            echo "Started on v$VERSION: release.yml (publishes the draft when all 6 installers and the notes are there)"
-            echo "and publish-packages.yml. Follow them in Actions; a failure leaves the draft unpublished."
+            echo "Started on v$VERSION: release.yml (checks the draft has all 6 installers and the notes, and holds it"
+            echo "as a draft until Promote release) and publish-packages.yml. Follow them in Actions."
           } >> "$GITHUB_STEP_SUMMARY"
