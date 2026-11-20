@@ -46,7 +46,10 @@
       "mcp__claude-code-remote__archive_session",
       "mcp__claude-code-remote__list_sessions",
       "mcp__claude-code-remote__get_session",
-      "mcp__claude-code-remote__list_events"
+      "mcp__claude-code-remote__list_events",
+      "mcp__claude-code-remote__send_later",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity"
     ]
   }
 }
