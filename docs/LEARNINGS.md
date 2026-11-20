@@ -255,6 +255,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
 
+- Retention counts every feature folder in `docs/features/` (except the README, index and live tooling), also one
+  that has no entry in `mock-index.json` (ask-ezy-setup had none): date it with `git log --diff-filter=A`, and before
+  pruning point AGENTS.md and code links at its lasting doc or a `git show <rev>:<path>` reference.
+- Phone shot scripts (`isMobile`, `hasTouch`) press the composer's Send button: Enter adds a new line on touch, so a
+  step that waits for what Enter opens times out only in the 360 px pass.
 - Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
   that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
   so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
@@ -272,6 +277,10 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
   failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
 - Hunting an e2e flake with `--repeat-each` shares one signed-in user and one server: a per-user rate limit (reactions: 30 a minute) turns the repeats into 429s that look like the flake. Read the failing trace's `.network` for 4xx before blaming timing; cap repeats so the user's requests stay under the limit.
+- After typing into a filter backed by `useDeferredValue`, an e2e spec waits for the filtered result (`toHaveCount`)
+  before clicking a match: the list renders the unfiltered rows first, and under full-suite load the click resolves
+  them (group-info's hidden-number member hit a strict-mode violation on 6 rows). When a spec fails only in the full
+  run, work out which rows the wrong locator saw before blaming the branch's diff.
 - A screen change ships with at least one e2e spec that clicks it, not only component tests: the "?" tips
   (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
   no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
@@ -300,7 +309,14 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   the head SHA right before the merge (pass it as `expectedHeadSha`), because a child session may still be pushing.
 - Cloud sessions cannot push git tags (the git proxy answers 403 on tag refs) or run `gh release edit`. Release
   from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
-  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
+  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and holds a complete
+  draft. **Promote release** (`promote-release.yml`, §3) publishes it once McAfee clears every installer.
+- To hold installed Lite apps on a version, keep the newer release a **draft**: the updater reads the whole release
+  list (never `releases/latest`) and a 0.x install takes published pre-releases, so `make_latest=false` or a
+  pre-release holds nothing. Check what the real client reads before choosing a GitHub release flag.
+- Test a workflow's `run:` steps with a fake `gh` on PATH that serves fixtures, each step in its own `bash -e`; copy
+  the scripts, never symlink them (a symlinked `argv[1]` fails `import.meta.url` main checks, so the CLI silently
+  does nothing and every check "passes").
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
@@ -352,6 +368,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- The merge rule is enforced twice: AGENTS.md text and the PreToolUse hook `.claude/hooks/merge-gate.mjs` (denies the CLI
+  merge command, GitHub auto-merge and pushes to main; allows the MCP merge only on the owner's newest-message merge word
+  or `MERGE OK` risk:auto/pipeline). The hook matches Bash text, so even a heredoc that merely contains the command is
+  refused: write such text with Edit/Write. The gate's own files are `security: true` in `components.json`, so changing
+  them is always `risk:human`; never weaken the hook or its map entries to reach `MERGE OK`.
 - `gh pr merge --match-head-commit` takes the full 40-character SHA only (a short one fails "Could not coerce …
   to GitObjectID"): pass `gh pr view <n> --json headRefOid --jq .headRefOid`, the head the merge check scored.
 - Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
@@ -412,6 +433,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Updating a branch from `main` right after a release commit can move your `[Unreleased]` CHANGELOG entry into the new
   version's section with no conflict (the release only added a heading above it): read `CHANGELOG.md` after every
   merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
+  A long-lived branch can also land its entry in an old released section (#240 went into 0.1.66): every release PR
+  checks `git diff v<prev>..main -- CHANGELOG.md` for lines added outside `[Unreleased]` and moves them in.
 - The update helper is built by the app that is running, so an updater fix protects only updates that start from a
   version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
   an updater fix.
@@ -797,6 +820,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `merge.renames=false` do not stop it in a rebase). Resolve that commit by hand: `git rm -r docs/features`,
   `git checkout origin/main -- docs/features`, `git checkout <mock commit> -- docs/features/<feature>`, rebuild
   `mock-index.json` (renumber, prune), continue; then point the index and `design.md` at the rebased mock commit.
+
+- `npm run coverage:changed` compares the branch's commits with `main`: before the first commit it says "no changed
+  executable lines" and proves nothing. Commit, then run it. A fresh cloud checkout also needs `npm ci` before any vitest run.
 
 ## Build, tooling and Windows
 
@@ -1488,6 +1514,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
+  `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
+  translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.
+- A per-person quota checked before an awaited model call is counted (reserved) before the `await` and given back
+  on failure; counting after the answer lets parallel requests pass it (Live translate's daily limit). A server-held
+  draft a later request refers to is bound to its owner, chat and exact input, and used once.
+- A row keyed by a message id with no foreign key must follow `MessageRepo.rename` (the optimistic `local-…` id becomes
+  WhatsApp's id after the send) and be in `DELETE_PLAN`; test the rename, not only the insert.
 - A step that silently drops a model's result (dream mode's checks, draft and phrase filters) logs which check dropped
   it, by name and fixed detail only, never the text: with counts alone the owner's first real-model test ("Dropped by
   the checks: 1") could not be diagnosed. A dev "run now" must not share the nightly window: dream mode's started
@@ -2244,6 +2278,19 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   the server branch's: confirm it by running the spec on `main` and on the web-only branch before reporting it.
 - Placeholder and label text that fits a 1280 px composer wraps to three lines at 360 px: give phones a short variant
   (`wideComposer` picks it) and check the 360 px screenshot, not only the 360 px overflow test.
+
+- A new chat-header button squeezes the assignee select at 360 px (the action row has no room left): show it beside the
+  name on narrow headers (`@2xl:hidden` copy) and in the action row from `@2xl`, icon-only below `@4xl`.
+
+- A picker over a long list (chats, customers) searches on the server with the typed text, never a client filter over the
+  first loaded page: older items vanish and numbers never match. Dedupe by the item's key, leave out chosen ones by key
+  and by its WhatsApp id, and tell same-named items apart with a detail line instead of hiding one
+  (`admin/MemberChatsField.tsx`, `phoneSearchDigits` in `chats/repo.ts`).
+
+- Screenshots of a dialog that scrolls inside (a phone sheet) must scroll its body to the end before the capture, or a
+  list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
+  that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
+  key's `#<id>` suffix, never by an id tail alone.
 
 ## Internationalization
 

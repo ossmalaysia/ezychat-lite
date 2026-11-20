@@ -1,5 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import { ChangePasswordBody, ErrorCode, LoginBody, PatchMeBody } from '@ezychat/shared';
+import {
+  ChangePasswordBody,
+  ErrorCode,
+  LoginBody,
+  PatchMeBody,
+  type MeResponse,
+  type User,
+} from '@ezychat/shared';
 import {
   clearSessionCookie,
   getAuth,
@@ -64,7 +71,17 @@ export default async function authRoutes(app: FastifyInstance, ctx: AppContext) 
     return auth.getUser(user.id);
   });
 
-  app.get('/me', { preHandler: requireUser(ctx) }, async (req) => req.user!);
+  // Live translate adds My language and "Send without preview" to the signed-in user's own answer.
+  const me = (user: User): MeResponse => {
+    const prefs = ctx.services.liveTranslate?.prefs(user.id);
+    return {
+      ...user,
+      translateLanguage: prefs?.translateLanguage ?? null,
+      sendWithoutPreview: prefs?.sendWithoutPreview ?? false,
+    };
+  };
+
+  app.get('/me', { preHandler: requireUser(ctx) }, async (req) => me(req.user!));
 
   // Self-service preferences only; role, name and password changes have their own guarded routes.
   app.patch('/me', { preHandler: requireUser(ctx) }, async (req) => {
@@ -74,6 +91,19 @@ export default async function authRoutes(app: FastifyInstance, ctx: AppContext) 
         ? auth.setLocale(req.user!.id, body.locale)
         : auth.getUser(req.user!.id);
     if (!user) throw errors.notFound('User');
-    return user;
+    if (body.translateLanguage !== undefined || body.sendWithoutPreview !== undefined)
+      ctx.services.liveTranslate?.setPrefs(
+        user.id,
+        {
+          ...(body.translateLanguage !== undefined
+            ? { translateLanguage: body.translateLanguage }
+            : {}),
+          ...(body.sendWithoutPreview !== undefined
+            ? { sendWithoutPreview: body.sendWithoutPreview }
+            : {}),
+        },
+        { userId: user.id, ip: clientIp(req) },
+      );
+    return me(user);
   });
 }
