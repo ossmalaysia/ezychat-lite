@@ -74,11 +74,15 @@ export const status = (
   calendars: state === 'disconnected' || state === 'not_configured' ? [] : CALENDARS,
   connectedAt: null,
   problemSince: null,
+  onThisComputer: true,
   ...patch,
 });
 
 /** A Google connector's sign-in status (Sheets, Drive: the same shape). */
-const signInStatus = (state: GoogleSheetsStatus['state']): GoogleSheetsStatus => ({
+const signInStatus = (
+  state: GoogleSheetsStatus['state'],
+  patch: Partial<GoogleSheetsStatus> = {},
+): GoogleSheetsStatus => ({
   state,
   account:
     state === 'connected' || state === 'expired' || state === 'unavailable'
@@ -86,10 +90,14 @@ const signInStatus = (state: GoogleSheetsStatus['state']): GoogleSheetsStatus =>
       : null,
   connectedAt: null,
   problemSince: null,
+  onThisComputer: true,
+  ...patch,
 });
 export const sheetsStatus = signInStatus;
-export const driveStatus = (state: GoogleDriveStatus['state']): GoogleDriveStatus =>
-  signInStatus(state);
+export const driveStatus = (
+  state: GoogleDriveStatus['state'],
+  patch: Partial<GoogleDriveStatus> = {},
+): GoogleDriveStatus => signInStatus(state, patch);
 
 /** GitHub's sign-in status: signed in as `kopiapong-dev` unless not connected. */
 export const githubStatus = (

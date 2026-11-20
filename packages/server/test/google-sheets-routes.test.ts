@@ -14,6 +14,7 @@ import {
   expectAdminOnly,
   expectCallbackHostOnly,
   expectPickerHostOnly,
+  expectRemoteCannotStart,
 } from './google-connector-helpers.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -40,6 +41,22 @@ const connect = (cookie: string, choice: 'allow' | 'cancel' = 'allow') =>
   connectThroughFake(t, SHEETS_PATHS, cookie, choice);
 
 describe('Google Sheets routes', () => {
+  it('tells a remote browser the sign-in and file picker are not available and starts neither', async () => {
+    const { admin } = await setUp();
+    // One check for every Google connector: they share the rule.
+    for (const [name, starts] of [
+      ['google-calendar', ['connect']],
+      ['google-sheets', ['connect', 'picker']],
+      ['google-drive', ['connect', 'picker']],
+    ] as const)
+      await expectRemoteCannotStart(
+        t,
+        admin,
+        `/api/connectors/${name}`,
+        starts.map((x) => `/api/connectors/${name}/${x}`),
+      );
+  });
+
   it('are admin only', async () => {
     const { agent, agentId } = await setUp();
     await expectAdminOnly(t, agent, [
@@ -67,6 +84,7 @@ describe('Google Sheets routes', () => {
       account: null,
       connectedAt: null,
       problemSince: null,
+      onThisComputer: true,
     });
     const { requestId, callback } = await connect(admin);
     expect(callback.statusCode).toBe(200);

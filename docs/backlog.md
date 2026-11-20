@@ -5,6 +5,38 @@ are listed here until they get a branch. Newest first; remove an item when its P
 
 ## Bugs
 
+- **Remote Google sign-in and file picker (Option B, assessed 2026-11-15, not built).** Fix A (PR
+  `fix/picker-remote-device`) shows a notice instead of opening `127.0.0.1` on a remote or LAN device. Could the
+  picker itself run in the remote browser through the tunnel? Verdict: **not feasible as it stands; feasible later
+  only for a named https tunnel**, and not worth it before a customer asks. Assessed from Google's documentation and
+  our code, not tried against live Google. (1) **Picker API key**: it is a browser key restricted by HTTP referrer.
+  Today it only ever sees `http://127.0.0.1:<port>`. A remote page would need each tunnel host in the referrer list:
+  a named tunnel has one fixed host (add it), a Quick Tunnel gets a new `*.trycloudflare.com` host each start (would
+  need a wildcard, which lets anyone use our key's quota), a LAN address is `http://<ip>`. (2) **OAuth client type**:
+  "Desktop app" is not the blocker. We do not use Google Identity Services in the page: the server holds the PKCE
+  loopback token and hands the page an access token. A Web client would only be needed if the page signed in itself.
+  Sign-in still returns to 127.0.0.1, so a remote device cannot sign in either way. (3) **Token exposure**: the picker
+  needs the access token (`drive.file`, about 1 hour) in the remote browser. Over the tunnel it is https and the
+  caller is a signed-in admin, but the token would cross the internet and sit in a page on the tunnel origin; over
+  the LAN it would be plain http (readable on the network, and `setOrigin`/secure-context checks fail). Today it never
+  leaves the computer. (4) **CSP**: workable. The picker page has its own CSP (`PICKER_PAGE_CSP`: Google's script and
+  frames only), so the app's CSP stays; the host-only routes would need a second, session-checked variant and a
+  `setOrigin` of the tunnel host. What it would take: named https tunnel only (refuse Quick Tunnel and LAN), the
+  tunnel host added to the key's referrers by the owner, picker routes that need an admin session, `Cache-Control:
+no-store` and a token valid for the one request, a security review (AGENTS.md "Security review for network changes"),
+  a real-Google check, and a design decision from the owner. About 2–3 days. Recommendation: keep Fix A; Sheets can
+  still be created from a remote device, and picking is a one-time setup step on the computer that runs EzyChat.
+  Sign-in has a second blocker: Google returns only to redirect addresses registered in advance, and the "Desktop
+  app" client allows loopback only; tunnel hostnames differ per install (and Quick Tunnel's change), so none can be
+  registered. Ways to make it work: (1) **a fixed Anchor-owned relay page** (e.g. `ezychat.ai/connect/google`) with a
+  "Web application" OAuth client (one redirect URI, one JS origin for the Picker key): the remote browser signs in and
+  picks there, then the page posts the result back to the install through its tunnel URL. Works from any device and
+  from a Quick Tunnel; costs hosting and securing the page, the token passing through the visitor's browser on our
+  page, a code exchange that needs a client secret kept on our side (never in the app), possibly a new Google
+  verification (client and scopes change) and a security review; Enterprise first. (2) **EzyChat Cloud**: one fixed
+  domain, so it works natively with no relay. (3) **Google's device flow** (enter a code on another device) covers
+  sign-in for a limited list of scopes (`drive.file` is on it, the Calendar scope is not, to be checked in Google's
+  docs) and never the Picker, so it does not solve this alone. Plan: build (1) only on customer demand.
 - Windows updater after an antivirus block (seen 2026-11-05, Enterprise 0.1.25 → 0.1.26 with McAfee, twice): the
   rollback that emptied Program Files is fixed (`WINDOWS_START_INSTALLER`, `WINDOWS_RESTORE_OLD_APP` in
   `apps/desktop/src/updater/install.ts`). Still to do: show the blocked-installer result in the app's own language

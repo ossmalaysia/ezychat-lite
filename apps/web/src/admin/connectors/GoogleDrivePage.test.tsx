@@ -153,6 +153,31 @@ describe('Google Drive: Settings', () => {
     expect(screen.queryByRole('button', { name: 'Connect Google Drive' })).toBeNull();
   });
 
+  it('on a remote device explains where to choose the folder and opens no window', async () => {
+    const fetchMock = stubServer(
+      world({ drive: driveStatus('connected', { onThisComputer: false }) }),
+    );
+    const open = vi.spyOn(window, 'open');
+    page(`${GD}?tab=settings`);
+    const notice = await screen.findByTestId('drive-remote-notice');
+    expect(notice.textContent).toContain('works only on the computer that runs EzyChat Lite');
+    expect(screen.queryByTestId('drive-choose-folder')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Choose a folder' })).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    expect(writes(fetchMock)).toEqual([]);
+  });
+
+  it('on a remote device does not offer Google sign-in', async () => {
+    stubServer(world({ drive: driveStatus('disconnected', { onThisComputer: false }) }));
+    const open = vi.spyOn(window, 'open');
+    page(GD);
+    expect((await screen.findByTestId('google-remote-notice')).textContent).toContain(
+      'Google sign-in works only on the computer',
+    );
+    expect(screen.queryByRole('button', { name: 'Connect Google Drive' })).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+  });
+
   it('keeps both switches off without a folder, picks one in Google and saves it', async () => {
     const w = connected();
     const fetchMock = stubServer(w);

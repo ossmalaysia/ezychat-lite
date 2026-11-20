@@ -28,7 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { cn } from '@/lib/utils';
 import { formatRelative } from '../../lib/format';
 import { ErrorState, ListSkeleton, Pending, SaveBar } from '../adminUi';
-import { PickerWaiting, ToolSwitchRow } from './connector-ui';
+import { PickerWaiting, RemoteOnlyNotice, ToolSwitchRow } from './connector-ui';
 import { CreateSheetDialog } from './CreateSheetDialog';
 import { diffTabs, isAutoColumn, normalizeTabs, tabsToSave, type TabMarks } from './sheets-tabs';
 
@@ -77,6 +77,8 @@ export function SheetsSettingsCard({
   const [before, setBefore] = useState<SpreadsheetInfo | null>(null);
   const [creating, setCreating] = useState(false);
   const headingId = useId();
+  /** Google's file picker opens only on the computer that runs EzyChat. */
+  const remote = !status.onThisComputer;
   const saved = query.data;
   const value = draft ?? saved;
   const set = (patch: Partial<SheetsAgentSettings>) => {
@@ -279,18 +281,20 @@ export function SheetsSettingsCard({
               {!picking && (
                 <div className="flex flex-col items-start gap-2">
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="touch"
-                      variant={value.spreadsheetId ? 'outline' : 'default'}
-                      disabled={picker.isPending}
-                      onClick={() => void choose()}
-                      data-testid="sheets-choose"
-                    >
-                      <Pending show={picker.isPending} />
-                      {value.spreadsheetId
-                        ? t('connectors.sheets.chooseAnother')
-                        : t('connectors.sheets.choose')}
-                    </Button>
+                    {!remote && (
+                      <Button
+                        size="touch"
+                        variant={value.spreadsheetId ? 'outline' : 'default'}
+                        disabled={picker.isPending}
+                        onClick={() => void choose()}
+                        data-testid="sheets-choose"
+                      >
+                        <Pending show={picker.isPending} />
+                        {value.spreadsheetId
+                          ? t('connectors.sheets.chooseAnother')
+                          : t('connectors.sheets.choose')}
+                      </Button>
+                    )}
                     <Button
                       size="touch"
                       variant="outline"
@@ -300,9 +304,16 @@ export function SheetsSettingsCard({
                       {t('connectors.sheets.create.open')}
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {t('connectors.sheets.chooseHint')}
-                  </p>
+                  {remote ? (
+                    <RemoteOnlyNotice
+                      testId="sheets-remote-notice"
+                      textKey="connectors.sheets.remotePick"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {t('connectors.sheets.chooseHint')}
+                    </p>
+                  )}
                 </div>
               )}
               {picking && (
