@@ -419,6 +419,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Updating a branch from `main` right after a release commit can move your `[Unreleased]` CHANGELOG entry into the new
   version's section with no conflict (the release only added a heading above it): read `CHANGELOG.md` after every
   merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
+  A long-lived branch can also land its entry in an old released section (#240 went into 0.1.66): every release PR
+  checks `git diff v<prev>..main -- CHANGELOG.md` for lines added outside `[Unreleased]` and moves them in.
 - The update helper is built by the app that is running, so an updater fix protects only updates that start from a
   version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
   an updater fix.
