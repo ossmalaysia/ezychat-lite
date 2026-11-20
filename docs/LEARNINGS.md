@@ -2227,6 +2227,11 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
   button already serve keyboard users.
 
+- A picker over a long list (chats, customers) searches on the server with the typed text, never a client filter over the
+  first loaded page: older items vanish and numbers never match. Dedupe by the item's key, leave out chosen ones by key
+  and by its WhatsApp id, and tell same-named items apart with a detail line instead of hiding one
+  (`admin/MemberChatsField.tsx`, `phoneSearchDigits` in `chats/repo.ts`).
+
 ## Internationalization
 
 - Searchable catalog content (template gallery `keywords`) keeps the English words beside the
