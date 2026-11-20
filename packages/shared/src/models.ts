@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MessageScheduledTask } from './scheduled-tasks.js';
 import { MessageSafety } from './safety.js';
+import { TypedRecordValue } from './live-translate.js';
 import {
   ChatEventType,
   ChatStatus,
@@ -174,6 +175,10 @@ export const MessageSchema = z.object({
   deletedByUserId: z.number().nullable().optional(),
   /** Deleted for me: hidden for the whole team (clients drop it from the conversation). */
   hidden: z.boolean().optional(),
+  /** Live translate: what the teammate typed before it was translated (absent/null = not translated). */
+  typed: TypedRecordValue.nullable().optional(),
+  /** Live translate: sent with "Send original instead" (shown as "Sent without translation"). */
+  sentOriginal: z.boolean().optional(),
 });
 export type Message = z.infer<typeof MessageSchema>;
 

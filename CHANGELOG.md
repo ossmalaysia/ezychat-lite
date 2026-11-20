@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **AI assistants can resolve chats.** Tick **Can resolve chats** for a connected AI app (Settings → Integrations → Create token or **Permissions**; off unless you tick it) and you can ask it to resolve chats for you, for example the ones where the customer only said thanks, or to reopen one. It works exactly like Resolve and Reopen in the inbox, as you; the customer is not messaged. It can add a note for your team saying why. Up to 30 changes a minute and 300 a day per app.
+
+## [0.1.85] - 2026-11-20
+
+### Added
+
+- **Live translate**: read and reply to customers who write another language. Turn on **Translate** in a chat: the customer's messages show in your own language (set it in Account → My language), with **Show original** on each one. Type your reply in your language; **Customer will get** shows the translation before it is sent, with prices, numbers, links, phone numbers and order codes kept exactly as you wrote them (a translation that changes one is never sent). Every reply keeps what you typed, so your team can see both. Admins can switch it off for everyone and set a daily limit per person (200 by default) in Settings → AI. It uses your AI connection, like reply suggestions.
 - **Dream mode** for AI agents (off until an admin turns it on, on the agent page). Each night, at the time you pick, the agent reads the day's chats that your team took over, learns from what your team replied, and suggests better facts, answers and hand-off rules. Each suggestion is checked first: no customer names, phone numbers or emails, nothing from your Internal knowledge, numbers only from your team's replies, and a replay that shows the agent now handles the question without getting other answers wrong. You see every night in a history and can apply, dismiss or undo each change. Turn on **Apply by itself** to add new facts to Business context at once; changes to instructions and hand-off rules always wait for you. Forwarded messages are never learned from.
 - A new menu on every screen takes you straight to Chats, Reports, Ask Ezy, Members and Settings. On a computer it is a narrow bar on the left, with your photo and Settings at the bottom; on a phone it is a row of tabs at the bottom (Chats, Reports, Ask Ezy and Settings for admins; Chats, Ask Ezy and Account for your team), hidden while a chat is open. Chats shows how many chats have unread messages, and a red dot on Settings tells an admin when a WhatsApp number needs attention. The chat list is now called **Chats**, and on a phone Settings opens one list of every admin page.
 - When a WhatsApp number is logged out (Log out in EzyChat, or Linked devices → Log out on the phone), its chats are hidden from the inbox. Nothing is deleted. If the same number links again, each chat comes back as soon as WhatsApp shows it is still on the phone (or the customer writes again). If a different number links, the old chats stay hidden and the new number starts with an empty inbox. The Log out confirmation says how many chats are hidden.
@@ -18,10 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A new version now reaches the in-app update and the download links only after McAfee has checked all its installers (Windows and both Macs), usually a day or two after the release, so antivirus software does not block the update.
 - The AI agent page now says **Hand-off rules**, like the setup wizard, Ask Ezy and Reports (it said "Hand-over rules" before).
 
 ### Fixed
 
+- Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart (by the inbox name when they are on different WhatsApp numbers).
+- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
+  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
+  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
+  keeps the chat open.
 - Country flags in messages (🇲🇾, 🇸🇬 …) now show as flags on Windows. Before, Windows showed two letters such as "MY".
 - Reports now counts the very first customer who writes after you link WhatsApp as a new customer. Before, that first customer was left out of **New customers**.
 - Reports now shows a new customer or message at once. It could show the numbers from your last visit for up to a minute.
@@ -415,10 +427,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
-  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
-  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
-  keeps the chat open.
 - **The AI agent follows your hand-over rules.** A request to book a consultation, meeting, demo or call is now
   treated as a sales conversation: the agent asks what the customer needs instead of handing the chat over, and
   your "never hand over" rules win over the agent's built-in reasons (except safety ones). The agent only says a

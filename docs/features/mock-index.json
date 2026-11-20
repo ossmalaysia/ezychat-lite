@@ -6,18 +6,18 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "app-navigation",
-    "gitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
-    "mock": "docs/features/app-navigation/mock/index.html",
-    "design": "docs/features/app-navigation/design.md",
-    "confirmedAt": "2026-11-13",
-    "confirmation": "Owner (Jazz) confirmed the app navigation mock 2026-11-13 (\"other also fine\", \"design good, go ahead\") with the recommended answers: Members as a Settings row on phones, Report a problem stays in the account menu, list title renamed Inbox -> Chats in the build, rail Settings opens App settings or the numbers page when a number needs attention.",
-    "note": "Clone of forward-message (2549b7af) with Ask Ezy copied in and the desktop icon rail / phone bottom tabs added; replaces mobile-redesign's phone list header. Inherits forward-message's coverage gaps."
+    "feature": "live-translate",
+    "gitRevision": "ea070366d62d4ecf72a57479c0829861d74cfee5",
+    "mock": "docs/features/live-translate/mock/index.html",
+    "design": "docs/features/live-translate/design.md",
+    "confirmedAt": "2026-11-19",
+    "confirmation": "Owner (Jazz) confirmed the updated mock 2026-11-19 (\"ok mock\"), relayed by the main session, with the final decisions: the admin switch Live translate for everyone is on by default for new and updated installs, and the off-state hint \"Customer writes in 中文 · Translate\" is shown.",
+    "note": "Clone of app-navigation (dc0d5ce6) with Live translate added (Translate button, bar, Languages popover, translated bubbles, Customer will get preview, Settings → AI card, Account → My language). Inherits app-navigation coverage gaps; does not cover voice-note transcript translation, the chat-list line, editing a sent reply, reply suggestions in My language or Fix English being turned off."
   },
   "proposals": [
     {
       "feature": "mcp-resolve-chat",
-      "creationOrder": 47,
+      "creationOrder": 48,
       "createdAt": "2026-11-19",
       "design": "docs/features/mcp-resolve-chat/design.md",
       "mock": "docs/features/mcp-resolve-chat/mock/index.html",
@@ -25,7 +25,21 @@
       "baselineFeature": "app-navigation",
       "baselineGitRevision": "f4b650b81ae259f6f71d820007d7e53d187f43fc",
       "coverage": "Full clone of the confirmed app-navigation mock; adds the Can resolve chats checkbox to Create access token and Permissions and the Resolves chats badge in the token list (Settings → Integrations); 1280/360, light/dark (mock/resolve-shots.mjs, docs/features/mcp-resolve-chat/screenshots).",
-      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed (app-navigation). Retention: five counted folders (app-navigation, chat-hide-delete, github, dream-mode, mcp-resolve-chat); ask-ezy-setup is already archived in this index but kept on disk because docs/ask-ezy.md and AGENTS.md link its design; template-store stays (live tooling). Nothing removed."
+      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed. Cloned from app-navigation (f4b650b8) before live-translate was confirmed; a later enhancement re-clones from latestConfirmed. Retention on merge with main (2026-11-20): six counted folders, so app-navigation (oldest, order 43) is archived (folder removed, read it with git show 0738d562:docs/features/app-navigation/design.md); counted now: chat-hide-delete, github, dream-mode, live-translate, mcp-resolve-chat. template-store stays (live tooling)."
+    },
+    {
+      "feature": "live-translate",
+      "creationOrder": 47,
+      "createdAt": "2026-11-19",
+      "design": "docs/features/live-translate/design.md",
+      "mock": "docs/features/live-translate/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "app-navigation",
+      "baselineGitRevision": "dc0d5ce640bd06322a86a423a25c88f3f54e58f8",
+      "coverage": "Full app clone of the confirmed app-navigation reference; Live translate as decided by the owner 2026-11-19 (same labels and protected items as Cloud PR #107): Translate button per person and chat, bar (customer language shared per chat, detected, mixed \"中文 + English\", Show originals, Languages popover with usage and Turn off), translated bubbles (Translated from … · Show original; 70 % rule keeps mostly-Malay text), Customer will get · 中文 preview (no back-translation; Kept unchanged chips; Send, Edit translation, Send original instead, Keep editing), Sent in … · Show sent text, Written in … · Show what was typed, Sent without translation, refused (RM1,260.00 became RM4,260.00), daily limit used, no connection, no AI, failed with Try again, off-state hint, group with one outgoing language, admin switch off, Send without preview; Settings → AI card (for everyone, daily limit 200), Account → My language and Send without preview; desktop 1280 / phone 360, light/dark, en/ms/zh-CN (translate-shots.mjs, 43 shots).",
+      "note": "Requested 2026-11-19 (Lite, Enterprise, Cloud). Owner decisions 1-10 and the mock confirmed 2026-11-19; the next clone starts from this revision. Removes ask-ezy-setup (oldest counted folder; decisions in docs/ask-ezy.md) for retention; template-store stays (live tooling).",
+      "confirmedAt": "2026-11-19",
+      "confirmation": "Owner (Jazz) confirmed the updated mock 2026-11-19 (\"ok mock\"), relayed by the main session, with the final decisions: the admin switch Live translate for everyone is on by default for new and updated installs, and the off-state hint \"Customer writes in 中文 · Translate\" is shown."
     },
     {
       "feature": "dream-mode",
@@ -38,18 +52,6 @@
       "confirmation": "Owner (Jazz) confirmed the quick mock on 2026-11-14 (\"look good\") on the review page with the screenshots, with Apply by itself limited to Business context facts as shown, and added: forwarded messages are never a learning source.",
       "coverage": "Quick mock only (not an app clone): the agent page with the Dream mode card off, on with changes waiting, on with Apply by itself, paused (AI not connected), and the See change dialog; 1280/360, light and dark for the main states (mock/shots.mjs, mock/screens/).",
       "note": "Not a mock baseline: the next clone still starts from latestConfirmed (app-navigation). Retention: removes cloud-auth-storage (design-only folder of 2026-11-08, already listed as archived; nothing links to it); template-store stays (live tooling)."
-    },
-    {
-      "feature": "app-navigation",
-      "creationOrder": 43,
-      "createdAt": "2026-11-13",
-      "design": "docs/features/app-navigation/design.md",
-      "mock": "docs/features/app-navigation/mock/index.html",
-      "status": "confirmed",
-      "baselineFeature": "forward-message",
-      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-      "coverage": "Full app clone of the confirmed forward-message reference; app navigation on every signed-in screen: desktop (768 px and up) 64 px icon rail (Chats with the count of chats with unread messages, Reports and Members for admins, Ask Ezy, Settings with the red attention dot for admins, account photo/menu at the bottom), the Settings side menu on the other admin pages (Quick replies, Connectors, Inboxes/WhatsApp with the dot, Phone access, App settings, Audit), Reports and Members full width; phone (below 768 px) bottom tabs (admin: Chats, Reports, Ask Ezy, Settings; team member: Chats, Ask Ezy, Account; agent limited to chosen chats: Chats, Account), no tabs inside an open chat, Settings list page (every admin page, Your account, Mock only attention switch), Account page, phone app bar with back; Ask Ezy panel copied from the app (docked from 1280 px, full screen on phones, scripted answers via /api/mock/ask-ezy); desktop 1280 / phone 360, light/dark, en/ms/zh-CN, admin/team member/limited agent (shots.mjs, 44 shots in docs/features/app-navigation/screenshots).",
-      "note": "Replaces the phone list header of the unconfirmed mobile-redesign proposal (39) where they overlap (Admin moves to the Settings tab, account to Settings/Account) and reverses the design-system rule \"no bottom bar\" (2026-11-07) on owner request 2026-11-13. Removes new-chat (37) for retention; template-store stays (live tooling). Inherits forward-message coverage gaps (message edit/delete and Safety-on-message screens; no Safety admin page in the mock)."
     },
     {
       "feature": "ai-completion-rate",
@@ -224,7 +226,9 @@
       "confirmedAt": "2026-10-31",
       "confirmation": "Owner wrote 2026-10-31 \"build it until merge to main\" after reviewing the mock screenshots: the @ member picker as proposed.",
       "gitRevision": "f6f0d2b06f53c95c6b31c5994af00ef52cf5def4",
-      "parallelFeatures": ["whatsapp-safety"],
+      "parallelFeatures": [
+        "whatsapp-safety"
+      ],
       "note": "Confirmed in parallel with whatsapp-safety (24, merged to main first); both cloned from ai-handoff-rules, so neither mock has the other's change. The next enhancement clones latestConfirmed and copies the WhatsApp Safety screens from docs/features/whatsapp-safety/mock. Folder pruned by the claims-template change (retention 5); recover it from git revision 2e820c944a84d2767d971ae7635e94617631d453."
     },
     {
@@ -257,7 +261,10 @@
       "confirmedAt": "2026-10-30",
       "confirmation": "Owner reviewed the screenshots (Direct chats card above Groups, confirm dialog, answers-no-chats warning, assignee list without the AI; desktop and phone) and confirmed 2026-10-30 (\"confirm, implement it\").",
       "gitRevision": "4cfbe96d13e81ac6f64e3185430066b2f7bb249d",
-      "parallelFeatures": ["concept-tips", "ai-handoff-rules"],
+      "parallelFeatures": [
+        "concept-tips",
+        "ai-handoff-rules"
+      ],
       "note": "Confirmed in parallel with concept-tips and ai-handoff-rules (all cloned from grammar-fix): none of these mocks has the others' change. The next enhancement clones latestConfirmed and copies the Direct chats card from this folder (src/admin/AgentDirectCard.tsx, its groups.ts runner route and the mockDirect.* catalog keys).",
       "folderRemoved": "2026-11-03 (in-app-feedback: sixth feature folder); last on main at 1564247"
     },
@@ -376,7 +383,9 @@
       "confirmedAt": "2026-10-26",
       "confirmation": "Owner viewed the gallery, Google Calendar page (Overview, Settings, Activity), Lite view with the Enterprise-only Custom connector, business connectors with Vote, agent Connectors summary, Try it and the booked chat, and confirmed 2026-10-26 (\"Implement it\"). Open questions defaulted: Book appointments off by default; WhatsApp number in the event; reminder not in this round (backlog).",
       "gitRevision": "f46aab96a1c7e5566c3d6e5cf33f0884142de1a0",
-      "parallelFeatures": ["reports"],
+      "parallelFeatures": [
+        "reports"
+      ],
       "archived": {
         "folderRemovedAt": "2026-10-30",
         "lastRevision": "2ea78a96c81a5f026d04190de919806134880b59",
@@ -796,6 +805,35 @@
       "archivedAt": "2026-11-14",
       "archivedRevision": "ee978fa4f6ce76f5d46795bfe719521c5ad9c147",
       "archivedBy": "combined merge of the open PRs (five-folder retention: github and chat-hide-delete arrived; template-store kept as tooling)"
+    },
+    {
+      "feature": "ask-ezy-setup",
+      "createdAt": "2026-11-12",
+      "design": "docs/features/ask-ezy-setup/design.md",
+      "mock": "docs/features/ask-ezy-setup/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-12",
+      "confirmation": "Owner (Jazz) confirmed the quick mock on 2026-11-12 (\"look good, implement\").",
+      "note": "Quick mock (not an app clone); lasting decisions live in docs/ask-ezy.md section 5.",
+      "archived": true,
+      "archivedAt": "2026-11-19",
+      "archivedRevision": "a09e3a9b9ac0d4ecef5e53c8c495c5aef0872002",
+      "archivedBy": "five-folder retention (live-translate)"
+    },
+    {
+      "feature": "app-navigation",
+      "creationOrder": 43,
+      "createdAt": "2026-11-13",
+      "design": "docs/features/app-navigation/design.md",
+      "mock": "docs/features/app-navigation/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "forward-message",
+      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "coverage": "Full app clone of the confirmed forward-message reference; app navigation on every signed-in screen: desktop (768 px and up) 64 px icon rail (Chats with the count of chats with unread messages, Reports and Members for admins, Ask Ezy, Settings with the red attention dot for admins, account photo/menu at the bottom), the Settings side menu on the other admin pages (Quick replies, Connectors, Inboxes/WhatsApp with the dot, Phone access, App settings, Audit), Reports and Members full width; phone (below 768 px) bottom tabs (admin: Chats, Reports, Ask Ezy, Settings; team member: Chats, Ask Ezy, Account; agent limited to chosen chats: Chats, Account), no tabs inside an open chat, Settings list page (every admin page, Your account, Mock only attention switch), Account page, phone app bar with back; Ask Ezy panel copied from the app (docked from 1280 px, full screen on phones, scripted answers via /api/mock/ask-ezy); desktop 1280 / phone 360, light/dark, en/ms/zh-CN, admin/team member/limited agent (shots.mjs, 44 shots in docs/features/app-navigation/screenshots).",
+      "note": "Replaces the phone list header of the unconfirmed mobile-redesign proposal (39) where they overlap (Admin moves to the Settings tab, account to Settings/Account) and reverses the design-system rule \"no bottom bar\" (2026-11-07) on owner request 2026-11-13. Removes new-chat (37) for retention; template-store stays (live tooling). Inherits forward-message coverage gaps (message edit/delete and Safety-on-message screens; no Safety admin page in the mock).",
+      "archivedAt": "2026-11-20",
+      "archivedRevision": "0738d562",
+      "archivedReason": "Retention: sixth counted folder added by mcp-resolve-chat (#388). Lasting rules live in docs/design-system.md \"App navigation\" and AGENTS.md."
     }
   ]
 }

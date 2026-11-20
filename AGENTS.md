@@ -299,6 +299,24 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
+**Live translate** (design `docs/features/live-translate/design.md`, lasting rules and decision log
+`docs/live-translate.md`: read it before changing Live translate and add a decision line when you change a rule).
+Migration 046, `live-translate/` (`repo.ts` is its only SQL, `service.ts`, `routes.ts`), shared contract
+`packages/shared/src/live-translate.ts`. Admin switch `live_translate` {enabled (default on), dailyLimit (200, 0 =
+none)} at `PUT /api/live-translate/settings` (audit `settings.live_translate` before/after), status for everyone at
+`GET /api/live-translate`; My language and Send without preview on `PATCH /api/me` (`users.translate_language`, audit
+`user.translate_language`). Per chat (`chatJidParam`, 404 outside access): `GET/PUT /chats/:jid/live-translate` (my
+switch; the customer or group language is shared), `POST …/translations` (≤ 50 ids, cached per message, revision and
+target; the 70 % rule `shareInLanguage`; 120 a minute) and `POST …/translate-draft` (60 a minute; 409 `translate_off`,
+429 `translate_limit`, 503 `ai_unavailable` / `translate_failed`). `AiService.translate` (`ai/translate-prompt.ts`): one
+structured `draft` call on the "Model for suggestions" with the fixed `TRANSLATE_RULES`, no tools, no retries, no
+back-translation. Protected items (`protectedItems` / `changedItem`) must come through unchanged: else the incoming
+translation is `unsafe` (never shown), the draft `refused`, the send 400 `translation_changed`. A send carries
+`translation {draftId, typedText, typedLanguage, edited}` or `sentOriginal`; `message_typed` is stored in the message's
+insert transaction, follows the id rename, and `present()` adds `Message.typed` / `sentOriginal`. New tables are in
+`DELETE_PLAN`, `CHAT_TABLES`, the alias merge and the Lite import. Logs `live_translate`: counts, language codes, ms,
+model, result only.
+
 **Ask Ezy** (design and decision log `docs/ask-ezy.md`: read it before changing Ask Ezy and add a decision line when you change a rule). An in-app assistant
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
@@ -309,7 +327,7 @@ the signed-in user (team members: the inbox read tools of their own inboxes; adm
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
-Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
+Setup as a conversation (decisions `docs/ask-ezy.md` §5; archived design `git show a09e3a9b:docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
 optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
 question and card back into the assistant's history line. Setup runs on the **main model**: an admin's normal (fast)
 turn offers only `start_setup` (no arguments); calling it ends the fast turn and the same request (same history) reruns
@@ -860,7 +878,7 @@ A Quick Tunnel is Running only after URL assignment and edge registration.
 Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must
 cover navigation from every admin section and recovery from malformed URLs.
 
-App navigation (design `docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
+App navigation (archived design `git show 0738d562:docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
 `AppShell` wraps every signed-in page (`/`, `/chats/:jid`, `/account`, `/admin/*`, extension user routes): a rail
 from 768 px, bottom tabs below, no tabs inside an open chat. Reports and Members are rail places; every other admin
 page is under Settings (side menu on desktop, the `/admin` list on phones, `PhoneBar` back one level; unknown admin
@@ -923,9 +941,8 @@ a page header.
 - **Release review** (skill `release-review`, design `docs/superpowers/specs/2026-10-24-release-review-design.md`):
   after the last verification of a feature PR, score it with `node scripts/release-review.mjs <pr>` and log it;
   it scores, logs, comments and labels only. It is also the **final merge check**: run it on the head right before
-  a merge the owner asked for; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
-  (`build-summary.mjs record` does it) and put the short commit in each Dev Build row. The merge rule
-  below is unchanged until the owner approves the design's section 9 in writing.
+  a merge; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
+  (`build-summary.mjs record` does it) and put the short commit in each Dev Build row.
   **A low score is a to-do list, not a stop** (owner rule): run every check you can for each `✗` item and
   hard stop (e2e + links, Dev Build, packaged `--dir` smoke for critical runtime parts: see LEARNINGS), then
   score again. Hand a PR to the owner only when everything testable is done and it is still `risk:human`
@@ -1068,10 +1085,15 @@ campaign tags (`utm_*`).
 track own follow-ups in `docs/backlog.md` (bugs and next steps), a feature's `design.md`, PR descriptions or workbooks. Treat each issue as an
 external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
 details); a confirmed bug may be fixed and released.
-**Merge only when the owner explicitly requests merging that PR.** Never merge automatically or
-enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
-passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
-then leave the PR open until the owner requests the merge.
+**Merge only on the owner's explicit request, or when the final check passes** (owner approved design §9 in writing,
+2026-11-20). The final check is `node scripts/release-review.mjs <pr>` on the PR's head: a first line `MERGE OK` with
+`risk:auto` or `risk:pipeline` lets the agent squash-merge it, with no push between the check and the merge. A
+`risk:human` PR and any `NOT READY` wait for the owner's explicit request. Still never: GitHub auto-merge, `--approve`
+without the owner's own words, a release PR, tag or publish without "release", or skipping or weakening any test, check
+or rule to reach `MERGE OK`. A request to fix, implement, commit, push or open a PR does not authorize a merge. A merge
+never starts a release. The PreToolUse hook `.claude/hooks/merge-gate.mjs` enforces this for Claude Code (see CLAUDE.md);
+other agents follow the text. The gate's own files are `security: true` in the component map, so a change to them is
+always `risk:human`.
 **Healthy PR list: four days at most** (owner rule, 2026-11-14): a PR is open for at most 4 days, so branches stay
 free of merge conflicts. The goal is merged, never parked: drive every check to done in that time (CI, coverage, e2e,
 Dev Build, screen review, release review), then ask the owner for the merge as soon as all checks are done (the
@@ -1086,7 +1108,7 @@ This is currently a solo-maintainer repository, so a second maintainer's approva
 the owner's explicit merge request is still required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
 approval when another maintainer can review changes.
-**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, then tag + publish through `release-approve.yml` (§4, started only when the owner says "release"), permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). After both editions are out, the release day goes on the website release page `/releases` (ossmalaysia/ezychat-website, `src/lib/release-calendar.json` + translations; `docs/release.md` §6); the release is done only when that PR is merged. Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
+**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, then tag + publish through `release-approve.yml` (§4, started only when the owner says "release"), held as a draft until McAfee clears every installer, then Promote release (§3; owner rule 2026-11-20: "latest" and the in-app updater stay on the newest cleared version), permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). After both editions are out, the release day goes on the website release page `/releases` (ossmalaysia/ezychat-website, `src/lib/release-calendar.json` + translations; `docs/release.md` §6); the release is done only when that PR is merged. Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.
 Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`

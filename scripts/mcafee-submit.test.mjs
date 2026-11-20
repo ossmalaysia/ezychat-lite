@@ -5,6 +5,8 @@ import {
   macSignatureProblem,
   checkReporter,
   checkVersion,
+  loadReporter,
+  browserLaunch,
   liteAssets,
   pickAssets,
   powershellEnv,
@@ -217,5 +219,58 @@ describe('releaseOfTag', () => {
       apiUrl: 'https://api',
     });
     expect(liteAssets({ draft: false, assets: [asset] })[0]?.apiUrl).toBeUndefined();
+  });
+});
+
+describe('cloud mode', () => {
+  const reporter = { fullName: 'A', email: 'a@b.c', company: 'C' };
+
+  it('reads the private file first, and the environment variable only when the file is missing', () => {
+    const env = { MCAFEE_REPORTER_JSON: JSON.stringify({ ...reporter, company: 'FromEnv' }) };
+    const read = () => JSON.stringify(reporter);
+    expect(loadReporter({ file: 'f', env, exists: () => true, read })).toEqual(reporter);
+    expect(loadReporter({ file: 'f', env, exists: () => false, read }).company).toBe('FromEnv');
+  });
+
+  it('stops without a file or a variable, naming no personal field', () => {
+    expect(() => loadReporter({ file: 'f', env: {}, exists: () => false })).toThrow(
+      'MCAFEE_REPORTER_JSON is not set',
+    );
+  });
+
+  it('does not echo a broken variable, and still needs every field', () => {
+    const bad = { MCAFEE_REPORTER_JSON: '{"fullName": "Secret Person' };
+    expect(() => loadReporter({ file: 'f', env: bad, exists: () => false })).toThrow(
+      /^the reporter details are not valid JSON$/,
+    );
+    const partial = { MCAFEE_REPORTER_JSON: JSON.stringify({ fullName: 'A' }) };
+    expect(() => loadReporter({ file: 'f', env: partial, exists: () => false })).toThrow('email');
+  });
+
+  it('launches headless Chromium on Linux, through the agent proxy when one is set', () => {
+    expect(browserLaunch('linux', {}, () => false)).toEqual({ headless: true });
+    expect(browserLaunch('linux', { HTTPS_PROXY: 'http://127.0.0.1:1' }, () => false)).toEqual({
+      headless: true,
+      proxy: { server: 'http://127.0.0.1:1' },
+    });
+    expect(browserLaunch('linux', {}, () => true)).toEqual({
+      headless: true,
+      executablePath: '/opt/pw-browsers/chromium',
+    });
+    expect(browserLaunch('win32', { HTTPS_PROXY: 'http://x' })).toEqual({
+      channel: 'chrome',
+      headless: false,
+    });
+  });
+
+  it('claims no Windows signature when this run could not check it', () => {
+    const [win] = pickAssets('lite', '0.1.28', [
+      ...['win-x64.exe', 'mac-arm64.dmg', 'mac-x64.dmg'].map((x) =>
+        file(`EzyChat-Lite-0.1.28-${x}`),
+      ),
+    ]);
+    const text = reportText({ edition: 'lite', asset: win, winSigned: false });
+    expect(text).not.toMatch(/signature|signed|Authenticode/i);
+    expect(text).toContain(`SHA-256: ${sha}`);
   });
 });

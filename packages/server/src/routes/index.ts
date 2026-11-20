@@ -36,6 +36,7 @@ import newChat from './new-chat.js';
 import replySuggestions from './reply-suggestions.js';
 import askEzy from './ask-ezy.js';
 import fixEnglish from './fix-english.js';
+import liveTranslate from '../live-translate/routes.js';
 import connectors from './connectors.js';
 import connectorGoogleSheets from './connector-google-sheets.js';
 import connectorSqlAccount from './connector-sql-account.js';
@@ -84,6 +85,7 @@ export const routeModules: RouteModule[] = [
   replySuggestions,
   askEzy,
   fixEnglish,
+  liveTranslate,
   connectors,
   connectorGoogleSheets,
   connectorSqlAccount,
