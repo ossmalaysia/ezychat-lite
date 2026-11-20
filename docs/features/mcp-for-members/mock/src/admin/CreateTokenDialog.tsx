@@ -12,15 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CopyButton, Field, Pending } from './adminUi';
 import { TokenConnectSteps } from './TokenConnectSteps';
-import { InfoTip } from '@/components/app/InfoTip';
-import { createMemberToken } from '@/mock/members';
-
-/** Proposed (mcp-for-members): the dialog as a team member sees it on Your account → AI assistant. */
-export interface MemberCreateContext {
-  user: { username: string; displayName: string };
-  /** False when the member cannot start new chats in the app (limited to chosen chats). */
-  canStartNewChats: boolean;
-}
 
 const EXPIRY_OPTIONS = ['30', '90', '365', 'never'] as const;
 type ExpiryOption = (typeof EXPIRY_OPTIONS)[number];
@@ -47,9 +38,7 @@ export function CreateTokenDialog({
   onOpenChange,
   endpoint,
   localOnly,
-  member,
 }: {
-  member?: MemberCreateContext;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Full MCP URL an assistant connects to. */
@@ -71,7 +60,6 @@ export function CreateTokenDialog({
   const [submitted, setSubmitted] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
 
-  const newChatsBlocked = member !== undefined && !member.canStartNewChats;
   const trimmed = name.trim();
   const nameError = !submitted
     ? undefined
@@ -96,17 +84,6 @@ export function CreateTokenDialog({
     event.preventDefault();
     setSubmitted(true);
     if (trimmed === '' || trimmed.length > NAME_MAX || create.isPending) return;
-    if (member) {
-      setSecret(
-        createMemberToken(member.user, {
-          name: trimmed,
-          expiresInDays: EXPIRY_DAYS[expiry],
-          canSend,
-          canMessageNewNumbers: canSend && canNew && member.canStartNewChats,
-        }),
-      );
-      return;
-    }
     create.mutate({
       body: {
         name: trimmed,
@@ -242,31 +219,23 @@ export function CreateTokenDialog({
             </div>
           </div>
           {canSend && <Banner tone="warning">{t('mockSend.canSendWarning')}</Banner>}
-          {/* Proposed (MCP send to a new number): only under "Can send", off by default. A member who cannot
-              start new chats in the app sees it greyed, with the reason. */}
-          {(canSend || newChatsBlocked) && (
+          {/* Proposed (MCP send to a new number): only under "Can send", off by default. */}
+          {canSend && (
             <div className="ml-7 flex flex-col gap-2">
               <div className="flex items-start gap-3">
                 <Checkbox
                   id={canNewId}
-                  checked={canNew && !newChatsBlocked}
-                  disabled={create.isPending || newChatsBlocked}
+                  checked={canNew}
+                  disabled={create.isPending}
                   onCheckedChange={(v) => setCanNew(v === true)}
                   className="mt-0.5"
                 />
                 <div className="flex flex-col gap-1">
-                  <Label htmlFor={canNewId} className="flex items-center gap-1.5">
-                    {t('mockSend.canNew')}
-                    {newChatsBlocked && <InfoTip topic="memberNewChats" />}
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {newChatsBlocked
-                      ? t('mockMembers.account.newBlocked')
-                      : t('mockSend.canNewHint')}
-                  </p>
+                  <Label htmlFor={canNewId}>{t('mockSend.canNew')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('mockSend.canNewHint')}</p>
                 </div>
               </div>
-              {canNew && !newChatsBlocked && (
+              {canNew && (
                 <Banner tone="danger" title={t('mockSend.canNewWarningTitle')}>
                   {t('mockSend.canNewWarning')}
                 </Banner>

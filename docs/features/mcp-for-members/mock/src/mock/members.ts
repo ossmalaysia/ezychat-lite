@@ -18,7 +18,7 @@ export interface MockMemberToken {
   expiresAt: number | null;
   canSend: boolean;
   canMessageNewNumbers: boolean;
-  /** Made by the app sign-in (Connect Claude) rather than by Create access token. */
+  /** Always true for members: they connect assistants through the app sign-in, never with a token. */
   connectedApp: boolean;
 }
 
@@ -28,7 +28,7 @@ interface State {
   nextId: number;
 }
 
-const KEY = 'mock.members.v1';
+const KEY = 'mock.members.v2';
 const DAY = 24 * 60 * 60 * 1000;
 const listeners = new Set<() => void>();
 
@@ -42,14 +42,14 @@ function seed(): State {
         id: 9001,
         owner: 'daniel',
         ownerName: 'Daniel',
-        name: 'Claude – my chats',
+        name: 'Claude',
         prefix: 'ezc_pat_k4Qx',
         createdAt: now - 6 * DAY,
         lastUsedAt: now - 3 * 60 * 60 * 1000,
-        expiresAt: now + 84 * DAY,
+        expiresAt: null,
         canSend: true,
         canMessageNewNumbers: false,
-        connectedApp: false,
+        connectedApp: true,
       },
       {
         id: 9002,

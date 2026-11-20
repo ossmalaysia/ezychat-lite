@@ -2549,7 +2549,7 @@
     "appBadge": "Connected app",
     "admin": {
       "label": "Members can connect AI assistants",
-      "hint": "Team members can connect Claude or ChatGPT to their own account. The assistant sees only the chats that member can open, and sends only if they allow it.",
+      "hint": "Team members can connect Claude or ChatGPT to their own account through its sign-in. The assistant sees only the chats that member can open, and sends only if they allow it.",
       "needsAccess": "Turn on AI assistant access above first.",
       "turnedOn": "Members can now connect AI assistants",
       "turnedOff_one": "Members can no longer connect AI assistants. {{count}} token revoked.",
@@ -2560,29 +2560,31 @@
       "offConfirm": "Turn off and disconnect"
     },
     "account": {
-      "title": "AI assistant",
+      "title": "My AI assistants",
       "description": "Connect Claude or ChatGPT to your own EzyChat account.",
-      "menu": "AI assistant",
+      "menu": "My AI assistants",
       "off": "Ask an admin to let members connect AI assistants.",
       "offTitle": "Not available yet",
       "reach": "It sees the same chats you see in EzyChat.",
       "reachLimited_one": "It sees only the {{count}} chat chosen for you.",
       "reachLimited_other": "It sees only the {{count}} chats chosen for you.",
-      "sendNote": "It cannot send messages until you allow it. Tick “Can send WhatsApp messages” on a token.",
-      "createButton": "Create access token",
-      "tokens": "Your access tokens",
-      "empty": "No tokens yet. Create one for each assistant and computer you use.",
+      "howTo": "In Claude or ChatGPT, add EzyChat as a connector with this address. It opens a sign-in page here where you approve it.",
+      "apps": "Connected assistants",
+      "empty": "No assistant connected yet.",
+      "sendNote": "An assistant cannot send messages until you allow it. Use Permissions to allow it.",
+      "connectedOn": "Connected {{date}}",
+      "disconnect": "Disconnect",
+      "disconnectLabel": "Disconnect {{name}}",
+      "disconnectTitle": "Disconnect “{{name}}”?",
+      "disconnectBody": "This assistant stops working right away. You can connect it again any time.",
+      "disconnected": "Assistant disconnected",
       "newBlocked": "You can't start new chats in EzyChat, so your assistant can't either.",
-      "takesEffect": "The change applies on the assistant’s next request. Your assistant still sees only what you can open.",
-      "connectApp": "Connect Claude with sign-in",
-      "connectAppHint": "Use the app sign-in instead of pasting a token. This opens the demo approval page.",
-      "connectAppLink": "Open the sign-in page",
-      "stepsTitle": "Connect your assistant",
-      "stepsBody": "Create a token below, then paste it into Claude or ChatGPT with the address:"
+      "permsDescription": "Choose what this assistant may do for you. It stays connected: no need to sign in again.",
+      "takesEffect": "The change applies on the assistant’s next request. Your assistant still sees only what you can open."
     },
     "oauth": {
       "title": "Allow {{app}} to use EzyChat as {{name}}?",
-      "body": "It will see the chats you can open. It cannot send messages until you allow it on your account page.",
+      "body": "It will see the chats you can open. It cannot send messages unless you tick the box below.",
       "approve": "Allow",
       "deny": "Deny",
       "approved": "Claude is connected to your account.",
@@ -2591,7 +2593,9 @@
       "off": "Your admin has not let members connect AI assistants.",
       "back": "Back to EzyChat",
       "signedInAs": "Signed in as {{name}}",
-      "signIn": "Sign in to continue"
+      "signIn": "Sign in to continue",
+      "sendLabel": "Let it send WhatsApp messages as you",
+      "sendHint": "Only into chats you can open. You can change this later in My AI assistants."
     },
     "demo": {
       "title": "Mock only",
@@ -2600,7 +2604,8 @@
       "ask": "Show the answer",
       "reset": "Reset demo data",
       "membersSwitch": "Members can connect AI assistants (admin switch)",
-      "result": "No chat found for 60123456789."
+      "result": "No chat found for 60123456789.",
+      "signInLink": "Open the app sign-in page (demo)"
     }
   }
 }

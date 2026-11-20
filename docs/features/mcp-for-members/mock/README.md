@@ -10,25 +10,28 @@ npx tsx --conditions=ezychat-source docs/features/mcp-for-members/mock/run.ts --
 node docs/features/mcp-for-members/mock/members-shots.mjs   # PW_CHROMIUM=<chromium> if needed; fresh mock; DSF=1 for small shots
 ```
 
-Open `http://localhost:7489/` (password `demo-pass-123` for everyone).
+Open `http://localhost:7489/` (password `demo-pass-123` for everyone). Owner decision 2026-11-20: members never create access
+tokens; personal access tokens stay admin-only master tokens, and members connect assistants only through the app sign-in.
 
 - **Admin `aisyah`**: Settings → App settings → Integrations. Under "Let AI assistants read this inbox" is the new switch
   **Members can connect AI assistants**; turning it off asks first ("Every member's assistant is disconnected") and
-  revokes the members' tokens. The token list shows each token's owner, a **Member** badge on members' tokens (Daniel's
-  "Claude – my chats" can send; Ravi's "ChatGPT" is a connected app, read only) and an admin can Revoke any of them.
-- **Team member `daniel`**: Account tab on a phone, or the account photo → **AI assistant** on desktop (also `/account`).
-  Switch off: a note. Switch on: what it can reach, the address to paste, **Create access token** (name, expiry,
-  Can send WhatsApp messages, Can also message new numbers; the secret and connect steps are shown once), his own tokens
-  with Permissions and Revoke, and a link to the app sign-in page.
-- **Limited member `ravi`** (3 chosen chats): the same section says "It sees only the 3 chats chosen for you", and
-  "Can also message new numbers" is greyed with a "?" tip.
-- **App sign-in approve page**: `/oauth/authorize?mock=1` (as Daniel or Ravi): "Allow Claude to use EzyChat as Daniel?"
-  Allow / Deny (client-side only; Allow adds a connected-app token). With the switch off: "Your admin has not let members
-  connect AI assistants."
-- **Mock only** (dashed panel at the bottom of the member section): a switch that flips the admin setting for the member
-  views (also `?members=0` / `?members=1` on any address), **Show the answer** (what the assistant gets for a chat
-  outside the member's access: `No chat found for 60123456789.`) and Reset demo data. State lives in this browser
-  (localStorage `mock.members.v1`).
+  disconnects the members' assistants. The token list shows each token's owner; members' entries carry **Member** and
+  **Connected app** badges (Daniel's "Claude" can send; Ravi's "ChatGPT" is read only) and an admin can Revoke any of them.
+- **Team member `daniel`**: Account tab on a phone, or the account photo → **My AI assistants** on desktop (also `/account`).
+  Switch off: a note. Switch on: what it can reach, how to connect ("add EzyChat as a connector with this address"), the
+  address with Copy, and his **connected assistants** (name, Connected app, Can send, Connected date, Used time) with
+  **Permissions** (Can send WhatsApp messages; Can also message new numbers) and **Disconnect** (confirm). No assistant yet:
+  "No assistant connected yet."
+- **Limited member `ravi`** (3 chosen chats): "It sees only the 3 chats chosen for you", and in Permissions "Can also message
+  new numbers" is greyed with a "?" tip.
+- **App sign-in approve page**: `/oauth/authorize?mock=1` (as Daniel or Ravi; the link is in the Mock only panel): "Allow Claude
+  to use EzyChat as Daniel?" with the box **Let it send WhatsApp messages as you** (off by default). Allow adds a connected
+  app (with Can send when the box is ticked); Deny adds nothing (client-side only). With the switch off: "Your admin has not
+  let members connect AI assistants."
+- **Mock only** (dashed panel at the bottom of the member section): a switch that flips the admin setting for the member views
+  (also `?members=0` / `?members=1` on any address), the app sign-in link, **Show the answer** (what the assistant gets for a
+  chat outside the member's access: `No chat found for 60123456789.`) and Reset demo data. State lives in this browser
+  (localStorage `mock.members.v2`).
 
 Everything below is the inherited app-navigation README; every inherited flow still works.
 

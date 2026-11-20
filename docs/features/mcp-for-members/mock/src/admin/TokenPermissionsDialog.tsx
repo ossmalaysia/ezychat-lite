@@ -63,7 +63,7 @@ export function TokenPermissionsDialog({
         if (!next && !save.isPending) close();
       }}
       title={t('mockEdit.title', { name: token?.name ?? '' })}
-      description={t('mockEdit.description')}
+      description={member ? t('mockMembers.account.permsDescription') : t('mockEdit.description')}
       footer={
         <>
           <Button

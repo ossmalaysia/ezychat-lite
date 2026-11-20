@@ -1,11 +1,12 @@
-// Proposed (mcp-for-members): "Your account → AI assistant" for a team member. Off: a short note. On: the address to
-// paste, Create access token (reusing the admin dialog), the member's own tokens with Permissions and Revoke, and one
-// line on what the assistant can reach. Mock only: tokens and the admin switch live in `@/mock/members`; the dashed
-// panel at the bottom shows what the assistant gets for a chat outside the member's access.
+// Proposed (mcp-for-members; owner decision 2026-11-20: members never create access tokens, assistants connect through
+// the app sign-in): "Your account → My AI assistants" for a team member. Off: a short note. On: how to connect, the
+// address to add in Claude or ChatGPT, and the member's connected apps with Permissions and Disconnect. Mock only: the
+// connected apps and the admin switch live in `@/mock/members`; the dashed panel shows what the assistant gets for a
+// chat outside the member's access.
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bot, Plus } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ApiToken } from '@ezychat/shared';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,6 @@ import {
 } from '@/mock/members';
 import { useAuth } from '../auth/AuthProvider';
 import { ConfirmDialog, CopyButton } from '../admin/adminUi';
-import { CreateTokenDialog } from '../admin/CreateTokenDialog';
 import { TokenPermissionsDialog } from '../admin/TokenPermissionsDialog';
 
 const SECTION = 'flex flex-col gap-3 rounded-xl border bg-surface p-4';
@@ -52,7 +52,6 @@ export function MemberAssistantCard() {
   const enabled = useMembersEnabled();
   const mine = useMemberTokens().filter((x) => x.owner === user?.username);
   const chats = useMyChats();
-  const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<MockMemberToken | null>(null);
   const [revoking, setRevoking] = useState<MockMemberToken | null>(null);
   // The member's own scope loads from the server; show nothing until it is known (never "all chats" by mistake).
@@ -92,11 +91,8 @@ export function MemberAssistantCard() {
                 ? t('mockMembers.account.reachLimited', { count: chats.jids.size })
                 : t('mockMembers.account.reach')}
             </p>
-            <p className="text-sm text-muted-foreground">{t('mockMembers.account.sendNote')}</p>
-
+            <p className="text-sm text-muted-foreground">{t('mockMembers.account.howTo')}</p>
             <div className="flex min-w-0 flex-col gap-2">
-              <p className="text-sm font-medium">{t('mockMembers.account.stepsTitle')}</p>
-              <p className="text-sm text-muted-foreground">{t('mockMembers.account.stepsBody')}</p>
               <code className="rounded-md border bg-muted px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">
                 {endpoint}
               </code>
@@ -106,18 +102,15 @@ export function MemberAssistantCard() {
                 className="self-start"
               />
             </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-              <h3 className="text-sm font-medium">{t('mockMembers.account.tokens')}</h3>
-              <Button size="touch" className="md:min-h-9" onClick={() => setCreateOpen(true)}>
-                <Plus aria-hidden />
-                {t('mockMembers.account.createButton')}
-              </Button>
+            <div className="border-t pt-3">
+              <h3 className="text-sm font-medium">{t('mockMembers.account.apps')}</h3>
             </div>
             {mine.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('mockMembers.account.empty')}</p>
+              <p className="text-sm text-muted-foreground" data-testid="member-assistants-empty">
+                {t('mockMembers.account.empty')}
+              </p>
             ) : (
-              <ul className="flex flex-col divide-y" aria-label={t('mockMembers.account.tokens')}>
+              <ul className="flex flex-col divide-y" aria-label={t('mockMembers.account.apps')}>
                 {mine.map((token) => (
                   <MemberTokenRow
                     key={token.id}
@@ -128,32 +121,13 @@ export function MemberAssistantCard() {
                 ))}
               </ul>
             )}
-            <p className="text-sm text-muted-foreground">
-              {t('mockMembers.account.connectAppHint')}{' '}
-              <Link
-                to="/oauth/authorize?mock=1"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-                data-testid="member-connect-app"
-              >
-                {t('mockMembers.account.connectAppLink')}
-              </Link>
-            </p>
+            <p className="text-sm text-muted-foreground">{t('mockMembers.account.sendNote')}</p>
           </>
         )}
       </section>
 
       <MockMembersPanel />
 
-      <CreateTokenDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        endpoint={endpoint}
-        localOnly={false}
-        member={{
-          user: { username: user.username, displayName: user.displayName },
-          canStartNewChats,
-        }}
-      />
       <TokenPermissionsDialog
         token={editing ? asApiToken(editing) : null}
         onClose={() => setEditing(null)}
@@ -161,17 +135,17 @@ export function MemberAssistantCard() {
       />
       <ConfirmDialog
         open={revoking !== null}
-        title={t('integrations.tokens.revokeTitle', { name: revoking?.name ?? '' })}
-        confirmLabel={t('integrations.tokens.revokeConfirm')}
+        title={t('mockMembers.account.disconnectTitle', { name: revoking?.name ?? '' })}
+        confirmLabel={t('mockMembers.account.disconnect')}
         danger
         onConfirm={() => {
           if (revoking) revokeMemberToken(revoking.id);
           setRevoking(null);
-          toast.success(t('integrations.tokens.revoked'));
+          toast.success(t('mockMembers.account.disconnected'));
         }}
         onClose={() => setRevoking(null)}
       >
-        {t('integrations.tokens.revokeBody')}
+        {t('mockMembers.account.disconnectBody')}
       </ConfirmDialog>
     </>
   );
@@ -187,7 +161,6 @@ function MemberTokenRow({
   onRevoke: () => void;
 }) {
   const { t } = useTranslation('admin');
-  const now = Date.now();
   return (
     <li
       data-testid="member-token-row"
@@ -212,16 +185,13 @@ function MemberTokenRow({
           variant="ghost"
           size="touch"
           className="px-2 text-danger hover:bg-danger/10 hover:text-danger md:min-h-8"
-          aria-label={t('integrations.tokens.revokeLabel', { name: token.name })}
+          aria-label={t('mockMembers.account.disconnectLabel', { name: token.name })}
           onClick={onRevoke}
         >
-          {t('integrations.tokens.revoke')}
+          {t('mockMembers.account.disconnect')}
         </Button>
       </div>
       <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground tabular-nums">
-        <code className="rounded bg-muted px-1.5 font-mono text-xs text-foreground">
-          {token.prefix}…
-        </code>
         {token.connectedApp && <Badge variant="outline">{t('mockMembers.appBadge')}</Badge>}
         {token.canSend && <Badge variant="outline">{t('mockSend.canSendBadge')}</Badge>}
         {token.canMessageNewNumbers && (
@@ -229,16 +199,11 @@ function MemberTokenRow({
             {t('mockSend.canNewBadge')}
           </Badge>
         )}
-        <span>{t('integrations.tokens.created', { date: formatDate(token.createdAt) })}</span>
+        <span>{t('mockMembers.account.connectedOn', { date: formatDate(token.createdAt) })}</span>
         <span>
           {token.lastUsedAt === null
             ? t('integrations.tokens.neverUsed')
             : t('integrations.tokens.lastUsed', { when: formatRelative(token.lastUsedAt) })}
-        </span>
-        <span>
-          {token.expiresAt === null
-            ? t('integrations.tokens.neverExpires')
-            : t('integrations.tokens.expires', { date: formatDate(token.expiresAt) })}
         </span>
       </div>
     </li>
@@ -292,6 +257,13 @@ function MockMembersPanel() {
             {t('mockMembers.demo.reset')}
           </Button>
         </div>
+        <Link
+          to="/oauth/authorize?mock=1"
+          className="self-start font-medium text-primary underline-offset-4 hover:underline"
+          data-testid="member-connect-app"
+        >
+          {t('mockMembers.demo.signInLink')}
+        </Link>
         {shown && (
           <code
             className="rounded-md border bg-muted px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]"

@@ -1,12 +1,14 @@
-// Proposed (mcp-for-members), mock only: the app sign-in approve page (`/oauth/authorize`) as a signed-in team member.
+// Proposed (mcp-for-members, owner decision 2026-11-20: members connect assistants only through this sign-in), mock only: the app sign-in approve page (`/oauth/authorize`) as a signed-in team member.
 // Production: the server's `/oauth/authorize` page through `/api/oauth/request` and `/api/oauth/decision`, which accept a
 // member while "Members can connect AI assistants" is on (else 403 `mcp_members_off`); the approval is always for the
 // signed-in person. Here Approve / Deny only change this page and the mock token list.
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, ShieldAlert, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { createMemberToken, useMembersEnabled } from '@/mock/members';
 import { AuthShell } from './AuthShell';
 import { useAuth } from './AuthProvider';
@@ -20,6 +22,8 @@ export function OAuthConsentPage() {
   const [params] = useSearchParams();
   const app = params.get('app')?.slice(0, 40) || 'Claude';
   const [outcome, setOutcome] = useState<Outcome>('asking');
+  const [canSend, setCanSend] = useState(false);
+  const sendId = useId();
   if (!user) return null;
   const name = user.displayName;
 
@@ -74,6 +78,18 @@ export function OAuthConsentPage() {
         <p className="text-center text-sm text-muted-foreground">
           {t('mockMembers.oauth.signedInAs', { name })}
         </p>
+        <div className="flex items-start gap-3 rounded-md border px-3 py-2.5">
+          <Checkbox
+            id={sendId}
+            checked={canSend}
+            onCheckedChange={(v) => setCanSend(v === true)}
+            className="mt-0.5"
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={sendId}>{t('mockMembers.oauth.sendLabel')}</Label>
+            <p className="text-sm text-muted-foreground">{t('mockMembers.oauth.sendHint')}</p>
+          </div>
+        </div>
         <Button
           size="touch"
           className="w-full"
@@ -82,9 +98,9 @@ export function OAuthConsentPage() {
               createMemberToken(
                 { username: user.username, displayName: user.displayName },
                 {
-                  name: `${app} (app sign-in)`,
+                  name: app,
                   expiresInDays: null,
-                  canSend: false,
+                  canSend,
                   canMessageNewNumbers: false,
                 },
                 { connectedApp: true },

@@ -2538,7 +2538,7 @@
     "appBadge": "已连接的应用",
     "admin": {
       "label": "成员可以连接 AI 助手",
-      "hint": "团队成员可以把 Claude 或 ChatGPT 连接到自己的账号。助手只能看到该成员能打开的聊天,并且只有在成员允许时才会发送。",
+      "hint": "团队成员可以通过登录把 Claude 或 ChatGPT 连接到自己的账号。助手只能看到该成员能打开的聊天,并且只有在成员允许时才会发送。",
       "needsAccess": "请先打开上方的 AI 助手访问。",
       "turnedOn": "成员现在可以连接 AI 助手",
       "turnedOff_one": "成员不能再连接 AI 助手。已撤销 {{count}} 个令牌。",
@@ -2549,29 +2549,31 @@
       "offConfirm": "关闭并断开"
     },
     "account": {
-      "title": "AI 助手",
+      "title": "我的 AI 助手",
       "description": "把 Claude 或 ChatGPT 连接到你自己的 EzyChat 账号。",
-      "menu": "AI 助手",
+      "menu": "我的 AI 助手",
       "off": "请让管理员允许成员连接 AI 助手。",
       "offTitle": "暂时不可用",
       "reach": "它能看到你在 EzyChat 中看到的同样的聊天。",
       "reachLimited_one": "它只能看到为你选择的 {{count}} 个聊天。",
       "reachLimited_other": "它只能看到为你选择的 {{count}} 个聊天。",
-      "sendNote": "在你允许之前,它不能发送消息。请在令牌上勾选“可以发送 WhatsApp 消息”。",
-      "createButton": "创建访问令牌",
-      "tokens": "你的访问令牌",
-      "empty": "还没有令牌。为每个助手和每台电脑各创建一个。",
+      "howTo": "在 Claude 或 ChatGPT 中,用这个地址把 EzyChat 添加为连接器。它会在这里打开登录页面,由你批准。",
+      "apps": "已连接的助手",
+      "empty": "还没有连接任何助手。",
+      "sendNote": "在你允许之前,助手不能发送消息。请用“权限”来允许。",
+      "connectedOn": "连接于 {{date}}",
+      "disconnect": "断开",
+      "disconnectLabel": "断开 {{name}}",
+      "disconnectTitle": "断开“{{name}}”?",
+      "disconnectBody": "这个助手会立即停止工作。你随时可以重新连接。",
+      "disconnected": "助手已断开",
       "newBlocked": "你在 EzyChat 中不能发起新聊天,所以你的助手也不能。",
-      "takesEffect": "更改会在助手的下一次请求时生效。你的助手仍然只能看到你能打开的内容。",
-      "connectApp": "用登录方式连接 Claude",
-      "connectAppHint": "使用应用登录,无需粘贴令牌。这会打开演示的批准页面。",
-      "connectAppLink": "打开登录页面",
-      "stepsTitle": "连接你的助手",
-      "stepsBody": "先在下方创建令牌,然后连同这个地址一起粘贴到 Claude 或 ChatGPT:"
+      "permsDescription": "选择这个助手可以替你做什么。它保持连接:无需重新登录。",
+      "takesEffect": "更改会在助手的下一次请求时生效。你的助手仍然只能看到你能打开的内容。"
     },
     "oauth": {
       "title": "允许 {{app}} 以 {{name}} 的身份使用 EzyChat?",
-      "body": "它将能看到你可以打开的聊天。在你于账号页面允许之前,它不能发送消息。",
+      "body": "它将能看到你可以打开的聊天。除非你勾选下方的选项,否则它不能发送消息。",
       "approve": "允许",
       "deny": "拒绝",
       "approved": "Claude 已连接到你的账号。",
@@ -2580,7 +2582,9 @@
       "off": "你的管理员尚未允许成员连接 AI 助手。",
       "back": "返回 EzyChat",
       "signedInAs": "已登录为 {{name}}",
-      "signIn": "登录后继续"
+      "signIn": "登录后继续",
+      "sendLabel": "允许它以你的身份发送 WhatsApp 消息",
+      "sendHint": "只能发到你能打开的聊天。你以后可以在“我的 AI 助手”中更改。"
     },
     "demo": {
       "title": "仅限 Mock",
@@ -2589,7 +2593,8 @@
       "ask": "显示回答",
       "reset": "重置演示数据",
       "membersSwitch": "成员可以连接 AI 助手(管理员开关)",
-      "result": "No chat found for 60123456789."
+      "result": "No chat found for 60123456789.",
+      "signInLink": "打开应用登录页面(演示)"
     }
   }
 }

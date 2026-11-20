@@ -1,8 +1,8 @@
 // Screenshots of the proposed "AI assistants for team members" (mcp-for-members) in the running seeded mock
 // (run.ts --fake-wa): the admin's Settings → Integrations (members switch on, token list with owners and Member
-// badges, the turn-off confirmation), a team member's Your account → AI assistant (switch off and on, Create access
-// token, the secret shown once, the "not found" demo), a member limited to chosen chats (new numbers greyed), and the
-// app sign-in approve page as a member (switch on and off). Desktop 1280 px and mobile 360 px, light and dark.
+// badges, the turn-off confirmation), a team member's Your account → My AI assistants (switch off, no assistant,
+// connected assistants, Permissions, Disconnect, the "not found" demo), a member limited to chosen chats (new numbers
+// greyed in Permissions), and the app sign-in approve page as a member (send box off and ticked, switch off). Desktop 1280 px and mobile 360 px, light and dark.
 // Reports page errors and horizontal overflow. Ends with ../screenshots/members-results.json.
 // Usage: node docs/features/mcp-for-members/mock/members-shots.mjs [baseUrl] [outDir]   (PW_CHROMIUM=<chromium>)
 import { chromium } from '@playwright/test';
@@ -82,7 +82,7 @@ for (const scheme of ['light', 'dark'])
       await shot('admin-turn-off-dialog', { overlay: true });
       await ctx.close();
     }
-    // 2. Daniel (team member): the switch off, then on, Create token and the secret.
+    // 2. Daniel (team member): the switch off, then on with no assistant, then with one; Permissions; Disconnect.
     {
       const { ctx, page, shot } = await session('daniel', sizeName, scheme);
       await page.goto('/account?members=0');
@@ -90,27 +90,30 @@ for (const scheme of ['light', 'dark'])
       await shot('member-account-off');
       await page.goto('/account?members=1');
       await page.getByTestId('member-assistant-reach').waitFor();
+      // Disconnect Claude so the empty state shows, then connect again for the list shots.
+      await page.getByRole('button', { name: /Disconnect Claude/ }).click();
+      await page.getByRole('alertdialog').waitFor();
+      await shot('member-disconnect-dialog', { overlay: true });
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Disconnect' }).click();
+      await page.getByTestId('member-assistants-empty').waitFor();
       await page.getByTestId('member-assistant').scrollIntoViewIfNeeded();
-      await shot('member-account-on');
-      await page.getByTestId('member-assistant-reach').scrollIntoViewIfNeeded();
+      await shot('member-assistants-empty');
+      await page.getByRole('button', { name: 'Reset demo data' }).click();
+      await page.getByTestId('member-token-row').first().waitFor();
+      await page.getByTestId('member-assistant').scrollIntoViewIfNeeded();
+      await shot('member-assistants-list');
+      await page.getByRole('button', { name: /Change what token Claude/ }).click();
+      const dlg = page.getByRole('dialog');
+      await dlg.getByRole('checkbox', { name: /Can send WhatsApp messages/ }).waitFor();
+      await shot('member-permissions-dialog', { overlay: true });
+      await dlg.getByRole('button', { name: 'Cancel' }).click();
       await page.getByTestId('members-mock-panel').scrollIntoViewIfNeeded();
       await page.getByRole('button', { name: 'Show the answer' }).click();
       await page.getByTestId('members-not-found').waitFor();
       await shot('member-not-found-demo');
-      await page.getByRole('button', { name: 'Create access token' }).click();
-      const dlg = page.getByRole('dialog');
-      await dlg.getByLabel('Name').fill('Claude – laptop');
-      await dlg.getByRole('checkbox', { name: /Can send WhatsApp messages/ }).click();
-      await dlg.getByRole('checkbox', { name: /Can also message new numbers/ }).waitFor();
-      await shot('member-create-token', { overlay: true });
-      await dlg.getByRole('button', { name: 'Create token' }).click();
-      await dlg.getByTestId('api-token-secret').waitFor();
-      await shot('member-secret-shown', { overlay: true });
-      await dlg.getByRole('button', { name: 'Done' }).click();
-      await page.getByTestId('member-token-row').filter({ hasText: 'Claude – laptop' }).waitFor();
       await ctx.close();
     }
-    // 3. Ravi (limited to chosen chats): the reach line and the greyed "new numbers" box.
+    // 3. Ravi (limited to chosen chats): the reach line and the greyed "new numbers" box in Permissions.
     {
       const { ctx, page, shot } = await session('ravi', sizeName, scheme);
       await page.goto('/account?members=1');
@@ -119,9 +122,8 @@ for (const scheme of ['light', 'dark'])
       if (!/only the \d+ chats? chosen/.test(reach)) problems.push(`ravi reach line: ${reach}`);
       await page.getByTestId('member-assistant').scrollIntoViewIfNeeded();
       await shot('ravi-account-on');
-      await page.getByRole('button', { name: 'Create access token' }).click();
+      await page.getByRole('button', { name: /Change what token ChatGPT/ }).click();
       const dlg = page.getByRole('dialog');
-      await dlg.getByLabel('Name').fill('Claude – desk');
       const newBox = dlg.getByRole('checkbox', { name: /Can also message new numbers/ });
       await newBox.waitFor();
       if (!(await newBox.isDisabled())) problems.push('ravi: new numbers must be greyed out');
@@ -130,18 +132,22 @@ for (const scheme of ['light', 'dark'])
         .getByText("You can't start new chats in EzyChat, so your assistant can't either.")
         .first()
         .waitFor();
-      await shot('ravi-create-token-greyed', { overlay: true });
+      await shot('ravi-permissions-greyed', { overlay: true });
       await ctx.close();
     }
-    // 4. App sign-in approve page as Daniel: switch on, then off.
+    // 4. App sign-in approve page as Daniel: switch on (box off, then ticked), approved, then switch off.
     {
       const { ctx, page, shot } = await session('daniel', sizeName, scheme);
       await page.goto('/oauth/authorize?mock=1&members=1');
       await page.getByTestId('oauth-ask').waitFor();
       await shot('oauth-approve');
+      await page.getByRole('checkbox', { name: /Let it send WhatsApp messages/ }).click();
+      await shot('oauth-approve-send-ticked');
       await page.getByRole('button', { name: 'Allow', exact: true }).click();
       await page.getByTestId('oauth-approved').waitFor();
       await shot('oauth-approved');
+      await page.goto('/account');
+      await page.getByTestId('member-token-row').filter({ hasText: 'Can send' }).first().waitFor();
       await page.goto('/oauth/authorize?mock=1&members=0');
       await page.getByTestId('oauth-off').waitFor();
       await shot('oauth-members-off');

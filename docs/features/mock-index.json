@@ -21,11 +21,13 @@
       "createdAt": "2026-11-20",
       "design": "docs/features/mcp-for-members/design.md",
       "mock": "docs/features/mcp-for-members/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "app-navigation",
       "baselineGitRevision": "f4b650b81ae259f6f71d820007d7e53d187f43fc",
-      "coverage": "Clone of the confirmed app-navigation reference plus: admin switch 'Members can connect AI assistants' and member token badges (Settings -> Integrations), member Your account -> AI assistant (on/off, create token, greyed new numbers for a chosen-chat agent), app sign-in approve page as a member, Mock only 'not found' panel; 1280/360, light/dark (members-shots.mjs, 52 shots).",
-      "note": "Waiting for owner confirmation. Retention (sixth counted folder) is left for merge time, coordinated with PR #388 (mcp-resolve-chat), which also adds a folder: prune the oldest then."
+      "coverage": "Clone of app-navigation plus: admin switch and turn-off dialog, members' connected apps (Member + Connected app badges, revoke) on Settings -> Integrations, member Your account -> My AI assistants (empty/list, Permissions with greyed new numbers for a chosen-chat agent, Disconnect), app sign-in approve page as a member with Let it send, Mock only not-found panel; 1280/360 light/dark (members-shots.mjs, 60 shots).",
+      "note": "Waiting for owner confirmation. Retention (sixth counted folder) is left for merge time, coordinated with PR #388 (mcp-resolve-chat), which also adds a folder: prune the oldest then.",
+      "confirmedAt": "2026-11-20",
+      "confirmation": "Owner (Jazz) confirmed the mock 2026-11-20 (\"ok approve mcp mock\") with the OAuth-only change: members connect only through the app sign-in, personal access tokens stay admin-only; stats admins only; switch off and role change revoke."
     },
     {
       "feature": "dream-mode",

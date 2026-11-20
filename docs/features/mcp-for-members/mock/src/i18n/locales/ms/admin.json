@@ -2541,7 +2541,7 @@
     "appBadge": "Aplikasi disambung",
     "admin": {
       "label": "Ahli boleh menyambung pembantu AI",
-      "hint": "Ahli pasukan boleh menyambung Claude atau ChatGPT ke akaun mereka sendiri. Pembantu hanya melihat sembang yang boleh dibuka ahli itu, dan hanya menghantar jika mereka membenarkannya.",
+      "hint": "Ahli pasukan boleh menyambung Claude atau ChatGPT ke akaun mereka sendiri melalui log masuknya. Pembantu hanya melihat sembang yang boleh dibuka ahli itu, dan hanya menghantar jika mereka membenarkannya.",
       "needsAccess": "Hidupkan akses pembantu AI di atas dahulu.",
       "turnedOn": "Ahli kini boleh menyambung pembantu AI",
       "turnedOff_one": "Ahli tidak lagi boleh menyambung pembantu AI. {{count}} token dibatalkan.",
@@ -2552,29 +2552,31 @@
       "offConfirm": "Matikan dan putuskan"
     },
     "account": {
-      "title": "Pembantu AI",
+      "title": "Pembantu AI saya",
       "description": "Sambungkan Claude atau ChatGPT ke akaun EzyChat anda sendiri.",
-      "menu": "Pembantu AI",
+      "menu": "Pembantu AI saya",
       "off": "Minta admin membenarkan ahli menyambung pembantu AI.",
       "offTitle": "Belum tersedia",
       "reach": "Ia melihat sembang yang sama yang anda lihat dalam EzyChat.",
       "reachLimited_one": "Ia hanya melihat {{count}} sembang yang dipilih untuk anda.",
       "reachLimited_other": "Ia hanya melihat {{count}} sembang yang dipilih untuk anda.",
-      "sendNote": "Ia tidak boleh menghantar mesej sehingga anda membenarkannya. Tandakan “Boleh menghantar mesej WhatsApp” pada token.",
-      "createButton": "Cipta token akses",
-      "tokens": "Token akses anda",
-      "empty": "Belum ada token. Cipta satu untuk setiap pembantu dan komputer yang anda guna.",
+      "howTo": "Dalam Claude atau ChatGPT, tambah EzyChat sebagai penyambung dengan alamat ini. Ia membuka halaman log masuk di sini untuk anda luluskan.",
+      "apps": "Pembantu yang disambung",
+      "empty": "Belum ada pembantu disambung.",
+      "sendNote": "Pembantu tidak boleh menghantar mesej sehingga anda membenarkannya. Guna Kebenaran untuk membenarkannya.",
+      "connectedOn": "Disambung {{date}}",
+      "disconnect": "Putuskan",
+      "disconnectLabel": "Putuskan {{name}}",
+      "disconnectTitle": "Putuskan “{{name}}”?",
+      "disconnectBody": "Pembantu ini berhenti berfungsi serta-merta. Anda boleh menyambungnya semula bila-bila masa.",
+      "disconnected": "Pembantu diputuskan",
       "newBlocked": "Anda tidak boleh memulakan sembang baharu dalam EzyChat, jadi pembantu anda pun tidak boleh.",
-      "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya pembantu. Pembantu anda masih hanya melihat apa yang boleh anda buka.",
-      "connectApp": "Sambung Claude dengan log masuk",
-      "connectAppHint": "Guna log masuk aplikasi dan bukannya menampal token. Ini membuka halaman kelulusan demo.",
-      "connectAppLink": "Buka halaman log masuk",
-      "stepsTitle": "Sambungkan pembantu anda",
-      "stepsBody": "Cipta token di bawah, kemudian tampalkannya ke Claude atau ChatGPT bersama alamat ini:"
+      "permsDescription": "Pilih apa yang boleh dilakukan pembantu ini untuk anda. Ia kekal bersambung: tidak perlu log masuk semula.",
+      "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya pembantu. Pembantu anda masih hanya melihat apa yang boleh anda buka."
     },
     "oauth": {
       "title": "Benarkan {{app}} menggunakan EzyChat sebagai {{name}}?",
-      "body": "Ia akan melihat sembang yang boleh anda buka. Ia tidak boleh menghantar mesej sehingga anda membenarkannya di halaman akaun anda.",
+      "body": "Ia akan melihat sembang yang boleh anda buka. Ia tidak boleh menghantar mesej melainkan anda menandakan kotak di bawah.",
       "approve": "Benarkan",
       "deny": "Tolak",
       "approved": "Claude disambungkan ke akaun anda.",
@@ -2583,7 +2585,9 @@
       "off": "Admin anda belum membenarkan ahli menyambung pembantu AI.",
       "back": "Kembali ke EzyChat",
       "signedInAs": "Log masuk sebagai {{name}}",
-      "signIn": "Log masuk untuk teruskan"
+      "signIn": "Log masuk untuk teruskan",
+      "sendLabel": "Benarkan ia menghantar mesej WhatsApp sebagai anda",
+      "sendHint": "Hanya ke sembang yang boleh anda buka. Anda boleh mengubahnya kemudian di Pembantu AI saya."
     },
     "demo": {
       "title": "Mock sahaja",
@@ -2592,7 +2596,8 @@
       "ask": "Tunjuk jawapan",
       "reset": "Set semula data demo",
       "membersSwitch": "Ahli boleh menyambung pembantu AI (suis admin)",
-      "result": "No chat found for 60123456789."
+      "result": "No chat found for 60123456789.",
+      "signInLink": "Buka halaman log masuk aplikasi (demo)"
     }
   }
 }
