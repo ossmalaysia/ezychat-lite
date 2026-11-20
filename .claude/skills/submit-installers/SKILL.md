@@ -68,6 +68,11 @@ Claude in Chrome cannot attach these files (10 MB limit), which is why the scrip
 2. Read which file the answer names. It can name the `.dmg` inside a ZIP, or only the ZIP; we do not know yet. Quote
    the name to the owner. Only a named file becomes **Whitelisted** in the record.
 3. For an Enterprise Windows file, follow "After each release" in the record to move the permanent link.
+4. Website calendar and download (owner rule, 2026-11-20): when every installer of a version (Windows, Mac Apple
+   silicon, Mac Intel) is Whitelisted or the owner's Passed, open an ossmalaysia/ezychat-website PR that sets that
+   version's `security` to `"whitelisted"` in `src/lib/release-calendar.json` and moves that edition's download pin
+   to it if it is newer. Release it with the website's release skill. Never mark a version whitelisted on a
+   submission alone.
 
 The form says about 2 business days; one answer came within the hour.
 
