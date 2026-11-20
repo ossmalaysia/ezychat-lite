@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Live translate**: read and reply to customers who write another language. Turn on **Translate** in a chat: the customer's messages show in your own language (set it in Account → My language), with **Show original** on each one. Type your reply in your language; **Customer will get** shows the translation before it is sent, with prices, numbers, links, phone numbers and order codes kept exactly as you wrote them (a translation that changes one is never sent). Every reply keeps what you typed, so your team can see both. Admins can switch it off for everyone and set a daily limit per person (200 by default) in Settings → AI. **Send without preview** (Account) sends at once. It uses your AI connection, like reply suggestions.
+- **AI assistants can resolve chats.** Tick **Can resolve chats** for a connected AI app (Settings → Integrations → Create token or **Permissions**; off unless you tick it) and you can ask it to resolve chats for you, for example the ones where the customer only said thanks, or to reopen one. It works exactly like Resolve and Reopen in the inbox, as you; the customer is not messaged. It can add a note for your team saying why. Up to 30 changes a minute and 300 a day per app.
 
 ## [0.1.85] - 2026-11-20
 

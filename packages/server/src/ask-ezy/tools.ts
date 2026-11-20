@@ -13,6 +13,7 @@ import { AI_SETUP_TOOLS } from '../mcp/ai-tools.js';
 import type { InboxReadPort } from '../mcp/inbox.js';
 import { AiSetupError, type AiSetupPort } from '../mcp/ai-setup.js';
 import { SendError, type InboxSendPort } from '../mcp/send.js';
+import type { InboxManagePort } from '../mcp/manage.js';
 import { HttpError } from '../http/errors.js';
 import { ProposeError, type ChangeStore } from './changes.js';
 import type { SetupStore } from './setup.js';
@@ -259,6 +260,12 @@ const neverSend: InboxSendPort = new Proxy({} as InboxSendPort, {
   },
 });
 
+const neverManage: InboxManagePort = new Proxy({} as InboxManagePort, {
+  get: () => () => {
+    throw new ToolError('Ask Ezy never resolves or reopens chats');
+  },
+});
+
 const UNEXPECTED_FAILURE = 'The tool failed. Try another way or answer with what you have.';
 
 /** Expected failures go back to the model as text; anything else is a short fixed message. */
@@ -281,6 +288,7 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
     inbox: deps.inbox,
     aiSetup: deps.aiSetup,
     send: neverSend,
+    manage: neverManage,
     // No token: the rate limits of the AI-setup tools count per user (a negative id never matches a token).
     principal: { tokenId: -deps.user.id, user: deps.user, scopes: new Set() },
   };

@@ -800,6 +800,15 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   `inbox:send_new`, ticked at creation under "Can send", default off) may start a chat with a number not
   in the inbox only after `WaAdapter.checkNumber` confirms it, through the New chat service (20 checks a day per
   token, then the inbox's shared daily limit, counted before the check; audit `chat.new_number` via `mcp`); its description and every result carry the WhatsApp ban warning.
+  `resolve_chat` {chatId, requestId, note?} and `reopen_chat` {chatId, requestId} (scope `inbox:manage`, "Can resolve
+  chats", design `docs/features/mcp-resolve-chat/design.md`) exist only for a token whose owner ticked it at creation or
+  later in Settings (`canResolveChats`, independent of sending; PATCH without the field keeps it; audit `api_token.update`
+  before/after; OAuth app tokens start without it) and go only through `InboxManagePort` (`mcp/manage.ts`), which
+  rechecks the scope: an existing chat the owner may open (`findChats`: other inboxes and hidden chats are "not found"),
+  the app's own `chats.patch(jid, {status})` (same events, sockets, unassign, AI and Reports effects; nothing goes to
+  WhatsApp), the optional note through `chats.addNote`; idempotent per token + `requestId` (in memory, 24 h); 30 a
+  minute and 300 a day per token; audit `mcp.resolve` / `mcp.reopen` {tokenId, chatJid} only when the status changed,
+  never the note. Ask Ezy never gets them (`neverManage`).
   Tools log tool name, counts and token id, never arguments, phone numbers or message text.
 - MCP sign-in (OAuth, `mcp/oauth.ts`, `mcp/oauth-routes.ts`, `routes/oauth.ts`): apps register at
   `/mcp/oauth/register` (https, loopback http or an app scheme only), an admin approves on the web page
@@ -869,7 +878,7 @@ A Quick Tunnel is Running only after URL assignment and edge registration.
 Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must
 cover navigation from every admin section and recovery from malformed URLs.
 
-App navigation (design `docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
+App navigation (archived design `git show 0738d562:docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
 `AppShell` wraps every signed-in page (`/`, `/chats/:jid`, `/account`, `/admin/*`, extension user routes): a rail
 from 768 px, bottom tabs below, no tabs inside an open chat. Reports and Members are rail places; every other admin
 page is under Settings (side menu on desktop, the `/admin` list on phones, `PhoneBar` back one level; unknown admin
