@@ -23,7 +23,6 @@ import {
   OAuthDecisionResponse,
   type OAuthDecisionBody,
   type PatchMeBody,
-  MeResponse,
   OpenChatCountResponse,
   UnreadChatCountResponse,
   ResolveAllChatsResponse,
@@ -64,6 +63,9 @@ import {
   type Settings,
   type SettingsPatchBody,
   type TunnelStartBody,
+  MeResponse,
+  type SendTranslation,
+  type TranslateLanguage,
   type TunnelStatus,
   type User,
   type WaStatus,
@@ -464,7 +466,11 @@ export function useSetMyLocale() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (locale: Locale | null) =>
-      api('/me', { method: 'PATCH', body: { locale } satisfies PatchMeBody, schema: MeResponse }),
+      api('/me', {
+        method: 'PATCH',
+        body: { locale } satisfies PatchMeBody,
+        schema: MeResponse,
+      }),
     onSuccess: (user) => qc.setQueryData(qk.me, user),
   });
 }
@@ -607,6 +613,12 @@ export interface SendTextInput {
   shown?: string;
   /** Generate with `newClientId()` (a random UUID). */
   clientId: string;
+  /** Live translate: the checked translation being sent (the server keeps what was typed beside it). */
+  translation?: SendTranslation;
+  /** Live translate "Send original instead": the text goes out as typed. */
+  sentOriginal?: boolean;
+  /** Live translate: the language the text goes out in (for the pending bubble only). */
+  sentLanguage?: TranslateLanguage;
 }
 
 /** Optimistic text send: inserts a pending bubble immediately, reconciled by clientId. */
@@ -621,13 +633,26 @@ export function useSendText(jid: string) {
           quotedId: input.quotedId,
           clientId: input.clientId,
           ...(input.mentions?.length ? { mentions: input.mentions } : {}),
+          ...(input.translation ? { translation: input.translation } : {}),
+          ...(input.sentOriginal ? { sentOriginal: true } : {}),
         },
       }),
     onMutate: (input) => {
       const msg = optimisticMessage(qc, jid, input.clientId, {
         body: input.shown ?? input.text,
         quotedId: input.quotedId ?? null,
-      });
+        ...(input.translation && input.sentLanguage
+          ? {
+              typed: {
+                typedText: input.translation.typedText,
+                typedLanguage: input.translation.typedLanguage,
+                sentLanguage: input.sentLanguage,
+                edited: input.translation.edited,
+              },
+            }
+          : {}),
+        ...(input.sentOriginal ? { sentOriginal: true } : {}),
+      } as Partial<Message>);
       upsertMessageInCache(qc, msg);
       return { clientId: input.clientId };
     },

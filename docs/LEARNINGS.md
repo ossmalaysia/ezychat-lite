@@ -2284,6 +2284,24 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   backdrop (a ref), not handlers on plain `<div>`/`<img>` with `stopPropagation`: SonarCloud counts each click handler
   on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
   button already serve keyboard users.
+- A hook that reads the query cache from a list (`useCachedLastTranslations`) must not `notify` on cache events that fire
+  while another component renders (`added`, `fetch`): React warns "Cannot update a component while rendering a
+  different component". Notify only on `updated` + `success`. A chat-list row also takes such data as a prop and never
+  calls `useQuery` itself: `ChatList.test` renders without a `QueryClientProvider` and counts row renders.
+- `/api/me` is parsed with `MeResponse` (the user schema plus per-user preferences), and `useAuth().user` is typed
+  `User`: a new per-user field (Live translate's `translateLanguage`) is stripped until `MeResponse` carries it, and
+  the web reads it through a `MeResponse` cast. A component test that mocks `fetch` with the field catches a missing
+  schema entry; one that mocks `useAuth` does not.
+- A header that has one button in two places (narrow beside the name, wide in the action row) takes two slot props, not a
+  render function with class-name strings: `i18next/no-literal-string` flags the string argument.
+- Never run `prettier --write` on a whole directory of an old checkout; run it on the files you changed. It reformatted
+  every `components/ui/*` file here and had to be reverted.
+- A web feature built beside a server PR is tested in the browser with the new routes answered by `page.route` (no model, as
+  `reply-suggestions.spec.ts` does), so the spec is green before the server exists; the full e2e then runs once on a local
+  throwaway branch that merges the server branch, never on the PR branch. A failure that appears only after that merge is
+  the server branch's: confirm it by running the spec on `main` and on the web-only branch before reporting it.
+- Placeholder and label text that fits a 1280 px composer wraps to three lines at 360 px: give phones a short variant
+  (`wideComposer` picks it) and check the 360 px screenshot, not only the 360 px overflow test.
 
 - A new chat-header button squeezes the assignee select at 360 px (the action row has no room left): show it beside the
   name on narrow headers (`@2xl:hidden` copy) and in the action row from `@2xl`, icon-only below `@4xl`.

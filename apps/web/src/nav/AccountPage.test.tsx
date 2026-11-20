@@ -24,6 +24,7 @@ vi.mock('@/i18n/use-change-locale', () => ({
   useChangeLocale: () => ({ locale: 'en', changeLocale }),
 }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.84' }));
+vi.mock('./MyLanguageField', () => ({ MyLanguageField: () => null }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => <p>Notifications</p> }));
 const feedback = vi.hoisted(() => vi.fn());
 vi.mock('@/components/app/FeedbackDialog', () => ({ openFeedback: feedback }));

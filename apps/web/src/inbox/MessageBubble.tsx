@@ -42,6 +42,7 @@ import { useUploadProgress } from '../lib/upload-progress';
 import { useGuardedLinkClick } from './navigation-guard';
 import type { Directory } from './useDirectory';
 import { SWIPE_TRIGGER_PX, useSwipeReply } from './useSwipeReply';
+import { BubbleText } from './LiveTranslate';
 
 export interface MessageBubbleProps {
   message: Message;
@@ -460,16 +461,8 @@ export function MessageBubble({
             contactName={contactName}
           />
         )}
-        {body && (
-          <p
-            className={cn(
-              'whitespace-pre-wrap break-words text-[15px] leading-snug [overflow-wrap:anywhere]',
-              WHATSAPP_TEXT,
-            )}
-          >
-            {formatWhatsApp(body)}
-          </p>
-        )}
+        {/* Live translate: the text in my language while it is on, else exactly as sent or received. */}
+        {body && <BubbleText m={m} render={formatWhatsApp} className={WHATSAPP_TEXT} />}
         <div
           className={cn(
             'mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground',

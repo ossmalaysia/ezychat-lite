@@ -3236,5 +3236,18 @@
     "limitNone": "Tiada had: pasukan anda dan pembantu AI boleh menghantar mesej kepada seberapa banyak nombor baharu sehari.",
     "limitBanTitle": "Had yang tinggi boleh menyebabkan nombor anda disekat",
     "limitBanBody": "WhatsApp boleh menyekat nombor yang menghantar mesej kepada ramai orang yang tidak memintanya. Kekalkan had yang rendah melainkan orang ini menjangkakan mesej anda."
+  },
+  "liveTranslate": {
+    "title": "Terjemah langsung",
+    "description": "Pasukan anda membaca dan membalas dalam bahasa mereka sendiri. Mesej pelanggan dipaparkan diterjemah, dan balasan dihantar dalam bahasa pelanggan.",
+    "enable": "Terjemah langsung untuk semua",
+    "enableHelp": "Semua staf boleh menggunakannya. Setiap orang menghidupkannya bagi setiap sembang dengan butang Terjemah di kepala sembang; ia kekal mati sehingga mereka berbuat demikian. Matikan ini untuk menghentikannya bagi semua orang.",
+    "limit": "Had harian setiap orang",
+    "limitHelp": "Lalai 200; 0 = tiada had. Setiap mesej diterjemah dan setiap terjemahan dihantar dikira sekali; mesej yang sudah diterjemah adalah percuma.",
+    "privacy": "Teks mesej dihantar ke sambungan AI anda (\"Model untuk cadangan\") untuk diterjemah. Log EzyChat hanya menyimpan bilangan dan bahasa, bukan teks. Pelanggan tidak pernah nampak tanda \"diterjemah\".",
+    "usage_one": "Hari ini: {{count}} terjemahan oleh {{people}} orang",
+    "usage_other": "Hari ini: {{count}} terjemahan oleh {{people}} orang",
+    "noConnection": "Sambungkan AI di atas dahulu. Sehingga itu, sembang memaparkan mesej seperti dihantar.",
+    "languages": "Setiap orang memilih bahasa sendiri dalam Akaun → Bahasa saya."
   }
 }
