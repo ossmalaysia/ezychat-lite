@@ -164,7 +164,7 @@ describe('authentication', () => {
     const tokens = t.ctx.services.apiTokens!;
     const extra = tokens.create(admin.id, { name: 'short', expiresInDays: 30 }, 'ip');
     expect((await post(initialize, { token: extra.secret })).statusCode).toBe(200);
-    tokens.revoke(extra.token.id, admin.id, 'ip');
+    tokens.revoke(extra.token.id, admin, 'ip');
     expect((await post(initialize, { token: extra.secret })).statusCode).toBe(401);
   });
 

@@ -34,9 +34,10 @@ const unauthorized = (req: FastifyRequest) =>
   });
 
 /**
- * POST /mcp: MCP (Streamable HTTP, stateless JSON) for the owner's AI assistant: reads, AI setup and,
- * only for a token with scope `inbox:send`, text replies into existing chats, and only with scope
- * `inbox:manage`, resolving and reopening chats. Outside /api,
+ * POST /mcp: MCP (Streamable HTTP, stateless JSON) for an admin's or (while members may connect) a team
+ * member's AI assistant: reads, AI setup (admins only) and, only for a token with scope `inbox:send`,
+ * replies into existing chats, and only with scope `inbox:manage` (admins), resolving and reopening chats;
+ * a member's token reaches only the chats that member can open. Outside /api,
  * so the cookie CSRF hook does not apply; it accepts only a personal access token, never a cookie.
  * Order: off → 404 (invisible), LAN peer → 403, Origin check, IP limit, token, token limit.
  */

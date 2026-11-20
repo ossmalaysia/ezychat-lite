@@ -4,12 +4,18 @@ import { isTransientNetworkError } from './transient-error.js';
 const withCode = (msg: string, code: string) => Object.assign(new Error(msg), { code });
 
 describe('isTransientNetworkError', () => {
-  it.each(['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'EPIPE', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'])(
-    'direct %s is transient',
-    (code) => {
-      expect(isTransientNetworkError(withCode('x', code))).toBe(true);
-    },
-  );
+  it.each([
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ECONNREFUSED',
+    'EPIPE',
+    'UND_ERR_SOCKET',
+    'UND_ERR_CONNECT_TIMEOUT',
+  ])('direct %s is transient', (code) => {
+    expect(isTransientNetworkError(withCode('x', code))).toBe(true);
+  });
 
   it('undici "TypeError: terminated" caused by ECONNRESET is transient', () => {
     const err = new TypeError('terminated', { cause: withCode('read ECONNRESET', 'ECONNRESET') });
@@ -23,7 +29,9 @@ describe('isTransientNetworkError', () => {
   });
 
   it('AbortError with a network cause is transient', () => {
-    const err = Object.assign(new Error('aborted', { cause: withCode('x', 'ETIMEDOUT') }), { name: 'AbortError' });
+    const err = Object.assign(new Error('aborted', { cause: withCode('x', 'ETIMEDOUT') }), {
+      name: 'AbortError',
+    });
     expect(isTransientNetworkError(err)).toBe(true);
   });
 

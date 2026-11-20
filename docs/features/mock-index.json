@@ -16,6 +16,20 @@
   },
   "proposals": [
     {
+      "feature": "mcp-for-members",
+      "creationOrder": 49,
+      "createdAt": "2026-11-20",
+      "design": "docs/features/mcp-for-members/design.md",
+      "mock": "docs/features/mcp-for-members/mock/index.html",
+      "status": "confirmed",
+      "baselineFeature": "app-navigation",
+      "baselineGitRevision": "f4b650b81ae259f6f71d820007d7e53d187f43fc",
+      "coverage": "Clone of app-navigation plus: admin switch and turn-off dialog, members' connected apps (Member + Connected app badges, revoke) on Settings -> Integrations, member Your account -> My AI assistants (empty/list, Permissions with greyed new numbers for a chosen-chat agent, Disconnect), app sign-in approve page as a member with Let it send, Mock only not-found panel; 1280/360 light/dark (members-shots.mjs, 60 shots).",
+      "note": "Owner-confirmed, but latestConfirmed stays live-translate: this mock is a clone of app-navigation (f4b650b8) without Live translate, so the next clone starts from live-translate and adds these screens. Retention on merge with main (2026-11-20), planned together with mcp-resolve-chat (#388, order 48): app-navigation (43) and chat-hide-delete (44) are archived (folders removed; read them with git show 0738d562:docs/features/<feature>/design.md); counted after both merge: github, dream-mode, live-translate, mcp-resolve-chat, mcp-for-members. template-store stays (live tooling).",
+      "confirmedAt": "2026-11-20",
+      "confirmation": "Owner (Jazz) confirmed the mock 2026-11-20 (\"ok approve mcp mock\") with the OAuth-only change: members connect only through the app sign-in, personal access tokens stay admin-only; stats admins only; switch off and role change revoke."
+    },
+    {
       "feature": "mcp-resolve-chat",
       "creationOrder": 48,
       "createdAt": "2026-11-19",
@@ -62,18 +76,6 @@
       "status": "design-only",
       "coverage": "No mock folder (one card on the Reports page; the owner confirmed a quick review page with screenshots at 1280/360, light and dark, 2026-11-13: \"ok go ahead\"): the Design section of the workbook and the refreshed docs/screenshots/reports shots.",
       "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
-    },
-    {
-      "feature": "chat-hide-delete",
-      "creationOrder": 44,
-      "createdAt": "2026-11-12",
-      "design": "docs/features/chat-hide-delete/design.md",
-      "mock": "docs/features/chat-hide-delete/mock/index.html",
-      "status": "confirmed-quick-mock",
-      "confirmedAt": "2026-11-12",
-      "confirmation": "Owner (Jazz) confirmed the quick mock and rules on 2026-11-12 (\"look good\"); the owner chose a quick mock with screenshots instead of a full app clone.",
-      "coverage": "Quick mock only (not an app clone): Log out dialog, Admin -> WhatsApp after Log out with the hidden count, chat menu with Delete chat, Delete chat dialog, list after delete; 1280/360, light/dark (mock/shots.mjs, mock/screens/).",
-      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Numbered 44 when merged after ai-completion-rate (42) and app-navigation (43). Prunes new-chat (37); template-store stays (live tooling)."
     },
     {
       "feature": "ai-silent-line",
@@ -833,7 +835,22 @@
       "note": "Replaces the phone list header of the unconfirmed mobile-redesign proposal (39) where they overlap (Admin moves to the Settings tab, account to Settings/Account) and reverses the design-system rule \"no bottom bar\" (2026-11-07) on owner request 2026-11-13. Removes new-chat (37) for retention; template-store stays (live tooling). Inherits forward-message coverage gaps (message edit/delete and Safety-on-message screens; no Safety admin page in the mock).",
       "archivedAt": "2026-11-20",
       "archivedRevision": "0738d562",
-      "archivedReason": "Retention: sixth counted folder added by mcp-resolve-chat (#388). Lasting rules live in docs/design-system.md \"App navigation\" and AGENTS.md."
+      "archivedReason": "Retention: oldest counted folder when mcp-resolve-chat (#388) and mcp-for-members (#402) are added."
+    },
+    {
+      "feature": "chat-hide-delete",
+      "creationOrder": 44,
+      "createdAt": "2026-11-12",
+      "design": "docs/features/chat-hide-delete/design.md",
+      "mock": "docs/features/chat-hide-delete/mock/index.html",
+      "status": "confirmed-quick-mock",
+      "confirmedAt": "2026-11-12",
+      "confirmation": "Owner (Jazz) confirmed the quick mock and rules on 2026-11-12 (\"look good\"); the owner chose a quick mock with screenshots instead of a full app clone.",
+      "coverage": "Quick mock only (not an app clone): Log out dialog, Admin -> WhatsApp after Log out with the hidden count, chat menu with Delete chat, Delete chat dialog, list after delete; 1280/360, light/dark (mock/shots.mjs, mock/screens/).",
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (forward-message). Numbered 44 when merged after ai-completion-rate (42) and app-navigation (43). Prunes new-chat (37); template-store stays (live tooling).",
+      "archivedAt": "2026-11-20",
+      "archivedRevision": "0738d562",
+      "archivedReason": "Retention: second oldest counted folder when mcp-resolve-chat (#388) and mcp-for-members (#402) are added."
     }
   ]
 }

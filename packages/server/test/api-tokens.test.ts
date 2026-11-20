@@ -50,7 +50,7 @@ describe('api tokens', () => {
     const row = t.ctx.db.prepare('SELECT * FROM api_tokens').get() as Record<string, unknown>;
     expect(row['token_hash']).toBe(sha256(secret));
     expect(JSON.stringify(row)).not.toContain(secret);
-    expect(JSON.stringify(tokens.list())).not.toContain(secret);
+    expect(JSON.stringify(tokens.list(admin))).not.toContain(secret);
     const audit = t.ctx.db
       .prepare("SELECT meta FROM audit_log WHERE action = 'api_token.create'")
       .get() as {
@@ -73,10 +73,10 @@ describe('api tokens', () => {
     clock += 30 * DAY;
     expect(tokens.resolve(secret)).toMatchObject({ ok: false, reason: 'expired' });
     clock -= DAY;
-    tokens.revoke(token.id, admin.id, 'ip');
+    tokens.revoke(token.id, admin, 'ip');
     expect(tokens.resolve(secret)).toMatchObject({ ok: false, reason: 'revoked' });
-    expect(tokens.list()).toEqual([]);
-    expect(() => tokens.revoke(token.id, admin.id, 'ip')).toThrow(/not found/);
+    expect(tokens.list(admin)).toEqual([]);
+    expect(() => tokens.revoke(token.id, admin, 'ip')).toThrow(/not found/);
   });
 
   it("follows the owner's live state: password change, demotion and disabling", () => {
@@ -88,7 +88,7 @@ describe('api tokens', () => {
       'agent',
       other.id,
     );
-    expect(tokens.resolve(secret)).toMatchObject({ ok: false, reason: 'not_admin' });
+    expect(tokens.resolve(secret)).toMatchObject({ ok: false, reason: 'members_off' });
     db.prepare("UPDATE users SET role = 'admin', disabled_at = 1 WHERE id = ?").run(other.id);
     expect(tokens.resolve(secret)).toMatchObject({ ok: false, reason: 'user_inactive' });
   });
@@ -97,18 +97,18 @@ describe('api tokens', () => {
     const a = tokens.create(other.id, { name: 'a', expiresInDays: 90 }, 'ip');
     const auth = t.ctx.services.auth!;
     auth.updateUser(other.id, { role: 'agent' }, admin.id);
-    expect(tokens.list()).toEqual([]);
+    expect(tokens.list(admin)).toEqual([]);
     auth.updateUser(other.id, { role: 'admin' }, admin.id);
     expect(tokens.resolve(a.secret)).toMatchObject({ ok: false, reason: 'revoked' });
     const b = tokens.create(other.id, { name: 'b', expiresInDays: 90 }, 'ip');
     auth.updateUser(other.id, { disabled: true }, admin.id);
     expect(tokens.resolve(b.secret).ok).toBe(false);
-    expect(tokens.list()).toEqual([]);
+    expect(tokens.list(admin)).toEqual([]);
   });
 
   it('records last use at most once a minute', () => {
     const { token, secret } = tokens.create(admin.id, { name: 'x', expiresInDays: 90 }, 'ip');
-    const lastUsed = () => tokens.list().find((x) => x.id === token.id)!.lastUsedAt;
+    const lastUsed = () => tokens.list(admin).find((x) => x.id === token.id)!.lastUsedAt;
     tokens.resolve(secret);
     expect(lastUsed()).toBe(clock);
     const first = clock;
@@ -120,7 +120,7 @@ describe('api tokens', () => {
     expect(lastUsed()).toBe(clock);
   });
 
-  it('only admins can own a token', () => {
+  it('only admins create personal access tokens', () => {
     const agent = t.ctx.services.auth!.createUser({
       username: 'agent',
       displayName: 'agent',
@@ -129,7 +129,7 @@ describe('api tokens', () => {
       mustChangePassword: false,
     });
     expect(() => tokens.create(agent.id, { name: 'x', expiresInDays: 90 }, 'ip')).toThrow(
-      /Admin only/,
+      /for admins/,
     );
   });
 

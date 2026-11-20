@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Team members can connect Claude or ChatGPT to their own account (off until an admin turns on **Members can connect AI assistants** in Settings → Integrations). A member adds EzyChat as a connector in the assistant and approves it on the sign-in page; it then sees only the chats that member can open, and sends WhatsApp messages only if they tick **Let it send** (only into chats they can open). Each member finds their assistants under **Your account → My AI assistants**, where they can change what it may do or disconnect it. Admins see every member's assistant in Settings → Integrations and can revoke it; turning the switch off, or changing a member's role, disconnects them. Access tokens stay for admins only.
 - **AI assistants can resolve chats.** Tick **Can resolve chats** for a connected AI app (Settings → Integrations → Create token or **Permissions**; off unless you tick it) and you can ask it to resolve chats for you, for example the ones where the customer only said thanks, or to reopen one. It works exactly like Resolve and Reopen in the inbox, as you; the customer is not messaged. It can add a note for your team saying why. Up to 30 changes a minute and 300 a day per app.
 
 ### Fixed

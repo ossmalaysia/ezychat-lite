@@ -36,6 +36,7 @@ import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from '../auth/AuthProvider';
 import { shortLocaleLabel } from '../auth/UserMenu';
 import { PhoneBar } from './PhoneBar';
+import { MemberAssistantCard } from './MemberAssistantCard';
 
 const rowClass =
   'flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
@@ -188,6 +189,9 @@ export function AccountPage() {
               <RowContent icon={Info} label={t('account.about', { appName: t('appName') })} />
             </Button>
           </section>
+
+          {/* A team member's own AI assistants (admins use Settings → Integrations). */}
+          {!isAdmin && <MemberAssistantCard />}
 
           <Button
             variant="outline"

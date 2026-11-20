@@ -39,7 +39,8 @@ export function acquireLock(dataDir: string): { release(): void } {
           if (released) return;
           released = true;
           try {
-            if (readFileSync(file, 'utf8').trim() === String(process.pid)) rmSync(file, { force: true });
+            if (readFileSync(file, 'utf8').trim() === String(process.pid))
+              rmSync(file, { force: true });
           } catch {
             // already gone
           }

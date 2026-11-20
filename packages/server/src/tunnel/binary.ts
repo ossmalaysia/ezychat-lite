@@ -17,7 +17,10 @@ function isFile(p: string): boolean {
  * Locates the cloudflared binary:
  * WATI_CLOUDFLARED env → <resourcesDir>/cloudflared/<platform>-<arch>/cloudflared(.exe) → PATH lookup → null.
  */
-export function resolveCloudflaredPath(env: NodeJS.ProcessEnv, resourcesDir?: string): string | null {
+export function resolveCloudflaredPath(
+  env: NodeJS.ProcessEnv,
+  resourcesDir?: string,
+): string | null {
   const explicit = env.WATI_CLOUDFLARED;
   if (explicit && isFile(explicit)) return explicit;
 

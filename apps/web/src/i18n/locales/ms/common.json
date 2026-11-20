@@ -60,7 +60,8 @@
     "sendFeedback": "Hantar maklum balas",
     "emailSupport": "E-mel sokongan",
     "signingOut": "Sedang log keluar…",
-    "signOutFailed": "Tidak dapat log keluar: {{error}}"
+    "signOutFailed": "Tidak dapat log keluar: {{error}}",
+    "aiAssistants": "Pembantu AI saya"
   },
   "errorBoundary": {
     "title": "Berlaku ralat",
@@ -238,6 +239,10 @@
       "title": "Token yang mana?",
       "body": "Token terperinci (fine-grained) yang terhad kepada repositori pilihan anda, dengan Issues dan Pull requests Read-only. Token klasik (ghp_…) mencapai semua repositori, jadi {{product}} menolaknya.",
       "action": "Buat token di GitHub"
+    },
+    "memberNewChats": {
+      "title": "Kenapa ini dikelabukan?",
+      "body": "Anda tidak boleh memulakan sembang baharu dalam {{product}}, jadi pembantu anda pun tidak boleh."
     }
   },
   "appNav": {

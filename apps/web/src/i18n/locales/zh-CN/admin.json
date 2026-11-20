@@ -211,7 +211,8 @@
       "safetyAutoBlock": "号码已被自动屏蔽",
       "chatNewNumber": "与新号码开始对话",
       "settingsNewChatStaff": "新对话设置已更改",
-      "settingsNewChatDailyLimit": "新对话每日上限已更改"
+      "settingsNewChatDailyLimit": "新对话每日上限已更改",
+      "settingsMcpMembers": "成员 AI 助手设置已更改"
     },
     "fields": {
       "chat": "对话",
@@ -270,7 +271,9 @@
       "expired": "令牌已过期",
       "userInactive": "所有者已停用",
       "notAdmin": "所有者不是管理员",
-      "mustChangePassword": "所有者需要修改密码"
+      "mustChangePassword": "所有者需要修改密码",
+      "membersOff": "成员不能连接 AI 助手",
+      "notAllowed": "所有者不能连接 AI 助手"
     },
     "yes": "是",
     "no": "否",
@@ -343,7 +346,8 @@
       "canNewBadge": "新号码",
       "canResolveBadge": "可解决对话",
       "signedInBadge": "已登录",
-      "tokenBadge": "令牌"
+      "tokenBadge": "令牌",
+      "memberBadge": "成员"
     },
     "create": {
       "title": "创建访问令牌",
@@ -398,6 +402,18 @@
       "takesEffect": "更改会在助手的下一次请求时生效。读取收件箱和 AI 设置工具保持开启。",
       "save": "保存",
       "saved": "权限已保存"
+    },
+    "members": {
+      "label": "成员可以连接 AI 助手",
+      "hint": "团队成员可以通过登录把 Claude 或 ChatGPT 连接到自己的账号。助手只能看到该成员能打开的聊天,并且只有在成员允许时才会发送。",
+      "needsAccess": "请先打开上方的 AI 助手访问。",
+      "turnedOn": "成员现在可以连接 AI 助手",
+      "turnedOff_one": "成员不能再连接 AI 助手。已撤销 {{count}} 个令牌。",
+      "turnedOff_other": "成员不能再连接 AI 助手。已撤销 {{count}} 个令牌。",
+      "offTitle": "不再让成员连接 AI 助手?",
+      "offBody_one": "每位成员的助手会立即断开:{{count}} 个令牌被撤销。如果以后重新打开,成员需要重新连接。",
+      "offBody_other": "每位成员的助手会立即断开:{{count}} 个令牌被撤销。如果以后重新打开,成员需要重新连接。",
+      "offConfirm": "关闭并断开"
     }
   },
   "settings": {
@@ -3231,5 +3247,25 @@
     "limitNone": "不限制：团队和 AI 助手每天可以给任意数量的新号码发消息。",
     "limitBanTitle": "上限过高可能导致号码被封禁",
     "limitBanBody": "如果号码给很多没有要求联系的人发消息，WhatsApp 可能会封禁该号码。除非对方期待你的消息，否则请保持较低的上限。"
+  },
+  "memberAssistants": {
+    "title": "我的 AI 助手",
+    "description": "把 Claude 或 ChatGPT 连接到你自己的 {{product}} 账号。",
+    "off": "请让管理员允许成员连接 AI 助手。",
+    "reach": "它能看到你在 {{product}} 中看到的同样的聊天。",
+    "reachLimited": "它只能看到为你选择的聊天。",
+    "howTo": "在 Claude 或 ChatGPT 中,用这个地址把 {{product}} 添加为连接器。它会在这里打开登录页面,由你批准。",
+    "apps": "已连接的助手",
+    "empty": "还没有连接任何助手。",
+    "sendNote": "在你允许之前,助手不能发送消息。请用“权限”来允许。",
+    "connectedOn": "连接于 {{date}}",
+    "disconnect": "断开",
+    "disconnectLabel": "断开 {{name}}",
+    "disconnectTitle": "断开“{{name}}”?",
+    "disconnectBody": "这个助手会立即停止工作。你随时可以重新连接。",
+    "disconnected": "助手已断开",
+    "newBlocked": "你在 {{product}} 中不能发起新聊天,所以你的助手也不能。",
+    "permsDescription": "选择这个助手可以替你做什么。它保持连接:无需重新登录。",
+    "takesEffect": "更改会在助手的下一次请求时生效。你的助手仍然只能看到你能打开的内容。"
   }
 }

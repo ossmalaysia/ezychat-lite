@@ -5,6 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { OAuthConsentPage } from './OAuthConsentPage';
 
+const auth = vi.hoisted(() => ({
+  user: { id: 1, displayName: 'Aisyah' } as { id: number; displayName: string },
+  isAdmin: true,
+}));
+vi.mock('./AuthProvider', () => ({ useAuth: () => auth }));
+
 const QUERY =
   'response_type=code&client_id=ezc_app_1&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&code_challenge=abc&code_challenge_method=S256&state=xyz';
 const BACK = 'https://claude.ai/api/mcp/auth_callback?code=c0de&state=xyz';
@@ -20,7 +26,10 @@ function setup({
   info = { clientName: 'Claude', redirectHost: 'claude.ai' } as unknown,
   infoStatus = 200,
   decisionStatus = 200,
+  member = false,
 } = {}) {
+  auth.isAdmin = !member;
+  auth.user = member ? { id: 2, displayName: 'Daniel' } : { id: 1, displayName: 'Aisyah' };
   const assign = vi.fn();
   vi.stubGlobal('location', { ...window.location, assign });
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -109,6 +118,46 @@ describe('MCP sign-in approval page', () => {
     expect(screen.getByRole('heading', { name: 'Cannot connect this app' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to the inbox' }).getAttribute('href')).toBe('/');
     expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('a team member approves for themselves, and Let it send is off unless ticked', async () => {
+    const { fetchMock, assign } = setup({ member: true });
+    expect(
+      await screen.findByRole('heading', { name: 'Allow Claude to use EzyChat Lite as Daniel?' }),
+    ).toBeTruthy();
+    expect(screen.getByTestId('oauth-signed-in-as').textContent).toBe('Signed in as Daniel');
+    // a member never sees the admin's AI setup line
+    expect(screen.queryByText(/hand-off rules/)).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('Let it send WhatsApp messages as you'));
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(BACK));
+    const post = fetchMock.mock.calls.find((c) => c[0] === '/api/oauth/decision')!;
+    expect(JSON.parse(String((post[1] as RequestInit).body))).toMatchObject({
+      approve: true,
+      canSend: true,
+    });
+  });
+
+  it('a member who leaves Let it send unticked approves read only', async () => {
+    const { fetchMock, assign } = setup({ member: true });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+    const post = fetchMock.mock.calls.find((c) => c[0] === '/api/oauth/decision')!;
+    expect(JSON.parse(String((post[1] as RequestInit).body)).canSend).toBe(false);
+  });
+
+  it('tells a member when the admin has not let members connect', async () => {
+    setup({
+      member: true,
+      info: { error: { code: 'mcp_members_off', message: 'off' } },
+      infoStatus: 403,
+    });
+    expect(
+      await screen.findByText('Your admin has not let members connect AI assistants.'),
+    ).toBeTruthy();
+    expect(screen.getByRole('heading', { name: "Can't connect" })).toBeTruthy();
   });
 
   it('keeps the page and shows why when the decision fails', async () => {
