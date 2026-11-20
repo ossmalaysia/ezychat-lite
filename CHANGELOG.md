@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **AI assistants can resolve chats.** Tick **Can resolve chats** for a connected AI app (Settings → Integrations → Create token or **Permissions**; off unless you tick it) and you can ask it to resolve chats for you, for example the ones where the customer only said thanks, or to reopen one. It works exactly like Resolve and Reopen in the inbox, as you; the customer is not messaged. It can add a note for your team saying why. Up to 30 changes a minute and 300 a day per app.
+
 ## [0.1.85] - 2026-11-20
 
 ### Added
