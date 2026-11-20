@@ -33,7 +33,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { ErrorState, ListSkeleton, Pending, SaveBar } from '../adminUi';
-import { PickerWaiting } from './connector-ui';
+import { PickerWaiting, RemoteOnlyNotice } from './connector-ui';
 
 interface Picking {
   kind: DrivePickerBody['kind'];
@@ -178,6 +178,8 @@ export function DriveSettingsCard({
   if (!value) return null;
   const folder = value.folder;
   const busy = picker.isPending || picking !== null;
+  /** Google's file picker opens only on the computer that runs EzyChat. */
+  const remote = !status.onThisComputer;
   const full = value.files.length >= DRIVE_MAX_FILES;
 
   return (
@@ -222,7 +224,7 @@ export function DriveSettingsCard({
                     <ExternalLink aria-hidden />
                   </a>
                 </Button>
-                {!picking && (
+                {!picking && !remote && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -240,7 +242,7 @@ export function DriveSettingsCard({
           ) : (
             <>
               <p className="text-sm text-muted-foreground">{t('connectors.drive.folder.none')}</p>
-              {!picking && (
+              {!picking && !remote && (
                 <Button
                   size="touch"
                   className="self-start"
@@ -263,6 +265,9 @@ export function DriveSettingsCard({
             {t('connectors.drive.folder.onlyChosen')}
             <InfoTip topic="driveFiles" />
           </p>
+          {remote && (
+            <RemoteOnlyNotice testId="drive-remote-notice" textKey="connectors.drive.remotePick" />
+          )}
           {picking && (
             <PickerWaiting
               testId="drive-picking"
@@ -337,7 +342,7 @@ export function DriveSettingsCard({
                     onRemove={(id) => set({ files: value.files.filter((x) => x.id !== id) })}
                   />
                 )}
-                {!picking && (
+                {!picking && !remote && (
                   <Button
                     variant="outline"
                     size="touch"

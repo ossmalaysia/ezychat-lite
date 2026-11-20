@@ -220,7 +220,7 @@ export function createGoogleCalendarService(
     timeZone,
     usable,
 
-    async status(): Promise<GoogleCalendarStatus> {
+    async status(): Promise<Omit<GoogleCalendarStatus, 'onThisComputer'>> {
       const tokens = configured() ? loadTokens() : null;
       let list: GoogleCalendarEntry[] = [];
       if (tokens && account.state() !== 'expired') {
@@ -315,7 +315,7 @@ export function createGoogleCalendarService(
     },
 
     /** Re-reads the account (dev route: after the fake's state changed). */
-    async refreshStatus(): Promise<GoogleCalendarStatus> {
+    async refreshStatus(): Promise<Omit<GoogleCalendarStatus, 'onThisComputer'>> {
       if (loadTokens()) await loadCalendars(true).catch(() => undefined);
       return service.status();
     },

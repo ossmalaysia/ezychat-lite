@@ -37,6 +37,11 @@ export const GoogleCalendarStatus = z.object({
   connectedAt: z.number().int().nullable(),
   /** When it stopped working (expired/unavailable), else null. */
   problemSince: z.number().int().nullable(),
+  /**
+   * True when this request comes from the computer that runs EzyChat. Google sign-in and file
+   * picking finish on that computer only (127.0.0.1), so a remote or LAN browser must not start them.
+   */
+  onThisComputer: z.boolean().default(true),
 });
 export type GoogleCalendarStatus = z.infer<typeof GoogleCalendarStatus>;
 
