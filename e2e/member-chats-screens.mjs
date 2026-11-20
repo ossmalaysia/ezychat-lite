@@ -1,7 +1,7 @@
 // Screens of Edit member -> Only chosen chats (the add-chats picker): empty search, number search, same-named
 // groups, chosen excluded. Fresh fake-WhatsApp server only:
 //   npm run build -w @ezychat/web
-//   npx tsx packages/server/src/cli.ts --data <tmp> --port 7478 --fake-wa --mode standalone --web-dist apps/web/dist
+//   npx tsx packages/server/src/cli.ts --data <tmp> --port 7478 --fake-wa --mode dev --max-inboxes 2 --web-dist apps/web/dist
 //   node e2e/member-chats-screens.mjs 7478 docs/screenshots/member-chats
 /* global window -- used inside addInitScript (runs in the browser) */
 import { chromium } from '@playwright/test';
@@ -60,6 +60,17 @@ for (const [i, name] of names.entries())
 for (const id of ['120363000000000011@g.us', '120363000000000022@g.us'])
   await call('POST', '/dev/fake-group', { groupJid: id, name: 'AS x Kaki Deco', generated: 3 });
 
+// A second linked number with the same group on both numbers (two chats, one per inbox)
+await call('POST', '/inboxes', { name: 'Anchor SG', memberIds: [] });
+await call('POST', '/dev/fake-link', { inboxId: 2 });
+for (const inboxId of [1, 2])
+  await call('POST', '/dev/fake-group', {
+    inboxId,
+    groupJid: '120363000000000033@g.us',
+    name: 'Anchor Regulars',
+    generated: 3,
+  });
+
 const browser = await chromium.launch().catch(() => chromium.launch({ channel: 'chrome' }));
 mkdirSync(OUT, { recursive: true });
 for (const theme of ['light', 'dark']) {
@@ -94,7 +105,15 @@ for (const theme of ['light', 'dark']) {
     const search = field.getByRole('searchbox');
     const shot = async (name) => {
       await page.waitForTimeout(700);
-      await field.scrollIntoViewIfNeeded();
+      // the dialog body scrolls: bring the end of the add list into view so every result shows
+      await field.evaluate((el) => {
+        for (let e = el; e; e = e.parentElement)
+          if (e.scrollHeight > e.clientHeight + 2 && getComputedStyle(e).overflowY === 'auto') {
+            e.scrollTop = e.scrollHeight;
+            break;
+          }
+      });
+      await page.waitForTimeout(200);
       await page.screenshot({ path: join(OUT, `${name}-${vp}-${theme}.png`) });
       console.log(`${name}-${vp}-${theme}.png`);
     };
@@ -119,6 +138,12 @@ for (const theme of ['light', 'dark']) {
       .catch(() => {});
     await search.fill('');
     await shot('4-chosen-excluded');
+    await search.fill('regulars');
+    await field
+      .getByRole('button', { name: /^Add Anchor Regulars/ })
+      .nth(1)
+      .waitFor();
+    await shot('5-same-group-two-inboxes');
     if (errors.length) throw new Error(`page errors: ${errors.join(' | ')}`);
     await ctx.close();
   }

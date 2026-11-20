@@ -323,3 +323,26 @@ it('shows a chat once, tells same-named groups apart and leaves out the chosen o
     expect(within(field).getAllByRole('button', { name: /^Add Recent 0$/ })).toHaveLength(1),
   );
 });
+
+it('tells the same group on two linked numbers apart by the inbox name, also in the chosen list', async () => {
+  const G2 = `${G}#2`;
+  const { user, field } = await openChosenPicker({
+    inboxes: twoInboxes,
+    chatList: [
+      chat(G, 'AS x Kaki Deco', 'group'),
+      { ...chat(G2, 'AS x Kaki Deco', 'group'), inboxId: 2, waJid: G },
+    ],
+  });
+  await user.type(within(field).getByRole('searchbox'), 'kaki');
+  const add = await within(field).findAllByRole('button', { name: 'Add AS x Kaki Deco' });
+  expect(add).toHaveLength(2);
+  // different inboxes: the inbox name tells them apart, no id tail
+  expect(add[0]!.textContent).toContain('Inbox 1');
+  expect(add[0]!.textContent).not.toContain('…');
+  expect(add[1]!.textContent).toContain('Inbox 2');
+  await user.click(add[1]!);
+  const chosen = within(field).getByTestId('chosen-chats');
+  expect(within(chosen).getByText('Inbox 2')).toBeTruthy();
+  // the one on the first number is still there to add
+  expect(within(field).getAllByRole('button', { name: 'Add AS x Kaki Deco' })).toHaveLength(1);
+});

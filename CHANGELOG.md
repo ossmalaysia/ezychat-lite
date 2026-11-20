@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart.
+- Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart (by the inbox name when they are on different WhatsApp numbers).
 - Country flags in messages (🇲🇾, 🇸🇬 …) now show as flags on Windows. Before, Windows showed two letters such as "MY".
 - Reports now counts the very first customer who writes after you link WhatsApp as a new customer. Before, that first customer was left out of **New customers**.
 - Reports now shows a new customer or message at once. It could show the numbers from your last visit for up to a minute.

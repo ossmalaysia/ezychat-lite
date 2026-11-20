@@ -6,7 +6,7 @@ import { SearchField } from '@/components/app/SearchField';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useChats } from '../api/queries';
+import { useChats, useInboxes } from '../api/queries';
 import { ChatAvatar } from '../inbox/ChatAvatar';
 import { GroupIcon } from '../inbox/ChatListItem';
 import { MemberChatScope, type MemberChat } from '@ezychat/shared';
@@ -16,6 +16,12 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SCOPES = MemberChatScope.options;
 
 type Suggestion = MemberChat & { phone: string | null; waJid: string };
+
+/** The inbox of a chat key: `<waJid>#<inboxId>` for every inbox but the first (inboxes/keys.ts). */
+const inboxOf = (jid: string): number => {
+  const n = Number(jid.split('#')[1]);
+  return Number.isInteger(n) && n > 1 ? n : 1;
+};
 
 /**
  * "Chats this member can see" in Edit member, for agents only (design docs/features/partner-role):
@@ -40,6 +46,16 @@ export function MemberChatsField({
     const timer = setTimeout(() => setTyped(query.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
+  const { data: inboxList } = useInboxes();
+  // with 2+ inboxes a chat says which number it is on (the same group can be on two linked numbers)
+  const inboxNames = useMemo(
+    () =>
+      (inboxList?.inboxes.length ?? 0) > 1
+        ? new Map(inboxList!.inboxes.map((i) => [i.id, i.name]))
+        : null,
+    [inboxList],
+  );
+  const inboxName = (jid: string) => inboxNames?.get(inboxOf(jid)) ?? null;
   const found = useChats({ assigned: 'any', q: typed || undefined });
   // A chat is chosen by its key; its WhatsApp JID is the same chat when a key was saved without the inbox suffix
   const chosen = new Set(chats.map((c) => c.jid));
@@ -60,7 +76,8 @@ export function MemberChatsField({
   useEffect(() => {
     if (suggestions.length < SUGGEST && hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [suggestions.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
-  const sameName = (name: string) => shown.filter((c) => c.name === name).length > 1;
+  const sameName = (c: Suggestion) =>
+    shown.some((o) => o.jid !== c.jid && o.name === c.name && inboxOf(o.jid) === inboxOf(c.jid));
 
   return (
     <fieldset className="flex min-w-0 flex-col gap-3" data-testid="member-chats">
@@ -107,7 +124,14 @@ export function MemberChatsField({
                     {c.type === 'group' && (
                       <GroupIcon className="size-4 shrink-0 text-muted-foreground" />
                     )}
-                    <span className="[overflow-wrap:anywhere] md:truncate">{c.name}</span>
+                    <span className="min-w-0">
+                      <span className="block [overflow-wrap:anywhere] md:truncate">{c.name}</span>
+                      {inboxName(c.jid) && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {inboxName(c.jid)}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <Button
                     type="button"
@@ -157,9 +181,9 @@ export function MemberChatsField({
                     )}
                     <span className="min-w-0">
                       <span className="block truncate">{c.name}</span>
-                      {detail(c, sameName(c.name)) && (
+                      {detail(c, sameName(c), inboxName(c.jid)) && (
                         <span className="block truncate text-xs text-muted-foreground">
-                          {detail(c, sameName(c.name))}
+                          {detail(c, sameName(c), inboxName(c.jid))}
                         </span>
                       )}
                     </span>
@@ -175,8 +199,18 @@ export function MemberChatsField({
   );
 }
 
-/** The line under a name: the number of a direct chat; a group only when another shown one has its name. */
-function detail(c: Suggestion, duplicated: boolean): string | null {
-  if (c.type === 'dm') return c.phone ? `+${c.phone}` : null;
-  return duplicated ? `…${c.waJid.split('@')[0]!.slice(-6)}` : null;
+/**
+ * The line under a name: the inbox (when there are several), the number of a direct chat, and for a group
+ * the id tail only when another shown group of the same inbox has its name.
+ */
+function detail(c: Suggestion, duplicated: boolean, inbox: string | null): string | null {
+  const own =
+    c.type === 'dm'
+      ? c.phone
+        ? `+${c.phone}`
+        : null
+      : duplicated
+        ? `…${c.waJid.split('@')[0]!.slice(-6)}`
+        : null;
+  return [inbox, own].filter(Boolean).join(' · ') || null;
 }
