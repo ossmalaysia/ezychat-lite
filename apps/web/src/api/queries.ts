@@ -1257,7 +1257,11 @@ export function usePatchMcpSettings() {
   return useMutation({
     mutationFn: (body: McpSettingsPatch) =>
       api('/integrations/mcp', { method: 'PATCH', body, schema: McpSettingsResponse }),
-    onSuccess: (next) => qc.setQueryData(qk.mcpSettings, next),
+    onSuccess: (next, body) => {
+      qc.setQueryData(qk.mcpSettings, next);
+      // Turning members off revokes their assistants: the token list changes too.
+      if (body.membersEnabled === false) void qc.invalidateQueries({ queryKey: qk.apiTokens });
+    },
   });
 }
 

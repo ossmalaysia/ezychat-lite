@@ -2233,6 +2233,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Internationalization
 
+- Porting strings from a feature mock into the app catalogs: replace a literal "EzyChat" with `{{product}}` (mocks
+  write the name out; editions rename it), and drop mock-only keys (`mock*`, demo panels) instead of copying them.
 - Searchable catalog content (template gallery `keywords`) keeps the English words beside the
   translated ones, so a search works in either language; Malaysian users mix them ("aircond", "gigi").
   Translate large catalog batches with a field-by-field checker (same keys, lines, list items, colons).

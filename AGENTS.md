@@ -750,7 +750,7 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   every call and again before every tool (`mcp/settings.ts#mcpHolderRefusal`, the only holder rule): an
   active human admin, or an active human team member (`agent`) while the admin switch "Members can connect AI
   assistants" (`mcp_members_enabled`, default off, audit `settings.mcp_members` before/after + revoked count)
-  is on (design `docs/features/mcp-for-members/design.md`). A member's token never holds `ai:setup` (refused at
+  is on (rules and decision log `docs/mcp-for-members.md`). A member's token never holds `ai:setup` (refused at
   creation, dropped at resolve via `ROLE_SCOPES`), reaches only what the member opens in the app (every chat
   through `canOpenChat`, `list_chats` by `chatJids` for chosen-chat agents; `get_stats`/`get_activity` are
   `adminOnly` over MCP), sends only into existing chats they can open, and `send_to_new_number` only while the New chat

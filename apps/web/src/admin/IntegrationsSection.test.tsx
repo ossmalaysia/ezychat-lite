@@ -190,6 +190,44 @@ describe('Settings → Integrations', () => {
     expect(screen.getByText(/Chats an assistant reads are sent/)).toBeTruthy();
   });
 
+  it('lets members connect assistants, and asks before turning that off', async () => {
+    const { fetchMock } = setup({
+      tokens: [
+        token({ id: 4, userId: 2, userName: 'Daniel', connectedApp: true, memberToken: true }),
+      ],
+    });
+    const user = userEvent.setup();
+    const toggle = await screen.findByRole('switch', {
+      name: 'Members can connect AI assistants',
+    });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    await user.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'));
+    expect(JSON.parse(String((calls(fetchMock, 'PATCH')[0]![1] as RequestInit).body))).toEqual({
+      membersEnabled: true,
+    });
+    // a member's connected app shows whose it is and can be revoked by the admin
+    expect(await screen.findByTestId('token-member')).toBeTruthy();
+    await user.click(toggle);
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText(/1 token is revoked/)).toBeTruthy();
+    expect(calls(fetchMock, 'PATCH')).toHaveLength(1);
+    await user.click(within(dialog).getByRole('button', { name: 'Turn off and disconnect' }));
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
+    expect(JSON.parse(String((calls(fetchMock, 'PATCH')[1]![1] as RequestInit).body))).toEqual({
+      membersEnabled: false,
+    });
+  });
+
+  it('keeps the members switch off while AI assistant access is off', async () => {
+    setup({ mcp: OFF });
+    const toggle = await screen.findByRole('switch', {
+      name: 'Members can connect AI assistants',
+    });
+    expect(toggle.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Turn on AI assistant access above first.')).toBeTruthy();
+  });
+
   it('warns when no tunnel runs and links to the Cloudflare page', async () => {
     setup();
     expect(await screen.findByText('No tunnel is running')).toBeTruthy();

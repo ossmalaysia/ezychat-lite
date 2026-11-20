@@ -213,7 +213,8 @@
       "safetyAutoBlock": "Number blocked automatically",
       "chatNewNumber": "Chat started with a new number",
       "settingsNewChatStaff": "New chats setting changed",
-      "settingsNewChatDailyLimit": "New chats daily limit changed"
+      "settingsNewChatDailyLimit": "New chats daily limit changed",
+      "settingsMcpMembers": "Members AI assistants setting changed"
     },
     "fields": {
       "chat": "Chat",
@@ -272,7 +273,9 @@
       "expired": "Token expired",
       "userInactive": "Owner disabled",
       "notAdmin": "Owner is not an admin",
-      "mustChangePassword": "Owner must change password"
+      "mustChangePassword": "Owner must change password",
+      "membersOff": "Members may not connect AI assistants",
+      "notAllowed": "Owner may not connect AI assistants"
     },
     "yes": "Yes",
     "no": "No",
@@ -345,7 +348,8 @@
       "canSendBadge": "Can send",
       "canNewBadge": "New numbers",
       "signedInBadge": "Signed in",
-      "tokenBadge": "Token"
+      "tokenBadge": "Token",
+      "memberBadge": "Member"
     },
     "create": {
       "title": "Create access token",
@@ -398,6 +402,18 @@
       "takesEffect": "The change applies on the assistant’s next request. Reading the inbox and the AI setup tools stay on.",
       "save": "Save",
       "saved": "Permissions saved"
+    },
+    "members": {
+      "label": "Members can connect AI assistants",
+      "hint": "Team members can connect Claude or ChatGPT to their own account through its sign-in. The assistant sees only the chats that member can open, and sends only if they allow it.",
+      "needsAccess": "Turn on AI assistant access above first.",
+      "turnedOn": "Members can now connect AI assistants",
+      "turnedOff_one": "Members can no longer connect AI assistants. {{count}} token revoked.",
+      "turnedOff_other": "Members can no longer connect AI assistants. {{count}} tokens revoked.",
+      "offTitle": "Stop members connecting AI assistants?",
+      "offBody_one": "Every member's assistant is disconnected right away: {{count}} token is revoked. Members must connect again if you turn this back on.",
+      "offBody_other": "Every member's assistant is disconnected right away: {{count}} tokens are revoked. Members must connect again if you turn this back on.",
+      "offConfirm": "Turn off and disconnect"
     }
   },
   "settings": {
@@ -3267,5 +3283,25 @@
     "limitNone": "No limit: your team and AI assistants can message as many new numbers a day as they like.",
     "limitBanTitle": "A high limit can get your number banned",
     "limitBanBody": "WhatsApp can ban a number that messages many people who did not ask for it. Keep the limit low unless these people expect your message."
+  },
+  "memberAssistants": {
+    "title": "My AI assistants",
+    "description": "Connect Claude or ChatGPT to your own {{product}} account.",
+    "off": "Ask an admin to let members connect AI assistants.",
+    "reach": "It sees the same chats you see in {{product}}.",
+    "reachLimited": "It sees only the chats chosen for you.",
+    "howTo": "In Claude or ChatGPT, add {{product}} as a connector with this address. It opens a sign-in page here where you approve it.",
+    "apps": "Connected assistants",
+    "empty": "No assistant connected yet.",
+    "sendNote": "An assistant cannot send messages until you allow it. Use Permissions to allow it.",
+    "connectedOn": "Connected {{date}}",
+    "disconnect": "Disconnect",
+    "disconnectLabel": "Disconnect {{name}}",
+    "disconnectTitle": "Disconnect “{{name}}”?",
+    "disconnectBody": "This assistant stops working right away. You can connect it again any time.",
+    "disconnected": "Assistant disconnected",
+    "newBlocked": "You can't start new chats in {{product}}, so your assistant can't either.",
+    "permsDescription": "Choose what this assistant may do for you. It stays connected: no need to sign in again.",
+    "takesEffect": "The change applies on the assistant’s next request. Your assistant still sees only what you can open."
   }
 }
