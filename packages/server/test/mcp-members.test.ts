@@ -283,7 +283,7 @@ describe('stopping a member token', () => {
       { name: 'keep', expiresInDays: 90 },
       'ip',
     );
-    const patch = (payload: unknown) =>
+    const patch = (payload: Record<string, boolean>) =>
       t.app.inject({
         method: 'PATCH',
         url: '/api/integrations/mcp',
