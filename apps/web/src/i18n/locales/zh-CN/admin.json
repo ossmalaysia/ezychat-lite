@@ -344,6 +344,7 @@
       "revoked": "已移除",
       "canSendBadge": "可发送",
       "canNewBadge": "新号码",
+      "canResolveBadge": "可解决对话",
       "signedInBadge": "已登录",
       "tokenBadge": "令牌",
       "memberBadge": "成员"
@@ -367,7 +368,9 @@
       "canNew": "也可以向新号码发送消息",
       "canNewHint": "助手可以与收件箱中没有的号码开始对话。WhatsApp 会先检查该号码。每天最多 20 个新号码。",
       "canNewWarningTitle": "WhatsApp 封号风险",
-      "canNewWarning": "如果您的号码向未曾要求联系的人发送消息，WhatsApp 可能会封禁该号码。仅当您的团队联系已同意被联系的人时才开启此项。助手也会收到此警告。"
+      "canNewWarning": "如果您的号码向未曾要求联系的人发送消息，WhatsApp 可能会封禁该号码。仅当您的团队联系已同意被联系的人时才开启此项。助手也会收到此警告。",
+      "canResolve": "可解决对话",
+      "canResolveHint": "您的 AI 助手可以以您的身份将对话标记为已解决，也可以重新打开。不会向客户发送消息。"
     },
     "created": {
       "title": "立即复制您的令牌",

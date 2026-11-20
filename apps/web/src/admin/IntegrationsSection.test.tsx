@@ -35,6 +35,7 @@ function token(over: Partial<ApiToken> = {}): ApiToken {
     expiresAt: Date.now() + 80 * DAY,
     canSend: false,
     canMessageNewNumbers: false,
+    canResolveChats: false,
     connectedApp: false,
     memberToken: false,
     ...over,
@@ -338,6 +339,7 @@ describe('Settings → Integrations', () => {
       expiresInDays: 365,
       canSend: false,
       canMessageNewNumbers: false,
+      canResolveChats: false,
     });
     expect(within(created).getByTestId('api-token-secret').textContent).toBe(SECRET);
     const command = within(created).getByTestId('mcp-snippet-claude').textContent;
@@ -446,6 +448,7 @@ describe('Settings → Integrations', () => {
       expiresInDays: 90,
       canSend: true,
       canMessageNewNumbers: true,
+      canResolveChats: false,
     });
 
     // The next token starts with both options off again.
@@ -526,6 +529,7 @@ describe('Settings → Integrations', () => {
     expect(JSON.parse(String((patch![1] as RequestInit).body))).toEqual({
       canSend: true,
       canMessageNewNumbers: true,
+      canResolveChats: false,
     });
     const row = await screen.findByTestId('api-token-row');
     expect(await within(row).findByText('New numbers')).toBeTruthy();
@@ -549,7 +553,59 @@ describe('Settings → Integrations', () => {
     expect(JSON.parse(String((patch![1] as RequestInit).body))).toEqual({
       canSend: false,
       canMessageNewNumbers: false,
+      canResolveChats: false,
     });
+  });
+
+  it('offers "Can resolve chats" off by default, on its own, and creates a token with it', async () => {
+    const { fetchMock } = setup();
+    const user = userEvent.setup();
+    await openCreateToken(user);
+    const dialog = await screen.findByRole('dialog', { name: 'Create access token' });
+    const canResolve = within(dialog).getByRole('checkbox', { name: 'Can resolve chats' });
+    expect(canResolve.getAttribute('aria-checked')).toBe('false');
+    expect(within(dialog).getByText(/The customer is not messaged/)).toBeTruthy();
+    await user.click(canResolve);
+    // independent of sending: no send warning appears
+    expect(
+      within(dialog)
+        .getByRole('checkbox', { name: 'Can send WhatsApp messages' })
+        .getAttribute('aria-checked'),
+    ).toBe('false');
+    await user.type(within(dialog).getByLabelText('Name'), 'Claude – triage');
+    await user.click(within(dialog).getByRole('button', { name: 'Create token' }));
+    await screen.findByRole('dialog', { name: 'Copy your token now' });
+    expect(JSON.parse(String((calls(fetchMock, 'POST')[0]![1] as RequestInit).body))).toEqual({
+      name: 'Claude – triage',
+      expiresInDays: 90,
+      canSend: false,
+      canMessageNewNumbers: false,
+      canResolveChats: true,
+    });
+  });
+
+  it('turns "Can resolve chats" on for an existing token and shows its badge', async () => {
+    const { fetchMock } = setup({ tokens: [token({ id: 1, name: 'Mine' })] });
+    const user = userEvent.setup();
+    const row = await screen.findByTestId('api-token-row');
+    expect(within(row).queryByText('Resolves chats')).toBeNull();
+    await user.click(await screen.findByRole('button', { name: 'Change what token Mine may do' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Permissions of “Mine”' });
+    const save = within(dialog).getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Can resolve chats' }));
+    expect(save.disabled).toBe(false);
+    await user.click(save);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const [patch] = calls(fetchMock, 'PATCH').filter((c) => String(c[0]).includes('/tokens/'));
+    expect(JSON.parse(String((patch![1] as RequestInit).body))).toEqual({
+      canSend: false,
+      canMessageNewNumbers: false,
+      canResolveChats: true,
+    });
+    expect(
+      await within(await screen.findByTestId('api-token-row')).findByText('Resolves chats'),
+    ).toBeTruthy();
   });
 
   it('marks expired tokens and lists the rest', async () => {

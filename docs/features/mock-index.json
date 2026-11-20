@@ -30,6 +30,18 @@
       "confirmation": "Owner (Jazz) confirmed the mock 2026-11-20 (\"ok approve mcp mock\") with the OAuth-only change: members connect only through the app sign-in, personal access tokens stay admin-only; stats admins only; switch off and role change revoke."
     },
     {
+      "feature": "mcp-resolve-chat",
+      "creationOrder": 48,
+      "createdAt": "2026-11-19",
+      "design": "docs/features/mcp-resolve-chat/design.md",
+      "mock": "docs/features/mcp-resolve-chat/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "app-navigation",
+      "baselineGitRevision": "f4b650b81ae259f6f71d820007d7e53d187f43fc",
+      "coverage": "Full clone of the confirmed app-navigation mock; adds the Can resolve chats checkbox to Create access token and Permissions and the Resolves chats badge in the token list (Settings → Integrations); 1280/360, light/dark (mock/resolve-shots.mjs, docs/features/mcp-resolve-chat/screenshots).",
+      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed. Cloned from app-navigation (f4b650b8) before live-translate was confirmed; a later enhancement re-clones from latestConfirmed. Retention on merge with main (2026-11-20): six counted folders, so app-navigation (oldest, order 43) is archived (folder removed, read it with git show 0738d562:docs/features/app-navigation/design.md); counted now: chat-hide-delete, github, dream-mode, live-translate, mcp-resolve-chat. template-store stays (live tooling)."
+    },
+    {
       "feature": "live-translate",
       "creationOrder": 47,
       "createdAt": "2026-11-19",

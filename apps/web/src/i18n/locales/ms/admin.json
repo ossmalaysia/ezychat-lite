@@ -345,6 +345,7 @@
       "revoked": "Dialih keluar",
       "canSendBadge": "Boleh menghantar",
       "canNewBadge": "Nombor baharu",
+      "canResolveBadge": "Selesaikan chat",
       "signedInBadge": "Log masuk",
       "tokenBadge": "Token",
       "memberBadge": "Ahli"
@@ -368,7 +369,9 @@
       "canNew": "Juga boleh menghantar mesej kepada nombor baharu",
       "canNewHint": "Pembantu boleh memulakan sembang dengan nombor yang tiada dalam peti masuk. WhatsApp menyemak nombor itu dahulu. Sehingga 20 nombor baharu sehari.",
       "canNewWarningTitle": "Risiko disekat oleh WhatsApp",
-      "canNewWarning": "WhatsApp boleh menyekat nombor anda jika ia menghantar mesej kepada orang yang tidak memintanya. Hidupkan ini hanya jika pasukan anda menghubungi orang yang bersetuju untuk dihubungi. Pembantu juga menerima amaran ini."
+      "canNewWarning": "WhatsApp boleh menyekat nombor anda jika ia menghantar mesej kepada orang yang tidak memintanya. Hidupkan ini hanya jika pasukan anda menghubungi orang yang bersetuju untuk dihubungi. Pembantu juga menerima amaran ini.",
+      "canResolve": "Boleh selesaikan chat",
+      "canResolveHint": "Pembantu AI anda boleh menandakan chat sebagai selesai dan membukanya semula, atas nama anda. Pelanggan tidak menerima mesej."
     },
     "created": {
       "title": "Salin token anda sekarang",

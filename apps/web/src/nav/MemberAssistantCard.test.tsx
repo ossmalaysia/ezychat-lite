@@ -39,6 +39,7 @@ function app(over: Partial<ApiToken> = {}): ApiToken {
     expiresAt: null,
     canSend: true,
     canMessageNewNumbers: false,
+    canResolveChats: false,
     connectedApp: true,
     memberToken: true,
     ...over,

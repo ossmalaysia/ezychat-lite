@@ -400,6 +400,21 @@ describe('token pages for members', () => {
     });
     expect(allow.json().token.canSend).toBe(true);
 
+    // resolving chats (`inbox:manage`) is admin-only: refused, and the stored scopes stay unchanged
+    const resolve = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/integrations/tokens/${mine.token.id}`,
+      headers: authHeaders(danCookie),
+      payload: { canSend: true, canMessageNewNumbers: false, canResolveChats: true },
+    });
+    expect(resolve.statusCode).toBe(403);
+    const scopes = (
+      t.ctx.db.prepare('SELECT scopes FROM api_tokens WHERE id = ?').get(mine.token.id) as {
+        scopes: string;
+      }
+    ).scopes;
+    expect(scopes.split(' ')).not.toContain('inbox:manage');
+
     // the admin sees every token, the member's marked
     const all = await t.app.inject({
       method: 'GET',

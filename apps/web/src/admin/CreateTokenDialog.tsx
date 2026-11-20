@@ -52,7 +52,11 @@ export function CreateTokenDialog({
   const create = useCreateApiToken();
   const [name, setName] = useState('');
   const [expiry, setExpiry] = useState<ExpiryOption>('90');
-  const [perms, setPerms] = useState<SendPermissions>({ canSend: false, canNew: false });
+  const [perms, setPerms] = useState<SendPermissions>({
+    canSend: false,
+    canNew: false,
+    canResolve: false,
+  });
   const [submitted, setSubmitted] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
 
@@ -69,7 +73,7 @@ export function CreateTokenDialog({
     setSecret(null);
     setName('');
     setExpiry('90');
-    setPerms({ canSend: false, canNew: false });
+    setPerms({ canSend: false, canNew: false, canResolve: false });
     setSubmitted(false);
     create.reset();
     onOpenChange(false);
@@ -85,6 +89,7 @@ export function CreateTokenDialog({
         expiresInDays: EXPIRY_DAYS[expiry],
         canSend: perms.canSend,
         canMessageNewNumbers: perms.canSend && perms.canNew,
+        canResolveChats: perms.canResolve,
       },
       onSecret: setSecret,
     });

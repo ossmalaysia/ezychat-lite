@@ -16,6 +16,7 @@ import { createMcpServer } from './server.js';
 import { resourceMetadataUrl } from './oauth-routes.js';
 import { MCP_PATH, isMcpEnabled } from './settings.js';
 import { registerUploadRoute } from './upload-route.js';
+import { createInboxManagePort } from './manage.js';
 import { uploadStore } from '../uploads/store.js';
 import { handleMcpRequest } from './transport.js';
 import { clearMcpNotice } from '../lite-import/notice.js';
@@ -35,7 +36,8 @@ const unauthorized = (req: FastifyRequest) =>
 /**
  * POST /mcp: MCP (Streamable HTTP, stateless JSON) for an admin's or (while members may connect) a team
  * member's AI assistant: reads, AI setup (admins only) and, only for a token with scope `inbox:send`,
- * replies into existing chats; a member's token reaches only the chats that member can open. Outside /api,
+ * replies into existing chats, and only with scope `inbox:manage` (admins), resolving and reopening chats;
+ * a member's token reaches only the chats that member can open. Outside /api,
  * so the cookie CSRF hook does not apply; it accepts only a personal access token, never a cookie.
  * Order: off → 404 (invisible), LAN peer → 403, Origin check, IP limit, token, token limit.
  */
@@ -48,6 +50,8 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
     const uploads = uploadStore(ctx);
     // One per server: its per-token send limits must outlive each stateless request.
     const send = createInboxSendPort(ctx, { uploads });
+    // One per server too: per-token limits and remembered requestIds of resolve/reopen.
+    const manage = createInboxManagePort(ctx);
     // Also one per server, for its per-token read limit.
     const files = createMessageFilePort(ctx);
     const log = ctx.log.child({ mod: 'mcp' });
@@ -117,6 +121,7 @@ export async function registerMcp(app: FastifyInstance, ctx: AppContext): Promis
         inbox,
         aiSetup,
         send,
+        manage,
         files,
         principal,
         log,

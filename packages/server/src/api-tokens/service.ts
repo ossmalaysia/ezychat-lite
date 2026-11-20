@@ -29,13 +29,17 @@ const TOUCH_INTERVAL_MS = 60_000;
  * or later by the token's owner in Settings (`updatePermissions`, audited; never through a token).
  * `inbox:send_new`: also start a chat with a number that is not in the inbox; only together with
  * `inbox:send`.
+ * `inbox:manage`: resolve and reopen chats (never messages anyone); independent of sending, granted
+ * the same way as `inbox:send` (ticked at creation or later by the owner in Settings).
  */
-export type TokenScope = 'inbox:read' | 'ai:setup' | 'inbox:send' | 'inbox:send_new';
+export type TokenScope =
+  'inbox:read' | 'ai:setup' | 'inbox:send' | 'inbox:send_new' | 'inbox:manage';
 const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>([
   'inbox:read',
   'ai:setup',
   'inbox:send',
   'inbox:send_new',
+  'inbox:manage',
 ]);
 const NEW_TOKEN_SCOPES = 'inbox:read ai:setup';
 /** A team member's token never holds `ai:setup` (AI setup is for admins only). */
@@ -47,18 +51,30 @@ const ROLE_SCOPES: Record<'admin' | 'agent', ReadonlySet<TokenScope>> = {
 };
 const SEND_SCOPE: TokenScope = 'inbox:send';
 const SEND_NEW_SCOPE: TokenScope = 'inbox:send_new';
+const MANAGE_SCOPE: TokenScope = 'inbox:manage';
+/** The scopes an owner grants or takes away in Settings; every other scope is kept as it is. */
+const GRANTED_SCOPES: ReadonlySet<string> = new Set([SEND_SCOPE, SEND_NEW_SCOPE, MANAGE_SCOPE]);
 
-/** `base` plus the send scopes the body grants (`inbox:send_new` only together with `inbox:send`). */
-function withSendScopes(
-  base: string,
-  body: { canSend?: boolean; canMessageNewNumbers?: boolean },
-): string {
-  if (body.canSend !== true) return base;
-  return body.canMessageNewNumbers === true
-    ? `${base} ${SEND_SCOPE} ${SEND_NEW_SCOPE}`
-    : `${base} ${SEND_SCOPE}`;
+interface GrantBody {
+  canSend?: boolean;
+  canMessageNewNumbers?: boolean;
+  canResolveChats?: boolean;
 }
 const baseScopes = (role: Role) => (role === 'admin' ? NEW_TOKEN_SCOPES : NEW_MEMBER_TOKEN_SCOPES);
+
+/**
+ * `base` plus the scopes the body grants (`inbox:send_new` only together with `inbox:send`;
+ * `inbox:manage` on its own).
+ */
+function withGrantedScopes(base: string, body: GrantBody): string {
+  const add: string[] = [];
+  if (body.canSend === true) {
+    add.push(SEND_SCOPE);
+    if (body.canMessageNewNumbers === true) add.push(SEND_NEW_SCOPE);
+  }
+  if (body.canResolveChats === true) add.push(MANAGE_SCOPE);
+  return [base, ...add].join(' ');
+}
 
 export interface ApiPrincipal {
   tokenId: number;
@@ -78,10 +94,7 @@ export interface ApiTokenService {
    */
   create(
     userId: number,
-    body: Pick<CreateApiTokenBody, 'name' | 'expiresInDays'> & {
-      canSend?: boolean;
-      canMessageNewNumbers?: boolean;
-    },
+    body: Pick<CreateApiTokenBody, 'name' | 'expiresInDays'> & GrantBody,
     ip: string,
   ): CreateApiTokenResponse;
   /**
@@ -104,11 +117,14 @@ export interface ApiTokenService {
   revoke(id: number, actor: Pick<User, 'id' | 'role'>, ip: string): void;
   /** Revokes every team member's token (the members switch went off); returns how many. */
   revokeMemberTokens(): number;
-  /** Its owner changes whether a token may send (and message new numbers); takes effect on the next call. */
+  /**
+   * Its owner changes whether a token may send (and message new numbers) and resolve chats
+   * (`canResolveChats` omitted = unchanged); takes effect on the next call.
+   */
   updatePermissions(
     id: number,
     actorId: number,
-    body: { canSend: boolean; canMessageNewNumbers: boolean },
+    body: { canSend: boolean; canMessageNewNumbers: boolean; canResolveChats?: boolean },
     ip: string,
   ): ApiToken;
   /** Checks a bearer secret and its owner as they are now (role, disabled, password change). */
@@ -194,6 +210,7 @@ export function createApiTokenService(
     expiresAt: r.expires_at,
     canSend: r.scopes.split(' ').includes(SEND_SCOPE),
     canMessageNewNumbers: r.scopes.split(' ').includes(SEND_NEW_SCOPE),
+    canResolveChats: r.scopes.split(' ').includes(MANAGE_SCOPE),
     connectedApp: r.oauth_client_id !== null,
     memberToken: auth.getUser(r.user_id)?.role !== 'admin',
   });
@@ -264,6 +281,7 @@ export function createApiTokenService(
         expiresAt,
         canSend: token.canSend,
         canMessageNewNumbers: token.canMessageNewNumbers,
+        canResolveChats: token.canResolveChats,
         ...(oauthClientId ? { oauthClientId } : {}),
       },
     });
@@ -283,7 +301,7 @@ export function createApiTokenService(
         userId,
         body.name,
         body.expiresInDays,
-        withSendScopes(baseScopes(role), body),
+        withGrantedScopes(baseScopes(role), body),
         null,
         ip,
       );
@@ -293,7 +311,7 @@ export function createApiTokenService(
       return ctx.db.transaction(() => {
         q.revokeForApp.run(now(), userId, app.clientId);
         const role = auth.getUser(userId)?.role ?? 'agent';
-        const scopes = withSendScopes(baseScopes(role), { canSend: opts?.canSend === true });
+        const scopes = withGrantedScopes(baseScopes(role), { canSend: opts?.canSend === true });
         return issue(userId, app.name, null, scopes, app.clientId, ip);
       })();
     },
@@ -326,12 +344,21 @@ export function createApiTokenService(
       if (refused && refused !== 'must_change_password') throw holderForbidden(refused);
       if (body.canMessageNewNumbers && owner && !canStartNewChats(ctx, owner))
         throw new HttpError(403, 'new_chat_not_allowed', 'You cannot start new chats');
+      // `inbox:manage` is admin-only (ROLE_SCOPES drops it for members anyway): refuse rather than store it.
+      if (body.canResolveChats === true && owner?.role !== 'admin')
+        throw errors.forbidden('Only an admin assistant can resolve chats');
       const before = toApiToken(row);
       const base = row.scopes
         .split(' ')
-        .filter((s) => s !== SEND_SCOPE && s !== SEND_NEW_SCOPE)
+        .filter((s) => !GRANTED_SCOPES.has(s))
         .join(' ');
-      q.setScopes.run(withSendScopes(base, body), id);
+      q.setScopes.run(
+        withGrantedScopes(base, {
+          ...body,
+          canResolveChats: body.canResolveChats ?? before.canResolveChats,
+        }),
+        id,
+      );
       const token = toApiToken(q.byId.get(id) as TokenRow);
       audit(ctx.db, {
         userId: actorId,
@@ -341,8 +368,16 @@ export function createApiTokenService(
           tokenId: id,
           name: row.name,
           prefix: row.prefix,
-          before: { canSend: before.canSend, canMessageNewNumbers: before.canMessageNewNumbers },
-          after: { canSend: token.canSend, canMessageNewNumbers: token.canMessageNewNumbers },
+          before: {
+            canSend: before.canSend,
+            canMessageNewNumbers: before.canMessageNewNumbers,
+            canResolveChats: before.canResolveChats,
+          },
+          after: {
+            canSend: token.canSend,
+            canMessageNewNumbers: token.canMessageNewNumbers,
+            canResolveChats: token.canResolveChats,
+          },
         },
       });
       return token;
