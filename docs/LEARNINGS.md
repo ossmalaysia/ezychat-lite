@@ -309,7 +309,14 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   the head SHA right before the merge (pass it as `expectedHeadSha`), because a child session may still be pushing.
 - Cloud sessions cannot push git tags (the git proxy answers 403 on tag refs) or run `gh release edit`. Release
   from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
-  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
+  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and holds a complete
+  draft. **Promote release** (`promote-release.yml`, §3) publishes it once McAfee clears every installer.
+- To hold installed Lite apps on a version, keep the newer release a **draft**: the updater reads the whole release
+  list (never `releases/latest`) and a 0.x install takes published pre-releases, so `make_latest=false` or a
+  pre-release holds nothing. Check what the real client reads before choosing a GitHub release flag.
+- Test a workflow's `run:` steps with a fake `gh` on PATH that serves fixtures, each step in its own `bash -e`; copy
+  the scripts, never symlink them (a symlinked `argv[1]` fails `import.meta.url` main checks, so the CLI silently
+  does nothing and every check "passes").
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
@@ -421,6 +428,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Updating a branch from `main` right after a release commit can move your `[Unreleased]` CHANGELOG entry into the new
   version's section with no conflict (the release only added a heading above it): read `CHANGELOG.md` after every
   merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
+  A long-lived branch can also land its entry in an old released section (#240 went into 0.1.66): every release PR
+  checks `git diff v<prev>..main -- CHANGELOG.md` for lines added outside `[Unreleased]` and moves them in.
 - The update helper is built by the app that is running, so an updater fix protects only updates that start from a
   version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
   an updater fix.
@@ -806,6 +815,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `merge.renames=false` do not stop it in a rebase). Resolve that commit by hand: `git rm -r docs/features`,
   `git checkout origin/main -- docs/features`, `git checkout <mock commit> -- docs/features/<feature>`, rebuild
   `mock-index.json` (renumber, prune), continue; then point the index and `design.md` at the rebased mock commit.
+
+- `npm run coverage:changed` compares the branch's commits with `main`: before the first commit it says "no changed
+  executable lines" and proves nothing. Commit, then run it. A fresh cloud checkout also needs `npm ci` before any vitest run.
 
 ## Build, tooling and Windows
 
@@ -2246,6 +2258,16 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 - A new chat-header button squeezes the assignee select at 360 px (the action row has no room left): show it beside the
   name on narrow headers (`@2xl:hidden` copy) and in the action row from `@2xl`, icon-only below `@4xl`.
+
+- A picker over a long list (chats, customers) searches on the server with the typed text, never a client filter over the
+  first loaded page: older items vanish and numbers never match. Dedupe by the item's key, leave out chosen ones by key
+  and by its WhatsApp id, and tell same-named items apart with a detail line instead of hiding one
+  (`admin/MemberChatsField.tsx`, `phoneSearchDigits` in `chats/repo.ts`).
+
+- Screenshots of a dialog that scrolls inside (a phone sheet) must scroll its body to the end before the capture, or a
+  list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
+  that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
+  key's `#<id>` suffix, never by an id tail alone.
 
 ## Internationalization
 

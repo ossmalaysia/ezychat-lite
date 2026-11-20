@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
 import { Banner } from '@/components/app';
@@ -6,13 +6,22 @@ import { SearchField } from '@/components/app/SearchField';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useChats } from '../api/queries';
+import { useChats, useInboxes } from '../api/queries';
 import { ChatAvatar } from '../inbox/ChatAvatar';
 import { GroupIcon } from '../inbox/ChatListItem';
 import { MemberChatScope, type MemberChat } from '@ezychat/shared';
 
-const SUGGEST = 8;
+const SUGGEST = 10;
+const SEARCH_DEBOUNCE_MS = 300;
 const SCOPES = MemberChatScope.options;
+
+type Suggestion = MemberChat & { phone: string | null; waJid: string };
+
+/** The inbox of a chat key: `<waJid>#<inboxId>` for every inbox but the first (inboxes/keys.ts). */
+const inboxOf = (jid: string): number => {
+  const n = Number(jid.split('#')[1]);
+  return Number.isInteger(n) && n > 1 ? n : 1;
+};
 
 /**
  * "Chats this member can see" in Edit member, for agents only (design docs/features/partner-role):
@@ -29,21 +38,46 @@ export function MemberChatsField({
   onChange(scope: 'all' | 'chosen', chats: MemberChat[]): void;
 }) {
   const { t } = useTranslation('admin');
-  const open = useChats({ assigned: 'any', status: 'open' });
-  const done = useChats({ assigned: 'any', status: 'resolved' });
   const [query, setQuery] = useState('');
-  const chosen = new Set(chats.map((c) => c.jid));
-  const all = useMemo(
+  const [typed, setTyped] = useState('');
+  // The server searches every chat the admin may open (all statuses, all pages, name and number);
+  // an empty search lists the most recent chats.
+  useEffect(() => {
+    const timer = setTimeout(() => setTyped(query.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const { data: inboxList } = useInboxes();
+  // with 2+ inboxes a chat says which number it is on (the same group can be on two linked numbers)
+  const inboxNames = useMemo(
     () =>
-      [...(open.data?.pages ?? []), ...(done.data?.pages ?? [])]
-        .flatMap((p) => p.chats)
-        .map((c): MemberChat => ({ jid: c.jid, name: c.name || c.jid, type: c.type })),
-    [open.data, done.data],
+      (inboxList?.inboxes.length ?? 0) > 1
+        ? new Map(inboxList!.inboxes.map((i) => [i.id, i.name]))
+        : null,
+    [inboxList],
   );
-  const q = query.trim().toLocaleLowerCase();
-  const suggestions = all
-    .filter((c) => !chosen.has(c.jid) && (!q || c.name.toLocaleLowerCase().includes(q)))
-    .slice(0, SUGGEST);
+  const inboxName = (jid: string) => inboxNames?.get(inboxOf(jid)) ?? null;
+  const found = useChats({ assigned: 'any', q: typed || undefined });
+  // A chat is chosen by its key; its WhatsApp JID is the same chat when a key was saved without the inbox suffix
+  const chosen = new Set(chats.map((c) => c.jid));
+  const suggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Suggestion[] = [];
+    for (const c of (found.data?.pages ?? []).flatMap((p) => p.chats)) {
+      if (seen.has(c.jid) || chosen.has(c.jid) || chosen.has(c.waJid)) continue;
+      seen.add(c.jid);
+      out.push({ jid: c.jid, name: c.name || c.jid, type: c.type, phone: c.phone, waJid: c.waJid });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [found.data, chats]);
+  const shown = suggestions.slice(0, SUGGEST);
+  // the first page may be mostly chosen chats already: load on until the list is filled
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = found;
+  useEffect(() => {
+    if (suggestions.length < SUGGEST && hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [suggestions.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const sameName = (c: Suggestion) =>
+    shown.some((o) => o.jid !== c.jid && o.name === c.name && inboxOf(o.jid) === inboxOf(c.jid));
 
   return (
     <fieldset className="flex min-w-0 flex-col gap-3" data-testid="member-chats">
@@ -90,7 +124,14 @@ export function MemberChatsField({
                     {c.type === 'group' && (
                       <GroupIcon className="size-4 shrink-0 text-muted-foreground" />
                     )}
-                    <span className="[overflow-wrap:anywhere] md:truncate">{c.name}</span>
+                    <span className="min-w-0">
+                      <span className="block [overflow-wrap:anywhere] md:truncate">{c.name}</span>
+                      {inboxName(c.jid) && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {inboxName(c.jid)}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <Button
                     type="button"
@@ -117,17 +158,19 @@ export function MemberChatsField({
             placeholder={t('limitedChats.addPlaceholder')}
           />
           <ul className="divide-y rounded-lg border" aria-label={t('limitedChats.addLabel')}>
-            {suggestions.length === 0 && (
+            {shown.length === 0 && (
               <li className="px-3 py-3 text-sm text-muted-foreground">
                 {t('limitedChats.noMatch')}
               </li>
             )}
-            {suggestions.map((c) => (
+            {shown.map((c) => (
               <li key={c.jid}>
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => onChange('chosen', [...chats, c])}
+                  onClick={() =>
+                    onChange('chosen', [...chats, { jid: c.jid, name: c.name, type: c.type }])
+                  }
                   aria-label={t('limitedChats.add', { name: c.name })}
                   className="h-auto min-h-11 w-full justify-start gap-3 rounded-none px-3 py-1.5 text-left font-normal"
                 >
@@ -136,7 +179,14 @@ export function MemberChatsField({
                     {c.type === 'group' && (
                       <GroupIcon className="size-4 shrink-0 text-muted-foreground" />
                     )}
-                    <span className="truncate">{c.name}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate">{c.name}</span>
+                      {detail(c, sameName(c), inboxName(c.jid)) && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {detail(c, sameName(c), inboxName(c.jid))}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <Plus aria-hidden className="text-primary" />
                 </Button>
@@ -147,4 +197,18 @@ export function MemberChatsField({
       )}
     </fieldset>
   );
+}
+
+/**
+ * The line under a name: the inbox (when there are several), the number of a direct chat, and for a group
+ * the id tail only when another shown group of the same inbox has its name.
+ */
+function detail(c: Suggestion, duplicated: boolean, inbox: string | null): string | null {
+  let own: string | null = null;
+  if (c.type === 'dm') {
+    if (c.phone) own = `+${c.phone}`;
+  } else if (duplicated) {
+    own = `…${c.waJid.split('@')[0]!.slice(-6)}`;
+  }
+  return [inbox, own].filter(Boolean).join(' · ') || null;
 }
