@@ -755,8 +755,10 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   through `canOpenChat`, `list_chats` by `chatJids` for chosen-chat agents, no `get_stats`/`get_activity` for
   them), sends only into existing chats they can open, and `send_to_new_number` only while the New chat
   service allows them (`openChecked` rechecks `inboxFor`). Turning the switch off revokes every member
-  token; any role change (either way) revokes the person's tokens. `/api/integrations/tokens*` serve a
-  member for their own tokens only (another's id → 404); admins see and revoke all.
+  token; any role change (either way) revokes the person's tokens. A member gets a token **only through the app
+  sign-in** (OAuth; owner decision 2026-11-20): creating a personal access token (`POST /api/integrations/tokens`,
+  `ApiTokenService.create`) is admins only ("master tokens"). The other `/api/integrations/tokens*` routes serve a
+  member for their own connected apps only (another's id → 404); admins see and revoke all.
   `/api` never accepts a token, so a token cannot manage tokens.
   Inbox tools get only `InboxReadPort` (reads) and return media metadata, never links;
   the one exception is `get_message_file` (`mcp/file.ts` `MessageFilePort`, scope `inbox:read`): the content of
@@ -798,7 +800,8 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   connect; 403 `mcp_members_off` otherwise) approves **for themselves only** on the web page
   `/oauth/authorize` through `/api/oauth/*` (session + Origin), PKCE S256 only, one-time 5-minute codes
   kept hashed in memory. The token endpoint issues an ordinary `ezc_pat_` token (`createForApp`: no
-  expiry, no send scopes, a member's without `ai:setup`; replaces the app's earlier token). An unchecked request is never redirected;
+  expiry, send only when the approver ticks "Let it send" on the page (`canSend`, carried in the code, audited),
+  a member's never `ai:setup`; replaces the app's earlier token). An unchecked request is never redirected;
   same reach as `/mcp` (off 404, LAN 403).
 - Inbox access (`inboxes/access.ts`, `inboxes/service.ts`): admins and the AI member see every inbox,
   agents only their `inbox_members` rows (Lite with one inbox: everyone). Every per-chat, media and
