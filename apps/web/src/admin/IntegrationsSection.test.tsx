@@ -220,6 +220,28 @@ describe('Settings → Integrations', () => {
     });
   });
 
+  it('reloads the token list when access goes off (members are revoked with it)', async () => {
+    const { fetchMock } = setup({
+      mcp: { ...OFF, enabled: true, membersEnabled: true },
+      tokens: [
+        token({ id: 4, userId: 2, userName: 'Daniel', connectedApp: true, memberToken: true }),
+      ],
+    });
+    const user = userEvent.setup();
+    const toggle = await screen.findByRole('switch', { name: 'Let AI assistants read this inbox' });
+    await screen.findByTestId('token-member');
+    const tokenLoads = () =>
+      fetchMock.mock.calls.filter(
+        (c) =>
+          c[0] === '/api/integrations/tokens' &&
+          ((c[1] as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+      ).length;
+    const before = tokenLoads();
+    await user.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
+    await waitFor(() => expect(tokenLoads()).toBeGreaterThan(before));
+  });
+
   it('keeps the members switch off while AI assistant access is off', async () => {
     setup({ mcp: OFF });
     const toggle = await screen.findByRole('switch', {

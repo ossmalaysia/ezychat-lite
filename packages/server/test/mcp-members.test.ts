@@ -595,6 +595,65 @@ describe('app sign-in (OAuth) as a member', () => {
     }
   });
 
+  const exchange = (clientId: string, code: string) =>
+    t.app.inject({
+      method: 'POST',
+      url: '/mcp/oauth/token',
+      ...local,
+      headers: { host: 'localhost', 'content-type': 'application/x-www-form-urlencoded' },
+      payload: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code,
+        redirect_uri: REDIRECT,
+        code_verifier: VERIFIER,
+        resource: 'http://localhost/mcp',
+      }).toString(),
+    });
+
+  it('a code a member approved never becomes an admin token after a promotion', async () => {
+    const temp = user('temp-promoted', 'agent');
+    const clientId = await register();
+    const res = await decide(params(clientId), cookieOf(temp));
+    expect(res.statusCode).toBe(200);
+    const code = new URL(res.json().redirectTo).searchParams.get('code')!;
+    t.ctx.services.auth!.updateUser(temp.id, { role: 'admin' }, admin.id);
+    const tok = await exchange(clientId, code);
+    expect(tok.statusCode).toBe(400);
+    expect(tok.json().error).toBe('invalid_grant');
+    const rows = t.ctx.db
+      .prepare('SELECT scopes FROM api_tokens WHERE user_id = ? AND revoked_at IS NULL')
+      .all(temp.id);
+    expect(rows).toEqual([]);
+  });
+
+  it('members switched off and on again: a code approved before is dropped', async () => {
+    const clientId = await register();
+    const res = await decide(params(clientId), danCookie);
+    const code = new URL(res.json().redirectTo).searchParams.get('code')!;
+    for (const membersEnabled of [false, true]) {
+      const patch = await t.app.inject({
+        method: 'PATCH',
+        url: '/api/integrations/mcp',
+        headers: authHeaders(adminCookie),
+        payload: { membersEnabled },
+      });
+      expect(patch.statusCode).toBe(200);
+    }
+    const tok = await exchange(clientId, code);
+    expect(tok.statusCode).toBe(400);
+    expect(tok.json().error).toBe('invalid_grant');
+  });
+
+  it("an admin's approved code survives the members switch going off", async () => {
+    const clientId = await register();
+    const res = await decide(params(clientId), adminCookie);
+    const code = new URL(res.json().redirectTo).searchParams.get('code')!;
+    expect(t.ctx.services.mcpOAuth!.dropMemberCodes()).toBe(0);
+    const tok = await exchange(clientId, code);
+    expect(tok.statusCode).toBe(200);
+  });
+
   it('a code approved by a member who then loses access is refused at exchange', async () => {
     const clientId = await register();
     const res = await decide(params(clientId), danCookie);

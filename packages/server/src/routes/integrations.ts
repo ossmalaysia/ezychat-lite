@@ -8,6 +8,7 @@ import { audit } from '../db/audit.js';
 import { clientIp } from '../http/client-ip.js';
 import { errors, parse } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
+import { getMcpOAuth } from '../mcp/oauth.js';
 import {
   isMcpEnabled,
   isMcpMembersEnabled,
@@ -53,6 +54,8 @@ export default async function integrationsRoutes(app: FastifyInstance, ctx: AppC
         // Off: every member's token stops now and is revoked, so turning it on again never
         // reconnects an assistant silently.
         const revoked = body.membersEnabled ? 0 : tokens.revokeMemberTokens();
+        // …and so does a code a member approved that the app has not used yet.
+        if (!body.membersEnabled) getMcpOAuth(ctx).dropMemberCodes();
         audit(ctx.db, {
           userId,
           action: 'settings.mcp_members',

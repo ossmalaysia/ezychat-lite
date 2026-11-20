@@ -106,7 +106,8 @@ export interface ApiTokenService {
     userId: number,
     app: { clientId: string; name: string },
     ip: string,
-    opts?: { canSend?: boolean },
+    /** `role`: the approver's role when they approved; a different role now refuses (403). */
+    opts?: { canSend?: boolean; role?: Role },
   ): CreateApiTokenResponse;
   /**
    * Tokens that are not revoked (expired ones included, so the owner can see them): every token for an
@@ -309,8 +310,11 @@ export function createApiTokenService(
 
     createForApp(userId, app, ip, opts) {
       return ctx.db.transaction(() => {
-        q.revokeForApp.run(now(), userId, app.clientId);
         const role = auth.getUser(userId)?.role ?? 'agent';
+        // Approved as a member, promoted before the app used the code: never an admin token.
+        if (opts?.role !== undefined && opts.role !== role)
+          throw errors.forbidden('The approving person changed role');
+        q.revokeForApp.run(now(), userId, app.clientId);
         const scopes = withGrantedScopes(baseScopes(role), { canSend: opts?.canSend === true });
         return issue(userId, app.name, null, scopes, app.clientId, ip);
       })();

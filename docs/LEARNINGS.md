@@ -1380,6 +1380,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
+- Pending grants (one-time OAuth codes, in-memory proposals) are tokens that are not stored yet: every rule
+  that revokes stored tokens (role change, a switch going off) must also drop or recheck them. Keep the
+  approver's role in the code and refuse a different role at exchange; never derive scopes from the role
+  at exchange time alone.
 - Real-app OAuth checks run through a Quick Tunnel (claude.ai and ChatGPT reach only public https). An
   agent never types a password on a tunnel host, even a demo one: the owner signs in there, the agent
   clicks Approve and runs the rest. Keep guide screenshots cropped to the dialog (no sidebars) and blur
