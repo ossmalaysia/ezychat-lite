@@ -379,10 +379,17 @@ export class ChatRepo {
     const q = f.q?.trim();
     if (q) {
       params.q = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+      // A typed phone number ("+60 12-345 6789", "012 345 6789") also matches the digits stored in a JID or phone
+      let digitsClause = '';
+      const number = phoneSearchDigits(q);
+      if (number) {
+        params.qnum = `%${number}%`;
+        digitsClause = ` OR COALESCE(c.wa_jid, c.jid) LIKE @qnum OR c.phone LIKE @qnum OR ct.phone LIKE @qnum`;
+      }
       where.push(
         `(c.name LIKE @q ESCAPE '\\' OR COALESCE(c.wa_jid, c.jid) LIKE @q ESCAPE '\\' OR c.phone LIKE @q ESCAPE '\\'
           OR ct.push_name LIKE @q ESCAPE '\\' OR ct.saved_name LIKE @q ESCAPE '\\' OR ct.phone LIKE @q ESCAPE '\\'
-          OR ${PROFILE_SEARCH})`,
+          OR ${PROFILE_SEARCH}${digitsClause})`,
       );
     }
     if (f.cursor) {
@@ -461,7 +468,8 @@ export class ChatRepo {
   getContact(jid: string): ContactRow | null {
     return (
       (this.db.prepare('SELECT * FROM contacts WHERE jid = ?').get(jid) as
-        ContactRow | undefined) ?? null
+        | ContactRow
+        | undefined) ?? null
     );
   }
 
@@ -479,4 +487,15 @@ export class ChatRepo {
   directChats(): ChatColumns[] {
     return this.db.prepare("SELECT * FROM chats WHERE type = 'dm'").all() as ChatColumns[];
   }
+}
+
+/**
+ * Digits to look for when the search text is a phone number: only digits, spaces, "+", "-", "(", ")" and "."
+ * (at least 5 digits, so a short code or a year never matches half the chats). One leading 0 of a local
+ * number is dropped, so "012 345 6789" finds 60123456789; null when the text is not a number.
+ */
+export function phoneSearchDigits(q: string): string | null {
+  if (!/^[+\d\s().-]+$/.test(q)) return null;
+  const digits = q.replace(/\D/g, '').replace(/^0/, '');
+  return digits.length >= 5 ? digits : null;
 }
