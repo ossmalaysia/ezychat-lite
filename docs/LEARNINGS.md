@@ -798,6 +798,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `git checkout origin/main -- docs/features`, `git checkout <mock commit> -- docs/features/<feature>`, rebuild
   `mock-index.json` (renumber, prune), continue; then point the index and `design.md` at the rebased mock commit.
 
+- `npm run coverage:changed` compares the branch's commits with `main`: before the first commit it says "no changed
+  executable lines" and proves nothing. Commit, then run it. A fresh cloud checkout also needs `npm ci` before any vitest run.
+
 ## Build, tooling and Windows
 
 - An MCP server that is configured (`~/.claude.json` `mcpServers`) but has no tools in the session and is not in the
