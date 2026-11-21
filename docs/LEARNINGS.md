@@ -39,6 +39,9 @@ into AGENTS.md.
   compare one with the other as if they were the same clock without a small grace (`LINK_GRACE_MS` in Reports, L-24).
 - `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
+- A scanning regex over customer text must be linear on WhatsApp's longest message (65,536 characters): an unbounded
+  run that can start at any letter (`[\w.]+@`) or a `[…]+$` trim is quadratic, so cap the run (a mailbox name is ≤ 64)
+  or trim with a loop, and pin it with a timing test on the longest message (L-27: 2 s → 13 ms).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
   and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code

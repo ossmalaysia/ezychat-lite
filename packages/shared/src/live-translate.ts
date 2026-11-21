@@ -183,7 +183,9 @@ const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
 const ITEM_PATTERN = new RegExp(
   [
     String.raw`(?<url>(?:https?:\/\/|www\.)[^\s<>"']+)`,
-    String.raw`(?<email>[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})`,
+    // At most 64 before the @ (the longest a mailbox name may be): an unbounded run made the scan try an email at
+    // every letter of a long word, quadratic on a long message.
+    String.raw`(?<email>[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]+\.[A-Za-z]{2,})`,
     String.raw`(?<mention>@[\p{L}\p{N}_.]+)`,
     String.raw`(?<date>(?<![\d])\d{1,4}[\/.-]\d{1,2}[\/.-]\d{1,4}(?![\d]))`,
     String.raw`(?<time>(?<![\d])\d{1,2}:\d{2}(?::\d{2})?(?![\d]))`,
@@ -198,8 +200,13 @@ const ITEM_PATTERN = new RegExp(
 /** A number with a lowercase unit (10am, 5kg, 2pcs, 3rd) is not a code: only its number is kept. */
 const UNIT = /^(\d+(?:[.,]\d+)*)[a-z]{1,4}$/;
 
+const TRAILING = new Set('.,!?;:)]}\'"');
+
+/** Drops trailing punctuation by walking back from the end: a `[…]+$` regex retried at every dot of a long link. */
 function trimTrailing(item: string): string {
-  return item.replace(/[.,!?;:)\]}'"]+$/u, '');
+  let end = item.length;
+  while (end > 0 && TRAILING.has(item[end - 1]!)) end--;
+  return item.slice(0, end);
 }
 
 /** The protected items of a text, in order, without repeats. */
