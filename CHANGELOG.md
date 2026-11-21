@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A very long customer message no longer stalls EzyChat while Live translate is on.** Checking the numbers, links and emails a translation must keep took about 2 seconds for a message of WhatsApp's longest length, and the whole app waited meanwhile. It now takes a few milliseconds.
 - Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart (by the inbox name when they are on different WhatsApp numbers).
 - **Google Sheets, Google Drive and Google Calendar no longer send you to a dead page from another device.** Opened through your remote address or the local network, **Choose a sheet** (and the folder and file choices in Google Drive) opened a new tab that said "127.0.0.1 refused to connect", and Google sign-in ended the same way. Google's picker and sign-in only work in a browser on the computer that runs EzyChat, so on any other device EzyChat now says so in plain words (and what to do) instead of opening a tab. Everything else still works from there: status, tabs, switches, Refresh and creating a new sheet.
 
