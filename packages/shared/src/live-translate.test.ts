@@ -47,6 +47,32 @@ describe('protectedItems', () => {
   it('finds nothing in plain words', () => {
     expect(protectedItems('Boleh saya tahu harganya?')).toEqual([]);
   });
+
+  // A customer's message can be WhatsApp's longest (65,536 characters). The scan once tried an email at every letter
+  // of a long word and a trailing-punctuation trim at every dot of a long link: about 2 s of blocked server per call.
+  it('scans the longest WhatsApp message in linear time', () => {
+    const longest = 65_536;
+    const cases = [
+      'a'.repeat(longest),
+      `https://x.example/${'.'.repeat(longest - 20)}a`,
+      `www.${'.,'.repeat(longest / 2 - 4)}a b`,
+    ];
+    for (const text of cases) {
+      const started = performance.now();
+      protectedItems(text);
+      changedItem(text, text);
+      expect(performance.now() - started).toBeLessThan(500);
+    }
+  });
+
+  it('still trims trailing punctuation from links and mentions, and reads an over-long email by its last 64', () => {
+    expect(protectedItems('Link: https://x.example/a?b=1).,!? @Aminah!!')).toEqual([
+      'https://x.example/a?b=1',
+      '@Aminah',
+    ]);
+    const local = 'a'.repeat(70);
+    expect(protectedItems(`${local}@example.com`)).toEqual([`${'a'.repeat(64)}@example.com`]);
+  });
 });
 
 describe('changedItem', () => {
