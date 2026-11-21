@@ -301,6 +301,9 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - Cloud sessions cannot push git tags (the git proxy answers 403 on tag refs) or run `gh release edit`. Release
   from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
   merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
+- "release" alone does not open the merge gate (`.claude/hooks/merge-gate.mjs`): it denies `gh pr merge` always and
+  merges a release PR only on "merge <n>" or "merge … and release" in the owner's newest message. When the release
+  PR's checks pass, ask for that word in one line; never merge through `gh api` or another path around the gate.
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
