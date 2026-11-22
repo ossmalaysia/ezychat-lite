@@ -124,3 +124,4 @@ their wording.
 | 2026-11-13 | A found improvement is proposed in the same answer (Apply card), never as a follow-up question                               |
 | 2026-11-13 | Time limit per question set by admins (5–30 min, default 15), replacing the 60 s connection bound; keep-alive line           |
 | 2026-11-13 | Speed: per-call trace; find → replace drafts, before/after tests in one call, propose by draftId, small texts with the setup |
+| 2026-11-22 | A normal question runs on the AI models → Ask Ezy row (default Fast + Faster, docs/ai-models.md); setup stays on the main model with no row (owner) |

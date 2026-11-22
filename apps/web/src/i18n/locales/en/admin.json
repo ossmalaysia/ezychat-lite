@@ -458,11 +458,72 @@
       "cost": "Each suggestion and each completion is one request to your AI provider, which may charge for it.",
       "noConnection": "Connect an AI provider above to use reply suggestions.",
       "upgraded": "New: reply suggestions. They are off after the update so that nothing new costs money without your choice.",
-      "model": "Model for suggestions",
-      "modelFast": "Fast (recommended): {{model}}",
-      "modelAgent": "Same as the AI connection: {{model}}",
-      "modelFastHint": "Suggest reply in about 1–2 s and grey text while you type. {{model}} is the fast model of this connection.",
-      "modelSlowHint": "A larger model writes slower: grey text often comes too late to help, and each request may cost more."
+      "modelNote": "Which model writes suggestions is now set in AI models → Writing help."
+    },
+    "aiModels": {
+      "title": "AI models",
+      "description": "Choose which AI model does each job. Fast models answer sooner and cost less. Smarter models give better answers, but they are slower and use more of your plan.",
+      "connection": "Your AI connection: {{connection}} · main model {{main}} · fast model {{fast}}.",
+      "perConnection": "Each connection keeps its own choices.",
+      "mode": {
+        "chatgpt": "ChatGPT sign-in",
+        "api": "OpenAI API key",
+        "claude": "Claude API key"
+      },
+      "model": "Model",
+      "fast": "Fast",
+      "main": "Main model",
+      "recommended": "(recommended)",
+      "fastShort": "Fast ({{model}})",
+      "mainShort": "the main model ({{model}})",
+      "notOffered": "{{model}} · no longer offered",
+      "useDefault": "Use default",
+      "tier": {
+        "fast": "Answers sooner and costs less.",
+        "balanced": "A good balance of speed and quality.",
+        "smart": "Smartest answers. Slower and costs more."
+      },
+      "tierShort": {
+        "fast": "faster",
+        "balanced": "balanced",
+        "smart": "smarter, costs more"
+      },
+      "thinking": "Speed and quality",
+      "thinkingLevel": {
+        "low": "Faster",
+        "medium": "Balanced",
+        "high": "Smarter"
+      },
+      "thinkingHint": {
+        "low": "Faster: answers soonest.",
+        "medium": "Balanced: a good mix of speed and quality.",
+        "high": "Smarter: best answers, slowest, uses more of your plan."
+      },
+      "unavailable": "{{model}} is no longer offered by your AI connection. EzyChat uses {{fallback}} until you choose another model.",
+      "alwaysMain": "Always the main model ({{main}}): setting up agents with Ask Ezy, the changes Dream mode suggests and filling in customer details, because they change your setup or records. Voice notes follow their own setting below.",
+      "tasks": {
+        "agentReplies": {
+          "title": "AI agent replies",
+          "what": "Answers customers in chats and groups, Try it and scheduled messages."
+        },
+        "askEzy": {
+          "title": "Ask Ezy",
+          "what": "The in-app assistant that answers your questions about chats and reports."
+        },
+        "translate": {
+          "title": "Translate",
+          "what": "Live translate: customers' messages, and your replies before they are sent."
+        },
+        "writing": {
+          "title": "Writing help",
+          "what": "Suggest reply, the grey text while you type, Fix English and Edit with AI."
+        },
+        "background": {
+          "title": "Background checks",
+          "what": "Safety checks on incoming messages, the phrase list, and what Dream mode learns each night."
+        }
+      },
+      "writingSlow": "The grey text while you type may not appear in time with a slower model."
     },
     "askEzy": {
       "title": "Ask Ezy",
@@ -526,7 +587,7 @@
       "title": "Fix English",
       "description": "While a teammate types an English reply, spelling mistakes are marked at once and grammar mistakes after a short pause. One tap fixes them; nothing is changed or sent without the teammate.",
       "enable": "Check English for the team",
-      "cost": "Spelling is checked on each device with a built-in British English dictionary (about 0.2 MB, downloaded once): free, no AI. Grammar is one short request to your AI provider after each pause in typing (the model for suggestions), which may charge for it. Malay and Chinese messages are not checked.",
+      "cost": "Spelling is checked on each device with a built-in British English dictionary (about 0.2 MB, downloaded once): free, no AI. Grammar is one short request to your AI provider after each pause in typing (the Writing help model in AI models), which may charge for it. Malay and Chinese messages are not checked.",
       "rules": "Only spelling and grammar are fixed. Numbers, prices, names, links and order numbers are never changed, and the teammate's tone stays (lah, ya).",
       "noConnection": "No AI connection: only spelling is checked. Connect an AI provider above to check grammar too.",
       "upgraded": "New: Fix English. It is off after the update so that nothing new costs money without your choice.",
@@ -3281,7 +3342,7 @@
     "enableHelp": "All staff may use it. Each person turns it on per chat with the Translate button in the chat header; it stays off in every chat until they do. Turn this off to stop it for everyone.",
     "limit": "Daily limit per person",
     "limitHelp": "Default 200; 0 = no limit. Each translated message and each sent translation counts once; a message already translated is free.",
-    "privacy": "Message text goes to your AI connection (the \"Model for suggestions\") to be translated. EzyChat's logs keep only counts and languages, never the text. Customers never see a \"translated\" mark.",
+    "privacy": "Message text goes to your AI connection (the Translate model in AI models) to be translated. EzyChat's logs keep only counts and languages, never the text. Customers never see a \"translated\" mark.",
     "usage_one": "Today: {{count}} translation by {{people}} people",
     "usage_other": "Today: {{count}} translations by {{people}} people",
     "noConnection": "Connect AI above first. Until then, chats show messages as they were sent.",

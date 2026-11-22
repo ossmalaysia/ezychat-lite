@@ -295,6 +295,14 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
   no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
   value it found in `finally`.
+- A Playwright element screenshot of a card taller than the window comes out blank below the fold in the app and its
+  mocks (the page scrolls inside its own container, not the document): grow the viewport height for the shot, then
+  restore it (`ai-models-shots.mjs`).
+- Before pruning a feature folder for retention, `grep -rn "features/<name>"` across code, tests and AGENTS.md: if code
+  cites its design, move `design.md` to a lasting `docs/<name>.md` (with a decision log) and repoint the comments; leave
+  numbered SQL migrations untouched.
+- Before designing a model or provider choice, list every AI call and what it really sends per connection: ChatGPT
+  `draft` calls hard-code `low` reasoning even on the main model, so "same as today" defaults must say so.
 
 ## Multi-agent process
 
@@ -1549,6 +1557,25 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Routing an AI call to a chosen model: keep the provider's own meaning of a flag the tests and other callers read
+  (`fast` on drafts, `main` on Ask Ezy as "setup turn"). AI models per task first sent every resolved model with
+  `fast: false` / `main: true`, which kept behaviour but broke 25 Ask Ezy tests that detect a setup turn by `main`;
+  set the flag only when the row really leaves the old default, and pass the new knob (`reasoningEffort`) separately.
+- A per-task model setting is stored per connection mode and resolved at every call (the ChatGPT list is live): a saved
+  model the connection no longer lists runs on the row's fallback with a warning, never on a model it does not offer.
+  ChatGPT's `knownModels()` is the built-in list until something reads the live one (`resolveModel` never does for a
+  known id): never call a saved id "unlisted" from a cold list; keep it and read the list (`models()`) on the screen.
+- A cache flag answers one question: "ever read" (is this list authoritative?) is not "still fresh" (should I refetch?).
+  Validate against the last read copy even when it is stale, refetch when it is old, and when nothing was ever read
+  refuse to store an unchecked name (503) instead of accepting everything.
+- A reasoning model's thinking tokens count against `maxOutputTokens`: give every call path of a reasoning model
+  headroom (draft, agent turn, assistant, rewrite: `withReasoningHeadroom`), and decide "reasons" separately from "takes our
+  level" (o1-mini and -pro reason but take none), or the call ends `incomplete` and fails.
+- A model choice that cannot be checked yet runs on the documented fallback for that call and triggers the check;
+  never let it reach a provider whose own fallback differs (ChatGPT `resolveModel` → Auto, not the row's Fast).
+- Two Playwright projects on one shared e2e server must never write the same setting: let one project write, the
+  other only read layout (`test.skip`/early return on `info.project.name`).
+
 - A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
   `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
   translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.
@@ -1940,6 +1967,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through
   `document.fonts` status and a canvas colour check, not a screenshot; and never assert a page-wide "nothing loaded
   yet" state there: the three projects share one server, so a parallel project's chat may already be on screen.
+- e2e specs run in parallel on one server: never change shared team state a spec does not own (the AI connection, a
+  team switch) even with a restore at the end; another spec reads it meanwhile (AI models' spec switching to ChatGPT
+  broke `ai-member.spec`'s saved-key check). Work on whatever is saved, or use a separate e2e project/port.
 - Never start the app with `Start-Process -WindowStyle Hidden` or `windowsHide`: Windows applies that show state to the
   app's first window, so the first `show()` leaves it invisible (measured: hidden start → invisible, a second `show()` →
   visible). Windows the user must see go through `window-show.ts#showWindow` (shows again when still invisible). The

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Choose which AI model does each job** (Settings → AI → **AI models**). Five rows: **AI agent replies**, **Ask Ezy**, **Translate**, **Writing help** (Suggest reply, the grey text, Fix English and Edit with AI) and **Background checks** (Safety checks, the phrase list and what Dream mode learns). Each can use **Fast**, the **Main model** or any model your AI connection offers, and, where the model has it, **Speed and quality: Faster · Balanced · Smarter**. ChatGPT sign-in, an OpenAI key and a Claude key each keep their own choices. Translate now uses Fast by default, so Live translate answers sooner. If a chosen model is no longer offered, EzyChat uses Fast (or the Main model for agent replies) and says so on the row.
+
+### Changed
+
+- The **Model for suggestions** choice moved from Reply suggestions to AI models → **Writing help** (your choice is kept). The phrase list and Dream mode's nightly lessons now follow **Background checks** (Fast), and **Edit with AI** follows Writing help (Fast by default; it used the main model before).
+
 ### Fixed
 
 - **Photos in a chat are sharp.** A customer's photo showed blurry in the chat, because the chat used WhatsApp's tiny preview. EzyChat now makes its own clear preview from the photo, still small enough to load fast through remote access. Tap the photo to see it in full, as before.

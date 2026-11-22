@@ -5,7 +5,7 @@ import { removeChatFromCache } from './chat-delete';
 import { qk, type ChatsData } from './queries';
 
 /**
- * Hide chats on Log out (docs/features/chat-hide-delete/design.md Part A): when a linked phone logs
+ * Hide chats on Log out (docs/chat-hide-delete.md Part A): when a linked phone logs
  * out, every chat of its inbox is hidden (never deleted) until the same number links again.
  */
 

@@ -1,5 +1,10 @@
 import type { LanguageModel } from 'ai';
-import type { AiDecision, AiSettings, EnrichmentExtraction } from '@ezychat/shared';
+import {
+  aiModelHasThinking,
+  type AiDecision,
+  type AiSettings,
+  type EnrichmentExtraction,
+} from '@ezychat/shared';
 import { runCustomerExtraction } from './agent/extract-customer.js';
 import { AgentTurnFailure, agentFailure, errorNameOf, openAiKeyModel } from './agent/models.js';
 import { draftModelSettings, runDraft } from './agent/draft.js';
@@ -10,6 +15,17 @@ import { promptCacheKey } from './prompt.js';
 import type { AiAssistCall, AiDraftOptions, AiPrompt, AiRewritePrompt } from './provider-types.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
+
+/** A task row's reasoning effort reaches only an OpenAI reasoning model (gpt-5…, o-series). */
+const effortFor = (modelId: string, effort: AiPrompt['reasoningEffort']) =>
+  aiModelHasThinking('api', modelId) ? effort : undefined;
+
+/**
+ * The model spends reasoning tokens from the output cap, also one that takes no level of ours (o1-mini, o1-preview,
+ * the -pro models); the chat variants (gpt-5-chat-latest) do not reason.
+ */
+export const openAiModelReasons = (modelId: string) =>
+  /^(gpt-5|o[1-9])/.test(modelId) && !/-chat/.test(modelId);
 
 export function extractCustomerOpenAi(
   settings: AiSettings,
@@ -63,13 +79,14 @@ export function generateOpenAi(
   prompt: AiPrompt,
   signal: AbortSignal,
 ): Promise<AiDecision> {
-  return withOpenAiKey(settings, apiKey, prompt.cacheId, signal, async (model, _id, bounded) => {
+  return withOpenAiKey(settings, apiKey, prompt.cacheId, signal, async (model, id, bounded) => {
     const turn = await runAgentTurn({
       model,
-      prompt,
+      prompt: { ...prompt, reasoningEffort: effortFor(id, prompt.reasoningEffort) },
       tools: prompt.tools,
       signal: bounded,
       onTiming: prompt.onTiming,
+      reasons: openAiModelReasons(id),
     });
     return turn.decision;
   });
@@ -89,7 +106,14 @@ export function draftOpenAi<T>(
     prompt.cacheId,
     signal,
     async (model, id, bounded) => ({
-      output: await runDraft({ ...options, model, prompt, signal: bounded }),
+      output: await runDraft({
+        ...options,
+        model,
+        prompt,
+        signal: bounded,
+        reasoningEffort: effortFor(id, prompt.reasoningEffort),
+        reasons: openAiModelReasons(id),
+      }),
       model: id,
     }),
   );
@@ -103,7 +127,12 @@ export function rewriteOpenAi(
   signal: AbortSignal,
 ): Promise<{ text: string; model: string }> {
   return withOpenAiKey(settings, apiKey, prompt.cacheId, signal, async (model, id, bounded) => ({
-    ...(await runRewrite({ model, prompt, signal: bounded })),
+    ...(await runRewrite({
+      model,
+      prompt: { ...prompt, reasoningEffort: effortFor(id, prompt.reasoningEffort) },
+      signal: bounded,
+      reasons: openAiModelReasons(id),
+    })),
     model: id,
   }));
 }
@@ -121,7 +150,13 @@ export function assistOpenAi(
     call.cacheId,
     signal,
     async (model, id, bounded) => ({
-      ...(await runAssist({ ...call, model, signal: bounded })),
+      ...(await runAssist({
+        ...call,
+        reasoningEffort: effortFor(id, call.reasoningEffort),
+        reasons: openAiModelReasons(id),
+        model,
+        signal: bounded,
+      })),
       model: id,
     }),
     call.timeoutMs,

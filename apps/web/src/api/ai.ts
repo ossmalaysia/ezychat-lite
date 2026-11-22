@@ -20,13 +20,22 @@ import {
 import { api, ApiError } from './client';
 import { qk } from './queries';
 import { voiceStatusKey } from './voice';
+import { taskModelsKey } from './ai-models';
 
 export const aiMemberKey = ['ai-member'] as const;
 
 export function useAiMember() {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: aiMemberKey,
-    queryFn: ({ signal }) => api('/ai', { signal, schema: AiMemberStatus }),
+    queryFn: async ({ signal }) => {
+      const before = qc.getQueryData<AiMemberStatus>(aiMemberKey)?.connection.state;
+      const status = await api('/ai', { signal, schema: AiMemberStatus });
+      // A ChatGPT sign-in finished while polling: AI models now list the account's own models.
+      if (before === 'signing_in' && status.connection.state !== 'signing_in')
+        void qc.invalidateQueries({ queryKey: taskModelsKey });
+      return status;
+    },
     refetchInterval: (query) =>
       query.state.data?.connection.state === 'signing_in' ? 2000 : false,
   });
@@ -171,6 +180,8 @@ export function useAiMemberAction() {
       void qc.invalidateQueries({ queryKey: qk.users });
       // Cloud voice transcription depends on the saved API key.
       void qc.invalidateQueries({ queryKey: voiceStatusKey });
+      // AI models list the connection's own models and choices.
+      void qc.invalidateQueries({ queryKey: taskModelsKey });
     },
     // A batch delete can fail part-way: reload what the server has now.
     onError: () => void qc.invalidateQueries({ queryKey: aiMemberKey }),
