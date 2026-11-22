@@ -11,6 +11,7 @@ import {
 } from '../src/ai/provider.js';
 import { AGENT_TURN_MAX_OUTPUT_TOKENS } from '../src/ai/agent/turn.js';
 import { ASSIST_MAX_OUTPUT_TOKENS } from '../src/ai/agent/assist.js';
+import { REWRITE_MAX_OUTPUT_TOKENS } from '../src/ai/agent/rewrite.js';
 import { assistClaude, generateClaude, rewriteClaude } from '../src/ai/claude.js';
 import { REASONING_HEADROOM } from '../src/ai/agent/draft.js';
 import { answerText, CHATGPT_SETTINGS, seedTokens } from './chatgpt-fixtures.js';
@@ -104,6 +105,9 @@ describe('OpenAI key: the level goes only to reasoning models', () => {
       AGENT_TURN_MAX_OUTPUT_TOKENS + REASONING_HEADROOM.high,
     );
     expect(bodyOf(fetcher.mock.calls[1]).max_output_tokens).toBe(100 + REASONING_HEADROOM.high);
+    expect(bodyOf(fetcher.mock.calls[2]).max_output_tokens).toBe(
+      REWRITE_MAX_OUTPUT_TOKENS + REASONING_HEADROOM.high,
+    );
     expect(bodyOf(fetcher.mock.calls[3]).max_output_tokens).toBe(
       ASSIST_MAX_OUTPUT_TOKENS + REASONING_HEADROOM.high,
     );
@@ -151,6 +155,16 @@ describe('OpenAI key: the level goes only to reasoning models', () => {
     await generateOpenAi(api('gpt-4.1'), 'sk-test', prompt, signal()).catch(() => undefined);
     const turn = fetcher.mock.calls.findLast((c) => bodyOf(c).model === 'gpt-4.1');
     expect(bodyOf(turn).max_output_tokens).toBe(AGENT_TURN_MAX_OUTPUT_TOKENS);
+    // …and Edit with AI and Ask Ezy keep theirs.
+    await rewriteOpenAi(api('gpt-4.1'), 'sk-test', prompt, signal()).catch(() => undefined);
+    expect(bodyOf(fetcher.mock.calls.at(-1)).max_output_tokens).toBe(REWRITE_MAX_OUTPUT_TOKENS);
+    await assistOpenAi(
+      api('gpt-4.1'),
+      'sk-test',
+      { instructions: 'x', messages: [{ role: 'user', content: 'Hi' }], tools: {} },
+      signal(),
+    ).catch(() => undefined);
+    expect(bodyOf(fetcher.mock.calls.at(-1)).max_output_tokens).toBe(ASSIST_MAX_OUTPUT_TOKENS);
   });
 });
 

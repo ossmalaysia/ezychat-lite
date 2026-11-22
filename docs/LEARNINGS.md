@@ -1569,7 +1569,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   Validate against the last read copy even when it is stale, refetch when it is old, and when nothing was ever read
   refuse to store an unchecked name (503) instead of accepting everything.
 - A reasoning model's thinking tokens count against `maxOutputTokens`: give every call path of a reasoning model
-  headroom (draft, agent turn, assistant: `withReasoningHeadroom`), and decide "reasons" separately from "takes our
+  headroom (draft, agent turn, assistant, rewrite: `withReasoningHeadroom`), and decide "reasons" separately from "takes our
   level" (o1-mini and -pro reason but take none), or the call ends `incomplete` and fails.
 - A model choice that cannot be checked yet runs on the documented fallback for that call and triggers the check;
   never let it reach a provider whose own fallback differs (ChatGPT `resolveModel` → Auto, not the row's Fast).

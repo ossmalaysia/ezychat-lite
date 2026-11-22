@@ -131,6 +131,7 @@ export function rewriteOpenAi(
       model,
       prompt: { ...prompt, reasoningEffort: effortFor(id, prompt.reasoningEffort) },
       signal: bounded,
+      reasons: openAiModelReasons(id),
     })),
     model: id,
   }));
