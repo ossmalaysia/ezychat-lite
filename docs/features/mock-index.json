@@ -6,13 +6,13 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "live-translate",
-    "gitRevision": "ea070366d62d4ecf72a57479c0829861d74cfee5",
-    "mock": "docs/features/live-translate/mock/index.html",
-    "design": "docs/features/live-translate/design.md",
-    "confirmedAt": "2026-11-19",
-    "confirmation": "Owner (Jazz) confirmed the updated mock 2026-11-19 (\"ok mock\"), relayed by the main session, with the final decisions: the admin switch Live translate for everyone is on by default for new and updated installs, and the off-state hint \"Customer writes in 中文 · Translate\" is shown.",
-    "note": "Clone of app-navigation (dc0d5ce6) with Live translate added (Translate button, bar, Languages popover, translated bubbles, Customer will get preview, Settings → AI card, Account → My language). Inherits app-navigation coverage gaps; does not cover voice-note transcript translation, the chat-list line, editing a sent reply, reply suggestions in My language or Fix English being turned off."
+    "feature": "ai-models-per-task",
+    "gitRevision": "c4584db69e366a7770b40ffdf717b75d1cae66dd",
+    "mock": "docs/features/ai-models-per-task/mock/index.html",
+    "design": "docs/features/ai-models-per-task/design.md",
+    "confirmedAt": "2026-11-22",
+    "confirmation": "Owner (Jazz) confirmed 2026-11-22 (\"Yes, all suggested\"), relayed by the master session: Speed and quality: Faster · Balanced · Smarter (replacing Thinking Low/Medium/High; same words in Cloud), Translate defaults to Fast + Faster, Edit with AI joins Writing help, Ask Ezy setup and the Dream mode merge stay on the main model with no setting, the Reply suggestions card loses its model picker and gets a note, Claude thinking in phase 2.",
+    "note": "Clone of live-translate (4b112b68) with Settings → AI → AI models added (five rows, per connection, fallback warning) and the Reply suggestions model picker replaced by a note. Inherits live-translate coverage gaps; does not cover Ask Ezy or Live translate actually going faster, Enterprise edition differences or the Settings search."
   },
   "proposals": [
     {
@@ -21,11 +21,13 @@
       "createdAt": "2026-11-22",
       "design": "docs/features/ai-models-per-task/design.md",
       "mock": "docs/features/ai-models-per-task/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "live-translate",
       "baselineGitRevision": "4b112b68e3dae097d815a59b231a0f5910936bbf",
       "coverage": "Full clone of the confirmed live-translate reference; adds Settings → AI → AI models (five rows: AI agent replies, Ask Ezy, Translate, Writing help, Background checks; Fast / Main model / listed models; Thinking Low/Medium/High for ChatGPT and OpenAI reasoning models; per connection; fallback warning) and moves the Model for suggestions out of Reply suggestions; ChatGPT, OpenAI key and Claude; 1280/360, light/dark, en/ms/zh-CN (mock/ai-models-shots.mjs, 30 shots).",
-      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed. Retention: six counted folders, so chat-hide-delete (oldest, order 44) is removed; its design moved to docs/chat-hide-delete.md (mock and review: git show 48284041:docs/features/chat-hide-delete/). Counted now: github, dream-mode, live-translate, mcp-resolve-chat, ai-models-per-task. template-store stays (live tooling)."
+      "note": "Confirmed 2026-11-22; the next clone starts from this revision. Retention: six counted folders, so chat-hide-delete (oldest, order 44) is removed; its design moved to docs/chat-hide-delete.md (mock and review: git show 48284041:docs/features/chat-hide-delete/). Counted now: github, dream-mode, live-translate, mcp-resolve-chat, ai-models-per-task. template-store stays (live tooling).",
+      "confirmedAt": "2026-11-22",
+      "confirmation": "Owner (Jazz) confirmed 2026-11-22 (\"Yes, all suggested\"), relayed by the master session: Speed and quality: Faster · Balanced · Smarter (replacing Thinking Low/Medium/High; same words in Cloud), Translate defaults to Fast + Faster, Edit with AI joins Writing help, Ask Ezy setup and the Dream mode merge stay on the main model with no setting, the Reply suggestions card loses its model picker and gets a note, Claude thinking in phase 2."
     },
     {
       "feature": "mcp-resolve-chat",
