@@ -303,8 +303,9 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
 - "release" alone does not open the merge gate (`.claude/hooks/merge-gate.mjs`): it denies `gh pr merge` always and
   merges a release PR only on "merge <n>" or "merge … and release" in the owner's newest message, and only through
-  `mcp__github__merge_pull_request`. Before a release, check that the GitHub MCP tool is connected; without it, ask the
-  owner to press Squash and merge. Never merge through `gh api` or another path around the gate.
+  `mcp__github__merge_pull_request`. Before a release, check that the GitHub MCP tool is connected (`claude mcp list`
+  must show a server named `github`; permission settings cannot add a missing tool); without it, ask the owner at once
+  to press Squash and merge. Never merge through `gh api` or another path around the gate.
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
