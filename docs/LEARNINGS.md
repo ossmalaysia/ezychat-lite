@@ -314,6 +314,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - A change to an owner rule (e.g. "No tracking in Lite") needs the owner's own words in the session doing it: child
   cloud sessions refuse approvals relayed by another session. When the owner approves in the main session, do the
   work there (or in a fork of it), not in a child.
+- A small core-tier fix with full coverage scores only 55 (`NOT READY`): plan the Dev Build row (+10) and the
+  workbook E2E stage (+10) before pushing, so `MERGE OK` needs no second wait on CI.
 - `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
   counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
   docs-only commit, or the stages show as `✗ missing`. The same holds for the commit cited in a
