@@ -308,7 +308,7 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   `api.githubcopilot.com/mcp/` has no OAuth for Claude Code ("does not support dynamic client registration"), and the
   gate reads `pullNumber`, the official `github-mcp-server` schema: run that image in Docker from a launcher that sets
   `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token` at start (never write the token to config), added from
-  PowerShell (Git Bash turns `cmd /c` into `cmd C:/`). A server added mid-session needs `/mcp` or a restart. Never merge through `gh api` or another path around the gate.
+  PowerShell (Git Bash turns `cmd /c` into `cmd C:/`). A server added mid-session loads only after a restart (`claude --continue`); `/mcp` does not load it. Never merge through `gh api` or another path around the gate.
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
