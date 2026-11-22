@@ -1,7 +1,7 @@
 import { generateText, Output, type LanguageModel } from 'ai';
 import type { z } from 'zod';
 import type { AiSettings } from '@ezychat/shared';
-import type { AiRewritePrompt } from '../provider-types.js';
+import type { AiReasoningEffort, AiRewritePrompt } from '../provider-types.js';
 
 /**
  * Completions must arrive while the teammate still types (the server drops them after 3 s), so
@@ -37,7 +37,7 @@ export interface DraftCall<T> {
   signal: AbortSignal;
   maxOutputTokens: number;
   /** OpenAI Responses reasoning effort; omitted = the model's default. */
-  reasoningEffort?: 'low';
+  reasoningEffort?: AiReasoningEffort;
 }
 
 /** Reply suggestions and completions: one structured call, no tools, never retried. */

@@ -2587,19 +2587,19 @@
       "balanced": "balanced",
       "smart": "smarter, costs more"
     },
-    "thinking": "Thinking",
+    "thinking": "Speed and quality",
     "thinkingLevel": {
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High"
+      "low": "Faster",
+      "medium": "Balanced",
+      "high": "Smarter"
     },
     "thinkingHint": {
-      "low": "Low thinking: quickest.",
-      "medium": "Medium thinking: balanced.",
-      "high": "High thinking: best answers, slowest, uses more of your plan."
+      "low": "Faster: answers soonest.",
+      "medium": "Balanced: a good mix of speed and quality.",
+      "high": "Smarter: best answers, slowest, uses more of your plan."
     },
     "unavailable": "{{model}} is no longer offered by your AI connection. EzyChat uses {{fallback}} until you choose another model.",
-    "alwaysMain": "Always the main model ({{main}}): setting up agents with Ask Ezy, Edit with AI, the changes Dream mode suggests and filling in customer details, because they change your setup or records. Voice notes follow their own setting below.",
+    "alwaysMain": "Always the main model ({{main}}): setting up agents with Ask Ezy, the changes Dream mode suggests and filling in customer details, because they change your setup or records. Voice notes follow their own setting below.",
     "suggestNote": "Which model writes suggestions is now set in AI models → Writing help.",
     "mockControls": "Mock only",
     "mockConnection": "Connection",
@@ -2621,7 +2621,7 @@
       },
       "writing": {
         "title": "Writing help",
-        "what": "Suggest reply, the grey text while you type, and Fix English."
+        "what": "Suggest reply, the grey text while you type, Fix English and Edit with AI."
       },
       "background": {
         "title": "Background checks",

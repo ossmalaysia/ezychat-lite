@@ -23,7 +23,7 @@ const DecisionOutput = z.object({
 
 export interface AgentTurn {
   model: LanguageModel;
-  prompt: Pick<AiPrompt, 'instructions' | 'input' | 'images' | 'pdfs'>;
+  prompt: Pick<AiPrompt, 'instructions' | 'input' | 'images' | 'pdfs' | 'reasoningEffort'>;
   /**
    * How this provider mode takes the prompt's PDFs: `file` (default; OpenAI API key and Claude) or
    * `text` (the ChatGPT sign-in backend gets only their text layer).
@@ -113,6 +113,9 @@ async function attemptTurn(turn: AgentTurn, retries: number): Promise<AgentTurnR
     // service hands the chat to the team instead (only a malformed answer is asked again, above).
     maxRetries: 0,
     maxOutputTokens: 2000,
+    ...(turn.prompt.reasoningEffort
+      ? { providerOptions: { openai: { reasoningEffort: turn.prompt.reasoningEffort } } }
+      : {}),
     onStepFinish: () => {
       const now = Date.now();
       stepMs.push(now - last);

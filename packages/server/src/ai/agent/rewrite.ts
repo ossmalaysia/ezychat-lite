@@ -6,7 +6,7 @@ const RewriteOutput = z.object({ text: z.string() });
 
 export interface RewriteCall {
   model: LanguageModel;
-  prompt: Pick<AiPrompt, 'instructions' | 'input'>;
+  prompt: Pick<AiPrompt, 'instructions' | 'input' | 'reasoningEffort'>;
   signal: AbortSignal;
 }
 
@@ -23,6 +23,9 @@ export async function runRewrite(call: RewriteCall): Promise<{ text: string }> {
     maxRetries: 0,
     // Room for a full 8,000-character box (CJK can take ~1 token per character) plus reasoning.
     maxOutputTokens: 12_000,
+    ...(call.prompt.reasoningEffort
+      ? { providerOptions: { openai: { reasoningEffort: call.prompt.reasoningEffort } } }
+      : {}),
   });
   call.signal.throwIfAborted();
   return RewriteOutput.parse(result.output);

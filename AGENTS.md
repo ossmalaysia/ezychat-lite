@@ -175,7 +175,7 @@ the current text or the suggestion; closing the popup aborts the request and the
 (design `docs/features/ai-reply-suggestions/design.md`): `POST /api/chats/:jid/ai/suggestions` and `…/ai/complete`
 (any user with inbox access, direct chats and groups, 20 and 60 a minute) draft from the chat's agent knowledge even when
 the agent is off (a group gets member names via `groupConversation`, `currentSituation.group`, no customer details; `AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
-`CORE_RULES`); both use the "Model for suggestions" (`ai_reply_suggestions_model`: `fast` default = the connection's
+`CORE_RULES`); both use the AI models → Writing help row (formerly the "Model for suggestions" `ai_reply_suggestions_model`: `fast` default = the connection's
 fast model, `agent/draft.ts` ChatGPT `CHATGPT_FAST_DRAFT_MODELS` with reasoning `low`, `DRAFT_FAST_MODELS` for the
 API-key modes; `agent`; or a model of the connection, `GET /api/ai/reply-suggestions/model`); a completion sees only
 the last 6 messages and the typed text, never the knowledge; `ai/draft-check.ts` drops ungrounded drafts, numbers not
@@ -234,10 +234,20 @@ assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests a
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 
-**AI models per task** (PROPOSAL, not built yet; lasting rules and decision log `docs/ai-models.md`: read it before changing
-which model an AI call uses, and add a decision line when you change a rule). Settings → AI → AI models: five rows (AI
-agent replies, Ask Ezy, Translate, Writing help, Background checks), each Fast / Main model / a listed model plus a thinking
-level, stored per connection mode; it will replace the "Model for suggestions" below.
+**AI models per task** (design `docs/features/ai-models-per-task/design.md`, lasting rules and decision log
+`docs/ai-models.md`: read it before changing which model an AI call uses, and add a decision line when you change a rule).
+Settings → AI → AI models (`admin/AiModelsSection.tsx`, `GET/PUT /api/ai/task-models`, admins, 30 saves a minute; shared
+`ai-models.ts`): five rows `agentReplies` (live replies, Try it, scheduled tasks, every preview), `askEzy` (normal
+questions), `translate`, `writing` (Suggest reply, completion, Fix English, Edit with AI), `background` (Safety AI check,
+phrase list, Dream lessons), each Fast / Main model / a model the connection lists plus "Speed and quality" Faster ·
+Balanced · Smarter (reasoning low · medium · high; ChatGPT always, OpenAI key only reasoning models, Claude none until
+phase 2). Setting `ai_task_models[mode][row]` (a save changes only the current mode; audit `settings.ai_task_model`
+before/after); defaults = behaviour before the feature except Translate (Fast); a saved model the connection no longer
+lists runs on Main (agent replies) or Fast with a warning. Every call resolves its row through `ai/task-models.ts`
+(`taskCall` in `service.ts`; providers take `reasoningEffort` on the prompt/call); log lines add `task` and `thinking`.
+Ask Ezy setup, Dream merge and customer enrichment stay on the main model (no row). Start-up `migrateTaskModels` moves the
+old `ai_reply_suggestions_model` into Writing help once; `GET /api/ai/reply-suggestions/model` and `PUT
+/api/ai/reply-suggestions {model}` stay for older clients and read/write the Writing help row.
 
 **Scheduled tasks** (design `docs/features/scheduled-tasks/design.md`, migration 036, `scheduled/` (`repo.ts` is its only
 SQL), routes `/api/ai/agents/:agentId/scheduled-tasks*`, admins). Up to `SCHEDULED_TASKS_MAX` (10) tasks per agent; each
@@ -264,7 +274,7 @@ off or `draftConnection()` is not ready. `ai/dream/collect.ts` reads the agent's
 `ai.handoff` audit row, or an `assigned` event with reason `reply` over the AI user, then a person's reply; at most 30, last
 20 messages): never forwarded messages (`forwarding_score`, owner rule), deleted/hidden, scheduled-task, Safety-flagged or
 still-checking, system rows or captionless media; names, emails and long numbers cleaned (`ai/customer-names.ts` +
-`cleanTeamReply`). One `draft` call per chat (`DREAM_LESSON_RULES`, Model for suggestions) → lessons that cite team
+`cleanTeamReply`). One `draft` call per chat (`DREAM_LESSON_RULES`, AI models → Background checks) → lessons that cite team
 messages and keep their numbers; one `draft` call on the main model (`DREAM_MERGE_RULES`) → at most 5 changes; Internal
 items never in the input. `ai/dream/checks.ts`: privacy, leak, grounding on the added lines, then Try-it previews with the
 proposed setup (`AiService.previewWithSetup`; `tryAnswer`'s server-only `items` field) of the source questions and up to 10
@@ -296,7 +306,7 @@ the British English Hunspell dictionary vendored in `apps/web/public/dictionarie
 `spelling.test.ts`; fetched by `lib/dictionary.ts` on first use, never precached), skips links, numbers, all-caps,
 capitalised words inside a sentence, `LOCAL_WORDS` and the accepted words, and Fix all applies only a `safeFix`.
 Grammar: `POST /api/chats/:jid/ai/fix-grammar` (any chat type, 120 a minute per user) → `AiService.fixGrammar`: one
-structured `draft` call on the "Model for suggestions" with the fixed `FIX_GRAMMAR_RULES` and `{text}` only, then
+structured `draft` call on the AI models → Writing help row with the fixed `FIX_GRAMMAR_RULES` and `{text}` only, then
 `fix-english/grammar.ts#grammarIssues` diffs the corrected text into marks and drops changes to numbers, links, emails,
 mentions, more than 4 words, or a rewrite; Malay/Chinese (`notEnglish`) is skipped before any call; logs counts only
 (`fix_grammar`). Team words (`fix_english_words`, ≤ 500): any user adds (`POST /api/fix-english/words`), admins remove;
@@ -314,7 +324,7 @@ none)} at `PUT /api/live-translate/settings` (audit `settings.live_translate` be
 switch; the customer or group language is shared), `POST …/translations` (≤ 50 ids, cached per message, revision and
 target; the 70 % rule `shareInLanguage`; 120 a minute) and `POST …/translate-draft` (60 a minute; 409 `translate_off`,
 429 `translate_limit`, 503 `ai_unavailable` / `translate_failed`). `AiService.translate` (`ai/translate-prompt.ts`): one
-structured `draft` call on the "Model for suggestions" with the fixed `TRANSLATE_RULES`, no tools, no retries, no
+structured `draft` call on the AI models → Translate row with the fixed `TRANSLATE_RULES`, no tools, no retries, no
 back-translation. Protected items (`protectedItems` / `changedItem`) must come through unchanged: else the incoming
 translation is `unsafe` (never shown), the draft `refused`, the send 400 `translation_changed`. A send carries
 `translation {draftId, typedText, typedLanguage, edited}` or `sentOriginal`; `message_typed` is stored in the message's
@@ -326,8 +336,8 @@ model, result only.
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
 the signed-in user (team members: the inbox read tools of their own inboxes; admins also the AI setup reads,
-`try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the connection's
-**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 8 steps, the last without tools, no retries) returns text plus typed blocks
+`try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the
+**AI models → Ask Ezy row** (default the fast model; `AiService.assist`, `agent/assist.ts`, ≤ 8 steps, the last without tools, no retries) returns text plus typed blocks
 (`AskEzyBlock`: stats, bars, heatmap, chats, customer, change, test); blocks are validated, invalid ones dropped,
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
@@ -569,7 +579,7 @@ downloaded). A template only fills editable boxes after Apply. `npm run template
 before presenting it; history: name and text only). Local rules `safety/rules.ts` (real type from the first bytes, a
 ZIP's file list only via `safety/zip.ts`: never run, opened or extracted; bounded, fails closed to `cantInspect`) and
 `safety/policy.ts#decide` (critical rule = High; the AI may raise or confirm, lower only a rules-only Warning). AI check
-`AiService.checkSafety` (fast model, fixed `SAFETY_CHECK_RULES`, text + file names + ZIP names, never bytes; 200 a day
+`AiService.checkSafety` (AI models → Background checks, default the fast model, fixed `SAFETY_CHECK_RULES`, text + file names + ZIP names, never bytes; 200 a day
 per inbox; logs level/category/ms only). Table `safety_items` (one per flagged message, migration 028), `safety_numbers`
 (scam / blocked / trusted, shared by inboxes), `safety_downloads`. High files move to `media/quarantine/<path>.bin`; the
 media route answers agents 403 `safety_locked` (recorded), serves admins `application/octet-stream` + `no-store`, and

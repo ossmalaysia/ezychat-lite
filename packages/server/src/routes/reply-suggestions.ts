@@ -12,7 +12,6 @@ import {
   replySuggestionsEnabled,
   replySuggestionsUpgraded,
   setReplySuggestions,
-  setReplySuggestionsModel,
 } from '../ai/reply-suggestions-setting.js';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import { ChatRepo } from '../chats/repo.js';
@@ -66,7 +65,17 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
       throw errors.validation('Choose Fast, Same as the AI agent or a model of this connection');
     const actor = { userId: req.user!.id, ip: clientIp(req) };
     if (enabled !== undefined) setReplySuggestions(ctx, enabled, actor);
-    if (model !== undefined) setReplySuggestionsModel(ctx, model, actor);
+    // Older clients: the model for suggestions is now AI models → Writing help (docs/ai-models.md).
+    if (model !== undefined) {
+      const choice = model === 'fast' ? null : model === 'agent' ? 'main' : model;
+      // Keep the row's Speed and quality level when the model stays the same.
+      const row = ai.taskModels().tasks.writing;
+      const thinking = choice && !row.isDefault && row.choice === choice ? row.thinking : null;
+      ai.setTaskModels(
+        { tasks: { writing: choice ? { choice, ...(thinking ? { thinking } : {}) } : null } },
+        actor,
+      );
+    }
     return status();
   });
   app.get('/ai/reply-suggestions/model', { preHandler: requireAdmin(ctx) }, async () =>

@@ -1554,6 +1554,13 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Routing an AI call to a chosen model: keep the provider's own meaning of a flag the tests and other callers read
+  (`fast` on drafts, `main` on Ask Ezy as "setup turn"). AI models per task first sent every resolved model with
+  `fast: false` / `main: true`, which kept behaviour but broke 25 Ask Ezy tests that detect a setup turn by `main`;
+  set the flag only when the row really leaves the old default, and pass the new knob (`reasoningEffort`) separately.
+- A per-task model setting is stored per connection mode and resolved at every call (the ChatGPT list is live): a saved
+  model the connection no longer lists runs on the row's fallback with a warning, never on a model it does not offer.
+
 - A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
   `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
   translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.

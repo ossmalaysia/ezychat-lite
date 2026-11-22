@@ -10,14 +10,18 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
   Same names and labels in Lite, Enterprise and Cloud.
 - **What each row covers:** AI agent replies = live replies, Try it, scheduled tasks and every preview of what the agent
   would send (scheduled-task, Ask Ezy task and Dream previews). Ask Ezy = normal questions. Translate = Live translate
-  (incoming and drafts). Writing help = Suggest reply, the grey-text completion, Fix English. Background checks =
-  WhatsApp Safety AI check, phrase list, Dream mode lessons.
-- **Always the main model** (no row): Ask Ezy setup, Edit with AI, Dream mode merge, customer enrichment; they write
-  setup or records. Voice transcription keeps its own setting.
+  (incoming and drafts). Writing help = Suggest reply, the grey-text completion, Fix English, Edit with AI. Background
+  checks = WhatsApp Safety AI check, phrase list, Dream mode lessons.
+- **Always the main model** (no row): Ask Ezy setup, Dream mode merge, customer enrichment; they write setup or
+  records. Voice transcription keeps its own setting.
 - **Choices:** Fast (the connection's fast model), Main model (the AI connection card's model), or any model the current
-  connection lists. Thinking Low / Medium / High only for models that have it (ChatGPT, OpenAI reasoning models).
-- **Defaults equal the behaviour before the feature**, except Translate: AI agent replies Main + model's own thinking
-  (shown Medium, nothing sent); every other row Fast + Low.
+  connection lists. **Speed and quality: Faster · Balanced · Smarter** (= reasoning effort low · medium · high) only for
+  models that have it: every ChatGPT model and OpenAI reasoning models (gpt-5…, o-series) on a key. Claude: none (Claude
+  thinking for Balanced/Smarter is phase 2). Same words in Lite, Enterprise and Cloud.
+- **Defaults equal the behaviour before the feature**, except Translate and Edit with AI: AI agent replies Main +
+  Balanced (the model's own level; nothing is sent); every other row Fast + Faster (Translate was the "Model for
+  suggestions"; Edit with AI was the main model).
+- **No picker elsewhere:** the Reply suggestions card has no model choice; one line points to AI models → Writing help.
 - **Per connection:** choices are stored per mode (`ai_task_models[mode][group]`); a save changes only the current mode.
 - **Fallback:** a saved model the connection no longer lists runs as Main (agent replies) or Fast (others) at the
   default thinking, with a warning on the row; the saved choice is kept.
@@ -32,3 +36,11 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
   cloud"). Proposal: five rows; Translate defaults to Fast everywhere; setup and records work stays on the main model;
   the "Model for suggestions" becomes Writing help (migrated); phrase list and Dream lessons move to Background checks.
   Waiting for the owner's confirmation of the mock.
+- 2026-11-22: owner confirmed ("Yes, all suggested"): the extra control is **Speed and quality: Faster · Balanced ·
+  Smarter** (not Thinking Low/Medium/High; Faster = low, Balanced = medium or the model's own, Smarter = high; Cloud uses
+  the same words); Translate defaults to Fast + Faster; Edit with AI joins Writing help (default Fast); Ask Ezy setup and
+  the Dream mode merge stay on the main model with no setting; the Reply suggestions card loses its model picker and
+  gets a note; Claude thinking for Balanced/Smarter is phase 2.
+- 2026-11-22: built. Ask Ezy's turn budget is the admin's question time limit (docs/ask-ezy.md), so it does not change with
+  the row's model (the proposal's 90 s / 150 s split predates that limit). On Fast, draft calls keep the provider's own
+  fast-model pick (`fast: true`), so a ChatGPT account's live list still decides it.

@@ -229,6 +229,8 @@ export function createPhraseService(ctx: AppContext, deps: PhraseDeps = {}): Phr
           ok: true,
           ms: now() - started,
           model: result.model,
+          task: 'background',
+          thinking: result.thinking,
           candidates: result.output.phrases.length,
           added: plan.add.length,
           removed: plan.drop.length,

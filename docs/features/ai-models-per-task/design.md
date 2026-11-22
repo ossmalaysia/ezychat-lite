@@ -1,6 +1,7 @@
 # AI models per task
 
-Status: **proposal, waiting for the owner's confirmation.** Design and mock only; no production code.
+Status: **confirmed by the owner 2026-11-22 and built** (see the confirmation record). The decisions there override the
+proposal text below where they differ (labels, Edit with AI, Claude thinking).
 Editions: Lite and Enterprise (core, through the published `@ezychat/web`). EzyChat Cloud is designed in a parallel
 session with the same task-group names and labels. Lasting rules and decision log: [docs/ai-models.md](../../ai-models.md).
 
@@ -223,7 +224,7 @@ New response fields of existing schemas get zod defaults (Enterprise compatibili
 Runs while `ai_task_models` is missing; idempotent; `upgrade-from-oldest.test.ts` seed gets an old
 `ai_reply_suggestions_model`.
 
-- `ai_reply_suggestions_model` = `agent` → Writing help `main`; a model id → Writing help that id, under the connection
+- `ai_reply_suggestions_model` = `agent` → Writing help `main` for every connection; a model id → Writing help that id, under the connection
   mode saved at upgrade; `fast` or missing → nothing (default).
 - Translate is **not** copied: it starts on Fast (owner: Translate defaults to Fast everywhere).
 - Phrase list and Dream lessons move to Background checks (Fast). An install that had changed the "Model for
@@ -262,3 +263,16 @@ audited. Nothing changes in what text goes to the AI provider; only which of the
 ## Confirmation record
 
 - 2026-11-22: proposal and mock opened as a draft PR. Waiting for the owner.
+- 2026-11-22: **owner (Jazz) confirmed**, relayed by the master session. Asked: "By 'go', do you mean start building AI
+  models per task with all my suggested answers (Faster · Balanced · Smarter labels, Translate fastest, Edit with AI
+  under Writing help, setup on the main model, no picker on the suggestions card, Claude thinking in phase 2)?" Answer:
+  "Yes, all suggested". Decisions:
+  1. The extra control is **Speed and quality: Faster · Balanced · Smarter**, replacing Thinking Low / Medium / High.
+     Faster = low, Balanced = medium / the model's default, Smarter = high for reasoning models. Cloud uses the same words.
+  2. Translate defaults to Fast + Faster.
+  3. Edit with AI joins Writing help (default Fast).
+  4. Ask Ezy setup and the Dream mode merge stay on the main model, with no setting.
+  5. The Reply suggestions card loses its model picker and gets a note pointing to AI models.
+  6. Claude thinking for Balanced/Smarter: phase 2, not in this build.
+  The mock was updated to these labels (catalogs in `mock/src/i18n/locales/*/admin.json`: `thinking`, `thinkingLevel`,
+  `thinkingHint`, `tasks.writing.what`, `alwaysMain`); open questions 1–3 above are answered by 4, 2 and 5.

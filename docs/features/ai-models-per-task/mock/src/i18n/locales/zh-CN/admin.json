@@ -2576,19 +2576,19 @@
       "balanced": "均衡",
       "smart": "更聪明，费用更高"
     },
-    "thinking": "思考",
+    "thinking": "速度与质量",
     "thinkingLevel": {
-      "low": "低",
-      "medium": "中",
-      "high": "高"
+      "low": "更快",
+      "medium": "均衡",
+      "high": "更聪明"
     },
     "thinkingHint": {
-      "low": "低思考：最快。",
-      "medium": "中思考：均衡。",
-      "high": "高思考：回答最好，最慢，会用掉更多套餐额度。"
+      "low": "更快：回答最快。",
+      "medium": "均衡：速度与质量兼顾。",
+      "high": "更聪明：回答最好，最慢，会用掉更多套餐额度。"
     },
     "unavailable": "你的 AI 连接已不再提供 {{model}}。在你选择其他模型之前，EzyChat 使用{{fallback}}。",
-    "alwaysMain": "以下工作始终使用主模型（{{main}}）：用 Ask Ezy 设置代理、用 AI 编辑、梦境模式建议的修改，以及填写客户资料，因为它们会更改你的设置或记录。语音消息按下方自己的设置。",
+    "alwaysMain": "以下工作始终使用主模型（{{main}}）：用 Ask Ezy 设置代理、梦境模式建议的修改，以及填写客户资料，因为它们会更改你的设置或记录。语音消息按下方自己的设置。",
     "suggestNote": "建议回复使用的模型现在在「AI 模型 → 写作帮助」中设置。",
     "mockControls": "Mock only",
     "mockConnection": "连接",
@@ -2610,7 +2610,7 @@
       },
       "writing": {
         "title": "写作帮助",
-        "what": "建议回复、输入时的灰色提示文字，以及修正英文。"
+        "what": "建议回复、输入时的灰色提示文字、修正英文以及用 AI 编辑。"
       },
       "background": {
         "title": "后台检查",

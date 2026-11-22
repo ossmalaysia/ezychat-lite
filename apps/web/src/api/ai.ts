@@ -20,6 +20,7 @@ import {
 import { api, ApiError } from './client';
 import { qk } from './queries';
 import { voiceStatusKey } from './voice';
+import { taskModelsKey } from './ai-models';
 
 export const aiMemberKey = ['ai-member'] as const;
 
@@ -171,6 +172,8 @@ export function useAiMemberAction() {
       void qc.invalidateQueries({ queryKey: qk.users });
       // Cloud voice transcription depends on the saved API key.
       void qc.invalidateQueries({ queryKey: voiceStatusKey });
+      // AI models list the connection's own models and choices.
+      void qc.invalidateQueries({ queryKey: taskModelsKey });
     },
     // A batch delete can fail part-way: reload what the server has now.
     onError: () => void qc.invalidateQueries({ queryKey: aiMemberKey }),

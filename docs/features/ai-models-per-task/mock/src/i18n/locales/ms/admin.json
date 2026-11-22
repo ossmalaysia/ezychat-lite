@@ -2579,19 +2579,19 @@
       "balanced": "seimbang",
       "smart": "lebih bijak, lebih mahal"
     },
-    "thinking": "Pemikiran",
+    "thinking": "Kelajuan dan kualiti",
     "thinkingLevel": {
-      "low": "Rendah",
-      "medium": "Sederhana",
-      "high": "Tinggi"
+      "low": "Lebih pantas",
+      "medium": "Seimbang",
+      "high": "Lebih bijak"
     },
     "thinkingHint": {
-      "low": "Pemikiran rendah: paling cepat.",
-      "medium": "Pemikiran sederhana: seimbang.",
-      "high": "Pemikiran tinggi: jawapan terbaik, paling perlahan, guna lebih banyak pelan anda."
+      "low": "Lebih pantas: menjawab paling cepat.",
+      "medium": "Seimbang: campuran baik antara kelajuan dan kualiti.",
+      "high": "Lebih bijak: jawapan terbaik, paling perlahan, guna lebih banyak pelan anda."
     },
     "unavailable": "{{model}} tidak lagi ditawarkan oleh sambungan AI anda. EzyChat menggunakan {{fallback}} sehingga anda memilih model lain.",
-    "alwaysMain": "Sentiasa model utama ({{main}}): menyediakan ejen dengan Ask Ezy, Edit dengan AI, perubahan yang dicadangkan oleh Mod mimpi dan mengisi butiran pelanggan, kerana ia mengubah tetapan atau rekod anda. Nota suara mengikut tetapannya sendiri di bawah.",
+    "alwaysMain": "Sentiasa model utama ({{main}}): menyediakan ejen dengan Ask Ezy, perubahan yang dicadangkan oleh Mod mimpi dan mengisi butiran pelanggan, kerana ia mengubah tetapan atau rekod anda. Nota suara mengikut tetapannya sendiri di bawah.",
     "suggestNote": "Model yang menulis cadangan kini ditetapkan dalam Model AI → Bantuan menulis.",
     "mockControls": "Mock only",
     "mockConnection": "Sambungan",
@@ -2613,7 +2613,7 @@
       },
       "writing": {
         "title": "Bantuan menulis",
-        "what": "Cadang balasan, teks kelabu semasa menaip, dan Betulkan English."
+        "what": "Cadang balasan, teks kelabu semasa menaip, Betulkan English dan Edit dengan AI."
       },
       "background": {
         "title": "Semakan latar",

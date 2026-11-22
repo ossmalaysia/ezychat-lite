@@ -1,3 +1,4 @@
+import type { AiReasoningEffort } from '../provider-types.js';
 import {
   generateText,
   NoObjectGeneratedError,
@@ -49,7 +50,7 @@ export interface AssistCall {
   /** Receives the tool names of each finished step (for the live "Read …" lines). */
   onStep?: (toolNames: string[]) => void;
   /** OpenAI Responses reasoning effort for ChatGPT sign-in; omitted = the model's default. */
-  reasoningEffort?: 'low';
+  reasoningEffort?: AiReasoningEffort;
   /** One record per model call (counts and times only, never text), for the latency and cache trace. */
   onTrace?: (trace: AssistCallTrace) => void;
 }
