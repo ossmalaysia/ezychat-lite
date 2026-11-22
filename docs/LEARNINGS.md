@@ -1432,7 +1432,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
-  app must make its own. The adapter's `raw` cache is memory only, so a later download goes
+  app makes its own from the stored JPEG (`messages/image-preview.ts`). Decode images in pure JS (`jpeg-js`) inside a
+  worker: `sharp` is only Baileys' optional peer, external to the server bundle and not shipped. A preview URL served
+  `immutable` must change when its bytes improve (`?v=2`), and a placeholder that gets replaced is sent `no-cache`, or
+  browsers keep the blurry one for 30 days. The adapter's `raw` cache is memory only, so a later download goes
   through the stored `media_refs` row: restart the server when you test on-demand media.
 - Opening a chat sends read receipts for its newest 20 customer messages while the number is connected, also in a Dev Build
   (`chats/service.ts#markRead`). To drive a screen on real data, copy `app.db`, `secret.key` and `media/` without `wa-auth/`
@@ -1954,7 +1957,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Login returns to `state.from`, the page where the session ended: a page where people sign out (`/account`) must
   never be a return target (`safeFrom`), or the next person signs in to someone else's last page.
 - Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
-  new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
+  new customer only after the number's first stored message, so alone in fresh data it reads 0; in a full run it can
+  also fail when another spec adds a customer between its API read and its page read). Rerun failed specs
   to iterate, then one full run decides.
 - In screen scripts, scope action buttons to the page content (`getByRole('main').getByRole('button', { name,
 exact: true })`): on admin pages a bare "Log out" also matches the account menu's sign-out, and `.first()` signs

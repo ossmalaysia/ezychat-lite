@@ -418,3 +418,29 @@ Hard stops: 4. checks pending (missing: SonarCloud Code Analysis, Test (ubuntu-l
 Migration: packages/server/src/db/migrations/042_github.sql — adds-only
 
 Decision: **risk:human**
+
+## 2026-11-22 · PR #417 · `2e98d2d` · risk:human (60)
+
+**NOT READY: score 60 < 70: the owner tests and approves · risk:human (60)**
+
+Tier **critical**, set by: packages/server/src/db/migrations/047_media_thumb_own.sql, packages/server/src/messages/image-preview-scale.ts, packages/server/src/messages/image-preview-worker.ts, packages/server/src/messages/image-preview.ts, packages/server/src/messages/repo.ts, packages/server/src/messages/service.ts
+
+| Item | Points | Proof |
+| --- | --- | --- |
+| Start | 50 | |
+| Tier: critical | -30 | ✓ |
+| Size: 349 code lines | -20 | ✓ |
+| Changed-lines coverage 91.7 % | +15 | ✓ |
+| e2e covers the change | +10 | ✓ |
+| Desktop link check (not needed) | +5 | ✓ |
+| Dev Build check | +10 | ✓ |
+| Screen review (not needed) | +5 | ✓ |
+| Real-part test | +15 | ✓ |
+| Review comments: 0 open of 0 | 0 | ✓ |
+| **Score** | **60** | |
+
+Hard stops: none
+
+Migration: packages/server/src/db/migrations/047_media_thumb_own.sql — adds-only
+
+Decision: **risk:human**
