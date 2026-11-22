@@ -108,7 +108,7 @@ for (const size of ['desktop', 'mobile']) {
   await shoot(page, `${size}-chatgpt-select-open`);
   await page.getByRole('option', { name: /^Main model/ }).click();
   await page.waitForTimeout(500);
-  await writing.getByText('High', { exact: true }).click();
+  await writing.getByText('Smarter', { exact: true }).click();
   await writing.scrollIntoViewIfNeeded();
   await shoot(page, `${size}-chatgpt-changed-unsaved`);
   await page.getByTestId('ai-models-save').click();

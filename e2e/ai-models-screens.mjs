@@ -145,10 +145,7 @@ try {
           await page.getByRole('option', { name: /^Main model/ }).click();
         });
         await step('edited', async () => {
-          await card
-            .getByTestId('ai-models-writing')
-            .getByRole('radio', { name: 'Smarter' })
-            .click();
+          await card.getByTestId('ai-models-writing').getByText('Smarter', { exact: true }).click();
           await shot('ai-models-edited', card.getByTestId('ai-models-writing'));
         });
         await step('saved', async () => {
