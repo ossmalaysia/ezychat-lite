@@ -899,6 +899,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Report installers to McAfee only with the `submit-installers` skill (`scripts/mcafee-submit.mjs`), never with a
   one-off script: it checks every file before the first report goes out, and it never sends the same file twice. A
   report states only what was checked: no "McAfee blocks" for a file nobody saw blocked, no signature claim for a Mac file.
+- A release report says in its first line that the in-app updater does not offer a held version until Promote release,
+  and names the date or answer that clears each file: the owner reads "released" as "the app updates now".
 - A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
   its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
   shell that its instructions name, not only from Bash.
