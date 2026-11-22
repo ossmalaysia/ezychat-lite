@@ -92,7 +92,9 @@ The form says about 2 business days; one answer came within the hour.
 
 - A Windows **Enterprise** file is not "latest" until McAfee whitelists it. The hold and the commands that move the
   link are in the record, section "After each release". Changing a live link needs the owner's request.
-- A **Lite** version stays a held draft until McAfee clears all three files (Whitelisted, or the owner's Passed).
+- A **Lite** version stays a held draft until McAfee clears all three files (Whitelisted, or the owner's Passed; a
+  Mac file also counts once it was Submitted 5 or more days ago with no detection answer: Mac 5-day rule,
+  `docs/release.md` §3).
   Then start Promote release (`docs/release.md` §3):
   `gh workflow run promote-release.yml --ref main -f version=<x.y.z> -f confirm=<x.y.z> -f mcafee_cleared=true -f hold_newer=false`
   (from a cloud session: the GitHub tools' workflow run on `promote-release.yml`, `main`, same inputs). Only on the

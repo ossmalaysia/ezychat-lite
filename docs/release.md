@@ -39,7 +39,9 @@ On the merge commit, an annotated tag: `git tag -a v<version> <commit> -m "EzyCh
 
 Releases go out daily, but **"latest" stays on the newest version whose installers McAfee has cleared**: every
 installer (Windows, Mac Apple silicon, Mac Intel) is **Whitelisted** or the owner's **Passed** in
-`anchorsprint/ezychat-enterprise` → `docs/antivirus-allowlist.md`. "Latest" means the in-app updater, GitHub
+`anchorsprint/ezychat-enterprise` → `docs/antivirus-allowlist.md`. **Mac 5-day rule** (owner rule, 2026-11-22): a Mac
+installer counts as cleared when it was Submitted 5 or more days ago and McAfee has not answered that it is
+detected; the Windows installer still needs Whitelisted or Passed. "Latest" means the in-app updater, GitHub
 `releases/latest` and the permanent links in §5. So a new version is built, tagged and published to npm, then
 **held as a complete draft**; **Promote release** publishes it once McAfee clears it. Installed apps are usually one
 release behind the newest build.
