@@ -414,6 +414,11 @@ export class DirectChatGptProvider implements AiProvider {
     };
   }
 
+  /** The live list has been read (and is still cached). */
+  modelListLive(): boolean {
+    return !!this.modelCache && Date.now() - this.modelCache.at < MODEL_CACHE_MS;
+  }
+
   /** Synchronous validation list: the cached live list, else the documented fallback. */
   knownModels(): readonly string[] {
     return (this.modelCache?.models ?? fallbackModels()).map((model) => model.id);

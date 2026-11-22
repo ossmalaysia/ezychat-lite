@@ -71,6 +71,9 @@ export interface AssistCallTrace {
   /** Tools this call asked for (run before the next call). */
   tools: string[];
   finish: string;
+  /** The AI models row (or `askEzySetup`) and its level, added by the service for the log. */
+  task?: string;
+  thinking?: string | null;
 }
 
 export interface AssistResult {

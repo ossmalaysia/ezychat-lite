@@ -14,11 +14,15 @@ export default async function aiTaskModelRoutes(app: FastifyInstance, ctx: AppCo
   app.addHook('preHandler', requireAdmin(ctx));
   const ai = ctx.services.ai!;
   const limiter = new WindowLimiter({ windowMs: 60_000, max: 30 });
-  app.get('/ai/task-models', async () => ai.taskModels());
+  app.get('/ai/task-models', async () => {
+    await ai.warmModelList();
+    return ai.taskModels();
+  });
   app.put('/ai/task-models', async (req) => {
     const result = limiter.hit(String(req.user!.id));
     if (!result.allowed) throw errors.rateLimited(result.retryAfterSec);
     const body = parse(AiTaskModelsBody, req.body);
+    await ai.warmModelList();
     return ai.setTaskModels(body, { userId: req.user!.id, ip: clientIp(req) });
   });
 }

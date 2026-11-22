@@ -33,6 +33,8 @@ export interface TaskConnection {
   mainModel: string;
   fastModel: string;
   models: readonly string[];
+  /** False while the list may miss models (ChatGPT before its live list is read): a saved id is then kept. */
+  listComplete?: boolean;
 }
 
 /** A row resolved for one call. */
@@ -78,7 +80,11 @@ export function resolveTask(
   conn: TaskConnection,
 ): ResolvedTask {
   const choice: AiTaskChoice = saved?.choice ?? AI_TASK_DEFAULTS[group];
-  const listed = choice === 'fast' || choice === 'main' || conn.models.includes(choice);
+  const listed =
+    choice === 'fast' ||
+    choice === 'main' ||
+    conn.models.includes(choice) ||
+    conn.listComplete === false;
   const runs: AiTaskChoice = listed ? choice : AI_TASK_DEFAULTS[group];
   const model = runs === 'fast' ? conn.fastModel : runs === 'main' ? conn.mainModel : runs;
   const fallbackLevel = defaultTaskThinking(group, runs, conn.mode);
@@ -153,7 +159,12 @@ export function saveTaskModels(
   for (const [, value] of entries) {
     if (!value) continue;
     const { choice } = value;
-    if (choice !== 'fast' && choice !== 'main' && !conn.models.includes(choice))
+    if (
+      choice !== 'fast' &&
+      choice !== 'main' &&
+      !conn.models.includes(choice) &&
+      conn.listComplete !== false
+    )
       throw new HttpError(400, 'model_not_listed', 'Choose a model this AI connection offers.');
     const model = choice === 'fast' ? conn.fastModel : choice === 'main' ? conn.mainModel : choice;
     if (value.thinking && !aiModelHasThinking(conn.mode, model))

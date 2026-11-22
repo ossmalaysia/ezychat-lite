@@ -20,7 +20,7 @@ afterEach(async () => {
 });
 
 /** An app with a mock AI provider (never a real one) and a ChatGPT connection on Auto. */
-async function setup() {
+async function setup(extra: Partial<AiProvider> = {}) {
   const logLines: string[] = [];
   const provider: AiProvider = {
     generate: vi.fn().mockResolvedValue({ reply: 'Hello!', action: 'answer', handoffReason: null }),
@@ -37,6 +37,7 @@ async function setup() {
     logout: vi.fn(),
     shutdown: vi.fn(async () => {}),
     knownModels: () => ['gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.6-terra'],
+    ...extra,
   };
   const t = await makeTestApp({
     beforeBuild: async (ctx) => {
@@ -200,6 +201,11 @@ describe('AI models routes', () => {
     expect(s.ai.taskModels().tasks.writing.thinking).toBe('high');
     await put('agent');
     expect(s.ai.taskModels().tasks.writing).toMatchObject({ choice: 'main', thinking: null });
+    // Fast on a row that keeps a level on Fast keeps the level.
+    s.ai.setTaskModels({ tasks: { writing: { choice: 'fast', thinking: 'high' } } }, s.actor);
+    await put('fast');
+    expect(s.ai.taskModels().tasks.writing).toMatchObject({ choice: 'fast', thinking: 'high' });
+    s.ai.setTaskModels({ tasks: { writing: { choice: 'main' } } }, s.actor);
     await put('fast');
     expect(s.ai.taskModels().tasks.writing.isDefault).toBe(true);
   });
@@ -328,5 +334,40 @@ describe('AI calls follow their row', () => {
     const [settings, , prompt] = vi.mocked(s.provider.rewrite!).mock.calls.at(-1)!;
     expect(settings.model).toBe('gpt-6-luna');
     expect(prompt.reasoningEffort).toBe('low');
+  });
+
+  it('ChatGPT before its live list is read: a saved live-only model runs as saved; the screen reads the list', async () => {
+    let live = false;
+    const models = vi.fn(async () => {
+      live = true;
+      return { models: [], source: 'live' as const };
+    });
+    const s = await setup({ modelListLive: () => live, models });
+    s.t.ctx.settings.set('ai_task_models', {
+      chatgpt: { agentReplies: { choice: 'gpt-7-live', thinking: 'high' } },
+    });
+    await s.ai.tryAnswer(TRY);
+    const [settings, , prompt] = vi.mocked(s.provider.generate).mock.calls.at(-1)!;
+    expect(settings.model).toBe('gpt-7-live');
+    expect(prompt.reasoningEffort).toBe('high');
+    expect(s.ai.taskModels().tasks.agentReplies.unavailable).toBeNull();
+    // Opening AI models reads the live list once; this account does not list it, so the warning shows.
+    const res = await s.inject(s.admin, 'GET', '/api/ai/task-models');
+    expect(models).toHaveBeenCalledTimes(1);
+    expect(res.json().tasks.agentReplies.unavailable).toBe('gpt-7-live');
+    await s.inject(s.admin, 'GET', '/api/ai/task-models');
+    expect(models).toHaveBeenCalledTimes(1);
+  });
+
+  it('a setup turn traces as askEzySetup with no row level', async () => {
+    const s = await setup();
+    const traces: unknown[] = [];
+    await s.ai.assist(
+      { instructions: 'x', messages: [], tools: {}, main: true, onTrace: (t) => traces.push(t) },
+      new AbortController().signal,
+    );
+    const [, , sent] = vi.mocked(s.provider.assist!).mock.calls.at(-1)!;
+    sent.onTrace?.({ call: 1 } as never);
+    expect(traces).toEqual([{ call: 1, task: 'askEzySetup', thinking: null }]);
   });
 });

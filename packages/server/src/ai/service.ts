@@ -461,6 +461,8 @@ export interface AiService {
   suggestModelInfo(): ReplySuggestModelInfo;
   /** `fast`, `agent` or a model of the current connection. */
   isSuggestModel(model: string): boolean;
+  /** ChatGPT: reads the account's live model list when none is cached yet, so AI models shows real models. */
+  warmModelList(): Promise<void>;
   /** Settings → AI → AI models: the current connection's rows (docs/ai-models.md). */
   taskModels(): AiTaskModelsStatus;
   /** Saves changed rows of the current connection (400 `model_not_listed` / `thinking_not_supported`). */
@@ -689,6 +691,9 @@ export function createAiService(
     mainModel: agentModel(current),
     fastModel: fastModel(current),
     models: suggestModels(current),
+    // ChatGPT before its live list is read: the built-in list may miss the account's models, so a saved id runs
+    // as saved (the provider checks it against the live list on the call).
+    listComplete: current.mode !== 'chatgpt' || (provider.modelListLive?.() ?? true),
   });
   /**
    * The settings, `fast` flag and reasoning effort one call of a task row uses. Main keeps the saved connection
@@ -754,6 +759,11 @@ export function createAiService(
         'Dream mode model call',
       );
     }
+  };
+  /** The model, `task` and `thinking` of an AI agent replies log line (Main on Auto logs null, as before). */
+  const replyLog = (current: AiSettings) => {
+    const r = taskCall('agentReplies', current);
+    return { model: r.settings.model || null, task: r.task, thinking: r.thinking };
   };
   /** The `task` and `thinking` fields of a model-call log line (never text). */
   const taskLog = (choice: Partial<TaskCall>) =>
@@ -1638,7 +1648,7 @@ export function createAiService(
         action: decision.action,
         handoffReason: decision.handoffReason ?? null,
         toolCalls,
-        model: current.model ?? null,
+        ...replyLog(current),
         ms: Date.now() - started,
       },
       'AI decision',
@@ -2122,7 +2132,7 @@ export function createAiService(
           ...promptFilesLog(files),
           toolCalls,
           voiceNotes: voiceNotes.length,
-          model: current.model ?? null,
+          ...replyLog(current),
           ms: Date.now() - started,
         },
         'AI decision',
@@ -3088,6 +3098,12 @@ export function createAiService(
     isSuggestModel(model) {
       return model === 'fast' || model === 'agent' || suggestModels(settings()).includes(model);
     },
+    async warmModelList() {
+      if (aiProviderSettings(ctx.settings).mode !== 'chatgpt' || !provider.models) return;
+      if (provider.modelListLive?.() ?? true) return;
+      // Reads the account's live list once (cached by the provider); a failure keeps the built-in list.
+      await provider.models().catch(() => undefined);
+    },
     taskModels() {
       return taskModelsStatus(readTaskModels(ctx.settings), taskConnection(settings()));
     },
@@ -3154,7 +3170,17 @@ export function createAiService(
         return provider.assist(
           current,
           aiApiKey(ctx.settings),
-          { ...call, cacheId: `${installId()}#ask-ezy` },
+          {
+            ...call,
+            cacheId: `${installId()}#ask-ezy`,
+            // Setup has no row: it always runs on the main model at its own level.
+            ...(call.onTrace
+              ? {
+                  onTrace: (trace) =>
+                    call.onTrace!({ ...trace, task: 'askEzySetup', thinking: null }),
+                }
+              : {}),
+          },
           signal,
         );
       const choice = taskCall('askEzy', current);
@@ -3697,7 +3723,7 @@ export function createAiService(
           outcome: result.outcome,
           reason: result.reason,
           toolCalls,
-          model: current.model ?? null,
+          ...replyLog(current),
           ms: Date.now() - started,
         },
         'AI scheduled turn',

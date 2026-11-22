@@ -210,6 +210,8 @@ export interface AiProvider {
   models?(): Promise<AiModelList>;
   /** Model ids a ChatGPT connection may save ('' = Auto is always allowed). */
   knownModels?(): readonly string[];
+  /** ChatGPT: the account's live model list has been read (else `knownModels` is the built-in list). */
+  modelListLive?(): boolean;
   /** Sends a short prompt with the saved model and reports the reply or error. */
   test?(model: string): Promise<AiTestResult>;
   /** The model a ChatGPT request will use ('' = Auto resolves to the first live model). */

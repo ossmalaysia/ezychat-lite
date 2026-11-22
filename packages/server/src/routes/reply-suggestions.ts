@@ -67,10 +67,11 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
     if (enabled !== undefined) setReplySuggestions(ctx, enabled, actor);
     // Older clients: the model for suggestions is now AI models → Writing help (docs/ai-models.md).
     if (model !== undefined) {
-      const choice = model === 'fast' ? null : model === 'agent' ? 'main' : model;
-      // Keep the row's Speed and quality level when the model stays the same.
       const row = ai.taskModels().tasks.writing;
-      const thinking = choice && !row.isDefault && row.choice === choice ? row.thinking : null;
+      // Keep the row's Speed and quality level when the model stays the same (Fast included).
+      const keep = model === 'fast' ? 'fast' : model === 'agent' ? 'main' : model;
+      const thinking = !row.isDefault && row.choice === keep ? row.thinking : null;
+      const choice = keep === 'fast' && !thinking ? null : keep;
       ai.setTaskModels(
         { tasks: { writing: choice ? { choice, ...(thinking ? { thinking } : {}) } : null } },
         actor,

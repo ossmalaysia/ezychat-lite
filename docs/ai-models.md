@@ -44,3 +44,6 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
 - 2026-11-22: built. Ask Ezy's turn budget is the admin's question time limit (docs/ask-ezy.md), so it does not change with
   the row's model (the proposal's 90 s / 150 s split predates that limit). On Fast, draft calls keep the provider's own
   fast-model pick (`fast: true`), so a ChatGPT account's live list still decides it.
+- 2026-11-22: review fix. ChatGPT's model list is the built-in one until the account's live list is read, so a saved
+  model only the live list offers runs as saved until then (the provider checks it on the call); opening or saving AI
+  models reads the live list first. No level for o1-mini, o1-preview, -chat or -pro models on an OpenAI key.

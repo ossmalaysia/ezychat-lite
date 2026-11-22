@@ -104,7 +104,9 @@ describe('ChatGPT sign-in: the level is always sent', () => {
     seedTokens(t.ctx);
     const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
       if (String(url).startsWith(CODEX_BACKEND.modelsUrl))
-        return new Response(JSON.stringify({ models: [] }));
+        return new Response(
+          JSON.stringify({ models: [{ slug: 'gpt-6-astra', visibility: 'list', priority: 0 }] }),
+        );
       const body = JSON.parse(String(init?.body));
       const schema = JSON.stringify(body.text?.format?.schema?.properties ?? {});
       return answerText(
@@ -146,6 +148,10 @@ describe('ChatGPT sign-in: the level is always sent', () => {
     );
     await provider.assist(settings, null, { ...call, main: true }, signal());
     expect(sent()).toEqual(['high', 'low', 'medium', undefined]);
+    // The live list is read only on request; until then the AI models rows keep saved ids.
+    expect(provider.modelListLive()).toBe(false);
+    await provider.models();
+    expect(provider.modelListLive()).toBe(true);
     await provider.shutdown();
   });
 });

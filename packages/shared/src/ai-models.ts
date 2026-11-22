@@ -80,8 +80,9 @@ export type AiModelTier = z.infer<typeof AiModelTier>;
  */
 export function aiModelHasThinking(mode: AiConnectionMode, model: string): boolean {
   if (mode === 'chatgpt') return true;
-  // Chat variants (gpt-5-chat-latest) and o1-mini take no level.
-  if (mode === 'api') return /^(gpt-5|o[1-9])/.test(model) && !/-chat|^o1-mini/.test(model);
+  // Chat variants (gpt-5-chat-latest), o1-mini/o1-preview and the -pro models take no (or a fixed) level.
+  if (mode === 'api')
+    return /^(gpt-5|o[1-9])/.test(model) && !/-chat|^o1-(mini|preview)|-pro\b/.test(model);
   return false;
 }
 

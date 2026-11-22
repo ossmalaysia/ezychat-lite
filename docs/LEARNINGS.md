@@ -1560,6 +1560,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   set the flag only when the row really leaves the old default, and pass the new knob (`reasoningEffort`) separately.
 - A per-task model setting is stored per connection mode and resolved at every call (the ChatGPT list is live): a saved
   model the connection no longer lists runs on the row's fallback with a warning, never on a model it does not offer.
+  ChatGPT's `knownModels()` is the built-in list until something reads the live one (`resolveModel` never does for a
+  known id): never call a saved id "unlisted" from a cold list; keep it and read the list (`models()`) on the screen.
 
 - A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
   `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live

@@ -100,6 +100,17 @@ describe('resolveTask', () => {
     });
     expect(aiModelHasThinking('api', 'gpt-5-chat-latest')).toBe(false);
     expect(aiModelHasThinking('api', 'o1-mini')).toBe(false);
+    expect(aiModelHasThinking('api', 'o1-preview')).toBe(false);
+    expect(aiModelHasThinking('api', 'gpt-5-pro')).toBe(false);
+    expect(aiModelHasThinking('api', 'o3')).toBe(true);
+  });
+
+  it('keeps a saved id while the connection list may be incomplete', () => {
+    const cold = { ...CHATGPT, listComplete: false };
+    expect(resolveTask('translate', { choice: 'gpt-7-live' }, cold)).toMatchObject({
+      model: 'gpt-7-live',
+      unavailable: null,
+    });
   });
 
   it('sends a level only to models that have one', () => {
