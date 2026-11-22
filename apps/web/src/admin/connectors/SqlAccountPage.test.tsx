@@ -205,7 +205,9 @@ describe('SQL Account: Overview and Connection', () => {
       'SQL Cloud: ask your dealer whether the API module is available.',
     );
     expect(
-      screen.getByText('Tells a customer their own invoices and, if you turn it on, what they still owe.'),
+      screen.getByText(
+        'Tells a customer their own invoices and, if you turn it on, what they still owe.',
+      ),
     ).toBeTruthy();
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Connect SQL Account' }));
@@ -236,9 +238,7 @@ describe('SQL Account: Overview and Connection', () => {
 
     await user.clear(access);
     await user.type(access, KEY);
-    expect(screen.getByTestId('sql-host').textContent).toContain(
-      'https://api.sql.my',
-    );
+    expect(screen.getByTestId('sql-host').textContent).toContain('https://api.sql.my');
     await user.click(submit);
     expect(await screen.findByText('API service not set up')).toBeTruthy();
     expect(screen.getByTestId('sql-problem-no_dns')).toBeTruthy();
@@ -390,7 +390,7 @@ describe('SQL Account: Settings', () => {
   it('switches matching by phone and says when SQL Account sends no phone numbers', async () => {
     const s = sqlWorld({ status: sqlStatus('connected', { phoneMatch: 'unavailable' }) });
     const fetchMock = stubSql(s, world({ agents: [agent(1, 'Aina'), agent(2, 'Ben')] }));
-    page(`${PAGE}?tab=settings&agent=2`);
+    page(`${PAGE}?tab=settings&agent=2&from=agent`);
     expect(await screen.findByText('What Ben may use')).toBeTruthy();
     expect(screen.getByTestId('sql-phone-unavailable').textContent).toBe(
       'Your SQL Account does not send phone numbers to EzyChat Lite: link customers by hand.',
@@ -619,7 +619,7 @@ describe('SQL Account: agent page', () => {
       route: '/admin/members/ai/:id',
     });
     const row = await screen.findByTestId('agent-connector-sql-account');
-    expect(row.getAttribute('href')).toBe(`${PAGE}?tab=settings&agent=1`);
+    expect(row.getAttribute('href')).toBe(`${PAGE}?tab=settings&agent=1&from=agent`);
     expect(await within(row).findByText('4 of 8 kinds of records on')).toBeTruthy();
   });
 
@@ -642,6 +642,6 @@ describe('SQL Account: agent page', () => {
     });
     const row = await screen.findByTestId('agent-connector-sql-account');
     expect(within(row).getByText('Needs attention')).toBeTruthy();
-    expect(await within(row).findByText('Off for this agent')).toBeTruthy();
+    expect(await within(row).findByText('Not used by this agent')).toBeTruthy();
   });
 });

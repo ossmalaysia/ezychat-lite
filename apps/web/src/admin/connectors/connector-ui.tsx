@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronRight, ExternalLink, Loader2, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { connectorText, type ConnectorEntry } from '@ezychat/shared';
 import { useConnectorGallery } from '../../api/connector-list';
@@ -118,8 +118,25 @@ export function ConnectorIcon({
 /** "Connectors › <name>" above a connector page. */
 export function ConnectorBreadcrumb({ name }: { name: string }) {
   const { t } = useTranslation('admin');
+  const [params] = useSearchParams();
+  // Opened from an agent page's Connectors card: the way back to that agent comes first.
+  const agent = params.get('from') === 'agent' ? Number(params.get('agent')) : 0;
   return (
-    <nav aria-label={t('connectors.breadcrumb')} className="flex items-center gap-1 text-sm">
+    <nav
+      aria-label={t('connectors.breadcrumb')}
+      className="flex flex-wrap items-center gap-1 text-sm"
+    >
+      {Number.isInteger(agent) && agent > 0 && (
+        <>
+          <Link
+            to={`/admin/members/ai/${agent}`}
+            className="text-muted-foreground underline-offset-4 hover:underline"
+          >
+            {t('connectors.backToAgent')}
+          </Link>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </>
+      )}
       <Link
         to="/admin/connectors"
         className="text-muted-foreground underline-offset-4 hover:underline"
@@ -247,7 +264,9 @@ export function RemoteOnlyNotice({
 }: Readonly<{
   testId: string;
   textKey:
-    'connectors.gc.remoteSignIn' | 'connectors.sheets.remotePick' | 'connectors.drive.remotePick';
+    | 'connectors.gc.remoteSignIn'
+    | 'connectors.sheets.remotePick'
+    | 'connectors.drive.remotePick';
 }>) {
   const { t } = useTranslation('admin');
   return (

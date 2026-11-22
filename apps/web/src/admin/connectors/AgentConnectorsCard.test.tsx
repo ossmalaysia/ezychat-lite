@@ -28,15 +28,22 @@ describe('Agent page → Connectors', () => {
   it.each([
     [{ ...DEFAULT_BOOKING_SETTINGS, checkFree: true, book: true }, 'Checks free times and books'],
     [DEFAULT_BOOKING_SETTINGS, 'Checks free times; your team books'],
-    [{ ...DEFAULT_BOOKING_SETTINGS, checkFree: false }, 'Off for this agent'],
+    [{ ...DEFAULT_BOOKING_SETTINGS, checkFree: false }, 'Not used by this agent'],
   ])('sums up what the agent may do in Google Calendar', async (booking, summary) => {
     stubServer(world({ bookings: { 3: booking } }));
     card();
     expect(await screen.findByText(summary)).toBeTruthy();
     expect(screen.getByTestId('agent-connector-google-calendar').getAttribute('href')).toBe(
-      '/admin/connectors/google-calendar?tab=settings&agent=3',
+      '/admin/connectors/google-calendar?tab=settings&agent=3&from=agent',
     );
     expect(screen.queryByText('Needs attention')).toBeNull();
+  });
+
+  it('adds a Set up cue to a connected connector this agent does not use', async () => {
+    stubServer(world({ bookings: { 3: { ...DEFAULT_BOOKING_SETTINGS, checkFree: false } } }));
+    card();
+    expect(await screen.findByText('Not used by this agent')).toBeTruthy();
+    expect(screen.getByText(/Set up/)).toBeTruthy();
   });
 
   it('marks a connector that needs attention', async () => {
@@ -82,7 +89,7 @@ describe('Agent page → Connectors', () => {
     // Look-ups start on, so "find" counts until it is switched off.
     expect(await screen.findByText('2 of 3 tools on')).toBeTruthy();
     expect(screen.getByTestId('agent-connector-lejar').getAttribute('href')).toBe(
-      '/admin/connectors/lejar?tab=settings&agent=3',
+      '/admin/connectors/lejar?tab=settings&agent=3&from=agent',
     );
     const kedai = screen.getByTestId('agent-connector-kedai');
     expect(kedai.textContent).toContain('Needs attention');

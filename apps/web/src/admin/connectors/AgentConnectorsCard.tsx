@@ -46,7 +46,7 @@ function sheetsLine(t: Translate, settings: SheetsAgentSettings): string {
   const reads = tabs('read');
   const adds = tabs('add');
   if (reads.length + adds.length === 0) return t('connectors.agentCard.off');
-  const parts: string[] = [];
+  const parts: string[] = settings.spreadsheetName ? [settings.spreadsheetName] : [];
   if (reads.length) parts.push(t('connectors.agentCard.sheetsReads', { tabs: reads.join(', ') }));
   if (adds.length) parts.push(t('connectors.agentCard.sheetsAdds', { tabs: adds.join(', ') }));
   return parts.join(' · ');
@@ -56,10 +56,14 @@ function sheetsLine(t: Translate, settings: SheetsAgentSettings): string {
 function driveLine(t: Translate, settings: DriveAgentSettings): string {
   if (!settings.folder) return t('connectors.agentCard.driveNoFolder');
   const count = settings.read ? settings.files.length : 0;
-  if (settings.save && count) return t('connectors.agentCard.driveSavesAndReads', { count });
-  if (settings.save) return t('connectors.agentCard.driveSaves');
-  if (count) return t('connectors.agentCard.driveReads', { count });
-  return t('connectors.agentCard.off');
+  const what = settings.save
+    ? t(count ? 'connectors.agentCard.driveSavesAndReads' : 'connectors.agentCard.driveSaves', {
+        count,
+      })
+    : count
+      ? t('connectors.agentCard.driveReads', { count })
+      : null;
+  return what ? `${settings.folder.name} · ${what}` : t('connectors.agentCard.off');
 }
 
 /** GitHub: what it looks up in how many repositories GitHub still shares, or Off. */
@@ -71,6 +75,24 @@ function githubLine(t: Translate, view: GitHubAgentView): string {
   if (issues) return t('connectors.github.agentCard.issues', { count });
   if (pulls) return t('connectors.github.agentCard.pulls', { count });
   return t('connectors.agentCard.off');
+}
+
+/** One line under a connector's name; "Not used by this agent" and "No … chosen" add a Set up cue. */
+function Summary({ text }: Readonly<{ text: string }>) {
+  const { t } = useTranslation('admin');
+  const setup = [
+    t('connectors.agentCard.off'),
+    t('connectors.agentCard.driveNoFolder'),
+    t('connectors.github.agentCard.noRepos'),
+  ].includes(text);
+  return (
+    <span className="text-sm text-muted-foreground">
+      {text}
+      {setup && (
+        <span className="font-medium text-foreground"> · {t('connectors.agentCard.setUp')}</span>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -133,7 +155,7 @@ export function AgentConnectorsCard({
       <CardContent className="flex flex-col gap-3">
         {connected && (
           <Link
-            to={`/admin/connectors/google-calendar?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/google-calendar?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-google-calendar"
           >
@@ -143,14 +165,14 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-calendar.name')}
                 {state !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {summary && <span className="text-sm text-muted-foreground">{summary}</span>}
+              {summary && <Summary text={summary} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {sheetsLinked && (
           <Link
-            to={`/admin/connectors/google-sheets?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/google-sheets?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-google-sheets"
           >
@@ -160,16 +182,14 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-sheets.name')}
                 {sheetsState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {sheetsSummary && (
-                <span className="text-sm text-muted-foreground">{sheetsSummary}</span>
-              )}
+              {sheetsSummary && <Summary text={sheetsSummary} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {driveLinked && (
           <Link
-            to={`/admin/connectors/google-drive?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/google-drive?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-google-drive"
           >
@@ -179,16 +199,14 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-drive.name')}
                 {driveState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {driveSummary && (
-                <span className="text-sm text-muted-foreground">{driveSummary}</span>
-              )}
+              {driveSummary && <Summary text={driveSummary} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {githubLinked && (
           <Link
-            to={`/admin/connectors/github?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/github?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-github"
           >
@@ -200,16 +218,14 @@ export function AgentConnectorsCard({
                   <ConnectorStatusBadge status="attention" />
                 )}
               </span>
-              {githubView && (
-                <span className="text-sm text-muted-foreground">{githubLine(t, githubView)}</span>
-              )}
+              {githubView && <Summary text={githubLine(t, githubView)} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {sqlLinked && (
           <Link
-            to={`/admin/connectors/sql-account?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/sql-account?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-sql-account"
           >
@@ -220,11 +236,13 @@ export function AgentConnectorsCard({
                 {sqlState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
               {sqlOn !== null && (
-                <span className="text-sm text-muted-foreground">
-                  {sqlOn === 0
-                    ? t('connectors.agentCard.off')
-                    : t('connectors.sql.agentCard', { on: sqlOn, total: SQL_OBJECTS.length })}
-                </span>
+                <Summary
+                  text={
+                    sqlOn === 0
+                      ? t('connectors.agentCard.off')
+                      : t('connectors.sql.agentCard', { on: sqlOn, total: SQL_OBJECTS.length })
+                  }
+                />
               )}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -239,7 +257,7 @@ export function AgentConnectorsCard({
           return (
             <Link
               key={c.entry.id}
-              to={`/admin/connectors/${c.entry.id}?tab=settings&agent=${agentId}`}
+              to={`/admin/connectors/${c.entry.id}?tab=settings&agent=${agentId}&from=agent`}
               className={ROW}
               data-testid={`agent-connector-${c.entry.id}`}
             >
