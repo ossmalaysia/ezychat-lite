@@ -903,6 +903,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A release report says in its first line that the in-app updater does not offer a held version until Promote release,
   and names the date or answer that clears each file: the owner reads "released" as "the app updates now". For
   "where is version X", read the live feed first (Enterprise `latest.json`, the Lite draft) and say which place reads it.
+  "I need it from the updater" is not a Passed: tick `mcafee_cleared` only on the owner's "passed <version>".
 - A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
   its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
   shell that its instructions name, not only from Bash.
