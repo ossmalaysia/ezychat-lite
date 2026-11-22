@@ -210,6 +210,19 @@ describe('AI models routes', () => {
     expect(s.ai.taskModels().tasks.writing.isDefault).toBe(true);
   });
 
+  it('the older route checks the model before it changes anything', async () => {
+    const s = await setup();
+    const before = (await s.inject(s.admin, 'GET', '/api/reply-suggestions')).json();
+    const res = await s.inject(s.admin, 'PUT', '/api/ai/reply-suggestions', {
+      enabled: !before.enabled,
+      model: 'gpt-9-unknown',
+    });
+    expect(res.statusCode).toBe(400);
+    expect((await s.inject(s.admin, 'GET', '/api/reply-suggestions')).json().enabled).toBe(
+      before.enabled,
+    );
+  });
+
   it('the older route shares the save limit (30 a minute per admin)', async () => {
     const s = await setup();
     const put = () => s.inject(s.admin, 'PUT', '/api/ai/reply-suggestions', { model: 'fast' });
@@ -374,6 +387,29 @@ describe('AI calls follow their row', () => {
     [settings, , prompt] = vi.mocked(s.provider.rewrite!).mock.calls.at(-1)!;
     expect(settings.model).toBe('gpt-7-live');
     expect(prompt.reasoningEffort).toBe('high');
+  });
+
+  it('ChatGPT: a failed list read is not tried again on every call; suggestions name the model that runs', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const models = vi.fn(async () => ({ models: [], source: 'fallback' as const }));
+      const s = await setup({ modelListRead: () => false, models });
+      s.t.ctx.settings.set('ai_task_models', { chatgpt: { writing: { choice: 'gpt-7-live' } } });
+      expect(s.ai.suggestModelInfo()).toMatchObject({
+        model: 'gpt-7-live',
+        resolved: 'gpt-6-luna',
+      });
+      await s.ai.editText({ field: 'instructions', current: 'Be warm.', request: 'Shorter' });
+      await vi.waitFor(() => expect(models).toHaveBeenCalledTimes(1));
+      await s.ai.editText({ field: 'instructions', current: 'Be warm.', request: 'Shorter' });
+      await s.ai.editText({ field: 'instructions', current: 'Be warm.', request: 'Shorter' });
+      expect(models).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(Date.now() + 5 * 60_000 + 1);
+      await s.ai.editText({ field: 'instructions', current: 'Be warm.', request: 'Shorter' });
+      await vi.waitFor(() => expect(models).toHaveBeenCalledTimes(2));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('ChatGPT: opening AI models reads the list, so a model the account lacks shows the warning', async () => {

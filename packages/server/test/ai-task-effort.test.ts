@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { CODEX_BACKEND } from '../src/ai/chatgpt-backend.js';
 import { DirectChatGptProvider } from '../src/ai/chatgpt-direct.js';
-import { assistOpenAi, draftOpenAi, generateOpenAi, rewriteOpenAi } from '../src/ai/provider.js';
+import {
+  assistOpenAi,
+  draftOpenAi,
+  generateOpenAi,
+  openAiModelReasons,
+  rewriteOpenAi,
+} from '../src/ai/provider.js';
+import { AGENT_TURN_MAX_OUTPUT_TOKENS } from '../src/ai/agent/turn.js';
+import { ASSIST_MAX_OUTPUT_TOKENS } from '../src/ai/agent/assist.js';
 import { assistClaude, generateClaude, rewriteClaude } from '../src/ai/claude.js';
 import { REASONING_HEADROOM } from '../src/ai/agent/draft.js';
 import { answerText, CHATGPT_SETTINGS, seedTokens } from './chatgpt-fixtures.js';
@@ -90,8 +98,15 @@ describe('OpenAI key: the level goes only to reasoning models', () => {
       'high',
       'high',
     ]);
-    // The draft's 100-token answer cap gets the Smarter reasoning headroom, or the reasoning would use it up.
+    // Every answer cap gets the Smarter reasoning headroom, or the reasoning would use it up: the agent turn's
+    // decision, the draft, Ask Ezy.
+    expect(bodyOf(fetcher.mock.calls[0]).max_output_tokens).toBe(
+      AGENT_TURN_MAX_OUTPUT_TOKENS + REASONING_HEADROOM.high,
+    );
     expect(bodyOf(fetcher.mock.calls[1]).max_output_tokens).toBe(100 + REASONING_HEADROOM.high);
+    expect(bodyOf(fetcher.mock.calls[3]).max_output_tokens).toBe(
+      ASSIST_MAX_OUTPUT_TOKENS + REASONING_HEADROOM.high,
+    );
   });
 
   it('gpt-4.1 gets no level and a draft keeps its own small cap', async () => {
@@ -118,6 +133,24 @@ describe('OpenAI key: the level goes only to reasoning models', () => {
     expect(bodyOf(fetcher.mock.calls.at(-1)).max_output_tokens).toBe(
       300 + REASONING_HEADROOM.medium,
     );
+    // o1-mini and the -pro models take no level of ours but still reason: headroom at their own level.
+    for (const id of ['o1-mini', 'gpt-5-pro']) {
+      await draftOpenAi(
+        api(id),
+        'sk-test',
+        prompt,
+        { schema: z.object({ ok: z.boolean() }), fast: false, maxOutputTokens: 300 },
+        signal(),
+      );
+      const body = bodyOf(fetcher.mock.calls.at(-1));
+      expect(body.reasoning?.effort).toBeUndefined();
+      expect(body.max_output_tokens).toBe(300 + REASONING_HEADROOM.medium);
+    }
+    expect(openAiModelReasons('gpt-5-chat-latest')).toBe(false);
+    // gpt-4.1's agent turn keeps its own cap.
+    await generateOpenAi(api('gpt-4.1'), 'sk-test', prompt, signal()).catch(() => undefined);
+    const turn = fetcher.mock.calls.findLast((c) => bodyOf(c).model === 'gpt-4.1');
+    expect(bodyOf(turn).max_output_tokens).toBe(AGENT_TURN_MAX_OUTPUT_TOKENS);
   });
 });
 

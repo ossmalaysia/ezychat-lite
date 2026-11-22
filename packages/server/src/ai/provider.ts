@@ -20,6 +20,13 @@ export const OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
 const effortFor = (modelId: string, effort: AiPrompt['reasoningEffort']) =>
   aiModelHasThinking('api', modelId) ? effort : undefined;
 
+/**
+ * The model spends reasoning tokens from the output cap, also one that takes no level of ours (o1-mini, o1-preview,
+ * the -pro models); the chat variants (gpt-5-chat-latest) do not reason.
+ */
+export const openAiModelReasons = (modelId: string) =>
+  /^(gpt-5|o[1-9])/.test(modelId) && !/-chat/.test(modelId);
+
 export function extractCustomerOpenAi(
   settings: AiSettings,
   apiKey: string | null,
@@ -79,6 +86,7 @@ export function generateOpenAi(
       tools: prompt.tools,
       signal: bounded,
       onTiming: prompt.onTiming,
+      reasons: openAiModelReasons(id),
     });
     return turn.decision;
   });
@@ -104,7 +112,7 @@ export function draftOpenAi<T>(
         prompt,
         signal: bounded,
         reasoningEffort: effortFor(id, prompt.reasoningEffort),
-        reasons: aiModelHasThinking('api', id),
+        reasons: openAiModelReasons(id),
       }),
       model: id,
     }),
@@ -144,6 +152,7 @@ export function assistOpenAi(
       ...(await runAssist({
         ...call,
         reasoningEffort: effortFor(id, call.reasoningEffort),
+        reasons: openAiModelReasons(id),
         model,
         signal: bounded,
       })),

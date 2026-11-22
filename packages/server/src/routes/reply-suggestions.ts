@@ -63,16 +63,15 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
   app.get('/reply-suggestions', async () => status());
   app.put('/ai/reply-suggestions', { preHandler: requireAdmin(ctx) }, async (req) => {
     const { enabled, model } = parse(ReplySuggestionsBody, req.body);
-    if (model !== undefined && !ai.isSuggestModel(model))
-      throw errors.validation('Choose Fast, Same as the AI agent or a model of this connection');
     const actor = { userId: req.user!.id, ip: clientIp(req) };
-    if (enabled !== undefined) setReplySuggestions(ctx, enabled, actor);
     // Older clients: the model for suggestions is now AI models → Writing help (docs/ai-models.md), with the same
-    // list read and save limit as PUT /ai/task-models.
+    // list read and save limit as PUT /ai/task-models. It is saved first: a refused model changes nothing.
     if (model !== undefined) {
       const hit = modelLimiter.hit(String(req.user!.id));
       if (!hit.allowed) throw errors.rateLimited(hit.retryAfterSec);
       await ai.warmModelList();
+      if (!ai.isSuggestModel(model))
+        throw errors.validation('Choose Fast, Same as the AI agent or a model of this connection');
       const row = ai.taskModels().tasks.writing;
       // Keep the row's Speed and quality level when the model stays the same (Fast included).
       const keep = model === 'fast' ? 'fast' : model === 'agent' ? 'main' : model;
@@ -83,6 +82,7 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
         actor,
       );
     }
+    if (enabled !== undefined) setReplySuggestions(ctx, enabled, actor);
     return status();
   });
   app.get('/ai/reply-suggestions/model', { preHandler: requireAdmin(ctx) }, async () =>

@@ -1,6 +1,7 @@
 import { generateText, Output, stepCountIs, type LanguageModel, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { AI_MODEL_HANDOFF_REASONS, AiDecision, AiDecisionAction } from '@ezychat/shared';
+import { withReasoningHeadroom } from './draft.js';
 import {
   AI_IMAGE_DETAIL,
   pdfTextLayer,
@@ -21,6 +22,9 @@ const DecisionOutput = z.object({
   handoffReason: z.enum(AI_MODEL_HANDOFF_REASONS).nullable(),
 });
 
+/** The decision's own output cap (a reasoning model gets `REASONING_HEADROOM` on top). */
+export const AGENT_TURN_MAX_OUTPUT_TOKENS = 2000;
+
 export interface AgentTurn {
   model: LanguageModel;
   prompt: Pick<AiPrompt, 'instructions' | 'input' | 'images' | 'pdfs' | 'reasoningEffort'>;
@@ -34,6 +38,8 @@ export interface AgentTurn {
   signal: AbortSignal;
   /** Receives the turn's timing once it has a decision (never called for a failed turn). */
   onTiming?: (timing: AgentTurnTiming) => void;
+  /** The model reasons: its reasoning tokens count against the output cap, so the cap gets headroom. */
+  reasons?: boolean;
 }
 
 export interface AgentTurnResult {
@@ -112,7 +118,11 @@ async function attemptTurn(turn: AgentTurn, retries: number): Promise<AgentTurnR
     // No transport retries: a failed call costs the business's usage and delays the reply; the
     // service hands the chat to the team instead (only a malformed answer is asked again, above).
     maxRetries: 0,
-    maxOutputTokens: 2000,
+    maxOutputTokens: withReasoningHeadroom(
+      AGENT_TURN_MAX_OUTPUT_TOKENS,
+      turn.reasons,
+      turn.prompt.reasoningEffort,
+    ),
     ...(turn.prompt.reasoningEffort
       ? { providerOptions: { openai: { reasoningEffort: turn.prompt.reasoningEffort } } }
       : {}),

@@ -52,13 +52,20 @@ export const REASONING_HEADROOM: Record<AiReasoningEffort, number> = {
   high: 24_000,
 };
 
+/** An output cap plus the reasoning headroom of a reasoning model (draft, agent turn, Ask Ezy). */
+export function withReasoningHeadroom(
+  cap: number,
+  reasons: boolean | undefined,
+  effort: AiReasoningEffort | undefined,
+): number {
+  return cap + (reasons ? REASONING_HEADROOM[effort ?? 'medium'] : 0);
+}
+
 /** The output cap of one draft call: the answer's own cap plus the reasoning headroom of a reasoning model. */
 export function draftOutputCap(
   call: Pick<DraftCall<unknown>, 'maxOutputTokens' | 'reasoningEffort' | 'reasons'>,
 ) {
-  return (
-    call.maxOutputTokens + (call.reasons ? REASONING_HEADROOM[call.reasoningEffort ?? 'medium'] : 0)
-  );
+  return withReasoningHeadroom(call.maxOutputTokens, call.reasons, call.reasoningEffort);
 }
 
 /** Reply suggestions and completions: one structured call, no tools, never retried. */

@@ -59,3 +59,7 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
   OpenAI key gets reasoning headroom on top of a draft call's small answer cap (low 2,000 · medium 8,000 · high 24,000
   tokens, `REASONING_HEADROOM`), so a completion or Safety check at Smarter is not cut off; the ChatGPT backend takes
   no cap. The older `PUT /api/ai/reply-suggestions {model}` reads the list first and has the same 30-a-minute limit.
+- 2026-11-22: fourth review fix. The reasoning headroom also goes to the AI agent turn (decision cap 2,000) and Ask Ezy
+  (3,000) on an OpenAI key, and to every OpenAI model that reasons, also those that take no level of ours (o1-mini,
+  o1-preview, -pro; `openAiModelReasons`). After a ChatGPT list read fails, AI calls wait 5 minutes before the next
+  try. The older suggestions route checks the model before it changes the switch.

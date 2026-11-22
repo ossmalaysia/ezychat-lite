@@ -689,7 +689,10 @@ export function createAiService(
    * ChatGPT: read the account's model list (the provider answers from its cache while fresh). A failure keeps the
    * last list, or the built-in one, and a save of a named model then answers 503. One read at a time.
    */
+  /** After a ChatGPT model list read failed, AI calls wait this long before starting another one. */
+  const LIST_RETRY_MS = 5 * 60_000;
   let warming: Promise<void> | null = null;
+  let listRetryAt = 0;
   const warmList = (): Promise<void> => {
     if (aiProviderSettings(ctx.settings).mode !== 'chatgpt' || !provider.models)
       return Promise.resolve();
@@ -701,6 +704,8 @@ export function createAiService(
       )
       .finally(() => {
         warming = null;
+        // Still unread: the account's list could not be read; the calls try again later.
+        if (!(provider.modelListRead?.() ?? true)) listRetryAt = Date.now() + LIST_RETRY_MS;
       });
     return warming;
   };
@@ -726,7 +731,8 @@ export function createAiService(
       taskConnection(current),
     );
     // A saved ChatGPT model the account list has not confirmed yet: read the list now, this call runs the default.
-    if (r.unchecked) void warmList();
+    // After a read that failed, the calls wait `LIST_RETRY_MS` before the next try (no read per call).
+    if (r.unchecked && Date.now() >= listRetryAt) void warmList();
     const fellBack = r.unavailable !== null || r.unchecked;
     const runsMain = fellBack ? AI_TASK_DEFAULTS[group] === 'main' : r.choice === 'main';
     const runsFast = (fellBack ? AI_TASK_DEFAULTS[group] : r.choice) === 'fast';
@@ -3111,13 +3117,17 @@ export function createAiService(
     },
     suggestModelInfo() {
       const current = settings();
-      const row = taskModelsStatus(readTaskModels(ctx.settings), taskConnection(current)).tasks
-        .writing;
+      const row = resolveTask(
+        'writing',
+        readTaskModels(ctx.settings)[current.mode]?.writing,
+        taskConnection(current),
+      );
       return {
         model: row.choice === 'main' ? 'agent' : row.choice,
         fastModel: fastModel(current),
         agentModel: agentModel(current),
         models: suggestModels(current),
+        // The model the calls run now (an unchecked or unlisted choice runs the row default).
         resolved: row.model,
       };
     },
