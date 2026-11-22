@@ -6,8 +6,8 @@ Branch: `docs/ai-models-per-task` · Every agent updates its stage with
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
 | Design | done | Owner confirmed 2026-11-22 (all suggested); mock updated to Speed and quality: Faster · Balanced · Smarter, Edit with AI in Writing help | 9433a1a | 2026-11-22 |
-| Dev | done | Third review fixes: reasoning headroom on draft caps, unchecked ChatGPT model runs the row default and reads the list, ChatGPT migration kept, legacy route limit + list read, sign-in poll reloads AI models, logs from the captured call | c7ba3e5 | 2026-11-22 |
-| Unit tests | done | 6181 tests green, changed lines 97.4 % (223/229) | c7ba3e5 | 2026-11-22 |
+| Dev | done | Fourth review fixes: reasoning headroom on agent turn and Ask Ezy, reasons check for o1-mini/-pro, list read backoff, older route validates first, suggestModelInfo resolved | f45c708e | 2026-11-22 |
+| Unit tests | done | 6208 tests green, changed lines 99.2 % (263/265) | f45c708e | 2026-11-22 |
 | E2E | done | npm run e2e: 196 passed, 32 skipped (4.5m) | c7ba3e5 | 2026-11-22 |
 | Dev Build | done | ai-models-screens 36 shots 0 problems on c7ba3e5 | c7ba3e5 | 2026-11-22 |
 | Screen review | done | Re-checked AI models shots on c7ba3e5: no change from the last round, no overflow, no page errors | c7ba3e5 | 2026-11-22 |
@@ -37,3 +37,5 @@ Branch: `docs/ai-models-per-task` · Every agent updates its stage with
 - 2026-11-22 E2E: done — npm run e2e: 196 passed, 32 skipped (4.5m) (c7ba3e5)
 - 2026-11-22 Dev Build: done — ai-models-screens 36 shots 0 problems on c7ba3e5 (c7ba3e5)
 - 2026-11-22 Screen review: done — Re-checked AI models shots on c7ba3e5: no change from the last round, no overflow, no page errors (c7ba3e5)
+- 2026-11-22 Dev: done — Fourth review fixes: reasoning headroom on agent turn and Ask Ezy, reasons check for o1-mini/-pro, list read backoff, older route validates first, suggestModelInfo resolved (f45c708e)
+- 2026-11-22 Unit tests: done — 6208 tests green, changed lines 99.2 % (263/265) (f45c708e)
