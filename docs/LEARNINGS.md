@@ -2301,6 +2301,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Cloudflare and sharing
 
+- In Claude in Chrome a click always acts on the page at those coordinates; there is no "focus the tab" click. When the
+  owner must do the last step (create a token, show a secret), touch that tab no more: an idle click hit Create Token.
 - A container auth backend must persist every credential and Signal-key batch before resolving, keep each inbox isolated, and fail closed on storage errors; filesystem snapshots cannot preserve writes made after the snapshot.
 
 - Slow remote access through the tunnel: measure before changing code. In the browser on the tunnel host, read
