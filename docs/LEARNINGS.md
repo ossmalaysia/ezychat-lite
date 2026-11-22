@@ -1957,7 +1957,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Login returns to `state.from`, the page where the session ended: a page where people sign out (`/account`) must
   never be a return target (`safeFrom`), or the next person signs in to someone else's last page.
 - Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
-  new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
+  new customer only after the number's first stored message, so alone in fresh data it reads 0; in a full run it can
+  also fail when another spec adds a customer between its API read and its page read). Rerun failed specs
   to iterate, then one full run decides.
 - In screen scripts, scope action buttons to the page content (`getByRole('main').getByRole('button', { name,
 exact: true })`): on admin pages a bare "Log out" also matches the account menu's sign-out, and `.first()` signs
