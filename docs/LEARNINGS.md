@@ -904,6 +904,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   and names the date or answer that clears each file: the owner reads "released" as "the app updates now". For
   "where is version X", read the live feed first (Enterprise `latest.json`, the Lite draft) and say which place reads it.
   "I need it from the updater" is not a Passed: tick `mcafee_cleared` only on the owner's "passed <version>".
+  Every Promote is followed in the same session by a website PR (`release-calendar.json`: that version and every
+  earlier Passed one `whitelisted`, the edition's `pins` moved); the site has no "passed" state, so Passed maps to
+  `whitelisted`, and a skipped PR left Enterprise 0.1.32 pending and the download button on 0.1.31.
 - A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
   its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
   shell that its instructions name, not only from Bash.
