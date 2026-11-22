@@ -748,6 +748,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
   `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
   or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
+- A release day of back-to-back `gh run watch` / `gh pr checks --watch` (default 3 s polls) used up the account's
+  5,000 REST calls an hour, and every `gh` call then failed with 403 until the reset (`gh api rate_limit`). Watch with
+  `--interval 60`, and wait for a publish on its own output (`dl.ezychat.ai/.../v<ver>/latest.json`, npm), not GitHub.
   A required job `cancelled` after about 15 min with no runner and no steps never started (macOS runners
   busy): `gh run rerun <id> --failed`, not a code fault. Push every log-only commit (workbook, Dev Build row,
   review approval) in one push before that wait: each push starts all of CI again.
