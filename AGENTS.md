@@ -234,6 +234,11 @@ assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests a
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 
+**AI models per task** (PROPOSAL, not built yet; lasting rules and decision log `docs/ai-models.md`: read it before changing
+which model an AI call uses, and add a decision line when you change a rule). Settings → AI → AI models: five rows (AI
+agent replies, Ask Ezy, Translate, Writing help, Background checks), each Fast / Main model / a listed model plus a thinking
+level, stored per connection mode; it will replace the "Model for suggestions" below.
+
 **Scheduled tasks** (design `docs/features/scheduled-tasks/design.md`, migration 036, `scheduled/` (`repo.ts` is its only
 SQL), routes `/api/ai/agents/:agentId/scheduled-tasks*`, admins). Up to `SCHEDULED_TASKS_MAX` (10) tasks per agent; each
 sends one message at one time on its days (`ai_timezone`, `scheduled/time.ts`) to ONE existing chat or group of the
@@ -620,7 +625,7 @@ XHR, `lib/upload-progress.ts`). Through the tunnel the web refuses files above `
 `message.forwarded` {messageId, chatJids, messageIds}; logs ids and counts only. Web: `inbox/ForwardDialog.tsx`,
 ⋮ menu and touch bar **Forward**, the Forwarded line and "Sending … to WhatsApp" in `MessageBubble`.
 
-**Delete chat** (admins; design `docs/features/chat-hide-delete/design.md` Part B, migration 042). `DELETE /api/chats/:jid`
+**Delete chat** (admins; design `docs/chat-hide-delete.md` Part B, migration 042). `DELETE /api/chats/:jid`
 (admin, `chatJidParam`, 30 a minute per admin, 204; `GET …/delete-preview` gives the dialog's counts) goes only through
 `chats/delete.ts#deleteChat`: it drops the chat's queued sends (`SendQueue.drop`) and AI work (`AiService.cancelChat`),
 then one transaction runs `DELETE_PLAN` (every chat-keyed and message-keyed table, then `chats`) and writes the tombstone
@@ -631,7 +636,7 @@ touches `contacts`, `jid_aliases`, `safety_numbers` or `audit_log`. A new table 
 into `DELETE_PLAN` (`test/chat-delete-coverage.test.ts` fails otherwise). Audit `chat.deleted` {chatJid, messages, files};
 socket `chat:deleted` {jid} drops it from every web cache. Web: chat header ⋮ (admins) → `inbox/DeleteChatDialog.tsx`.
 
-**Hide chats on Log out** (design `docs/features/chat-hide-delete/design.md` Part A, migration 043). `chats/hide.ts` is the
+**Hide chats on Log out** (design `docs/chat-hide-delete.md` Part A, migration 043). `chats/hide.ts` is the
 only code that hides, shows or archives. A `logged_out` status of an adapter with `WaCapabilities.qrLink` (the admin's Log
 out or Link again, which marks itself via `markAdminLogout`, or an unlink from the phone; never a connection drop, never an
 adapter the inbox already let go of on remove or type change) runs `hideInbox`: one transaction sets `chats.hidden_at` and

@@ -295,6 +295,14 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
   no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
   value it found in `finally`.
+- A Playwright element screenshot of a card taller than the window comes out blank below the fold in the app and its
+  mocks (the page scrolls inside its own container, not the document): grow the viewport height for the shot, then
+  restore it (`ai-models-shots.mjs`).
+- Before pruning a feature folder for retention, `grep -rn "features/<name>"` across code, tests and AGENTS.md: if code
+  cites its design, move `design.md` to a lasting `docs/<name>.md` (with a decision log) and repoint the comments; leave
+  numbered SQL migrations untouched.
+- Before designing a model or provider choice, list every AI call and what it really sends per connection: ChatGPT
+  `draft` calls hard-code `low` reasoning even on the main model, so "same as today" defaults must say so.
 
 ## Multi-agent process
 

@@ -12,7 +12,7 @@ import { chatMediaDir, MediaStore } from '../messages/media-store.js';
 import { waJidOf, type ChatColumns } from './repo.js';
 
 /**
- * Delete chat (admins; docs/features/chat-hide-delete/design.md Part B). The only way to delete a
+ * Delete chat (admins; docs/chat-hide-delete.md Part B). The only way to delete a
  * chat: its rows in every chat-keyed and message-keyed table, its files and its photo. `contacts`,
  * `jid_aliases`, `safety_numbers` (shared by every inbox) and `audit_log` are never touched.
  */
