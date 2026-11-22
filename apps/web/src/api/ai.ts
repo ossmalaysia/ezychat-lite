@@ -25,9 +25,17 @@ import { taskModelsKey } from './ai-models';
 export const aiMemberKey = ['ai-member'] as const;
 
 export function useAiMember() {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: aiMemberKey,
-    queryFn: ({ signal }) => api('/ai', { signal, schema: AiMemberStatus }),
+    queryFn: async ({ signal }) => {
+      const before = qc.getQueryData<AiMemberStatus>(aiMemberKey)?.connection.state;
+      const status = await api('/ai', { signal, schema: AiMemberStatus });
+      // A ChatGPT sign-in finished while polling: AI models now list the account's own models.
+      if (before === 'signing_in' && status.connection.state !== 'signing_in')
+        void qc.invalidateQueries({ queryKey: taskModelsKey });
+      return status;
+    },
     refetchInterval: (query) =>
       query.state.data?.connection.state === 'signing_in' ? 2000 : false,
   });

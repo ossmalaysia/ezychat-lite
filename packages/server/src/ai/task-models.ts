@@ -52,6 +52,11 @@ export interface ResolvedTask {
   reasoningEffort: AiThinking | undefined;
   /** A saved model the connection no longer lists. */
   unavailable: string | null;
+  /**
+   * A saved model the list cannot check yet (ChatGPT before the account's list is read): this call runs on the
+   * row's default and the caller starts reading the list; the screen shows the choice without a warning.
+   */
+  unchecked: boolean;
   isDefault: boolean;
 }
 
@@ -80,11 +85,8 @@ export function resolveTask(
   conn: TaskConnection,
 ): ResolvedTask {
   const choice: AiTaskChoice = saved?.choice ?? AI_TASK_DEFAULTS[group];
-  const listed =
-    choice === 'fast' ||
-    choice === 'main' ||
-    conn.models.includes(choice) ||
-    conn.listComplete === false;
+  const listed = choice === 'fast' || choice === 'main' || conn.models.includes(choice);
+  const unchecked = !listed && conn.listComplete === false;
   const runs: AiTaskChoice = listed ? choice : AI_TASK_DEFAULTS[group];
   const model = runs === 'fast' ? conn.fastModel : runs === 'main' ? conn.mainModel : runs;
   const fallbackLevel = defaultTaskThinking(group, runs, conn.mode);
@@ -100,7 +102,8 @@ export function resolveTask(
     reasoningEffort: !hasLevel
       ? undefined
       : (chosenLevel ?? (fallbackLevel === 'medium' ? undefined : fallbackLevel)),
-    unavailable: listed ? null : choice,
+    unavailable: listed || unchecked ? null : choice,
+    unchecked,
     isDefault: !saved,
   };
 }
@@ -119,8 +122,13 @@ export function taskModelsStatus(
         {
           choice: r.choice,
           thinking: r.savedThinking,
-          model: r.model,
-          effectiveThinking: r.thinking,
+          // Not checked yet: the screen shows the saved model and level, not this call's stand-in.
+          model: r.unchecked ? r.choice : r.model,
+          effectiveThinking: r.unchecked
+            ? aiModelHasThinking(conn.mode, r.choice)
+              ? (r.savedThinking ?? defaultTaskThinking(group, r.choice, conn.mode))
+              : null
+            : r.thinking,
           unavailable: r.unavailable,
           isDefault: r.isDefault,
         },
@@ -208,10 +216,14 @@ export function saveTaskModels(
 /**
  * Permanent start-up step (the updater may jump many versions): while `ai_task_models` is missing, the old
  * "Model for suggestions" becomes the Writing help row of the connection saved now (`agent` → Main model, a
- * model id the connection lists → that model; `fast`, nothing or an unlisted id → the default). Translate, the
+ * model id the connection lists, or any id while ChatGPT's list is unread → that model; `fast`, nothing or an
+ * unlisted id → the default). Translate, the
  * phrase list and Dream lessons start on Fast. The old key stays (a downgrade still reads it).
  */
-export function migrateTaskModels(settings: SettingsStore, listed: readonly string[]): void {
+export function migrateTaskModels(
+  settings: SettingsStore,
+  conn: Pick<TaskConnection, 'models' | 'listComplete'>,
+): void {
   if (settings.get<unknown>(TASK_MODELS_KEY, null) !== null) return;
   const old = settings.get<unknown>(LEGACY_SUGGEST_MODEL_KEY, null);
   // "Same as the AI agent" meant every connection's main model; a model id belongs to the connection saved now.
@@ -224,8 +236,12 @@ export function migrateTaskModels(settings: SettingsStore, listed: readonly stri
   const mode = aiProviderSettings(settings).mode;
   settings.set(
     TASK_MODELS_KEY,
-    // Only a model the connection saved now lists: an id of an earlier connection would only ever fall back.
-    id.success && id.data !== 'fast' && id.data !== 'main' && listed.includes(id.data)
+    // Only a model the connection saved now lists (an earlier connection's id would only ever fall back). ChatGPT's
+    // list is not read at start-up: its id is kept and checked on use (`unchecked`, then the warning).
+    id.success &&
+      id.data !== 'fast' &&
+      id.data !== 'main' &&
+      (conn.models.includes(id.data) || conn.listComplete === false)
       ? { [mode]: { writing: { choice: id.data } } }
       : {},
   );

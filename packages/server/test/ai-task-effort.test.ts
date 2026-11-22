@@ -4,6 +4,7 @@ import { CODEX_BACKEND } from '../src/ai/chatgpt-backend.js';
 import { DirectChatGptProvider } from '../src/ai/chatgpt-direct.js';
 import { assistOpenAi, draftOpenAi, generateOpenAi, rewriteOpenAi } from '../src/ai/provider.js';
 import { assistClaude, generateClaude, rewriteClaude } from '../src/ai/claude.js';
+import { REASONING_HEADROOM } from '../src/ai/agent/draft.js';
 import { answerText, CHATGPT_SETTINGS, seedTokens } from './chatgpt-fixtures.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 
@@ -89,13 +90,34 @@ describe('OpenAI key: the level goes only to reasoning models', () => {
       'high',
       'high',
     ]);
+    // The draft's 100-token answer cap gets the Smarter reasoning headroom, or the reasoning would use it up.
+    expect(bodyOf(fetcher.mock.calls[1]).max_output_tokens).toBe(100 + REASONING_HEADROOM.high);
   });
 
-  it('gpt-4.1 gets no level', async () => {
-    const fetcher = vi.fn(async () => openAiAnswer(DECISION));
+  it('gpt-4.1 gets no level and a draft keeps its own small cap', async () => {
+    const fetcher = vi.fn(async () => openAiAnswer(JSON.stringify({ ok: true })));
     vi.stubGlobal('fetch', fetcher);
-    await generateOpenAi(api('gpt-4.1'), 'sk-test', prompt, signal());
+    await generateOpenAi(api('gpt-4.1'), 'sk-test', prompt, signal()).catch(() => undefined);
     expect(bodyOf(fetcher.mock.calls[0]).reasoning).toBeUndefined();
+    await draftOpenAi(
+      api('gpt-4.1'),
+      'sk-test',
+      prompt,
+      { schema: z.object({ ok: z.boolean() }), fast: false, maxOutputTokens: 300 },
+      signal(),
+    );
+    expect(bodyOf(fetcher.mock.calls.at(-1)).max_output_tokens).toBe(300);
+    // A reasoning model at its own level (nothing sent) still reasons: Balanced headroom.
+    await draftOpenAi(
+      api('gpt-5.5'),
+      'sk-test',
+      { instructions: 'x', input: '{}' },
+      { schema: z.object({ ok: z.boolean() }), fast: false, maxOutputTokens: 300 },
+      signal(),
+    );
+    expect(bodyOf(fetcher.mock.calls.at(-1)).max_output_tokens).toBe(
+      300 + REASONING_HEADROOM.medium,
+    );
   });
 });
 
@@ -120,11 +142,15 @@ describe('ChatGPT sign-in: the level is always sent', () => {
       fetchMock.mock.calls
         .filter((c) => c[0] === CODEX_BACKEND.responsesUrl)
         .map((c) => bodyOf(c).reasoning?.effort);
-    return { provider, sent };
+    const caps = () =>
+      fetchMock.mock.calls
+        .filter((c) => c[0] === CODEX_BACKEND.responsesUrl)
+        .map((c) => bodyOf(c).max_output_tokens);
+    return { provider, sent, caps };
   };
 
   it('a draft takes the row level (else low), Ask Ezy on a named model takes it too', async () => {
-    const { provider, sent } = chatgpt();
+    const { provider, sent, caps } = chatgpt();
     const options = { schema: z.object({ ok: z.boolean() }), fast: false, maxOutputTokens: 100 };
     const settings = { ...CHATGPT_SETTINGS, model: 'gpt-6-astra' };
     await provider.draft(
@@ -148,6 +174,8 @@ describe('ChatGPT sign-in: the level is always sent', () => {
     );
     await provider.assist(settings, null, { ...call, main: true }, signal());
     expect(sent()).toEqual(['high', 'low', 'medium', undefined]);
+    // The ChatGPT backend takes no output cap, so reasoning can never use one up.
+    expect(caps().slice(0, 2)).toEqual([undefined, undefined]);
     // The live list is read only on request; until then the AI models rows keep saved ids. Once read it stays the
     // list (also after the cache time) until sign-out.
     expect(provider.modelListRead()).toBe(false);

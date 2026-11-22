@@ -53,3 +53,9 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
   A save of a name the list does not show answers 503 while the account's list cannot be read, never stores it. The
   start-up migration moves an old suggestions model only when the connection saved now lists it. Picking the row's
   default again saves it as the default. A kept live-only model shows in the picker with its level.
+- 2026-11-22: third review fix. A saved ChatGPT model the account's list has not confirmed yet (list unread after a
+  start or sign-in) runs on the row's default for that call and starts the list read; the screen still shows the
+  saved choice. The start-up migration keeps an old ChatGPT suggestions model (checked on use). A reasoning model on an
+  OpenAI key gets reasoning headroom on top of a draft call's small answer cap (low 2,000 · medium 8,000 · high 24,000
+  tokens, `REASONING_HEADROOM`), so a completion or Safety check at Smarter is not cut off; the ChatGPT backend takes
+  no cap. The older `PUT /api/ai/reply-suggestions {model}` reads the list first and has the same 30-a-minute limit.

@@ -50,6 +50,7 @@ describe('resolveTask', () => {
       // Balanced as a default: the model's own level, nothing sent.
       reasoningEffort: undefined,
       unavailable: null,
+      unchecked: false,
       isDefault: true,
     });
     for (const group of ['askEzy', 'translate', 'writing', 'background'] as const)
@@ -105,12 +106,30 @@ describe('resolveTask', () => {
     expect(aiModelHasThinking('api', 'o3')).toBe(true);
   });
 
-  it('keeps a saved id while the connection list may be incomplete', () => {
+  it('runs the row default for an id the unread list cannot check yet, and shows it as saved', () => {
     const cold = { ...CHATGPT, listComplete: false };
-    expect(resolveTask('translate', { choice: 'gpt-7-live' }, cold)).toMatchObject({
-      model: 'gpt-7-live',
+    expect(
+      resolveTask('translate', { choice: 'gpt-7-live', thinking: 'high' }, cold),
+    ).toMatchObject({
+      model: 'gpt-6-luna',
+      thinking: 'low',
+      reasoningEffort: 'low',
       unavailable: null,
+      unchecked: true,
     });
+    expect(
+      taskModelsStatus({ chatgpt: { translate: { choice: 'gpt-7-live', thinking: 'high' } } }, cold)
+        .tasks.translate,
+    ).toMatchObject({ model: 'gpt-7-live', effectiveThinking: 'high', unavailable: null });
+    expect(
+      taskModelsStatus({ chatgpt: { writing: { choice: 'gpt-7-live' } } }, cold).tasks.writing,
+    ).toMatchObject({ model: 'gpt-7-live', effectiveThinking: 'low' });
+    expect(
+      taskModelsStatus({ api: { writing: { choice: 'ft:x' } } }, { ...API, listComplete: false })
+        .tasks.writing,
+    ).toMatchObject({ model: 'ft:x', effectiveThinking: null });
+    // A listed id is never "unchecked".
+    expect(resolveTask('translate', { choice: 'gpt-5.6-terra' }, cold).unchecked).toBe(false);
   });
 
   it('sends a level only to models that have one', () => {
@@ -175,9 +194,12 @@ describe('readTaskModels', () => {
 });
 
 describe('migrateTaskModels', () => {
-  const run = (initial: Record<string, unknown>, listed: readonly string[] = CLAUDE.models) => {
+  const run = (
+    initial: Record<string, unknown>,
+    conn: Pick<TaskConnection, 'models' | 'listComplete'> = CLAUDE,
+  ) => {
     const s = store(initial);
-    migrateTaskModels(s, listed);
+    migrateTaskModels(s, conn);
     return s.values.get('ai_task_models');
   };
   it('moves the old Model for suggestions into Writing help of the saved connection', () => {
@@ -200,6 +222,16 @@ describe('migrateTaskModels', () => {
         ai_inbox_provider: { mode: 'claude', model: '' },
       }),
     ).toEqual({});
+    // ChatGPT's list is not read at start-up: the old model is kept and checked when it is used.
+    expect(
+      run(
+        {
+          ai_reply_suggestions_model: 'gpt-7-live',
+          ai_inbox_provider: { mode: 'chatgpt', model: '' },
+        },
+        { ...CHATGPT, listComplete: false },
+      ),
+    ).toEqual({ chatgpt: { writing: { choice: 'gpt-7-live' } } });
   });
   it('keeps the defaults for Fast, nothing or an unreadable value', () => {
     expect(run({ ai_reply_suggestions_model: 'fast' })).toEqual({});

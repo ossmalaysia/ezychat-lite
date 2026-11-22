@@ -209,6 +209,16 @@ describe('AI models routes', () => {
     await put('fast');
     expect(s.ai.taskModels().tasks.writing.isDefault).toBe(true);
   });
+
+  it('the older route shares the save limit (30 a minute per admin)', async () => {
+    const s = await setup();
+    const put = () => s.inject(s.admin, 'PUT', '/api/ai/reply-suggestions', { model: 'fast' });
+    for (let i = 0; i < 30; i++) expect((await put()).statusCode).toBe(200);
+    expect((await put()).statusCode).toBe(429);
+    // Switching suggestions on or off is not a model save.
+    const toggle = await s.inject(s.admin, 'PUT', '/api/ai/reply-suggestions', { enabled: true });
+    expect(toggle.statusCode).toBe(200);
+  });
 });
 
 describe('AI calls follow their row', () => {
@@ -336,7 +346,37 @@ describe('AI calls follow their row', () => {
     expect(prompt.reasoningEffort).toBe('low');
   });
 
-  it('ChatGPT before its live list is read: a saved live-only model runs as saved; the screen reads the list', async () => {
+  it('ChatGPT before its live list is read: a saved model runs on the row default and the list is read', async () => {
+    let read = false;
+    let listed = ['gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.6-terra'];
+    const models = vi.fn(async () => {
+      read = true;
+      listed = [...listed, 'gpt-7-live'];
+      return { models: [], source: 'live' as const };
+    });
+    const s = await setup({ modelListRead: () => read, models, knownModels: () => listed });
+    s.t.ctx.settings.set('ai_task_models', {
+      chatgpt: { writing: { choice: 'gpt-7-live', thinking: 'high' } },
+    });
+    // Not checked yet: the screen shows the saved choice, this call runs on Fast and starts the list read.
+    expect(s.ai.taskModels().tasks.writing).toMatchObject({
+      model: 'gpt-7-live',
+      effectiveThinking: 'high',
+      unavailable: null,
+    });
+    await s.ai.editText({ field: 'instructions', current: 'Be warm.', request: 'Shorter' });
+    let [settings, , prompt] = vi.mocked(s.provider.rewrite!).mock.calls.at(-1)!;
+    expect(settings.model).toBe('gpt-6-luna');
+    expect(prompt.reasoningEffort).toBe('low');
+    await vi.waitFor(() => expect(models).toHaveBeenCalledTimes(1));
+    // The account lists it: the next call runs it at the saved level.
+    await s.ai.editText({ field: 'instructions', current: 'Be warm.', request: 'Shorter' });
+    [settings, , prompt] = vi.mocked(s.provider.rewrite!).mock.calls.at(-1)!;
+    expect(settings.model).toBe('gpt-7-live');
+    expect(prompt.reasoningEffort).toBe('high');
+  });
+
+  it('ChatGPT: opening AI models reads the list, so a model the account lacks shows the warning', async () => {
     let read = false;
     const models = vi.fn(async () => {
       read = true;
@@ -346,12 +386,6 @@ describe('AI calls follow their row', () => {
     s.t.ctx.settings.set('ai_task_models', {
       chatgpt: { agentReplies: { choice: 'gpt-7-live', thinking: 'high' } },
     });
-    await s.ai.tryAnswer(TRY);
-    const [settings, , prompt] = vi.mocked(s.provider.generate).mock.calls.at(-1)!;
-    expect(settings.model).toBe('gpt-7-live');
-    expect(prompt.reasoningEffort).toBe('high');
-    expect(s.ai.taskModels().tasks.agentReplies.unavailable).toBeNull();
-    // Opening AI models reads the live list; this account does not list it, so the warning shows.
     const res = await s.inject(s.admin, 'GET', '/api/ai/task-models');
     expect(models).toHaveBeenCalledTimes(1);
     expect(res.json().tasks.agentReplies.unavailable).toBe('gpt-7-live');

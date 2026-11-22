@@ -57,6 +57,8 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
     return { jid, signal: cancel.signal };
   };
 
+  // The Writing help row's save limit, shared in spirit with PUT /ai/task-models (30 a minute per admin).
+  const modelLimiter = new WindowLimiter({ windowMs: 60_000, max: 30 });
   // Outside /api/ai on purpose: every /api/ai route is admin-only (ai-routes-access.test.ts).
   app.get('/reply-suggestions', async () => status());
   app.put('/ai/reply-suggestions', { preHandler: requireAdmin(ctx) }, async (req) => {
@@ -65,8 +67,12 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
       throw errors.validation('Choose Fast, Same as the AI agent or a model of this connection');
     const actor = { userId: req.user!.id, ip: clientIp(req) };
     if (enabled !== undefined) setReplySuggestions(ctx, enabled, actor);
-    // Older clients: the model for suggestions is now AI models → Writing help (docs/ai-models.md).
+    // Older clients: the model for suggestions is now AI models → Writing help (docs/ai-models.md), with the same
+    // list read and save limit as PUT /ai/task-models.
     if (model !== undefined) {
+      const hit = modelLimiter.hit(String(req.user!.id));
+      if (!hit.allowed) throw errors.rateLimited(hit.retryAfterSec);
+      await ai.warmModelList();
       const row = ai.taskModels().tasks.writing;
       // Keep the row's Speed and quality level when the model stays the same (Fast included).
       const keep = model === 'fast' ? 'fast' : model === 'agent' ? 'main' : model;

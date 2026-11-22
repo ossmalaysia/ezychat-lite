@@ -38,6 +38,27 @@ export interface DraftCall<T> {
   maxOutputTokens: number;
   /** OpenAI Responses reasoning effort; omitted = the model's default. */
   reasoningEffort?: AiReasoningEffort;
+  /** The model reasons: its reasoning tokens count against the output cap, so the cap gets headroom. */
+  reasons?: boolean;
+}
+
+/**
+ * Reasoning tokens a reasoning model may spend before its answer, per level (omitted = the model's default,
+ * medium). Without them a small answer cap (a 300-token completion) ends `incomplete` and the call fails.
+ */
+export const REASONING_HEADROOM: Record<AiReasoningEffort, number> = {
+  low: 2_000,
+  medium: 8_000,
+  high: 24_000,
+};
+
+/** The output cap of one draft call: the answer's own cap plus the reasoning headroom of a reasoning model. */
+export function draftOutputCap(
+  call: Pick<DraftCall<unknown>, 'maxOutputTokens' | 'reasoningEffort' | 'reasons'>,
+) {
+  return (
+    call.maxOutputTokens + (call.reasons ? REASONING_HEADROOM[call.reasoningEffort ?? 'medium'] : 0)
+  );
 }
 
 /** Reply suggestions and completions: one structured call, no tools, never retried. */
@@ -51,7 +72,7 @@ export async function runDraft<T>(call: DraftCall<T>): Promise<T> {
     abortSignal: call.signal,
     // A retry costs the business's usage; the teammate can press Suggest reply again.
     maxRetries: 0,
-    maxOutputTokens: call.maxOutputTokens,
+    maxOutputTokens: draftOutputCap(call),
     ...(call.reasoningEffort
       ? { providerOptions: { openai: { reasoningEffort: call.reasoningEffort } } }
       : {}),

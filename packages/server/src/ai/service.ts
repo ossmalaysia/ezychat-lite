@@ -685,6 +685,25 @@ export function createAiService(
       ? (CHATGPT_FAST_DRAFT_MODELS.find((id) => suggestModels(current).includes(id)) ??
         agentModel(current))
       : DRAFT_FAST_MODELS[current.mode];
+  /**
+   * ChatGPT: read the account's model list (the provider answers from its cache while fresh). A failure keeps the
+   * last list, or the built-in one, and a save of a named model then answers 503. One read at a time.
+   */
+  let warming: Promise<void> | null = null;
+  const warmList = (): Promise<void> => {
+    if (aiProviderSettings(ctx.settings).mode !== 'chatgpt' || !provider.models)
+      return Promise.resolve();
+    warming ??= provider
+      .models()
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+      .finally(() => {
+        warming = null;
+      });
+    return warming;
+  };
   /** What the current connection offers the AI models rows (docs/ai-models.md). */
   const taskConnection = (current: AiSettings): TaskConnection => ({
     mode: current.mode,
@@ -706,8 +725,11 @@ export function createAiService(
       readTaskModels(ctx.settings)[current.mode]?.[group],
       taskConnection(current),
     );
-    const runsMain = r.unavailable ? AI_TASK_DEFAULTS[group] === 'main' : r.choice === 'main';
-    const runsFast = (r.unavailable ? AI_TASK_DEFAULTS[group] : r.choice) === 'fast';
+    // A saved ChatGPT model the account list has not confirmed yet: read the list now, this call runs the default.
+    if (r.unchecked) void warmList();
+    const fellBack = r.unavailable !== null || r.unchecked;
+    const runsMain = fellBack ? AI_TASK_DEFAULTS[group] === 'main' : r.choice === 'main';
+    const runsFast = (fellBack ? AI_TASK_DEFAULTS[group] : r.choice) === 'fast';
     return {
       settings: runsMain ? current : { ...current, model: r.model },
       // Draft calls keep the provider's own fast-model pick (the same model, read live on ChatGPT).
@@ -762,10 +784,11 @@ export function createAiService(
     }
   };
   /** The model, `task` and `thinking` of an AI agent replies log line (Main on Auto logs null, as before). */
-  const replyLog = (current: AiSettings) => {
-    const r = taskCall('agentReplies', current);
-    return { model: r.settings.model || null, task: r.task, thinking: r.thinking };
-  };
+  const replyLog = (r: TaskCall) => ({
+    model: r.settings.model || null,
+    task: r.task,
+    thinking: r.thinking,
+  });
   /** The `task` and `thinking` fields of a model-call log line (never text). */
   const taskLog = (choice: Partial<TaskCall>) =>
     choice.task ? { task: choice.task, thinking: choice.thinking ?? null } : {};
@@ -1530,6 +1553,8 @@ export function createAiService(
     let lookups: AgentToolInfo[] = [];
     let lookupFailed = false;
     const started = Date.now();
+    // One read of the row per turn: the call and its log line name the same model and level.
+    const replyCall = taskCall('agentReplies', current);
     const handover = (handoffReason: AiHandoffReason): AiDecision => ({
       action: 'handoff',
       reply: GROUP_HANDOVER_REPLY,
@@ -1564,7 +1589,6 @@ export function createAiService(
           },
         );
         try {
-          const replyCall = taskCall('agentReplies', current);
           decision = AiDecision.parse(
             await provider.generate(
               replyCall.settings,
@@ -1649,7 +1673,7 @@ export function createAiService(
         action: decision.action,
         handoffReason: decision.handoffReason ?? null,
         toolCalls,
-        ...replyLog(current),
+        ...replyLog(replyCall),
         ms: Date.now() - started,
       },
       'AI decision',
@@ -1891,6 +1915,8 @@ export function createAiService(
       let lookups: AgentToolInfo[] = [];
       let lookupFailed = false;
       const started = Date.now();
+      // One read of the row per turn: the call and its log line name the same model and level.
+      const replyCall = taskCall('agentReplies', current);
       /** Page `n` of this chat's messages older than the prompt's, oldest first. */
       const olderMessages = (n: number) => {
         let before = olderBefore;
@@ -1926,7 +1952,6 @@ export function createAiService(
           },
         );
         try {
-          const replyCall = taskCall('agentReplies', current);
           return AiDecision.parse(
             await provider.generate(
               replyCall.settings,
@@ -2133,7 +2158,7 @@ export function createAiService(
           ...promptFilesLog(files),
           toolCalls,
           voiceNotes: voiceNotes.length,
-          ...replyLog(current),
+          ...replyLog(replyCall),
           ms: Date.now() - started,
         },
         'AI decision',
@@ -3099,12 +3124,7 @@ export function createAiService(
     isSuggestModel(model) {
       return model === 'fast' || model === 'agent' || suggestModels(settings()).includes(model);
     },
-    async warmModelList() {
-      if (aiProviderSettings(ctx.settings).mode !== 'chatgpt' || !provider.models) return;
-      // The provider answers from its cache while fresh, else reads the account's live list again; a failure keeps
-      // the last list (or the built-in one, and a save of a named model then answers 503).
-      await provider.models().catch(() => undefined);
-    },
+    warmModelList: () => warmList(),
     taskModels() {
       return taskModelsStatus(readTaskModels(ctx.settings), taskConnection(settings()));
     },
@@ -3606,6 +3626,8 @@ export function createAiService(
         AbortSignal.timeout(AI_SCHEDULED_TURN_TIMEOUT_MS),
       ]);
       const started = Date.now();
+      // One read of the row per turn: the call and its log line name the same model and level.
+      const replyCall = taskCall('agentReplies', current);
       const toolCalls: string[] = [];
       let extension: Awaited<ReturnType<typeof agentTurnTools>> | null = null;
       let decision: AiDecision;
@@ -3634,7 +3656,6 @@ export function createAiService(
         // No file came in: nothing to save to Drive.
         const tools: Record<string, unknown> = { ...extension?.tools };
         delete tools[SAVE_FILE_TO_DRIVE];
-        const replyCall = taskCall('agentReplies', current);
         decision = AiDecision.parse(
           await provider.generate(
             replyCall.settings,
@@ -3724,7 +3745,7 @@ export function createAiService(
           outcome: result.outcome,
           reason: result.reason,
           toolCalls,
-          ...replyLog(current),
+          ...replyLog(replyCall),
           ms: Date.now() - started,
         },
         'AI scheduled turn',
@@ -3771,7 +3792,7 @@ export function createAiService(
   // Permanent start-up step: the old member texts become agent 1 (once, see ai/agents.ts).
   migrateMemberSetting(ctx.db, ctx.settings);
   // Permanent start-up step: the old "Model for suggestions" becomes the Writing help row (docs/ai-models.md).
-  migrateTaskModels(ctx.settings, suggestModels(settings()));
+  migrateTaskModels(ctx.settings, taskConnection(settings()));
   // Permanent start-up step: a switched-on group with no agent gets its inbox's only agent.
   backfillGroupAgents(ctx.db);
   // Restore only explicitly recorded live inbound work; imported WhatsApp history never creates state.

@@ -1565,6 +1565,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A cache flag answers one question: "ever read" (is this list authoritative?) is not "still fresh" (should I refetch?).
   Validate against the last read copy even when it is stale, refetch when it is old, and when nothing was ever read
   refuse to store an unchecked name (503) instead of accepting everything.
+- A reasoning model's thinking tokens count against `maxOutputTokens`: when a call can carry a reasoning level, add
+  headroom to small answer caps (completions, safety checks) or the call ends `incomplete` and fails.
+- A model choice that cannot be checked yet runs on the documented fallback for that call and triggers the check;
+  never let it reach a provider whose own fallback differs (ChatGPT `resolveModel` → Auto, not the row's Fast).
 - Two Playwright projects on one shared e2e server must never write the same setting: let one project write, the
   other only read layout (`test.skip`/early return on `info.project.name`).
 

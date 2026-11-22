@@ -104,6 +104,7 @@ export function draftOpenAi<T>(
         prompt,
         signal: bounded,
         reasoningEffort: effortFor(id, prompt.reasoningEffort),
+        reasons: aiModelHasThinking('api', id),
       }),
       model: id,
     }),
