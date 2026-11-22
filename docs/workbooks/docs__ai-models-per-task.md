@@ -10,7 +10,7 @@ Branch: `docs/ai-models-per-task` · Every agent updates its stage with
 | Unit tests | done | 6178 tests green, changed lines 99.0 % (205/207) | 324ea39 | 2026-11-22 |
 | E2E | done | npm run e2e: 196 passed, 32 skipped (4.1m) | 324ea39 | 2026-11-22 |
 | Dev Build | done | ai-models-screens 36 shots 0 problems; kept live-only model shown | 324ea39 | 2026-11-22 |
-| Screen review | done | e2e/ai-models-screens.mjs: 36 shots 1280/360, light/dark, en/ms/zh-CN, 0 page errors, 0 overflow (docs/screenshots/ai-models); mock shots re-run with confirmed labels | 84c052c | 2026-11-22 |
+| Screen review | done | Re-captured 36 shots at 1280/360 light+dark+ms+zh-CN; fixed the empty Translate picker for a kept live-only model (now shows the id with its level); no overflow, no page errors | 3f48182 | 2026-11-22 |
 
 ## Log
 
@@ -31,3 +31,4 @@ Branch: `docs/ai-models-per-task` · Every agent updates its stage with
 - 2026-11-22 Unit tests: done — 6178 tests green, changed lines 99.0 % (205/207) (324ea39)
 - 2026-11-22 Dev Build: done — ai-models-screens 36 shots 0 problems; kept live-only model shown (324ea39)
 - 2026-11-22 E2E: done — npm run e2e: 196 passed, 32 skipped (4.1m) (324ea39)
+- 2026-11-22 Screen review: done — Re-captured 36 shots at 1280/360 light+dark+ms+zh-CN; fixed the empty Translate picker for a kept live-only model (now shows the id with its level); no overflow, no page errors (3f48182)
