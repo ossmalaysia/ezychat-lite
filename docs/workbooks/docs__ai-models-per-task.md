@@ -6,11 +6,11 @@ Branch: `docs/ai-models-per-task` · Every agent updates its stage with
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
 | Design | done | Owner confirmed 2026-11-22 (all suggested); mock updated to Speed and quality: Faster · Balanced · Smarter, Edit with AI in Writing help | 9433a1a | 2026-11-22 |
-| Dev | done | Second review fixes: expired list stays authoritative, 503 on unchecked save, migration only listed ids, default pick saves null, picker shows kept live-only model | 324ea39 | 2026-11-22 |
-| Unit tests | done | 6178 tests green, changed lines 99.0 % (205/207) | 324ea39 | 2026-11-22 |
-| E2E | done | npm run e2e: 196 passed, 32 skipped (4.1m) | 324ea39 | 2026-11-22 |
-| Dev Build | done | ai-models-screens 36 shots 0 problems; kept live-only model shown | 324ea39 | 2026-11-22 |
-| Screen review | done | Re-captured 36 shots at 1280/360 light+dark+ms+zh-CN; fixed the empty Translate picker for a kept live-only model (now shows the id with its level); no overflow, no page errors | 3f48182 | 2026-11-22 |
+| Dev | done | Third review fixes: reasoning headroom on draft caps, unchecked ChatGPT model runs the row default and reads the list, ChatGPT migration kept, legacy route limit + list read, sign-in poll reloads AI models, logs from the captured call | c7ba3e5 | 2026-11-22 |
+| Unit tests | done | 6181 tests green, changed lines 97.4 % (223/229) | c7ba3e5 | 2026-11-22 |
+| E2E | done | npm run e2e: 196 passed, 32 skipped (4.5m) | c7ba3e5 | 2026-11-22 |
+| Dev Build | done | ai-models-screens 36 shots 0 problems on c7ba3e5 | c7ba3e5 | 2026-11-22 |
+| Screen review | done | Re-checked AI models shots on c7ba3e5: no change from the last round, no overflow, no page errors | c7ba3e5 | 2026-11-22 |
 
 ## Log
 
@@ -32,3 +32,8 @@ Branch: `docs/ai-models-per-task` · Every agent updates its stage with
 - 2026-11-22 Dev Build: done — ai-models-screens 36 shots 0 problems; kept live-only model shown (324ea39)
 - 2026-11-22 E2E: done — npm run e2e: 196 passed, 32 skipped (4.1m) (324ea39)
 - 2026-11-22 Screen review: done — Re-captured 36 shots at 1280/360 light+dark+ms+zh-CN; fixed the empty Translate picker for a kept live-only model (now shows the id with its level); no overflow, no page errors (3f48182)
+- 2026-11-22 Dev: done — Third review fixes: reasoning headroom on draft caps, unchecked ChatGPT model runs the row default and reads the list, ChatGPT migration kept, legacy route limit + list read, sign-in poll reloads AI models, logs from the captured call (c7ba3e5)
+- 2026-11-22 Unit tests: done — 6181 tests green, changed lines 97.4 % (223/229) (c7ba3e5)
+- 2026-11-22 E2E: done — npm run e2e: 196 passed, 32 skipped (4.5m) (c7ba3e5)
+- 2026-11-22 Dev Build: done — ai-models-screens 36 shots 0 problems on c7ba3e5 (c7ba3e5)
+- 2026-11-22 Screen review: done — Re-checked AI models shots on c7ba3e5: no change from the last round, no overflow, no page errors (c7ba3e5)
