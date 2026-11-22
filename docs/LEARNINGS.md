@@ -1962,6 +1962,7 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A link from a chat element to an admin page — check `directory.isAdmin` and the directory row (`kind`, `aiAgentId`, `aiDeleted`) before adding a contract field; the team directory already carries the agent id, so no shared-schema change was needed.
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
   `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through

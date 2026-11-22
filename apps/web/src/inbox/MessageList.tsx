@@ -237,9 +237,15 @@ export function MessageList({
                     ? t('messageList.viaPhone')
                     : directory.nameOf(m.sentByUserId)
                   : null;
+                const sender = m.fromMe ? directory.byId.get(m.sentByUserId ?? -1) : undefined;
+                const outboundHref =
+                  directory.isAdmin && sender?.kind === 'ai' && sender.aiAgentId && !sender.aiDeleted
+                    ? `/admin/members/ai/${sender.aiAgentId}`
+                    : null;
                 return (
                   <MessageBubble
                     key={it.key}
+                    outboundHref={outboundHref}
                     message={m}
                     showSender={isGroup}
                     outboundLabel={outboundLabel}

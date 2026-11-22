@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { Message } from '@ezychat/shared';
 import { HIGHLIGHT_MS, MessageList, type MessageListProps } from './MessageList';
 import type { TimelineItem } from './timeline';
@@ -96,5 +97,41 @@ describe('MessageList jump to a quoted message', () => {
     );
     act(() => getByTestId('quote-jump').click());
     expect(onOpenQuote).toHaveBeenCalledWith('M-1');
+  });
+});
+
+describe('MessageList AI agent link', () => {
+  const agentMsg = (): TimelineItem => ({
+    kind: 'message',
+    key: 'A-1',
+    at: base.timestamp,
+    message: { ...base, id: 'A-1', fromMe: true, sentByUserId: 7 },
+  });
+  const dir = (isAdmin: boolean, row: Record<string, unknown>) =>
+    ({
+      me: null,
+      isAdmin,
+      byId: new Map([[7, { id: 7, kind: 'ai', aiAgentId: 3, ...row }]]),
+      nameOf: () => 'Workshop assistant',
+    }) as unknown as Directory;
+  const view = (d: Directory) =>
+    render(
+      <MemoryRouter>
+        <MessageList {...props({ items: [agentMsg()], directory: d })} />
+      </MemoryRouter>,
+    );
+
+  it('links the agent name to its page for admins', () => {
+    const { container } = view(dir(true, {}));
+    expect(container.querySelector('a[href="/admin/members/ai/3"]')?.textContent).toBe(
+      'Workshop assistant',
+    );
+  });
+  it('stays plain text for non-admins and deleted agents', () => {
+    expect(view(dir(false, {})).container.querySelector('a')).toBeNull();
+    cleanup();
+    const deleted = view(dir(true, { aiDeleted: true }));
+    expect(deleted.container.querySelector('a')).toBeNull();
+    expect(deleted.container.textContent).toContain('Workshop assistant');
   });
 });

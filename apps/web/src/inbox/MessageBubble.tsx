@@ -70,6 +70,8 @@ export interface MessageBubbleProps {
   highlighted?: boolean;
   /** Edit and delete (⋮ menu; under Reply in the press-and-hold bar on touch). */
   changes?: MessageChangeProps;
+  /** Admins: the AI agent's setup page, so its name above its message is a link there. */
+  outboundHref?: string | null;
 }
 
 /** Read-only profile of a group sender, from their direct chat, with a link to that chat. */
@@ -199,6 +201,7 @@ export function MessageBubble({
   changes,
   onOpenQuote,
   highlighted = false,
+  outboundHref = null,
 }: MessageBubbleProps) {
   const { t } = useTranslation(['inbox', 'common']);
   // Deleted for everyone: no reply, reaction or copy (WhatsApp shows only the placeholder).
@@ -408,7 +411,18 @@ export function MessageBubble({
         )}
         {out && outboundLabel && (
           <p className="mb-0.5 truncate text-[11px] font-medium text-muted-foreground">
-            {outboundLabel}
+            {outboundHref ? (
+              <Link
+                to={outboundHref}
+                aria-label={t('message.openAgent', { name: outboundLabel })}
+                title={t('message.openAgent', { name: outboundLabel })}
+                className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {outboundLabel}
+              </Link>
+            ) : (
+              outboundLabel
+            )}
           </p>
         )}
         {/* "Forwarded" / "Forwarded many times", as WhatsApp shows it. */}
