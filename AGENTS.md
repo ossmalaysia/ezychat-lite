@@ -87,8 +87,11 @@ rejected in service mode.
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
 3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`), with the
-adapter's opaque data in `media_refs` so it survives a restart. An image with WhatsApp's `jpegThumbnail` (`media_thumbs`,
-`GET /api/media/:id/thumb`) shows it in the chat; its real file loads only when the image is opened. A new table needs an
+adapter's opaque data in `media_refs` so it survives a restart. An image with a preview (`media_thumbs`,
+`GET /api/media/:id/thumb?v=2`) shows it in the chat; its real file loads only when the image is opened. WhatsApp's
+`jpegThumbnail` (about 48 × 64 px) is the first preview; once a JPEG photo is stored, the first `/thumb` request makes the
+app's own 800 px preview in a worker thread (`messages/image-preview*.ts`, `jpeg-js`, `media_thumbs.own`, migration 047,
+2 at a time, once per message) and caches it 30 days; WhatsApp's is sent `no-cache`. A new table needs an
 entry in the Lite merge's `TABLE_PLAN`.
 PDFs (and photos sent as files) open in the app: `inbox/PdfViewer.tsx` draws them with pdf.js from fetched bytes
 (`lib/pdf.ts`, lazy chunk + worker, 50 MB cap, `%PDF-` check); the media route still serves them as attachments.

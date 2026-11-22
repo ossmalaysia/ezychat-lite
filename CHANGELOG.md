@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The **Model for suggestions** choice moved from Reply suggestions to AI models → **Writing help** (your choice is kept). The phrase list and Dream mode's nightly lessons now follow **Background checks** (Fast), and **Edit with AI** follows Writing help (Fast by default; it used the main model before).
 
+### Fixed
+
+- **Photos in a chat are sharp.** A customer's photo showed blurry in the chat, because the chat used WhatsApp's tiny preview. EzyChat now makes its own clear preview from the photo, still small enough to load fast through remote access. Tap the photo to see it in full, as before.
+
 ## [0.1.86] - 2026-11-22
 
 ### Added
