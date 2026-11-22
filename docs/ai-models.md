@@ -25,8 +25,9 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
 - **Per connection:** choices are stored per mode (`ai_task_models[mode][group]`); a save changes only the current mode.
 - **Fallback:** a saved model the connection no longer lists runs as Main (agent replies) or Fast (others) at the
   default thinking, with a warning on the row; the saved choice is kept.
-- **Validation:** a saved model id must be on the connection's list (400 `model_not_listed`); thinking only for a model
-  that has it (400 `thinking_not_supported`).
+- **Validation:** a saved model id must be on the connection's list (400 `model_not_listed`; 503
+  `model_list_unavailable` while a ChatGPT account's list cannot be read); thinking only for a model that has it (400
+  `thinking_not_supported`).
 - **Audit and logs:** `settings.ai_task_model` {mode, task, before, after}; model-call logs add `task` and `thinking`,
   never text.
 
@@ -47,3 +48,8 @@ feature folder). Design, full inventory and mock: [docs/features/ai-models-per-t
 - 2026-11-22: review fix. ChatGPT's model list is the built-in one until the account's live list is read, so a saved
   model only the live list offers runs as saved until then (the provider checks it on the call); opening or saving AI
   models reads the live list first. No level for o1-mini, o1-preview, -chat or -pro models on an OpenAI key.
+- 2026-11-22: second review fix. "Never read" and "expired" are different: once the account's list was read, even an
+  expired copy is the list, so a model the account lost falls back to the row default with the warning (not to Auto).
+  A save of a name the list does not show answers 503 while the account's list cannot be read, never stores it. The
+  start-up migration moves an old suggestions model only when the connection saved now lists it. Picking the row's
+  default again saves it as the default. A kept live-only model shows in the picker with its level.

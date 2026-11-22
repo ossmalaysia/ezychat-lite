@@ -11,8 +11,11 @@ test('Settings → AI → AI models: change a row, keep it after a reload, retur
   const card = page.getByTestId('ai-models-settings');
   await expect(card.getByText('AI models', { exact: true })).toBeVisible();
   const translate = card.getByTestId('ai-models-translate');
-  await expect(translate.getByRole('combobox')).toContainText('Fast (recommended)');
+  await expect(translate.getByRole('combobox')).toBeVisible();
   await expectNoHorizontalScroll(page, `settings/ai ai-models ${info.project.name}`);
+  // Only one project reads and saves the row: the projects share one server and the same Translate row.
+  if (info.project.name !== 'desktop-chromium') return;
+  await expect(translate.getByRole('combobox')).toContainText('Fast (recommended)');
 
   await translate.getByRole('combobox').click();
   await page.getByRole('option', { name: /^Main model/ }).click();

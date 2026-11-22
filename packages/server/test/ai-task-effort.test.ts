@@ -148,10 +148,11 @@ describe('ChatGPT sign-in: the level is always sent', () => {
     );
     await provider.assist(settings, null, { ...call, main: true }, signal());
     expect(sent()).toEqual(['high', 'low', 'medium', undefined]);
-    // The live list is read only on request; until then the AI models rows keep saved ids.
-    expect(provider.modelListLive()).toBe(false);
+    // The live list is read only on request; until then the AI models rows keep saved ids. Once read it stays the
+    // list (also after the cache time) until sign-out.
+    expect(provider.modelListRead()).toBe(false);
     await provider.models();
-    expect(provider.modelListLive()).toBe(true);
+    expect(provider.modelListRead()).toBe(true);
     await provider.shutdown();
   });
 });

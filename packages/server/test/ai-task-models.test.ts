@@ -337,12 +337,12 @@ describe('AI calls follow their row', () => {
   });
 
   it('ChatGPT before its live list is read: a saved live-only model runs as saved; the screen reads the list', async () => {
-    let live = false;
+    let read = false;
     const models = vi.fn(async () => {
-      live = true;
+      read = true;
       return { models: [], source: 'live' as const };
     });
-    const s = await setup({ modelListLive: () => live, models });
+    const s = await setup({ modelListRead: () => read, models });
     s.t.ctx.settings.set('ai_task_models', {
       chatgpt: { agentReplies: { choice: 'gpt-7-live', thinking: 'high' } },
     });
@@ -351,12 +351,37 @@ describe('AI calls follow their row', () => {
     expect(settings.model).toBe('gpt-7-live');
     expect(prompt.reasoningEffort).toBe('high');
     expect(s.ai.taskModels().tasks.agentReplies.unavailable).toBeNull();
-    // Opening AI models reads the live list once; this account does not list it, so the warning shows.
+    // Opening AI models reads the live list; this account does not list it, so the warning shows.
     const res = await s.inject(s.admin, 'GET', '/api/ai/task-models');
     expect(models).toHaveBeenCalledTimes(1);
     expect(res.json().tasks.agentReplies.unavailable).toBe('gpt-7-live');
-    await s.inject(s.admin, 'GET', '/api/ai/task-models');
-    expect(models).toHaveBeenCalledTimes(1);
+  });
+
+  it('ChatGPT with an expired list: a model the account lost falls back to the row default, with the warning', async () => {
+    // The list was read once (now older than the cache time); the provider still gives that copy.
+    const s = await setup({ modelListRead: () => true });
+    s.t.ctx.settings.set('ai_task_models', {
+      chatgpt: { background: { choice: 'gpt-5.4-gone', thinking: 'high' } },
+    });
+    expect(s.ai.taskModels().tasks.background).toMatchObject({
+      unavailable: 'gpt-5.4-gone',
+      model: 'gpt-6-luna',
+      effectiveThinking: 'low',
+    });
+  });
+
+  it('ChatGPT when the list cannot be read: a save of an unknown name answers 503, a listed one saves', async () => {
+    const models = vi.fn(async () => {
+      throw new Error('offline');
+    });
+    const s = await setup({ modelListRead: () => false, models });
+    const res = await s.put({ translate: { choice: 'gpt-made-up' } });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error.code).toBe('model_list_unavailable');
+    expect(s.t.ctx.settings.get('ai_task_models', null)).toEqual({});
+    const ok = await s.put({ translate: { choice: 'gpt-5.6-terra' } });
+    expect(ok.statusCode).toBe(200);
+    expect(models).toHaveBeenCalledTimes(2);
   });
 
   it('a setup turn traces as askEzySetup with no row level', async () => {

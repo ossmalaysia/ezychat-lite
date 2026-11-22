@@ -175,9 +175,9 @@ describe('readTaskModels', () => {
 });
 
 describe('migrateTaskModels', () => {
-  const run = (initial: Record<string, unknown>) => {
+  const run = (initial: Record<string, unknown>, listed: readonly string[] = CLAUDE.models) => {
     const s = store(initial);
-    migrateTaskModels(s);
+    migrateTaskModels(s, listed);
     return s.values.get('ai_task_models');
   };
   it('moves the old Model for suggestions into Writing help of the saved connection', () => {
@@ -193,6 +193,13 @@ describe('migrateTaskModels', () => {
         ai_inbox_provider: { mode: 'claude', model: '' },
       }),
     ).toEqual({ claude: { writing: { choice: 'claude-opus-5-5' } } });
+    // An id the connection saved now does not list (an earlier connection's model) stays on the default.
+    expect(
+      run({
+        ai_reply_suggestions_model: 'gpt-6.1-sol',
+        ai_inbox_provider: { mode: 'claude', model: '' },
+      }),
+    ).toEqual({});
   });
   it('keeps the defaults for Fast, nothing or an unreadable value', () => {
     expect(run({ ai_reply_suggestions_model: 'fast' })).toEqual({});

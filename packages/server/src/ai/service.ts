@@ -691,9 +691,10 @@ export function createAiService(
     mainModel: agentModel(current),
     fastModel: fastModel(current),
     models: suggestModels(current),
-    // ChatGPT before its live list is read: the built-in list may miss the account's models, so a saved id runs
-    // as saved (the provider checks it against the live list on the call).
-    listComplete: current.mode !== 'chatgpt' || (provider.modelListLive?.() ?? true),
+    // ChatGPT before its live list was ever read: the built-in list may miss the account's models, so a saved id
+    // runs as saved (the provider checks it against the live list on the call). Once read, even an expired copy is
+    // the list: a model the account lost falls back to the row's default with a warning.
+    listComplete: current.mode !== 'chatgpt' || (provider.modelListRead?.() ?? true),
   });
   /**
    * The settings, `fast` flag and reasoning effort one call of a task row uses. Main keeps the saved connection
@@ -3100,8 +3101,8 @@ export function createAiService(
     },
     async warmModelList() {
       if (aiProviderSettings(ctx.settings).mode !== 'chatgpt' || !provider.models) return;
-      if (provider.modelListLive?.() ?? true) return;
-      // Reads the account's live list once (cached by the provider); a failure keeps the built-in list.
+      // The provider answers from its cache while fresh, else reads the account's live list again; a failure keeps
+      // the last list (or the built-in one, and a save of a named model then answers 503).
       await provider.models().catch(() => undefined);
     },
     taskModels() {
@@ -3770,7 +3771,7 @@ export function createAiService(
   // Permanent start-up step: the old member texts become agent 1 (once, see ai/agents.ts).
   migrateMemberSetting(ctx.db, ctx.settings);
   // Permanent start-up step: the old "Model for suggestions" becomes the Writing help row (docs/ai-models.md).
-  migrateTaskModels(ctx.settings);
+  migrateTaskModels(ctx.settings, suggestModels(settings()));
   // Permanent start-up step: a switched-on group with no agent gets its inbox's only agent.
   backfillGroupAgents(ctx.db);
   // Restore only explicitly recorded live inbound work; imported WhatsApp history never creates state.

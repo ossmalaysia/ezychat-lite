@@ -250,3 +250,38 @@ it('drops unsaved edits when the AI connection changes', async () => {
     ),
   );
 });
+
+it('picking the row default again from the list saves it as the default (null), not as a row', async () => {
+  status.tasks.writing = {
+    ...status.tasks.writing,
+    choice: 'gpt-6.1-sol',
+    model: 'gpt-6.1-sol',
+    isDefault: false,
+  };
+  setup();
+  const user = userEvent.setup();
+  const writing = within(await screen.findByTestId('ai-models-writing'));
+  await user.click(writing.getByRole('combobox'));
+  await user.click(await screen.findByRole('option', { name: /^Fast \(recommended\)/ }));
+  expect(writing.queryByTestId('ai-models-writing-default')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Save settings' }));
+  await waitFor(() => expect(puts()).toHaveLength(1));
+  expect(JSON.parse(String(puts()[0]![1]!.body))).toEqual({ tasks: { writing: null } });
+});
+
+it('shows a saved model the built-in list misses (account list not read yet) with its level', async () => {
+  status.tasks.translate = {
+    ...status.tasks.translate,
+    choice: 'gpt-7-live',
+    thinking: 'high',
+    model: 'gpt-7-live',
+    effectiveThinking: 'high',
+    isDefault: false,
+  };
+  setup();
+  const translate = within(await screen.findByTestId('ai-models-translate'));
+  expect(translate.getByRole('combobox').textContent).toContain('gpt-7-live');
+  expect(translate.getByRole('radio', { name: 'Smarter' }).getAttribute('aria-checked')).toBe(
+    'true',
+  );
+});

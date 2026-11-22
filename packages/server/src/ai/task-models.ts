@@ -159,13 +159,16 @@ export function saveTaskModels(
   for (const [, value] of entries) {
     if (!value) continue;
     const { choice } = value;
-    if (
-      choice !== 'fast' &&
-      choice !== 'main' &&
-      !conn.models.includes(choice) &&
-      conn.listComplete !== false
-    )
+    if (choice !== 'fast' && choice !== 'main' && !conn.models.includes(choice)) {
+      // The account's list could not be read: never store a name nobody could check.
+      if (conn.listComplete === false)
+        throw new HttpError(
+          503,
+          'model_list_unavailable',
+          'The model list cannot be read now. Try again in a minute.',
+        );
       throw new HttpError(400, 'model_not_listed', 'Choose a model this AI connection offers.');
+    }
     const model = choice === 'fast' ? conn.fastModel : choice === 'main' ? conn.mainModel : choice;
     if (value.thinking && !aiModelHasThinking(conn.mode, model))
       throw new HttpError(
@@ -205,10 +208,10 @@ export function saveTaskModels(
 /**
  * Permanent start-up step (the updater may jump many versions): while `ai_task_models` is missing, the old
  * "Model for suggestions" becomes the Writing help row of the connection saved now (`agent` → Main model, a
- * model id → that model; `fast` or nothing → the default). Translate, the phrase list and Dream lessons start on
- * Fast. The old key stays (a downgrade still reads it).
+ * model id the connection lists → that model; `fast`, nothing or an unlisted id → the default). Translate, the
+ * phrase list and Dream lessons start on Fast. The old key stays (a downgrade still reads it).
  */
-export function migrateTaskModels(settings: SettingsStore): void {
+export function migrateTaskModels(settings: SettingsStore, listed: readonly string[]): void {
   if (settings.get<unknown>(TASK_MODELS_KEY, null) !== null) return;
   const old = settings.get<unknown>(LEGACY_SUGGEST_MODEL_KEY, null);
   // "Same as the AI agent" meant every connection's main model; a model id belongs to the connection saved now.
@@ -221,7 +224,8 @@ export function migrateTaskModels(settings: SettingsStore): void {
   const mode = aiProviderSettings(settings).mode;
   settings.set(
     TASK_MODELS_KEY,
-    id.success && id.data !== 'fast' && id.data !== 'main'
+    // Only a model the connection saved now lists: an id of an earlier connection would only ever fall back.
+    id.success && id.data !== 'fast' && id.data !== 'main' && listed.includes(id.data)
       ? { [mode]: { writing: { choice: id.data } } }
       : {},
   );

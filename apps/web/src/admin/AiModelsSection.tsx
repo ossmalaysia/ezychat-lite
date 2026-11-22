@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AI_TASK_GROUPS,
+  aiModelHasThinking,
   defaultTaskThinking,
   type AiTaskGroup,
   type AiTaskModelsStatus,
@@ -78,10 +79,18 @@ export function AiModelsSection() {
               task={task}
               data={data}
               draft={drafts[task]}
-              onChange={(d) =>
+              onChange={(picked) =>
                 setDrafts((current) => {
                   const next = { ...current };
                   const saved = data.tasks[task];
+                  // The row's default choice at its default level is the default: saved as null (no extra row).
+                  const d =
+                    picked &&
+                    picked.choice === data.defaults[task].choice &&
+                    (!picked.thinking ||
+                      picked.thinking === defaultTaskThinking(task, picked.choice, data.mode))
+                      ? null
+                      : picked;
                   const same =
                     d === null
                       ? saved.isDefault
@@ -142,6 +151,9 @@ function TaskRow({
         ? data.mainModel
         : effectiveChoice;
   const info = data.models.find((m) => m.id === model);
+  // A saved model the built-in list misses (ChatGPT before the account's list was read) still runs: show it.
+  const extra = !showUnavailable && choice !== 'fast' && choice !== 'main' && !info ? choice : null;
+  const hasThinking = info?.thinking ?? aiModelHasThinking(data.mode, model);
   const fallbackThinking = defaultTaskThinking(task, effectiveChoice, data.mode);
   const thinking =
     draft === undefined
@@ -193,7 +205,7 @@ function TaskRow({
         hint={
           <>
             {tier ? t(`settings.aiModels.tier.${tier}`) : null}
-            {info?.thinking ? ` ${t(`settings.aiModels.thinkingHint.${thinking}`)}` : null}
+            {hasThinking ? ` ${t(`settings.aiModels.thinkingHint.${thinking}`)}` : null}
             {task === 'writing' && effectiveChoice !== 'fast'
               ? ` ${t('settings.aiModels.writingSlow')}`
               : null}
@@ -207,7 +219,9 @@ function TaskRow({
               const next =
                 value === 'fast' ? data.fastModel : value === 'main' ? data.mainModel : value;
               // A level only for a model that has one (the server refuses it otherwise).
-              const keeps = data.models.find((m) => m.id === next)?.thinking ?? false;
+              const keeps =
+                data.models.find((m) => m.id === next)?.thinking ??
+                aiModelHasThinking(data.mode, next);
               onChange({
                 choice: value,
                 // After Use default (draft null) the row starts again from the default level.
@@ -235,6 +249,7 @@ function TaskRow({
                   {t('settings.aiModels.notOffered', { model: saved.unavailable })}
                 </SelectItem>
               )}
+              {extra && <SelectItem value={extra}>{extra}</SelectItem>}
               {data.models.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
                   {m.tier ? `${m.id} · ${t(`settings.aiModels.tierShort.${m.tier}`)}` : m.id}
@@ -244,7 +259,7 @@ function TaskRow({
           </Select>
         )}
       </Field>
-      {info?.thinking && (
+      {hasThinking && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span id={thinkingId} className="text-sm font-medium">
             {t('settings.aiModels.thinking')}

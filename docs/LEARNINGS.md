@@ -1562,6 +1562,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   model the connection no longer lists runs on the row's fallback with a warning, never on a model it does not offer.
   ChatGPT's `knownModels()` is the built-in list until something reads the live one (`resolveModel` never does for a
   known id): never call a saved id "unlisted" from a cold list; keep it and read the list (`models()`) on the screen.
+- A cache flag answers one question: "ever read" (is this list authoritative?) is not "still fresh" (should I refetch?).
+  Validate against the last read copy even when it is stale, refetch when it is old, and when nothing was ever read
+  refuse to store an unchecked name (503) instead of accepting everything.
+- Two Playwright projects on one shared e2e server must never write the same setting: let one project write, the
+  other only read layout (`test.skip`/early return on `info.project.name`).
 
 - A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
   `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live

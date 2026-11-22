@@ -1,7 +1,7 @@
 // Screenshots of Settings → AI → AI models in the real app (fake WhatsApp, no model is ever called).
 // Desktop 1280 px and mobile 360 px (touch), light and dark: ChatGPT defaults, a changed row before Save
-// (Writing help on the main model at Smarter), saved, the model list open, a saved model no longer offered
-// (warning + fallback), Claude (no Speed and quality), the Reply suggestions pointer line, Malay and Chinese.
+// (Writing help on the main model at Smarter), saved, the model list open, a saved model the built-in list
+// misses (no ChatGPT sign-in here, so the account's list is never read: it is kept and shown as saved), Claude (no Speed and quality), the Reply suggestions pointer line, Malay and Chinese.
 // Reports page errors, horizontal overflow and failed steps.
 // Usage: node e2e/ai-models-screens.mjs <outDir>   (starts its own server on a temp folder, port 7486)
 /* global document -- used inside page.evaluate (runs in the browser) */
@@ -70,7 +70,7 @@ await fetch(BASE + '/api/setup/admin', {
   headers: json,
   body: JSON.stringify({ username: 'aisyah', displayName: 'Aisyah', password: 'demo-pass-123' }),
 });
-// A ChatGPT row on a model the account no longer lists: set while the server is stopped.
+// A ChatGPT row on a model the built-in list misses: set while the server is stopped.
 await stop(server);
 const db = new Database(join(data, 'app.db'));
 db.prepare(

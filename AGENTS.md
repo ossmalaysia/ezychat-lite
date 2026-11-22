@@ -242,7 +242,7 @@ questions), `translate`, `writing` (Suggest reply, completion, Fix English, Edit
 phrase list, Dream lessons), each Fast / Main model / a model the connection lists plus "Speed and quality" Faster ·
 Balanced · Smarter (reasoning low · medium · high; ChatGPT always, OpenAI key only reasoning models, Claude none until
 phase 2). Setting `ai_task_models[mode][row]` (a save changes only the current mode; audit `settings.ai_task_model`
-before/after); defaults = behaviour before the feature except Translate (Fast); a saved model the connection no longer
+before/after); defaults = behaviour before the feature except Translate and Edit with AI (Fast); a saved model the connection no longer
 lists runs on Main (agent replies) or Fast with a warning. Every call resolves its row through `ai/task-models.ts`
 (`taskCall` in `service.ts`; providers take `reasoningEffort` on the prompt/call); log lines add `task` and `thinking`.
 Ask Ezy setup, Dream merge and customer enrichment stay on the main model (no row). Start-up `migrateTaskModels` moves the
