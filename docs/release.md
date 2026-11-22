@@ -52,7 +52,9 @@ contract is pinned by a test in `update-checker.test.ts` ("holds a 0.x install o
 
 1. Check the held draft: `gh release view v<version>` — 6 installer files (3 versioned + 3 copies) and the notes.
    `release.yml` checks this itself and says so in its run summary. Check npm: `npm view @ezychat/server version`.
-2. Submit the installers to McAfee (`submit-installers` skill; it downloads a draft's files through the API).
+2. Submit the installers to McAfee (`submit-installers` skill; it downloads a draft's files through the API). The
+   owner's "release" covers this submit, and the session that released the version does it at once (owner rule,
+   2026-11-22). The release is not done while any of its 3 installers is "Not submitted" in the record.
 3. When McAfee clears **all** installers of the version, start **Promote release**
    (`.github/workflows/promote-release.yml`) on `main`:
    `gh workflow run promote-release.yml --ref main -f version=<version> -f confirm=<version> -f mcafee_cleared=true -f hold_newer=false`

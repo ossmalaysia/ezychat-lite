@@ -917,6 +917,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Report installers to McAfee only with the `submit-installers` skill (`scripts/mcafee-submit.mjs`), never with a
   one-off script: it checks every file before the first report goes out, and it never sends the same file twice. A
   report states only what was checked: no "McAfee blocks" for a file nobody saw blocked, no signature claim for a Mac file.
+- The releasing session submits the new installers to McAfee on the same "release" word; a session that stops after the
+  `--dry-run` leaves the version "Not submitted" and its promote blocked for days. Check `results.json`, never the
+  dry-run screenshots, before saying a file went out.
 - A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
   its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
   shell that its instructions name, not only from Bash.
