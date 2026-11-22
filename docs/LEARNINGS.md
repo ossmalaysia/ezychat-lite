@@ -1954,6 +1954,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through
   `document.fonts` status and a canvas colour check, not a screenshot; and never assert a page-wide "nothing loaded
   yet" state there: the three projects share one server, so a parallel project's chat may already be on screen.
+- e2e specs run in parallel on one server: never change shared team state a spec does not own (the AI connection, a
+  team switch) even with a restore at the end; another spec reads it meanwhile (AI models' spec switching to ChatGPT
+  broke `ai-member.spec`'s saved-key check). Work on whatever is saved, or use a separate e2e project/port.
 - Never start the app with `Start-Process -WindowStyle Hidden` or `windowsHide`: Windows applies that show state to the
   app's first window, so the first `show()` leaves it invisible (measured: hidden start → invisible, a second `show()` →
   visible). Windows the user must see go through `window-show.ts#showWindow` (shows again when still invisible). The
