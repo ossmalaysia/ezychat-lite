@@ -303,7 +303,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
 - "release" alone does not open the merge gate (`.claude/hooks/merge-gate.mjs`): it denies `gh pr merge` always and
   merges a release PR only on "merge <n>" or "merge … and release" in the owner's newest message, and only through
-  `mcp__github__merge_pull_request`. Before a release, check that the GitHub MCP tool is connected (`claude mcp list`
+  `mcp__github__merge_pull_request`. A merge word sent while a turn runs (a mid-turn message) does not count: on
+  "no merge word", end the turn and ask the owner to send it again as a new message; never work around the gate. Before a release, check that the GitHub MCP tool is connected (`claude mcp list`
   must show a server named `github`; permission settings cannot add a missing tool). The remote
   `api.githubcopilot.com/mcp/` has no OAuth for Claude Code ("does not support dynamic client registration"), and the
   gate reads `pullNumber`, the official `github-mcp-server` schema: run that image in Docker from a launcher that sets
