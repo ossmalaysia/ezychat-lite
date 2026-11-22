@@ -676,7 +676,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
   answer from a cached 404 or an older version (even `--prefer-online` gave E404 minutes after a publish that
   the registry URL already served); the Enterprise
-  pin bump's `npm install` fails the same way (`notarget`) until it runs with `--prefer-online`. Read the
+  pin bump's `npm install` fails the same way (`notarget`) until it runs with `--prefer-online`, and its PR's CI
+  `npm ci` can 404 the new tarball for several minutes: rerun that job with `--failed`, no code change. Read the
   publish result from the `+ @ezychat/<pkg>@x` lines: grepping
   `gh run view --log` also matches the step's own script source (lines with `[36;1m`), e.g. its "dry run
   only" warning text. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
