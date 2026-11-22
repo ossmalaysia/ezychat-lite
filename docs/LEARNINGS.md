@@ -44,6 +44,9 @@ into AGENTS.md.
   or trim with a loop, and pin it with a timing test on the longest message (L-27: 2 s → 13 ms). To time it in a Dev
   Build, pick a Live translate target the text is not guessed to be in (else it is `same_language` and the scan never
   runs) and use `e2e/devbuild-translate-check.mjs` against the mock-model `agents-devbuild.ts`.
+- A redaction pattern must not be made linear with a lookbehind start anchor (`(?<![\w.+-])…@`) or a length cap: both leave
+  an address unredacted (one glued to the previous match, or the start of an over-long run). Use `address-scan.ts`
+  (scan from each `@`, same matches as the plain pattern; L-28).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
   and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code

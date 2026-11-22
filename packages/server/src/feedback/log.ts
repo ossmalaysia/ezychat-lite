@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { FEEDBACK_LOG_LINES, FEEDBACK_LOG_MAX_BYTES } from '@ezychat/shared';
 import { logsDir } from '../admin/logs.js';
+import { EMAIL_ADDRESS, WHATSAPP_ADDRESS, replaceAddresses } from '../address-scan.js';
 import { redactLogLine } from '../log-redaction.js';
 
 /** How much of the newest log file is read to find its last lines. */
@@ -60,8 +61,6 @@ const DROP_FIELDS = new Set(
   ].map((f) => f.toLowerCase()),
 );
 
-const JID = /[\w.+-]+(?:@|%40)(?:s\.whatsapp\.net|lid|g\.us|c\.us|broadcast|newsletter)\b/gi;
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 const IPV4 = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
 const IPV6 =
   /\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\b|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4}\b/gi;
@@ -77,9 +76,8 @@ function homeDirPattern(): RegExp | null {
 export function scrubFeedbackText(text: string, home: RegExp | null = homeDirPattern()): string {
   let out = text;
   if (home) out = out.replace(home, '~');
-  return out
-    .replace(JID, '[chat]')
-    .replace(EMAIL, '[email]')
+  out = replaceAddresses(out, WHATSAPP_ADDRESS, '[chat]');
+  return replaceAddresses(out, EMAIL_ADDRESS, '[email]')
     .replace(IPV4, '[ip]')
     .replace(IPV6, '[ip]')
     .replace(PHONE, '[number]');
