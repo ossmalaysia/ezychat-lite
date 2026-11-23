@@ -913,6 +913,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - The service data folder (`C:\ProgramData\wa-team-inbox`, LocalSystem) is unreadable for a normal user: `statSync`
   there throws `EPERM` (Windows) / `EACCES`. Never fold every error into "missing" (`lite-import/detect.ts`
   `mtimeOrDenied`): a locked folder is "found, needs elevation", and the screen must say how to free it, not "not found".
+- `e2e/` is in SonarCloud's sources: a script that `fetch`es a URL taken from an API answer (a sign-in link) fails the
+  security gate (S5144 SSRF, rating C). In screenshot scripts answer that state in the browser with `ctx.route`
+  instead of walking the sign-in flow.
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
