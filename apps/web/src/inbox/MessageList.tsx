@@ -246,6 +246,7 @@ export function MessageList({
                   <MessageBubble
                     key={it.key}
                     outboundHref={outboundHref}
+                    outboundName={outboundHref ? (sender?.displayName ?? null) : null}
                     message={m}
                     showSender={isGroup}
                     outboundLabel={outboundLabel}

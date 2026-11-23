@@ -1967,7 +1967,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
-- A link from a chat element to an admin page — check `directory.isAdmin` and the directory row (`kind`, `aiAgentId`, `aiDeleted`) before adding a contract field; the team directory already carries the agent id, so no shared-schema change was needed.
+- Before adding a contract field for a web-only link or label, check what the client already loads (the team
+  directory carries `kind`, `aiAgentId`, `aiDeleted`); add to `packages/shared` only what no loaded response has.
+- A tappable element inside a swipe/long-press surface (a link or button in a message bubble) checks the surface's
+  `wasGesture()` in its `onClick` and drops the click, and a real `<a>` there also blocks the touch link menu
+  (`onContextMenu` for touch, `-webkit-touch-callout:none`); never let `overflow:hidden` on a parent clip its focus
+  ring or `after:` hit area.
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
   `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through

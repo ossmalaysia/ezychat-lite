@@ -16,6 +16,16 @@
   },
   "proposals": [
     {
+      "feature": "agent-name-link-to-setup",
+      "creationOrder": 50,
+      "createdAt": "2026-11-23",
+      "design": "docs/workbooks/feat__agent-name-link-to-setup.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock folder (a link on an existing label in the chat bubble, no new screen or state): the Design section of the workbook and production screenshots docs/screenshots/chat/agent-link-* (admin and team member, 1280/360, light/dark, keyboard focus, the opened agent page) from node e2e/agent-link-screens.mjs.",
+      "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (ai-models-per-task). No retention change. Waiting for the owner's look at the screenshots."
+    },
+    {
       "feature": "ai-models-per-task",
       "creationOrder": 49,
       "createdAt": "2026-11-22",

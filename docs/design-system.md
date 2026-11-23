@@ -182,6 +182,12 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   ("Send original instead"); ✕ is Keep editing. No back-translation. Failures use an inline `Banner` in the card and
   keep the way out; nothing is sent until a button is pressed (or the person chose Send without preview). —
   live-translate `07-preview`, `12-preview-refused`
+- **Inline link in a bubble** (an admin opening the AI agent's page from the name above its message): the small label
+  keeps its size and colour and gets a dotted underline (`decoration-dotted`, solid on hover) as the only link cue, so
+  it reads as text for everyone else. It truncates on its own inner span, not on the paragraph, so the focus ring is
+  not clipped; on touch screens an `after:` hit area grows it to 44 px; a long press or swipe that starts on it stays
+  a bubble gesture (no navigation, no browser link menu). Don't turn it into a button or colour it primary. —
+  `docs/screenshots/chat/agent-link-*`
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.
 - **Loading** uses `Skeleton` rows, not spinners, for lists.
 - **Upload progress** of a file this browser sends sits at the top of its pending bubble, above the file's
