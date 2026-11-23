@@ -185,7 +185,8 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
 - **Inline link in a bubble** (an admin opening the AI agent's page from the name above its message): the small label
   keeps its size and colour and gets a dotted underline (`decoration-dotted`, solid on hover) as the only link cue, so
   it reads as text for everyone else. It truncates on its own inner span, not on the paragraph, so the focus ring is
-  not clipped; on touch screens an `after:` hit area grows it to 44 px; a long press or swipe that starts on it stays
+  not clipped; on touch screens the link is 44 px tall inside its own row (`pointer-coarse:min-h-11`, the row pulled up to the
+  bubble's top padding edge), never an `after:` box that would reach over the message text; a long press or swipe that starts on it stays
   a bubble gesture (no navigation, no browser link menu). Don't turn it into a button or colour it primary. —
   `docs/screenshots/chat/agent-link-*`
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.

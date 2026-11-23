@@ -1975,7 +1975,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - A tappable element inside a swipe/long-press surface (a link or button in a message bubble) checks the surface's
   `wasGesture()` in its `onClick` and drops the click, and a real `<a>` there also blocks the touch link menu
   (`onContextMenu` for touch, `-webkit-touch-callout:none`); never let `overflow:hidden` on a parent clip its focus
-  ring or `after:` hit area.
+  ring. A 44 px hit area for a small label next to other tappable content comes from the label's own row height, never
+  from an `after:` box on a `relative` element: that box paints over the unpositioned siblings and steals their taps
+  (a link at the start of the message text opened the agent page).
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
   `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through

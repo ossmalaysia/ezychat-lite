@@ -2,6 +2,7 @@
 // screen review and docs/screenshots/chat. A fresh --fake-wa server has no AI message, so the message
 // list is answered in the browser with one AI reply; no model is ever called.
 // Usage: node e2e/agent-link-screens.mjs <port> <outDir>
+/* global document -- used inside page.evaluate (runs in the browser) */
 import { apiClient } from './devbuild-client.mjs';
 import { DEMO_ADMIN, eachScreen, launchBrowser, screensArgs, shot } from './screens-common.mjs';
 
@@ -65,7 +66,7 @@ for (const [who, client] of [
           senderName: null,
           sentByUserId: ai.id,
           status: 'read',
-          body: 'Hi Nurul! Two Nasi Lemak Ayam (RM12 each) for pickup at 1pm. May I have your name for the order?',
+          body: 'https://kopiapong.example/menu Hi Nurul! Two Nasi Lemak Ayam (RM12 each) for pickup at 1pm. May I have your name for the order?',
           timestamp: first.timestamp + 60_000,
         });
       await r.fulfill({ response: res, json });
@@ -82,6 +83,24 @@ for (const [who, client] of [
       problems.push(`${tag}: expected the agent link, found ${links}`);
     if (who === 'agent' && links !== 0) problems.push(`${tag}: a team member sees the link`);
     await shot(page, out, problems, tag, `agent-link-${who}`);
+    if (who === 'admin') {
+      // The name's touch area stays in its own row: the link at the start of the reply (first text line under
+      // the name) is what a tap there hits, never the agent link.
+      const hit = await page.evaluate(() => {
+        const url = [...document.querySelectorAll('a')].find((a) =>
+          a.textContent?.includes('kopiapong.example'),
+        );
+        if (!url) return 'no url link';
+        const r = url.getBoundingClientRect();
+        const at = document.elementFromPoint(r.left + 4, r.top + 2);
+        return at?.closest('[data-testid="agent-link"]')
+          ? 'agent link'
+          : at?.closest('a') === url
+            ? 'url'
+            : 'other';
+      });
+      if (hit !== 'url') problems.push(`${tag}: a tap on the reply's first line hits ${hit}`);
+    }
     if (who === 'admin' && tag === 'desktop') {
       // keyboard focus: the ring around the name is not clipped
       await page.getByTestId('agent-link').focus();

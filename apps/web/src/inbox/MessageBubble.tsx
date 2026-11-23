@@ -108,7 +108,8 @@ function AgentLink({
       aria-label={open}
       title={open}
       data-testid="agent-link"
-      className="group relative inline-flex max-w-full align-top underline decoration-dotted underline-offset-2 outline-none [-webkit-touch-callout:none] hover:decoration-solid pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-[15px] pointer-coarse:after:content-['']"
+      // touch: the link itself is 44 px tall inside its own row (no box reaching over the text below)
+      className="group inline-flex max-w-full items-center underline decoration-dotted underline-offset-2 outline-none [-webkit-touch-callout:none] hover:decoration-solid pointer-coarse:min-h-11"
     >
       <span className="truncate rounded-sm group-focus-visible:ring-2 group-focus-visible:ring-ring">
         {label}
@@ -454,11 +455,12 @@ export function MessageBubble({
           )
         )}
         {out && outboundLabel && (
-          // The link keeps its own truncation so the paragraph does not clip its focus ring or hit area.
+          // The link keeps its own truncation so the paragraph does not clip its focus ring.
           <p
             className={cn(
               'mb-0.5 text-[11px] font-medium text-muted-foreground',
-              outboundHref ? 'flex min-w-0' : 'truncate',
+              // touch: the 44 px row starts at the bubble's top padding edge, so it covers nothing else
+              outboundHref ? 'flex min-w-0 pointer-coarse:-mt-1.5 pointer-coarse:mb-0' : 'truncate',
             )}
           >
             {outboundHref ? (

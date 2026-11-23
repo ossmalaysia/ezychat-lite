@@ -174,6 +174,13 @@ describe('MessageList AI agent link', () => {
     fireEvent.click(link);
     expect(guard).toHaveBeenCalledTimes(1);
   });
+  it('keeps its touch area in its own row, never as a box over the text below', () => {
+    view(dir(true, {}));
+    const link = screen.getByTestId('agent-link');
+    // a positioned link with an after: box paints over the message text and steals its taps
+    expect(link.className).not.toMatch(/\brelative\b|after:/);
+    expect(link.className).toContain('pointer-coarse:min-h-11');
+  });
   it('keeps the context menu for a mouse', () => {
     view(dir(true, {}));
     const link = screen.getByTestId('agent-link');
