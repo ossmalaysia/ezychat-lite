@@ -44,6 +44,9 @@ into AGENTS.md.
   or trim with a loop, and pin it with a timing test on the longest message (L-27: 2 s → 13 ms). To time it in a Dev
   Build, pick a Live translate target the text is not guessed to be in (else it is `same_language` and the scan never
   runs) and use `e2e/devbuild-translate-check.mjs` against the mock-model `agents-devbuild.ts`.
+- A redaction pattern must not be made linear with a lookbehind start anchor (`(?<![\w.+-])…@`) or a length cap: both leave
+  an address unredacted (one glued to the previous match, or the start of an over-long run). Use `address-scan.ts`
+  (scan from each `@`, same matches as the plain pattern; L-28).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
   and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code
@@ -311,6 +314,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - A change to an owner rule (e.g. "No tracking in Lite") needs the owner's own words in the session doing it: child
   cloud sessions refuse approvals relayed by another session. When the owner approves in the main session, do the
   work there (or in a fork of it), not in a child.
+- A small core-tier fix with full coverage scores only 55 (`NOT READY`): plan the Dev Build row (+10) and the
+  workbook E2E stage (+10) before pushing, so `MERGE OK` needs no second wait on CI.
 - `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
   counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
   docs-only commit, or the stages show as `✗ missing`. The same holds for the commit cited in a
