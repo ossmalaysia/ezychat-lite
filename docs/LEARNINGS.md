@@ -489,9 +489,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   on one such test is not a reason to doubt the PR under review.
 
 - Merging main into a branch where two feature mocks were cloned from the same baseline can produce
-  rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
-  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
-  mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
+  rename/rename conflicts: git writes 8-character markers (`<  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
+mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
 - Known slow-runner timeouts on CI, also seen on `main`: `ai-agents-repo.test.ts` and `inbox-access.test.ts`
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
@@ -915,6 +914,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - The service data folder (`C:\ProgramData\wa-team-inbox`, LocalSystem) is unreadable for a normal user: `statSync`
   there throws `EPERM` (Windows) / `EACCES`. Never fold every error into "missing" (`lite-import/detect.ts`
   `mtimeOrDenied`): a locked folder is "found, needs elevation", and the screen must say how to free it, not "not found".
+- `e2e/` is in SonarCloud's sources: a script that `fetch`es a URL taken from an API answer (a sign-in link) fails the
+  security gate (S5144 SSRF, rating C). In screenshot scripts answer that state in the browser with `ctx.route`
+  instead of walking the sign-in flow.
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
@@ -1970,6 +1972,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A link or label built from a URL id (`&agent=3`, `from=agent:3`) is checked against the same list the page uses
+  for its fallback (one shared helper, e.g. `wayBackAgent`), so a stale id never links one place while the page shows
+  another.
+- Before building a requested screen, grep the page for it: the agent page's Connectors card (`AgentConnectorsCard`) already existed when it was asked for again; the gap was wording and a way back, not a new card. Sibling tests (`GitHubPage`, `GoogleDrivePage`, `GoogleSheetsPage`, `SqlAccountPage`) assert the card's hrefs and copy, so run all of `admin/connectors` after a change to it.
 - Before adding a contract field for a web-only link or label, check what the client already loads (the team
   directory carries `kind`, `aiAgentId`, `aiDeleted`); add to `packages/shared` only what no loaded response has.
 - A tappable element inside a swipe/long-press surface (a link or button in a message bubble) checks the surface's
@@ -2373,6 +2379,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
   that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
   key's `#<id>` suffix, never by an id tail alone.
+- A page that keeps "where I came from" in the URL (`from=agent`) must survive its own pickers: a picker that changes
+  the subject (`agent`) pins the origin first (`from=agent:<id>`), or the way back points at the new subject. Decide
+  UI cues (Set up) from a flag the line builder returns, never by comparing the rendered text with translations.
 - Every in-app `<Link>` that leaves an open chat (also one inside a message bubble) takes `onClick` from
   `useGuardedLinkClick`, or the Customer panel's unsaved edits are lost; put the hook in a small child component rendered
   only with the link, because it needs a Router and bubbles render in tests without one.

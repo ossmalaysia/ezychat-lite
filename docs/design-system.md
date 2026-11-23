@@ -182,6 +182,16 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   ("Send original instead"); ✕ is Keep editing. No back-translation. Failures use an inline `Banner` in the card and
   keep the way out; nothing is sent until a button is pressed (or the person chose Send without preview). —
   live-translate `07-preview`, `12-preview-refused`
+- **Way back before the breadcrumb**: a page opened from another place's card (a connector's Settings opened from
+  Agent page → Connectors) puts one muted link to that place first ("Back to AI agent ›", then the usual
+  "Connectors › <name>"), wrapping on phones. It shows only while that place still exists (a deleted agent gives no
+  link), and it points where the page came from, not to whatever the page now shows. Don't add a second back
+  button or replace the breadcrumb. — `docs/screenshots/connectors/agent-back-link-*`
+- **Set up cue in a summary row**: a row whose summary says the thing is not used yet ("Not used by this agent")
+  adds " · Set up" in `font-medium text-foreground`, kept on one line (`whitespace-nowrap`); the whole row is the
+  link. Only when the connector works and has something to switch on: never with a "Needs attention" or "No longer
+  available" badge. Don't make the cue a separate button or colour it primary. —
+  `docs/screenshots/connectors/agent-card-*`
 - **Inline link in a bubble** (an admin opening the AI agent's page from the name above its message): the small label
   keeps its size and colour and gets a dotted underline (`decoration-dotted`, solid on hover) as the only link cue, so
   it reads as text for everyone else. It truncates on its own inner span, not on the paragraph, so the focus ring is

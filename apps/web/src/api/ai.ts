@@ -203,10 +203,11 @@ export const aiAgentKey = (agentId: number) => ['ai-agent', agentId] as const;
 export const aiAgentDocumentKey = (agentId: number, id: number) =>
   ['ai-document', agentId, id] as const;
 
-export function useAiAgents() {
+export function useAiAgents(enabled = true) {
   return useQuery({
     queryKey: aiAgentsKey,
     queryFn: ({ signal }) => api('/ai/agents', { signal, schema: AiAgentList }),
+    enabled,
   });
 }
 
