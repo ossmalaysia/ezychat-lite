@@ -329,6 +329,7 @@
     "jumpToLatest": "Jump to latest"
   },
   "message": {
+    "openAgent": "Open {{name}} settings",
     "status": {
       "pending": "Pending",
       "sent": "Sent",

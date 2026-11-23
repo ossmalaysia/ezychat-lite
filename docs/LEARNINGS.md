@@ -489,9 +489,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   on one such test is not a reason to doubt the PR under review.
 
 - Merging main into a branch where two feature mocks were cloned from the same baseline can produce
-  rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
-  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
-  mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
+  rename/rename conflicts: git writes 8-character markers (`<  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
+mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
 - Known slow-runner timeouts on CI, also seen on `main`: `ai-agents-repo.test.ts` and `inbox-access.test.ts`
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
@@ -518,7 +517,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review (it reads the PR on GitHub, so push
-  the records first, and put every record in one push: each push restarts CI); a Dev Build row counts only with the
+  the records first, and put every record in one push: each push restarts CI; SonarCloud's automatic analysis now and
+  then runs on no push at all (no check run, the release review says "missing: SonarCloud"): the next real push
+  brings it back; never an empty commit); a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
   SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
   before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
@@ -921,7 +922,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
   admin, and `/setup` then no longer shows (a second run times out waiting for it). A desktop-only screen gets
   its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`). Grep `e2e/` for a shared module before
-  copying any script's setup (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
+  copying any script's setup (older scripts such as `reply-suggestions-screens.mjs` still inline it: never copy one as a
+  template) (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
   cloud session `launchBrowser` needs `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`. A script's
   fetch sends `content-type: application/json` only with a body: the server answers 400 to a bodiless DELETE with it.
   Its API calls go through `cookieSession` (`devbuild-client.mjs`): a raw `fetch(base + path)` fails SonarCloud's
@@ -1974,7 +1976,14 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   for its fallback (one shared helper, e.g. `wayBackAgent`), so a stale id never links one place while the page shows
   another.
 - Before building a requested screen, grep the page for it: the agent page's Connectors card (`AgentConnectorsCard`) already existed when it was asked for again; the gap was wording and a way back, not a new card. Sibling tests (`GitHubPage`, `GoogleDrivePage`, `GoogleSheetsPage`, `SqlAccountPage`) assert the card's hrefs and copy, so run all of `admin/connectors` after a change to it.
-
+- Before adding a contract field for a web-only link or label, check what the client already loads (the team
+  directory carries `kind`, `aiAgentId`, `aiDeleted`); add to `packages/shared` only what no loaded response has.
+- A tappable element inside a swipe/long-press surface (a link or button in a message bubble) checks the surface's
+  `wasGesture()` in its `onClick` and drops the click, and a real `<a>` there also blocks the touch link menu
+  (`onContextMenu` for touch, `-webkit-touch-callout:none`); never let `overflow:hidden` on a parent clip its focus
+  ring. A 44 px hit area for a small label next to other tappable content comes from the label's own row height, never
+  from an `after:` box on a `relative` element: that box paints over the unpositioned siblings and steals their taps
+  (a link at the start of the message text opened the agent page).
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
   `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through
@@ -2373,6 +2382,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 - A page that keeps "where I came from" in the URL (`from=agent`) must survive its own pickers: a picker that changes
   the subject (`agent`) pins the origin first (`from=agent:<id>`), or the way back points at the new subject. Decide
   UI cues (Set up) from a flag the line builder returns, never by comparing the rendered text with translations.
+- Every in-app `<Link>` that leaves an open chat (also one inside a message bubble) takes `onClick` from
+  `useGuardedLinkClick`, or the Customer panel's unsaved edits are lost; put the hook in a small child component rendered
+  only with the link, because it needs a Router and bubbles render in tests without one.
 
 ## Internationalization
 

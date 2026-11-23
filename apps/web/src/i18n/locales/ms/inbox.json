@@ -326,6 +326,7 @@
     "jumpToLatest": "Lompat ke terkini"
   },
   "message": {
+    "openAgent": "Buka tetapan {{name}}",
     "status": {
       "pending": "Belum dihantar",
       "sent": "Dihantar",
