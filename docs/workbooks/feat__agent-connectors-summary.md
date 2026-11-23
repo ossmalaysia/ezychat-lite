@@ -8,9 +8,9 @@ Branch: `feat/agent-connectors-summary` · Every agent updates its stage with
 | Design | done | Design-only (mock-index order 51): existing card; design-system patterns 'Way back before the breadcrumb' and 'Set up cue in a summary row'; screenshots docs/screenshots/connectors/agent-card-*, agent-back-link-*. Waiting for the owner's look. | 45b5638 | 2026-11-23 |
 | Dev | done | Review fixes: wayBackAgent shared by breadcrumb and picker (stale agent id → no way back, dropped on switch); Set up cue only when connected, not delisted, has tools; cue kept on one line | 45b5638 | 2026-11-23 |
 | Unit tests | pass | connectors tests (AgentConnectorsCard, ConnectorDetailPage, GitHub, Drive, Sheets, SQL: 133), web typecheck, eslint | 45b5638 | 2026-11-23 |
-| E2E | pass | npm run e2e on 45b5638: 196 passed, 32 skipped (platform skips), 0 failed | 45b5638 | 2026-11-23 |
-| Dev Build | done | fresh standalone --fake-wa server, fake Google sign-in, e2e/agent-connectors-screens.mjs (docs/dev-build-checks.md 2026-11-23); stale-agent link checked by unit test only | ce8fad5 | 2026-11-23 |
-| Screen review | done | agent-card-setup/attention-* and agent-back-link-* at 1280/360 light/dark; found and fixed: Set up split across lines on phones, shot scrolled | ce8fad5 | 2026-11-23 |
+| E2E | pass | npm run e2e on e82adbe: 196 passed, 32 skipped (platform skips), 0 failed | e82adbe | 2026-11-23 |
+| Dev Build | done | fresh standalone --fake-wa server, e2e/agent-connectors-screens.mjs on e82adbe (docs/dev-build-checks.md 2026-11-23); real Google and a deleted agent's saved link untested here (unit tests) | e82adbe | 2026-11-23 |
+| Screen review | done | agent-card-setup/attention-* and agent-back-link-* re-shot on e82adbe at 1280/360, light/dark; no overflow, no page errors | e82adbe | 2026-11-23 |
 
 ## Log
 
@@ -23,3 +23,6 @@ Branch: `feat/agent-connectors-summary` · Every agent updates its stage with
 - 2026-11-23 E2E: pass — npm run e2e on 45b5638: 196 passed, 32 skipped (platform skips), 0 failed (45b5638)
 - 2026-11-23 Dev Build: done — fresh standalone --fake-wa server, fake Google sign-in, e2e/agent-connectors-screens.mjs (docs/dev-build-checks.md 2026-11-23); stale-agent link checked by unit test only (ce8fad5)
 - 2026-11-23 Screen review: done — agent-card-setup/attention-* and agent-back-link-* at 1280/360 light/dark; found and fixed: Set up split across lines on phones, shot scrolled (ce8fad5)
+- 2026-11-23 E2E: pass — npm run e2e on e82adbe: 196 passed, 32 skipped (platform skips), 0 failed (e82adbe)
+- 2026-11-23 Dev Build: done — fresh standalone --fake-wa server, e2e/agent-connectors-screens.mjs on e82adbe (docs/dev-build-checks.md 2026-11-23); real Google and a deleted agent's saved link untested here (unit tests) (e82adbe)
+- 2026-11-23 Screen review: done — agent-card-setup/attention-* and agent-back-link-* re-shot on e82adbe at 1280/360, light/dark; no overflow, no page errors (e82adbe)
