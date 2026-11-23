@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Open an AI agent from its message.** In a chat, admins can click the agent's name above its message (for example "Workshop assistant") to open that agent's settings. Other team members still see plain text.
 - The **Model for suggestions** choice moved from Reply suggestions to AI models → **Writing help** (your choice is kept). The phrase list and Dream mode's nightly lessons now follow **Background checks** (Fast), and **Edit with AI** follows Writing help (Fast by default; it used the main model before).
 
 ### Fixed
