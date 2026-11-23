@@ -7,76 +7,56 @@ import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import { apiClient } from './devbuild-client.mjs';
 
 const PORT = Number(process.argv[2] ?? 7477);
 if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
   throw new Error('The port must be an integer between 1024 and 65535.');
-const inside = (base, path) => {
-  const rel = relative(base, path);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-};
 const repo = resolve(import.meta.dirname, '..');
 const OUT = resolve(repo, process.argv[3] ?? 'agent-link-screens');
-if (!inside(repo, OUT) && !inside(resolve(tmpdir()), OUT))
+const within = (base) => !relative(base, OUT).startsWith('..') && !isAbsolute(relative(base, OUT));
+if (!within(repo) && !within(resolve(tmpdir())))
   throw new Error('The output folder must be inside the repository or the temp folder.');
 const BASE = `http://127.0.0.1:${PORT}`;
 mkdirSync(OUT, { recursive: true });
-const ADMIN = { username: 'aisyah', displayName: 'Aisyah', password: 'demo-pass-123' };
-const AGENT = { username: 'farid', displayName: 'Farid', password: 'demo-pass-456' };
 const NURUL = '60126677889@s.whatsapp.net';
 
-async function call(method, path, body, cookie = '') {
-  const res = await fetch(BASE + '/api' + path, {
-    method,
-    headers: { origin: BASE, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
+// The admin, a team member (who must change the starting password first) and one AI agent.
+const admin = apiClient(BASE);
+const member = apiClient(BASE);
+const ADMIN = { username: 'aisyah', displayName: 'Aisyah', password: 'demo-pass-123' };
+if ((await admin('GET', '/setup/status')).json.needsSetup)
+  await admin('POST', '/setup/admin', ADMIN);
+await admin('POST', '/auth/login', { username: ADMIN.username, password: ADMIN.password });
+await admin('POST', '/users', {
+  username: 'farid',
+  displayName: 'Farid',
+  password: 'demo-pass-456',
+  role: 'agent',
+});
+await member('POST', '/auth/login', { username: 'farid', password: 'demo-pass-456' });
+await member('POST', '/auth/change-password', {
+  currentPassword: 'demo-pass-456',
+  newPassword: 'demo-pass-789',
+});
+await admin('POST', '/dev/fake-incoming', {
+  chatJid: NURUL,
+  senderName: 'Nurul Huda',
+  text: 'Can I order two Nasi Lemak for pickup at 1pm?',
+});
+const aiUser = async () =>
+  (await admin('GET', '/users')).json.users.find((u) => u.kind === 'ai' && !u.aiDeleted);
+if (!(await aiUser())) {
+  const created = await admin('POST', '/ai/agents', {
+    displayName: 'Workshop assistant',
+    enabled: false,
+    preset: 'faq',
+    instructions: 'Answer questions about the workshop.',
+    handoffRules: '',
   });
-  return { res, cookie: res.headers.get('set-cookie')?.split(';')[0] ?? cookie };
+  if (created.status !== 200) throw new Error(`Creating the agent failed: ${created.status}`);
 }
-const login = async (u) =>
-  (await call('POST', '/auth/login', { username: u.username, password: u.password })).cookie;
-
-if ((await (await fetch(BASE + '/api/setup/status')).json()).needsSetup)
-  await call('POST', '/setup/admin', ADMIN);
-const admin = await login(ADMIN);
-await call('POST', '/users', { ...AGENT, role: 'agent' }, admin);
-const agent = await login(AGENT);
-// a new member must change the starting password first
-await call(
-  'POST',
-  '/auth/change-password',
-  { currentPassword: AGENT.password, newPassword: 'demo-pass-789' },
-  agent,
-);
-await call(
-  'POST',
-  '/dev/fake-incoming',
-  {
-    chatJid: NURUL,
-    senderName: 'Nurul Huda',
-    text: 'Can I order two Nasi Lemak for pickup at 1pm?',
-  },
-  admin,
-);
-const before = await (await call('GET', '/users', undefined, admin)).res.json();
-if (!before.users.some((u) => u.kind === 'ai' && !u.aiDeleted)) {
-  const created = await call(
-    'POST',
-    '/ai/agents',
-    {
-      displayName: 'Workshop assistant',
-      enabled: false,
-      preset: 'faq',
-      instructions: 'Answer questions about the workshop.',
-      handoffRules: '',
-    },
-    admin,
-  );
-  if (!created.res.ok)
-    throw new Error(`Creating the agent failed: ${created.res.status} ${await created.res.text()}`);
-}
-const users = await (await call('GET', '/users', undefined, admin)).res.json();
-const ai = users.users.find((u) => u.kind === 'ai' && !u.aiDeleted);
+const ai = await aiUser();
 if (!ai) throw new Error('No AI user on this server.');
 
 const browser = await chromium.launch(
@@ -92,16 +72,16 @@ const sizes = {
     hasTouch: true,
   },
 };
-for (const [who, cookie] of [
+for (const [who, client] of [
   ['admin', admin],
-  ['agent', agent],
+  ['agent', member],
 ])
   for (const scheme of ['light', 'dark'])
     for (const [size, options] of Object.entries(sizes)) {
       if (who === 'agent' && scheme === 'dark') continue;
       const tag = `${size}${scheme === 'dark' ? '-dark' : ''}`;
       const ctx = await browser.newContext({ ...options, baseURL: BASE, colorScheme: scheme });
-      const [name, value] = cookie.split('=');
+      const [name, value] = client.headers().cookie.split('=');
       await ctx.addCookies([{ name, value, url: BASE }]);
       await ctx.route(/\/api\/chats\/[^/]+\/messages\?/, async (r) => {
         const res = await r.fetch();

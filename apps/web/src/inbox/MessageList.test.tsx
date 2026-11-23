@@ -125,6 +125,24 @@ describe('MessageList AI agent link', () => {
       </MemoryRouter>,
     );
 
+  /** The list inside a navigation guard; returns the guard, which records each leave attempt. */
+  const guarded = (over: Partial<MessageListProps> = {}) => {
+    const guard = vi.fn();
+    function GuardSlot() {
+      useNavigationGuardRef().current = guard;
+      return null;
+    }
+    render(
+      <MemoryRouter>
+        <NavigationGuardProvider>
+          <GuardSlot />
+          <MessageList {...props({ items: [agentMsg()], directory: dir(true, {}), ...over })} />
+        </NavigationGuardProvider>
+      </MemoryRouter>,
+    );
+    return guard;
+  };
+
   it('links the agent name to its page for admins', () => {
     const { container } = view(dir(true, {}));
     const link = container.querySelector('a[href="/admin/members/ai/3"]');
@@ -134,39 +152,13 @@ describe('MessageList AI agent link', () => {
     expect(link?.getAttribute('title')).toBe('Open Workshop assistant settings');
   });
   it('asks the navigation guard before leaving the chat', () => {
-    const guard = vi.fn();
-    function GuardSlot() {
-      useNavigationGuardRef().current = guard;
-      return null;
-    }
-    render(
-      <MemoryRouter>
-        <NavigationGuardProvider>
-          <GuardSlot />
-          <MessageList {...props({ items: [agentMsg()], directory: dir(true, {}) })} />
-        </NavigationGuardProvider>
-      </MemoryRouter>,
-    );
+    const guard = guarded();
     fireEvent.click(screen.getByRole('link', { name: /Workshop assistant/ }));
     expect(guard).toHaveBeenCalledTimes(1);
   });
   it('ignores the click a long press leaves behind and blocks the touch link menu', () => {
     vi.useFakeTimers();
-    const guard = vi.fn();
-    function GuardSlot() {
-      useNavigationGuardRef().current = guard;
-      return null;
-    }
-    render(
-      <MemoryRouter>
-        <NavigationGuardProvider>
-          <GuardSlot />
-          <MessageList
-            {...props({ items: [agentMsg()], directory: dir(true, {}), onReply: vi.fn() })}
-          />
-        </NavigationGuardProvider>
-      </MemoryRouter>,
-    );
+    const guard = guarded({ onReply: vi.fn() });
     const link = screen.getByTestId('agent-link');
     fireEvent.pointerDown(link, { pointerType: 'touch', pointerId: 1, clientX: 5, clientY: 5 });
     act(() => vi.advanceTimersByTime(600));
