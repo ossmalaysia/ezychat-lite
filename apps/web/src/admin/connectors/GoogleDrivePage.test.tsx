@@ -62,7 +62,8 @@ const putBodies = (fetchMock: ReturnType<typeof stubServer>) =>
 
 describe('Google Drive: gallery and Overview', () => {
   it('offers the way back to the agent page when opened from its Connectors card', async () => {
-    stubServer(connected());
+    // the way back shows only to an agent that still exists
+    stubServer(connected({ agents: [agent(1, 'Aina'), agent(3, 'Ben')] }));
     page(`${GD}?tab=settings&agent=3&from=agent`);
     const back = await screen.findByRole('link', { name: 'Back to AI agent' });
     expect(back.getAttribute('href')).toBe('/admin/members/ai/3');

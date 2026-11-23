@@ -1967,6 +1967,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A link or label built from a URL id (`&agent=3`, `from=agent:3`) is checked against the same list the page uses
+  for its fallback (one shared helper, e.g. `wayBackAgent`), so a stale id never links one place while the page shows
+  another.
 - Before building a requested screen, grep the page for it: the agent page's Connectors card (`AgentConnectorsCard`) already existed when it was asked for again; the gap was wording and a way back, not a new card. Sibling tests (`GitHubPage`, `GoogleDrivePage`, `GoogleSheetsPage`, `SqlAccountPage`) assert the card's hrefs and copy, so run all of `admin/connectors` after a change to it.
 
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by

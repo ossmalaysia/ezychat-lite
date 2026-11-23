@@ -4,6 +4,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronRight, ExternalLink, Loader2, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { connectorText, type ConnectorEntry } from '@ezychat/shared';
 import { useConnectorGallery } from '../../api/connector-list';
+import { useAiAgents } from '../../api/ai';
+import { wayBackAgent } from './AgentPicker';
 import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -119,18 +121,16 @@ export function ConnectorIcon({
 export function ConnectorBreadcrumb({ name }: { name: string }) {
   const { t } = useTranslation('admin');
   const [params] = useSearchParams();
-  // Opened from an agent page's Connectors card: the way back to that agent comes first.
-  // `from=agent` = the agent picked here; `from=agent:<id>` = the one it was opened from, kept
-  // when another agent is picked on this page.
-  const from = params.get('from') ?? '';
-  const agent =
-    from === 'agent' ? Number(params.get('agent')) : Number(/^agent:(\d+)$/.exec(from)?.[1]);
+  // Opened from an agent page's Connectors card: the way back to that agent comes first, only
+  // while that agent still exists (the same rule as the agent picker on the Settings tab).
+  const agents = useAiAgents(params.has('from')).data?.agents;
+  const agent = wayBackAgent(params, agents);
   return (
     <nav
       aria-label={t('connectors.breadcrumb')}
       className="flex flex-wrap items-center gap-1 text-sm"
     >
-      {Number.isInteger(agent) && agent > 0 && (
+      {agent !== null && (
         <>
           <Link
             to={`/admin/members/ai/${agent}`}

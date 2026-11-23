@@ -86,14 +86,24 @@ function githubLine(t: Translate, view: GitHubAgentView): Line {
   return { text: t('connectors.agentCard.off'), setup: true };
 }
 
-/** One line under a connector's name; `setup` (not used yet, nothing chosen) adds a Set up cue. */
-function Summary({ text, setup = false }: Readonly<{ text: string; setup?: boolean }>) {
+/**
+ * One line under a connector's name. `setup` (not used yet, nothing chosen) adds a Set up cue, but
+ * only while the connector works (`ready`): a sign-in that needs attention shows its badge instead.
+ */
+function Summary({
+  text,
+  setup = false,
+  ready,
+}: Readonly<{ text: string; setup?: boolean; ready: boolean }>) {
   const { t } = useTranslation('admin');
   return (
     <span className="text-sm text-muted-foreground">
       {text}
-      {setup && (
-        <span className="font-medium text-foreground"> · {t('connectors.agentCard.setUp')}</span>
+      {setup && ready && (
+        <span className="font-medium whitespace-nowrap text-foreground">
+          {' · '}
+          {t('connectors.agentCard.setUp')}
+        </span>
       )}
     </span>
   );
@@ -169,7 +179,7 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-calendar.name')}
                 {state !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {summary && <Summary {...summary} />}
+              {summary && <Summary {...summary} ready={state === 'connected'} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -186,7 +196,7 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-sheets.name')}
                 {sheetsState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {sheetsSummary && <Summary {...sheetsSummary} />}
+              {sheetsSummary && <Summary {...sheetsSummary} ready={sheetsState === 'connected'} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -203,7 +213,7 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-drive.name')}
                 {driveState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {driveSummary && <Summary {...driveSummary} />}
+              {driveSummary && <Summary {...driveSummary} ready={driveState === 'connected'} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -222,7 +232,12 @@ export function AgentConnectorsCard({
                   <ConnectorStatusBadge status="attention" />
                 )}
               </span>
-              {githubView && <Summary {...githubLine(t, githubView)} />}
+              {githubView && (
+                <Summary
+                  {...githubLine(t, githubView)}
+                  ready={githubState === 'connected' || githubState === 'expiring'}
+                />
+              )}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -242,6 +257,7 @@ export function AgentConnectorsCard({
               {sqlOn !== null && (
                 <Summary
                   setup={sqlOn === 0}
+                  ready={sqlState === 'connected'}
                   text={
                     sqlOn === 0
                       ? t('connectors.agentCard.off')
@@ -277,7 +293,10 @@ export function AgentConnectorsCard({
                 </span>
                 {on !== null && (
                   <Summary
-                    setup={on === 0}
+                    // gone from the list, or nothing to switch on (the list contract already refuses an
+                    // MCP entry without tools): no Set up cue
+                    setup={on === 0 && tools.length > 0 && !c.delisted}
+                    ready={c.connection?.state === 'connected'}
                     text={
                       on === 0
                         ? t('connectors.agentCard.off')

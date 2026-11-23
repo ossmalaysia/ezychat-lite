@@ -328,6 +328,27 @@ describe('Google Calendar: Settings', () => {
     );
   });
 
+  it('shows no way back to a deleted agent and drops it on the next switch', async () => {
+    stubServer(world({ agents: [agent(1, 'Aina'), agent(2, 'Ben')] }));
+    // agent 3 was deleted after the link was saved: the page shows the first agent instead
+    page(`${GC}?tab=settings&agent=3&from=agent`);
+    const user = userEvent.setup();
+    expect(await screen.findByText(/^Aina can check free times/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Back to AI agent' })).toBeNull();
+    await user.click(screen.getByLabelText('Settings for'));
+    await user.click(screen.getByRole('option', { name: 'Ben' }));
+    expect(await screen.findByText(/^Ben can check free times/)).toBeTruthy();
+    expect(location()).toBe(`${GC}?tab=settings&agent=2`);
+    expect(screen.queryByRole('link', { name: 'Back to AI agent' })).toBeNull();
+  });
+
+  it('shows the way back only to an agent that still exists', async () => {
+    stubServer(world({ agents: [agent(1, 'Aina'), agent(2, 'Ben')] }));
+    page(`${GC}?tab=settings&agent=1&from=agent%3A9`);
+    expect(await screen.findByText(/^Aina can check free times/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Back to AI agent' })).toBeNull();
+  });
+
   it('asks to connect first, and pauses while Google needs attention', async () => {
     stubServer(world({ google: status('disconnected') }));
     page(`${GC}?tab=settings`);

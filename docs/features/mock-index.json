@@ -16,6 +16,16 @@
   },
   "proposals": [
     {
+      "feature": "agent-connectors-summary",
+      "creationOrder": 51,
+      "createdAt": "2026-11-23",
+      "design": "docs/workbooks/feat__agent-connectors-summary.md",
+      "mock": null,
+      "status": "design-only",
+      "coverage": "No mock folder (wording of the existing Agent page → Connectors rows, a Set up cue and a way-back link above an existing breadcrumb; no new screen or flow): design-system patterns 'Way back before the breadcrumb' and 'Set up cue in a summary row', production screenshots docs/screenshots/connectors/agent-card-* and agent-back-link-* (1280/360, light/dark, cue and needs-attention states) from node e2e/agent-connectors-screens.mjs.",
+      "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (ai-models-per-task). No retention change. Waiting for the owner's look at the screenshots."
+    },
+    {
       "feature": "ai-models-per-task",
       "creationOrder": 49,
       "createdAt": "2026-11-22",
