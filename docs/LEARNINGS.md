@@ -2364,6 +2364,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
   that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
   key's `#<id>` suffix, never by an id tail alone.
+- A page that keeps "where I came from" in the URL (`from=agent`) must survive its own pickers: a picker that changes
+  the subject (`agent`) pins the origin first (`from=agent:<id>`), or the way back points at the new subject. Decide
+  UI cues (Set up) from a flag the line builder returns, never by comparing the rendered text with translations.
 
 ## Internationalization
 

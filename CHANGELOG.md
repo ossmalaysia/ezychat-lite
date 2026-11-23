@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Agent page → Connectors** now names what each connector uses (the sheet, the Drive folder), says **Not used by this agent · Set up** for a connected connector that agent does not use, and the connector's page offers **Back to AI agent** when you came from there.
-
 - The **Model for suggestions** choice moved from Reply suggestions to AI models → **Writing help** (your choice is kept). The phrase list and Dream mode's nightly lessons now follow **Background checks** (Fast), and **Edit with AI** follows Writing help (Fast by default; it used the main model before).
 
 ### Fixed

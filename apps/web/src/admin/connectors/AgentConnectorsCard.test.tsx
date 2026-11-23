@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { DEFAULT_BOOKING_SETTINGS } from '@ezychat/shared';
 import { AgentConnectorsCard } from './AgentConnectorsCard';
 import {
@@ -97,5 +97,27 @@ describe('Agent page → Connectors', () => {
     expect(await screen.findByText('1 of 1 tools on')).toBeTruthy();
     expect(screen.queryByTestId('agent-connector-stok')).toBeNull();
     expect(screen.queryByText('No connector yet.')).toBeNull();
+  });
+
+  it('says a partner connector with every tool off is not used yet, with the Set up cue', async () => {
+    const tools = [
+      { name: 'find', title: { en: 'Find' }, description: { en: 'Finds.' }, access: 'read' },
+    ] as const;
+    stubServer(
+      world({
+        google: status('disconnected'),
+        gallery: gallery([
+          ...DEFAULT_LIST,
+          listed(entry('lejar', { name: 'Lejar Accounting', tools: [...tools] }), {
+            connection: connection('connected'),
+          }),
+        ]),
+        mcpSettings: { 'lejar:3': { settings: {}, tools: { find: false } } },
+      }),
+    );
+    card();
+    const row = await screen.findByTestId('agent-connector-lejar');
+    await waitFor(() => expect(row.textContent).toContain('Not used by this agent · Set up'));
+    expect(row.textContent).not.toContain('tools on');
   });
 });

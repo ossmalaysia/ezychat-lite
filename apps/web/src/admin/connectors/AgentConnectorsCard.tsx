@@ -27,34 +27,40 @@ const ROW =
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/** A summary line and whether the agent still has to set the connector up. */
+type Line = { text: string; setup: boolean };
+
 /** Signed in (also while it needs attention): the connector's row shows. */
 const linkedState = (state: string | undefined) =>
   state === 'connected' || state === 'expired' || state === 'unavailable';
 
 /** Google Calendar: Off, Checks free times, or Checks and books. */
-function calendarLine(t: Translate, booking: { checkFree: boolean; book: boolean }): string {
-  if (!booking.checkFree) return t('connectors.agentCard.off');
-  return t(booking.book ? 'connectors.agentCard.checkAndBook' : 'connectors.agentCard.checkOnly');
+function calendarLine(t: Translate, booking: { checkFree: boolean; book: boolean }): Line {
+  if (!booking.checkFree) return { text: t('connectors.agentCard.off'), setup: true };
+  return {
+    text: t(booking.book ? 'connectors.agentCard.checkAndBook' : 'connectors.agentCard.checkOnly'),
+    setup: false,
+  };
 }
 
 /** Google Sheets: the tabs it reads and adds rows to, or Off. */
-function sheetsLine(t: Translate, settings: SheetsAgentSettings): string {
+function sheetsLine(t: Translate, settings: SheetsAgentSettings): Line {
   const tabs = (access: 'read' | 'add') =>
     settings.spreadsheetId
       ? settings.tabs.filter((x) => x.access === access).map((x) => x.title)
       : [];
   const reads = tabs('read');
   const adds = tabs('add');
-  if (reads.length + adds.length === 0) return t('connectors.agentCard.off');
+  if (reads.length + adds.length === 0) return { text: t('connectors.agentCard.off'), setup: true };
   const parts: string[] = settings.spreadsheetName ? [settings.spreadsheetName] : [];
   if (reads.length) parts.push(t('connectors.agentCard.sheetsReads', { tabs: reads.join(', ') }));
   if (adds.length) parts.push(t('connectors.agentCard.sheetsAdds', { tabs: adds.join(', ') }));
-  return parts.join(' · ');
+  return { text: parts.join(' · '), setup: false };
 }
 
 /** Google Drive: no folder, saves, reads N files, both, or Off. */
-function driveLine(t: Translate, settings: DriveAgentSettings): string {
-  if (!settings.folder) return t('connectors.agentCard.driveNoFolder');
+function driveLine(t: Translate, settings: DriveAgentSettings): Line {
+  if (!settings.folder) return { text: t('connectors.agentCard.driveNoFolder'), setup: true };
   const count = settings.read ? settings.files.length : 0;
   const what = settings.save
     ? t(count ? 'connectors.agentCard.driveSavesAndReads' : 'connectors.agentCard.driveSaves', {
@@ -63,28 +69,26 @@ function driveLine(t: Translate, settings: DriveAgentSettings): string {
     : count
       ? t('connectors.agentCard.driveReads', { count })
       : null;
-  return what ? `${settings.folder.name} · ${what}` : t('connectors.agentCard.off');
+  return what
+    ? { text: `${settings.folder.name} · ${what}`, setup: false }
+    : { text: t('connectors.agentCard.off'), setup: true };
 }
 
 /** GitHub: what it looks up in how many repositories GitHub still shares, or Off. */
-function githubLine(t: Translate, view: GitHubAgentView): string {
+function githubLine(t: Translate, view: GitHubAgentView): Line {
   const { repos, issues, pulls } = view.settings;
-  if (repos.length === 0) return t('connectors.github.agentCard.noRepos');
+  if (repos.length === 0) return { text: t('connectors.github.agentCard.noRepos'), setup: true };
   const count = repos.filter((r) => !view.unavailableRepoIds.includes(r.id)).length;
-  if (issues && pulls) return t('connectors.github.agentCard.both', { count });
-  if (issues) return t('connectors.github.agentCard.issues', { count });
-  if (pulls) return t('connectors.github.agentCard.pulls', { count });
-  return t('connectors.agentCard.off');
+  if (issues && pulls)
+    return { text: t('connectors.github.agentCard.both', { count }), setup: false };
+  if (issues) return { text: t('connectors.github.agentCard.issues', { count }), setup: false };
+  if (pulls) return { text: t('connectors.github.agentCard.pulls', { count }), setup: false };
+  return { text: t('connectors.agentCard.off'), setup: true };
 }
 
-/** One line under a connector's name; "Not used by this agent" and "No … chosen" add a Set up cue. */
-function Summary({ text }: Readonly<{ text: string }>) {
+/** One line under a connector's name; `setup` (not used yet, nothing chosen) adds a Set up cue. */
+function Summary({ text, setup = false }: Readonly<{ text: string; setup?: boolean }>) {
   const { t } = useTranslation('admin');
-  const setup = [
-    t('connectors.agentCard.off'),
-    t('connectors.agentCard.driveNoFolder'),
-    t('connectors.github.agentCard.noRepos'),
-  ].includes(text);
   return (
     <span className="text-sm text-muted-foreground">
       {text}
@@ -165,7 +169,7 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-calendar.name')}
                 {state !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {summary && <Summary text={summary} />}
+              {summary && <Summary {...summary} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -182,7 +186,7 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-sheets.name')}
                 {sheetsState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {sheetsSummary && <Summary text={sheetsSummary} />}
+              {sheetsSummary && <Summary {...sheetsSummary} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -199,7 +203,7 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-drive.name')}
                 {driveState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {driveSummary && <Summary text={driveSummary} />}
+              {driveSummary && <Summary {...driveSummary} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -218,7 +222,7 @@ export function AgentConnectorsCard({
                   <ConnectorStatusBadge status="attention" />
                 )}
               </span>
-              {githubView && <Summary text={githubLine(t, githubView)} />}
+              {githubView && <Summary {...githubLine(t, githubView)} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
@@ -237,6 +241,7 @@ export function AgentConnectorsCard({
               </span>
               {sqlOn !== null && (
                 <Summary
+                  setup={sqlOn === 0}
                   text={
                     sqlOn === 0
                       ? t('connectors.agentCard.off')
@@ -271,9 +276,14 @@ export function AgentConnectorsCard({
                   {c.delisted && <ConnectorStatusBadge status="delisted" />}
                 </span>
                 {on !== null && (
-                  <span className="text-sm text-muted-foreground">
-                    {t('connectors.partner.agentCardTools', { count: on, total: tools.length })}
-                  </span>
+                  <Summary
+                    setup={on === 0}
+                    text={
+                      on === 0
+                        ? t('connectors.agentCard.off')
+                        : t('connectors.partner.agentCardTools', { count: on, total: tools.length })
+                    }
+                  />
                 )}
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />

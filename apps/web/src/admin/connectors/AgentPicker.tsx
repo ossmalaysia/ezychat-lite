@@ -43,6 +43,8 @@ export function AgentPicker({ render }: { render: (agent: AiAgentSummary) => Rea
   const pick = (id: string) =>
     setParams(
       (p) => {
+        // Opened from an agent's page (`from=agent`): keep that agent as the way back after a switch.
+        if (p.get('from') === 'agent') p.set('from', `agent:${agent.id}`);
         p.set('agent', id);
         return p;
       },

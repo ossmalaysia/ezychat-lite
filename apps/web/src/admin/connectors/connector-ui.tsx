@@ -120,7 +120,11 @@ export function ConnectorBreadcrumb({ name }: { name: string }) {
   const { t } = useTranslation('admin');
   const [params] = useSearchParams();
   // Opened from an agent page's Connectors card: the way back to that agent comes first.
-  const agent = params.get('from') === 'agent' ? Number(params.get('agent')) : 0;
+  // `from=agent` = the agent picked here; `from=agent:<id>` = the one it was opened from, kept
+  // when another agent is picked on this page.
+  const from = params.get('from') ?? '';
+  const agent =
+    from === 'agent' ? Number(params.get('agent')) : Number(/^agent:(\d+)$/.exec(from)?.[1]);
   return (
     <nav
       aria-label={t('connectors.breadcrumb')}
@@ -264,9 +268,7 @@ export function RemoteOnlyNotice({
 }: Readonly<{
   testId: string;
   textKey:
-    | 'connectors.gc.remoteSignIn'
-    | 'connectors.sheets.remotePick'
-    | 'connectors.drive.remotePick';
+    'connectors.gc.remoteSignIn' | 'connectors.sheets.remotePick' | 'connectors.drive.remotePick';
 }>) {
   const { t } = useTranslation('admin');
   return (

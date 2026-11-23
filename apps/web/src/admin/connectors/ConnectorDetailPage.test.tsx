@@ -307,6 +307,27 @@ describe('Google Calendar: Settings', () => {
     expect(location()).toBe(`${GC}?tab=settings&agent=1`);
   });
 
+  it('keeps the way back to the agent it was opened from after picking another agent', async () => {
+    stubServer(world({ agents: [agent(1, 'Aina'), agent(2, 'Ben')] }));
+    page(`${GC}?tab=settings&agent=2&from=agent`);
+    const user = userEvent.setup();
+    expect(await screen.findByText(/^Ben can check free times/)).toBeTruthy();
+    await user.click(screen.getByLabelText('Settings for'));
+    await user.click(screen.getByRole('option', { name: 'Aina' }));
+    expect(await screen.findByText(/^Aina can check free times/)).toBeTruthy();
+    expect(location()).toBe(`${GC}?tab=settings&agent=1&from=agent%3A2`);
+    expect(screen.getByRole('link', { name: 'Back to AI agent' }).getAttribute('href')).toBe(
+      '/admin/members/ai/2',
+    );
+    // A second switch keeps the first origin.
+    await user.click(screen.getByLabelText('Settings for'));
+    await user.click(screen.getByRole('option', { name: 'Ben' }));
+    expect(await screen.findByText(/^Ben can check free times/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to AI agent' }).getAttribute('href')).toBe(
+      '/admin/members/ai/2',
+    );
+  });
+
   it('asks to connect first, and pauses while Google needs attention', async () => {
     stubServer(world({ google: status('disconnected') }));
     page(`${GC}?tab=settings`);
