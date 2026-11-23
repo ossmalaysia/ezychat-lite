@@ -6,11 +6,11 @@ Branch: `feat/agent-name-link-to-setup` · Every agent updates its stage with
 | Stage | Status | Detail | Commit | Updated |
 | --- | --- | --- | --- | --- |
 | Design | done | Design-only (mock-index order 50, as ai-silent-line/ai-completion-rate): a link on an existing label, no new screen; design-system pattern 'Inline link in a bubble'; screenshots docs/screenshots/chat/agent-link-*. Waiting for the owner's look at the shots. | 91b3d17 | 2026-11-23 |
-| Dev | done | Review fixes: long press/swipe on the name drops the click and blocks the touch link menu; dotted underline cue; 44 px touch hit area; focus ring no longer clipped; aria-label uses the agent name without (AI) | 91b3d17 | 2026-11-23 |
-| Unit tests | pass | MessageList + MessageBubble (33), web typecheck, eslint | c835f7c | 2026-11-23 |
+| Dev | done | Review fix A: touch area in its own row (pointer-coarse:min-h-11), no after: box over the reply text | d0bdc313 | 2026-11-23 |
+| Unit tests | pass | MessageList (9) incl. no relative/after: box; web typecheck, eslint | d0bdc313 | 2026-11-23 |
 | E2E | pass | npm run e2e on d28ae08: 196 passed, 32 skipped (platform skips), 0 failed | d28ae08 | 2026-11-23 |
-| Dev Build | done | fresh standalone --fake-wa server, e2e/agent-link-screens.mjs on d28ae08 (docs/dev-build-checks.md 2026-11-23); real touch hardware untested | d28ae08 | 2026-11-23 |
-| Screen review | done | agent-link-* re-shot on d28ae08 (only the clock times differ from the committed shots): 1280/360, light/dark, admin vs team member, focus, opened page | d28ae08 | 2026-11-23 |
+| Dev Build | done | fresh standalone --fake-wa server, e2e/agent-link-screens.mjs on d0bdc313: a tap on the reply's first line (a URL) hits the URL on 360 px light/dark (the same check fails on 8a50303) | d0bdc313 | 2026-11-23 |
+| Screen review | done | agent-link-* re-shot on d0bdc313: 1280/360, light/dark, admin vs team member, focus, opened page; name row 44 px on phones | d0bdc313 | 2026-11-23 |
 
 ## Log
 
@@ -31,3 +31,7 @@ Branch: `feat/agent-name-link-to-setup` · Every agent updates its stage with
 - 2026-11-23 E2E: pass — npm run e2e on d28ae08: 196 passed, 32 skipped (platform skips), 0 failed (d28ae08)
 - 2026-11-23 Dev Build: done — fresh standalone --fake-wa server, e2e/agent-link-screens.mjs on d28ae08 (docs/dev-build-checks.md 2026-11-23); real touch hardware untested (d28ae08)
 - 2026-11-23 Screen review: done — agent-link-* re-shot on d28ae08 (only the clock times differ from the committed shots): 1280/360, light/dark, admin vs team member, focus, opened page (d28ae08)
+- 2026-11-23 Dev: done — Review fix A: touch area in its own row (pointer-coarse:min-h-11), no after: box over the reply text (d0bdc313)
+- 2026-11-23 Unit tests: pass — MessageList (9) incl. no relative/after: box; web typecheck, eslint (d0bdc313)
+- 2026-11-23 Dev Build: done — fresh standalone --fake-wa server, e2e/agent-link-screens.mjs on d0bdc313: a tap on the reply's first line (a URL) hits the URL on 360 px light/dark (the same check fails on 8a50303) (d0bdc313)
+- 2026-11-23 Screen review: done — agent-link-* re-shot on d0bdc313: 1280/360, light/dark, admin vs team member, focus, opened page; name row 44 px on phones (d0bdc313)
