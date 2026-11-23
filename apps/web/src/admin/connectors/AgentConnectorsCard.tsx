@@ -62,13 +62,10 @@ function sheetsLine(t: Translate, settings: SheetsAgentSettings): Line {
 function driveLine(t: Translate, settings: DriveAgentSettings): Line {
   if (!settings.folder) return { text: t('connectors.agentCard.driveNoFolder'), setup: true };
   const count = settings.read ? settings.files.length : 0;
-  const what = settings.save
-    ? t(count ? 'connectors.agentCard.driveSavesAndReads' : 'connectors.agentCard.driveSaves', {
-        count,
-      })
-    : count
-      ? t('connectors.agentCard.driveReads', { count })
-      : null;
+  let what: string | null = null;
+  if (settings.save && count) what = t('connectors.agentCard.driveSavesAndReads', { count });
+  else if (settings.save) what = t('connectors.agentCard.driveSaves');
+  else if (count) what = t('connectors.agentCard.driveReads', { count });
   return what
     ? { text: `${settings.folder.name} · ${what}`, setup: false }
     : { text: t('connectors.agentCard.off'), setup: true };
