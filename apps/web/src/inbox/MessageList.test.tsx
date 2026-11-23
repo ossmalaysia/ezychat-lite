@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Message } from '@ezychat/shared';
 import { HIGHLIGHT_MS, MessageList, type MessageListProps } from './MessageList';
 import type { TimelineItem } from './timeline';
 import type { Directory } from './useDirectory';
+import { NavigationGuardProvider, useNavigationGuardRef } from './navigation-guard';
 
 const base: Message = {
   id: 'M-0',
@@ -126,6 +127,23 @@ describe('MessageList AI agent link', () => {
     expect(container.querySelector('a[href="/admin/members/ai/3"]')?.textContent).toBe(
       'Workshop assistant',
     );
+  });
+  it('asks the navigation guard before leaving the chat', () => {
+    const guard = vi.fn();
+    function GuardSlot() {
+      useNavigationGuardRef().current = guard;
+      return null;
+    }
+    render(
+      <MemoryRouter>
+        <NavigationGuardProvider>
+          <GuardSlot />
+          <MessageList {...props({ items: [agentMsg()], directory: dir(true, {}) })} />
+        </NavigationGuardProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('link', { name: /Workshop assistant/ }));
+    expect(guard).toHaveBeenCalledTimes(1);
   });
   it('stays plain text for non-admins and deleted agents', () => {
     expect(view(dir(false, {})).container.querySelector('a')).toBeNull();

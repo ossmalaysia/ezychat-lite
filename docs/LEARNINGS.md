@@ -2363,6 +2363,9 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
   that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
   key's `#<id>` suffix, never by an id tail alone.
+- Every in-app `<Link>` that leaves an open chat (also one inside a message bubble) takes `onClick` from
+  `useGuardedLinkClick`, or the Customer panel's unsaved edits are lost; put the hook in a small child component rendered
+  only with the link, because it needs a Router and bubbles render in tests without one.
 
 ## Internationalization
 

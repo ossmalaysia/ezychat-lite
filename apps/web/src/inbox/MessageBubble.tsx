@@ -74,6 +74,23 @@ export interface MessageBubbleProps {
   outboundHref?: string | null;
 }
 
+/** The AI agent's name above its message, linking to its setup page through the navigation guard. */
+function AgentLink({ to, label }: Readonly<{ to: string; label: string }>) {
+  const { t } = useTranslation('inbox');
+  const onClick = useGuardedLinkClick(to);
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      aria-label={t('message.openAgent', { name: label })}
+      title={t('message.openAgent', { name: label })}
+      className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {label}
+    </Link>
+  );
+}
+
 /** Read-only profile of a group sender, from their direct chat, with a link to that chat. */
 function SenderProfileCard({ chatJid, directory }: { chatJid: string; directory?: Directory }) {
   const { t } = useTranslation('inbox');
@@ -411,18 +428,7 @@ export function MessageBubble({
         )}
         {out && outboundLabel && (
           <p className="mb-0.5 truncate text-[11px] font-medium text-muted-foreground">
-            {outboundHref ? (
-              <Link
-                to={outboundHref}
-                aria-label={t('message.openAgent', { name: outboundLabel })}
-                title={t('message.openAgent', { name: outboundLabel })}
-                className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {outboundLabel}
-              </Link>
-            ) : (
-              outboundLabel
-            )}
+            {outboundHref ? <AgentLink to={outboundHref} label={outboundLabel} /> : outboundLabel}
           </p>
         )}
         {/* "Forwarded" / "Forwarded many times", as WhatsApp shows it. */}
