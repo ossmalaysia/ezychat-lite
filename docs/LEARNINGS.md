@@ -518,7 +518,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review (it reads the PR on GitHub, so push
-  the records first, and put every record in one push: each push restarts CI); a Dev Build row counts only with the
+  the records first, and put every record in one push: each push restarts CI; SonarCloud's automatic analysis skips a
+  push that touches only files outside `sonar.sources` (`docs/`), so a records-only head stays "missing: SonarCloud":
+  run the checks on the committed code, record them with `--sha`, then push code and records together); a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
   SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
   before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
