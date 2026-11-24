@@ -50,6 +50,9 @@ into AGENTS.md.
   strings plus a timing test (L-30). The mock-model Dev Build (`agents-devbuild.ts`) replaces the provider's whole
   `generate`, so `ai/agent/turn.ts` post-processing (`AiDecision.parse`, `toWhatsAppText`) never runs there: pin it in
   `turn.test.ts` with `MockLanguageModelV4` instead.
+- A core-tier fix with no Dev Build row tops out at 65 (`risk:human`), and `merge-gate.mjs` accepts only `MERGE OK` or
+  the owner's word, so a clean independent review does not let a tech-debt run merge it. Before picking such an item,
+  check that a Dev Build check can reach the changed path; otherwise expect it to wait for the owner (L-30).
 - A redaction pattern must not be made linear with a lookbehind start anchor (`(?<![\w.+-])…@`) or a length cap: both leave
   an address unredacted (one glued to the previous match, or the start of an over-long run). Use `address-scan.ts`
   (scan from each `@`, same matches as the plain pattern; L-28).
