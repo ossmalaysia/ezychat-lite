@@ -44,6 +44,9 @@ into AGENTS.md.
   or trim with a loop, and pin it with a timing test on the longest message (L-27: 2 s → 13 ms). To time it in a Dev
   Build, pick a Live translate target the text is not guessed to be in (else it is `same_language` and the scan never
   runs) and use `e2e/devbuild-translate-check.mjs` against the mock-model `agents-devbuild.ts`.
+- Before timing a flagged regex, trace what really reaches it: a cap on the way in (Safety cuts text to 4,000
+  characters) makes a 2 s bench harmless, while a loader with no cap (`customerTexts`: up to 200 whole messages) makes a
+  harmless-looking trim the real stall (L-29).
 - A lazy group followed by an optional tail anchored at the line end (`(.+?)[ \t]*#*[ \t]*$`) is cubic, not quadratic:
   2,000 characters take seconds. Model output is customer-steerable input too (AI replies pass through
   `toWhatsAppText`). Replace such a pattern with a scan and pin it with a seeded fuzz against the old pattern on short

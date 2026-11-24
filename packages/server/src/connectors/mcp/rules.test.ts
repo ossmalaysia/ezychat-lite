@@ -403,6 +403,23 @@ describe('guards', () => {
     expect(customerGave('...', texts, saved)).toBe(false);
   });
 
+  it('trims the punctuation around words the same way, in linear time on a long message', () => {
+    const none = () => [];
+    // Leading and trailing dots, dashes, quotes and pluses go; the ones inside a word stay.
+    expect(customerGave("mei-ying o'neil", () => ["--Mei-Ying O'Neil.'"], none)).toBe(true);
+    expect(customerGave('a.b.c', () => ['see ...a.b.c+++ please'], none)).toBe(true);
+    expect(customerGave('mei ying', () => ['mei .-+ ying'], none)).toBe(true);
+    expect(customerGave('a.b.c', () => ['a.b.cd'], none)).toBe(false);
+    // One crafted customer message of WhatsApp's longest length: a word whose middle is 65,000
+    // dots. Trimming with "[._+'-]+$" retried every dot (about 2.4 s per message, up to 200
+    // messages per guarded value).
+    const long = `a${'.'.repeat(65_000)}a`;
+    const started = performance.now();
+    expect(customerGave('mei ying', () => [long, `b${'-'.repeat(65_000)}b`], none)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(250);
+    expect(customerGave(long, () => [`x ${long}.`], none)).toBe(true);
+  });
+
   it('keeps only the declared fields of the arguments, with their types', () => {
     const schema = {
       type: 'object',
