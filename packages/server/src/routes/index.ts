@@ -34,6 +34,7 @@ import aiTemplates from './ai-templates.js';
 import templates from './templates.js';
 import newChat from './new-chat.js';
 import replySuggestions from './reply-suggestions.js';
+import aiTaskModels from './ai-task-models.js';
 import askEzy from './ask-ezy.js';
 import fixEnglish from './fix-english.js';
 import liveTranslate from '../live-translate/routes.js';
@@ -83,6 +84,7 @@ export const routeModules: RouteModule[] = [
   templates,
   newChat,
   replySuggestions,
+  aiTaskModels,
   askEzy,
   fixEnglish,
   liveTranslate,

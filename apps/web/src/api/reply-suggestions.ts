@@ -3,7 +3,6 @@ import {
   ReplyCompleteResult,
   ReplyPhraseList,
   ReplyPhrasesAdmin,
-  ReplySuggestModelInfo,
   ReplySuggestionsResult,
   ReplySuggestionsStatus,
 } from '@ezychat/shared';
@@ -62,17 +61,6 @@ export function usePhrasesAdmin(agentId: number | null) {
       }),
     // While a build runs, ask again until it is done.
     refetchInterval: (query) => (query.state.data?.status.state === 'building' ? 1_500 : false),
-  });
-}
-
-export const suggestModelKey = ['ai', 'suggestModel'] as const;
-
-/** Admins: the model for suggestions, its choices and what calls use now. */
-export function useSuggestModel(enabled: boolean) {
-  return useQuery({
-    queryKey: suggestModelKey,
-    queryFn: () => api('/ai/reply-suggestions/model', { schema: ReplySuggestModelInfo }),
-    enabled,
   });
 }
 

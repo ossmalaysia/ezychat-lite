@@ -326,6 +326,7 @@
     "jumpToLatest": "跳到最新"
   },
   "message": {
+    "openAgent": "打开 {{name}} 的设置",
     "status": {
       "pending": "待发送",
       "sent": "已发送",
