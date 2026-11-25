@@ -81,7 +81,7 @@ export default async function chatsRoutes(app: FastifyInstance, ctx: AppContext)
     return chats.patch(jid, body, req.user!.id);
   });
 
-  // Delete chat (admins, docs/features/chat-hide-delete/design.md Part B): in EzyChat only, for good.
+  // Delete chat (admins, docs/chat-hide-delete.md Part B): in EzyChat only, for good.
   const deleteLimiter = new WindowLimiter({ windowMs: 60_000, max: 30 });
   app.get('/chats/:jid/delete-preview', { preHandler: requireAdmin(ctx) }, async (req) =>
     ctx.services.chatDelete!.preview(chatJidParam(ctx, req)),

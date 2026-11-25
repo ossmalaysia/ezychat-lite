@@ -455,11 +455,72 @@
       "cost": "每条建议和每次补全都是对您的 AI 服务商的一次请求，可能会产生费用。",
       "noConnection": "请先在上方连接 AI 服务商，才能使用回复建议。",
       "upgraded": "新功能：回复建议。更新后默认关闭，未经您的选择不会产生新的费用。",
-      "model": "建议所用模型",
-      "modelFast": "快速（推荐）：{{model}}",
-      "modelAgent": "与 AI 连接相同：{{model}}",
-      "modelFastHint": "“建议回复”约 1–2 秒完成，输入时即时显示灰色补全。{{model}} 是此连接的快速模型。",
-      "modelSlowHint": "较大的模型写得更慢：灰色补全常常来得太晚，而且每次请求的费用可能更高。"
+      "modelNote": "建议回复使用的模型现在在「AI 模型 → 写作帮助」中设置。"
+    },
+    "aiModels": {
+      "title": "AI 模型",
+      "description": "为每项工作选择 AI 模型。快速模型回答更快、费用更低。更聪明的模型回答更好，但更慢，也会用掉更多套餐额度。",
+      "connection": "你的 AI 连接：{{connection}} · 主模型 {{main}} · 快速模型 {{fast}}。",
+      "perConnection": "每种连接各自保存选择。",
+      "mode": {
+        "chatgpt": "ChatGPT 登录",
+        "api": "OpenAI API 密钥",
+        "claude": "Claude API 密钥"
+      },
+      "model": "模型",
+      "fast": "快速",
+      "main": "主模型",
+      "recommended": "（推荐）",
+      "fastShort": "快速（{{model}}）",
+      "mainShort": "主模型（{{model}}）",
+      "notOffered": "{{model}} · 已不再提供",
+      "useDefault": "恢复默认",
+      "tier": {
+        "fast": "回答更快，费用更低。",
+        "balanced": "速度与质量兼顾。",
+        "smart": "回答最聪明，但更慢、费用更高。"
+      },
+      "tierShort": {
+        "fast": "更快",
+        "balanced": "均衡",
+        "smart": "更聪明，费用更高"
+      },
+      "thinking": "速度与质量",
+      "thinkingLevel": {
+        "low": "更快",
+        "medium": "均衡",
+        "high": "更聪明"
+      },
+      "thinkingHint": {
+        "low": "更快：回答最快。",
+        "medium": "均衡：速度与质量兼顾。",
+        "high": "更聪明：回答最好，最慢，会用掉更多套餐额度。"
+      },
+      "unavailable": "你的 AI 连接已不再提供 {{model}}。在你选择其他模型之前，EzyChat 使用{{fallback}}。",
+      "alwaysMain": "以下工作始终使用主模型（{{main}}）：用 Ask Ezy 设置代理、梦境模式建议的修改，以及填写客户资料，因为它们会更改你的设置或记录。语音消息按下方自己的设置。",
+      "tasks": {
+        "agentReplies": {
+          "title": "AI 代理回复",
+          "what": "在聊天和群组中回复客户、试一试以及定时消息。"
+        },
+        "askEzy": {
+          "title": "Ask Ezy",
+          "what": "应用内助手，回答你关于聊天和报表的问题。"
+        },
+        "translate": {
+          "title": "翻译",
+          "what": "实时翻译：客户的消息，以及你发送前的回复。"
+        },
+        "writing": {
+          "title": "写作帮助",
+          "what": "建议回复、输入时的灰色提示文字、修正英文以及用 AI 编辑。"
+        },
+        "background": {
+          "title": "后台检查",
+          "what": "对收到消息的安全检查、短语列表，以及梦境模式每晚学到的内容。"
+        }
+      },
+      "writingSlow": "使用较慢的模型时，输入时的灰色提示文字可能来不及出现。"
     },
     "askEzy": {
       "title": "Ask Ezy",
@@ -521,7 +582,7 @@
       "title": "英文修正",
       "description": "团队成员输入英文回复时，拼写错误会立即标出，语法错误在短暂停顿后标出。点一下即可修正；未经成员确认，不会修改或发送任何内容。",
       "enable": "为团队检查英文",
-      "cost": "拼写在每台设备上用内置的英式英文词典检查（约 0.2 MB，只下载一次）：免费，不用 AI。语法在每次停止输入后向您的 AI 服务商发送一个简短请求（建议所用的模型），可能会产生费用。马来文和中文消息不会被检查。",
+      "cost": "拼写在每台设备上用内置的英式英文词典检查（约 0.2 MB，只下载一次）：免费，不用 AI。语法在每次停止输入后向您的 AI 服务商发送一个简短请求（AI 模型中的「写作帮助」模型），可能会产生费用。马来文和中文消息不会被检查。",
       "rules": "只修正拼写和语法。数字、价格、姓名、链接和订单号永远不会被更改，成员的语气保持不变（lah、ya）。",
       "noConnection": "未连接 AI：只检查拼写。在上方连接 AI 服务商后也会检查语法。",
       "upgraded": "新功能：英文修正。更新后默认关闭，未经您选择不会产生新的费用。",
@@ -1722,6 +1783,7 @@
     "requestMessage": "您好 EzyChat 团队，我们想要一个连接器，用于：",
     "breadcrumb": "导航路径",
     "notFound": "此连接器不存在。",
+    "backToAgent": "返回 AI 代理",
     "backToGallery": "所有连接器",
     "byCore": "{{product}} 内置",
     "byEnterprise": "EzyChat Enterprise",
@@ -1757,7 +1819,8 @@
       "description": "{{name}} 在聊天时可以使用的系统。设置在各连接器的页面中。",
       "checkAndBook": "查看空闲时间并预约",
       "checkOnly": "查看空闲时间；由团队预约",
-      "off": "此代理已关闭",
+      "off": "此代理未使用",
+      "setUp": "去设置",
       "none": "尚无连接器。",
       "browse": "浏览连接器",
       "sheetsReads": "读取 {{tabs}}",
@@ -3239,7 +3302,7 @@
     "enableHelp": "所有员工都可以使用。每个人在聊天顶部点“翻译”按钮，按聊天开启；在他们开启之前保持关闭。关闭此项即可为所有人停用。",
     "limit": "每人每日上限",
     "limitHelp": "默认 200；0 = 不限。每条译出的消息和每次发送的译文算一次；已翻译过的消息不再计数。",
-    "privacy": "消息文本会发送到你的 AI 连接（“建议用模型”）进行翻译。EzyChat 日志只记录次数和语言，从不记录文本。客户不会看到“已翻译”标记。",
+    "privacy": "消息文本会发送到你的 AI 连接（「AI 模型」中的翻译模型）进行翻译。EzyChat 日志只记录次数和语言，从不记录文本。客户不会看到“已翻译”标记。",
     "usage_one": "今天：{{people}} 人共翻译 {{count}} 次",
     "usage_other": "今天：{{people}} 人共翻译 {{count}} 次",
     "noConnection": "请先在上方连接 AI。在此之前，聊天按原样显示消息。",

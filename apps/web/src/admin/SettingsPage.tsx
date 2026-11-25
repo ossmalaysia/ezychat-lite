@@ -23,6 +23,7 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { ReplySuggestionsSection } from './ReplySuggestionsSection';
+import { AiModelsSection } from './AiModelsSection';
 import { AskEzySettingsSection } from './AskEzySettingsSection';
 import { FixEnglishSection } from './FixEnglishSection';
 import { LiveTranslateSection } from './LiveTranslateSection';
@@ -301,6 +302,8 @@ export function SettingsPage() {
 
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
+          {/* AI models per task (docs/ai-models.md): which model does each job, per connection. */}
+          <AiModelsSection />
           <ReplySuggestionsSection />
           <AskEzySettingsSection />
           <PhraseDictionarySection />

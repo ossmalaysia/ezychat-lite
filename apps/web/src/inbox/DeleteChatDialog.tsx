@@ -17,7 +17,7 @@ import { errorMessage } from '../api/client';
 import { useChatDeletePreview, useDeleteChat } from '../api/chat-delete';
 
 /**
- * Delete chat (admins; docs/features/chat-hide-delete/design.md Part B): the chat's name, what goes
+ * Delete chat (admins; docs/chat-hide-delete.md Part B): the chat's name, what goes
  * (messages and files) and that the WhatsApp phone keeps its copy. Stays open until the server
  * answers; on success the chat leaves every list and `onDeleted` takes the page back to the inbox.
  */
