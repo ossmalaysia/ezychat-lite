@@ -337,6 +337,15 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
   merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and holds a complete
   draft. **Promote release** (`promote-release.yml`, §3) publishes it once McAfee clears every installer.
+- "release" alone does not open the merge gate (`.claude/hooks/merge-gate.mjs`): it denies `gh pr merge` always and
+  merges a release PR only on "merge <n>" or "merge … and release" in the owner's newest message, and only through
+  `mcp__github__merge_pull_request`. A merge word sent while a turn runs (a mid-turn message) does not count: on
+  "no merge word", end the turn and ask the owner to send it again as a new message; never work around the gate. Before a release, check that the GitHub MCP tool is connected (`claude mcp list`
+  must show a server named `github`; permission settings cannot add a missing tool). The remote
+  `api.githubcopilot.com/mcp/` has no OAuth for Claude Code ("does not support dynamic client registration"), and the
+  gate reads `pullNumber`, the official `github-mcp-server` schema: run that image in Docker from a launcher that sets
+  `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token` at start (never write the token to config), added from
+  PowerShell (Git Bash turns `cmd /c` into `cmd C:/`). A server added mid-session loads only after a restart (`claude --continue`); `/mcp` does not load it. Never merge through `gh api` or another path around the gate.
 - To hold installed Lite apps on a version, keep the newer release a **draft**: the updater reads the whole release
   list (never `releases/latest`) and a 0.x install takes published pre-releases, so `make_latest=false` or a
   pre-release holds nothing. Check what the real client reads before choosing a GitHub release flag.
@@ -479,9 +488,11 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   `CLEAN` with green checks, the merge failed silently and the loop waited forever. A draft is its author's
   "not ready": ask the owner, never mark it ready yourself. Read each PR's current title, branch and file count
   just before a "merge the docs PRs" merge: another session's `claude/*` PR can grow from a mock into a feature.
-- In a cloud session the permission check may refuse any force-push, including `--force-with-lease`. When a stacked
-  base PR is squash-merged, merge `origin/main` into the branch instead of `rebase --onto`: it needs no force, and
-  `git diff <rebased> HEAD` proves that the trees are the same. Point a confirmation `gitRevision` at main's squash commit.
+- The permission check may refuse any force-push, including `--force-with-lease` (cloud and local sessions). When
+  `main` moves under an open PR (a stacked base squash-merged, or another session's merge making a release PR
+  `DIRTY`), merge `origin/main` into the branch instead of rebasing: it needs no force, and
+  `git diff <rebased> HEAD` proves that the trees are the same. In a release PR, put the merged PR's new
+  `[Unreleased]` line into the new version's section. Point a confirmation `gitRevision` at main's squash commit.
 - Another session may push to the same PR branch while you work on it: force-push a rebase only with
   `--force-with-lease=<branch>:<sha you rebased>`, and when a later plain push is refused, rebase your new
   commits on the remote branch, run its new tests and push again (never force over a commit you did not read).
@@ -717,7 +728,8 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   (`https://registry.npmjs.org/@ezychat%2f<pkg>` with `Cache-Control: no-cache`), not `npm view`, which can
   answer from a cached 404 or an older version (even `--prefer-online` gave E404 minutes after a publish that
   the registry URL already served); the Enterprise
-  pin bump's `npm install` fails the same way (`notarget`) until it runs with `--prefer-online`. Read the
+  pin bump's `npm install` fails the same way (`notarget`) until it runs with `--prefer-online`, and its PR's CI
+  `npm ci` can 404 the new tarball for several minutes: rerun that job with `--failed`, no code change. Read the
   publish result from the `+ @ezychat/<pkg>@x` lines: grepping
   `gh run view --log` also matches the step's own script source (lines with `[36;1m`), e.g. its "dry run
   only" warning text. A CI publish can lag too: `+ @ezychat/server@x` in the log and still 404 for about
@@ -765,7 +777,9 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   unmerged branch, and test upgrades from both orders.
 - Org Actions must be pinned to full SHAs and allowlisted (`gh api orgs/ossmalaysia/actions/permissions`).
   PR CI never runs `release.yml`: for actions used only there, read the breaking changes and update the
-  allowlist SHA in the same change.
+  allowlist SHA in the same change (a Dependabot bump or a combined merge too). The Lite repo keeps its own
+  list (`gh api repos/ossmalaysia/ezychat-lite/actions/permissions/selected-actions`): before pushing a
+  release tag, check every `uses:` SHA in `release.yml` is on it, else the tag run is a `startup_failure`.
 - CI does not run e2e: a change to routes or landing URLs must run e2e locally and update
   `e2e/responsive.spec.ts` in the same PR.
 - A BLOCKED PR with green checks usually has an unresolved review thread: fix, reply, resolve. The
@@ -786,6 +800,9 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   still queued (seen with macOS CI and a queued self-hosted job), and right after `gh run rerun --failed`
   `gh run watch` still sees the old failed attempt and exits at once: read the final status after the wait,
   or loop until `gh run view <id> --json status` is `completed`, before merging or reporting.
+- A release day of back-to-back `gh run watch` / `gh pr checks --watch` (default 3 s polls) used up the account's
+  5,000 REST calls an hour, and every `gh` call then failed with 403 until the reset (`gh api rate_limit`). Watch with
+  `--interval 60`, and wait for a publish on its own output (`dl.ezychat.ai/.../v<ver>/latest.json`, npm), not GitHub.
   A required job `cancelled` after about 15 min with no runner and no steps never started (macOS runners
   busy): `gh run rerun <id> --failed`, not a code fault. Push every log-only commit (workbook, Dev Build row,
   review approval) in one push before that wait: each push starts all of CI again.
@@ -938,6 +955,13 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 - Report installers to McAfee only with the `submit-installers` skill (`scripts/mcafee-submit.mjs`), never with a
   one-off script: it checks every file before the first report goes out, and it never sends the same file twice. A
   report states only what was checked: no "McAfee blocks" for a file nobody saw blocked, no signature claim for a Mac file.
+- A release report says in its first line that the in-app updater does not offer a held version until Promote release,
+  and names the date or answer that clears each file: the owner reads "released" as "the app updates now". For
+  "where is version X", read the live feed first (Enterprise `latest.json`, the Lite draft) and say which place reads it.
+  "I need it from the updater" is not a Passed: tick `mcafee_cleared` only on the owner's "passed <version>".
+  Every Promote is followed in the same session by a website PR (`release-calendar.json`: that version and every
+  earlier Passed one `whitelisted`, the edition's `pins` moved); the site has no "passed" state, so Passed maps to
+  `whitelisted`, and a skipped PR left Enterprise 0.1.32 pending and the download button on 0.1.31.
 - A script that starts Windows `powershell` removes `PSModulePath` from the child's environment: PowerShell 7 passes on
   its own value, and then `Get-AuthenticodeSignature` and `Compress-Archive` do not load. Test such a script from the
   shell that its instructions name, not only from Bash.
@@ -2427,6 +2451,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Cloudflare and sharing
 
+- In Claude in Chrome a click always acts on the page at those coordinates; there is no "focus the tab" click. When the
+  owner must do the last step (create a token, show a secret), touch that tab no more: an idle click hit Create Token.
 - A container auth backend must persist every credential and Signal-key batch before resolving, keep each inbox isolated, and fail closed on storage errors; filesystem snapshots cannot preserve writes made after the snapshot.
 
 - Slow remote access through the tunnel: measure before changing code. In the browser on the tunnel host, read
