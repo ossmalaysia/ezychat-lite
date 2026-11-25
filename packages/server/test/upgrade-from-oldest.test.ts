@@ -41,6 +41,10 @@ function oldestDataDir(): string {
   db.prepare(
     "INSERT INTO quick_replies (shortcut, body, created_by, updated_at) VALUES ('hi', 'Hello!', 1, ?)",
   ).run(now);
+  // The old "Model for suggestions" (later AI models → Writing help, start-up `migrateTaskModels`).
+  db.prepare("INSERT INTO settings (key, value) VALUES ('ai_reply_suggestions_model', ?)").run(
+    JSON.stringify('agent'),
+  );
   db.close();
   mkdirSync(join(dir, 'wa-auth'));
   writeFileSync(join(dir, 'wa-auth', 'creds.json'), CREDS);
@@ -134,6 +138,13 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     // 025: the same for Fix English (its grammar check calls the AI provider while people type).
     expect(t.ctx.settings.get('fix_english', null)).toBe(false);
     expect(t.ctx.settings.get('fix_english_upgraded', null)).toBe(true);
+    // AI models per task (start-up): "Same as the AI agent" becomes Writing help on the main model of
+    // every connection; Translate and Background checks start on Fast.
+    expect(t.ctx.settings.get('ai_task_models', null)).toEqual({
+      api: { writing: { choice: 'main' } },
+      chatgpt: { writing: { choice: 'main' } },
+      claude: { writing: { choice: 'main' } },
+    });
     // 027: every existing agent keeps answering direct chats.
     expect(listAgents(t.ctx.db).every((agent) => agent.answerDirect)).toBe(true);
     // 037: every existing user keeps seeing all chats; nobody is limited to chosen chats.

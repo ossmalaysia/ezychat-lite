@@ -4,7 +4,7 @@ import { Banner } from '@/components/app';
 import { formatInboxNumber } from './inbox-status';
 
 /**
- * Hide chats on Log out (docs/features/chat-hide-delete/design.md Part A): the texts Admin → WhatsApp
+ * Hide chats on Log out (docs/chat-hide-delete.md Part A): the texts Admin → WhatsApp
  * and Admin → Inboxes show around a Log out.
  */
 

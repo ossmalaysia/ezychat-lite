@@ -71,11 +71,20 @@ const PHONE = /^\+?[\d\s().-]+$/;
 export const MIN_TEXT_CHARS = 3;
 export const MIN_PHONE_DIGITS = 6;
 
+const EDGE = new Set(['.', '_', '+', "'", '-']);
+
+/** `token` without its leading and trailing `._+'-`. A loop: "[…]+$" retries at every character. */
+function trimEdges(token: string): string {
+  let start = 0;
+  let end = token.length;
+  while (start < end && EDGE.has(token[start]!)) start++;
+  while (end > start && EDGE.has(token[end - 1]!)) end--;
+  return token.slice(start, end);
+}
+
 /** Lower-case word tokens: letters, digits and the characters inside emails and names. */
 function tokens(text: string): string[] {
-  return (text.toLowerCase().match(/[\p{L}\p{N}@._+'-]+/gu) ?? [])
-    .map((token) => token.replace(/^[._+'-]+|[._+'-]+$/g, ''))
-    .filter(Boolean);
+  return (text.toLowerCase().match(/[\p{L}\p{N}@._+'-]+/gu) ?? []).map(trimEdges).filter(Boolean);
 }
 
 /** The numbers in a text: each run of digits with phone separators, and each word's digits. */

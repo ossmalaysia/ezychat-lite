@@ -431,7 +431,7 @@ export function createAskEzyService(
           log.info(
             {
               event: 'ask_ezy_setup_start',
-              fastModel: result?.model ?? null,
+              firstModel: result?.model ?? null,
               ms: Date.now() - started,
             },
             'Ask Ezy setup turn on the main model',
