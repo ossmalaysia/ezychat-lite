@@ -4,10 +4,7 @@ import type { Message } from '@ezychat/shared';
 import type { AiProvider } from '../src/ai/provider-types.js';
 import { createAiService } from '../src/ai/service.js';
 import { createPhraseService, PHRASE_CALLS_PER_DAY } from '../src/ai/phrases/service.js';
-import {
-  setReplySuggestions,
-  setReplySuggestionsModel,
-} from '../src/ai/reply-suggestions-setting.js';
+import { setReplySuggestions } from '../src/ai/reply-suggestions-setting.js';
 import { getChats } from '../src/wa-bridge/index.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
@@ -275,11 +272,15 @@ describe('phrase build', () => {
     ).toEqual([first!.text, 'Please send the receipt.'].sort());
   });
 
-  it('uses the model for suggestions: the saved agent model when chosen', async () => {
+  it('runs on the Background checks row: the main model when chosen, at its level', async () => {
     const s = await setup();
-    setReplySuggestionsModel(s.t.ctx, 'agent', s.actor);
+    s.t.ctx.services.ai!.setTaskModels(
+      { tasks: { background: { choice: 'main', thinking: 'high' } } },
+      s.actor,
+    );
     await s.phrases.tick();
     expect(s.sentPrompt().options).toMatchObject({ fast: false });
+    expect(s.sentPrompt().prompt).toMatchObject({ reasoningEffort: 'high' });
   });
 
   it('deletes the list with its agent', async () => {
@@ -399,16 +400,16 @@ describe('phrase routes', () => {
     expect(s.phrases.admin().status.trigger).toBe('manual');
   });
 
-  it('names the fast model per connection, and falls back to it when the mode changed', async () => {
+  it('names the fast model per connection; each connection keeps its own Writing help choice', async () => {
     const s = await setup();
     const ai = s.t.ctx.services.ai!;
-    setReplySuggestionsModel(s.t.ctx, 'gpt-6.1-sol', s.actor);
+    ai.setTaskModels({ tasks: { writing: { choice: 'gpt-6.1-sol' } } }, s.actor);
     ai.saveConnection(
       { mode: 'claude', model: 'claude-sonnet-5-5', apiKey: 'sk-ant-test-0000000' },
       s.actor,
     );
     expect(ai.suggestModelInfo()).toMatchObject({
-      model: 'gpt-6.1-sol',
+      model: 'fast',
       fastModel: 'claude-haiku-5-5',
       agentModel: 'claude-sonnet-5-5',
       resolved: 'claude-haiku-5-5',
@@ -421,8 +422,8 @@ describe('phrase routes', () => {
       agentModel: 'gpt-5.5',
     });
     expect(ai.suggestModelInfo().models).toEqual(['gpt-4.1-mini', 'gpt-5.5', 'gpt-4.1']);
-    setReplySuggestionsModel(s.t.ctx, 'agent', s.actor);
-    expect(ai.suggestModelInfo().resolved).toBe('gpt-5.5');
+    ai.setTaskModels({ tasks: { writing: { choice: 'main' } } }, s.actor);
+    expect(ai.suggestModelInfo()).toMatchObject({ model: 'agent', resolved: 'gpt-5.5' });
   });
 
   it('saves the model for suggestions only for a model of the connection', async () => {
