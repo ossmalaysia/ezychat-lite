@@ -59,6 +59,8 @@ const ROUTES = [
   { method: 'DELETE', url: '/api/ai/voice/model' },
   { method: 'PUT', url: '/api/ai/reply-suggestions' },
   { method: 'GET', url: '/api/ai/reply-suggestions/model' },
+  { method: 'GET', url: '/api/ai/task-models' },
+  { method: 'PUT', url: '/api/ai/task-models' },
   { method: 'PUT', url: '/api/ai/fix-english' },
   { method: 'GET', url: '/api/ai/phrases' },
   { method: 'POST', url: '/api/ai/phrases' },

@@ -198,13 +198,18 @@ export function createLiveTranslateService(
     target: string;
     started: number;
     model: string | null;
+    /** The Translate row's level (AI models per task), when a model answered. */
+    thinking?: string | null;
     result: string;
     causeName?: string | null;
     status?: number | null;
   }) => {
     const { started, ...rest } = fields;
     // Never the text, the chat or message ids: counts, language codes, ms, model and result only.
-    log.info({ event: 'live_translate', ...rest, ms: now() - started }, 'Live translate');
+    log.info(
+      { event: 'live_translate', task: 'translate', ...rest, ms: now() - started },
+      'Live translate',
+    );
   };
 
   const pruneDrafts = () => {
@@ -426,6 +431,7 @@ export function createLiveTranslateService(
           target,
           started,
           model: answer.model,
+          thinking: answer.thinking,
           result: 'ok',
         });
       } catch (error) {
@@ -504,6 +510,7 @@ export function createLiveTranslateService(
         target,
         started,
         model: answer.model,
+        thinking: answer.thinking,
         result: changed ? 'refused' : 'ok',
       });
       if (changed) return { status: 'refused', ...changed };

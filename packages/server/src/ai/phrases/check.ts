@@ -3,10 +3,10 @@ import {
   REPLY_PHRASE_MIN_CHARACTERS,
   type ReplyPhraseLanguage,
 } from '@ezychat/shared';
+import { EMAIL_ADDRESS, addressesIn, replaceAddresses } from '../../address-scan.js';
 import { copiesInternal, ungroundedNumbers } from '../draft-check.js';
 import type { NewPhrase, StoredPhrase } from './repo.js';
 
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 // Seven or more digits, also with spaces, dashes or a leading + (phone numbers, account numbers).
 const LONG_NUMBER = /\+?\d[\d\s-]{5,}\d/g;
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -17,7 +17,7 @@ const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  */
 /** Every email and phone-like number in a text (the same patterns the cleaner replaces). */
 export const contactsIn = (text: string): string[] => [
-  ...(text.match(EMAIL) ?? []),
+  ...addressesIn(text, EMAIL_ADDRESS),
   ...(text.match(LONG_NUMBER) ?? []),
 ];
 
@@ -25,7 +25,7 @@ export const contactsIn = (text: string): string[] => [
 export const holdsContact = (text: string) => contactsIn(text).length > 0;
 
 export function cleanTeamReply(text: string, names: readonly string[]): string {
-  let out = text.replace(EMAIL, '[email]').replace(LONG_NUMBER, '[number]');
+  let out = replaceAddresses(text, EMAIL_ADDRESS, '[email]').replace(LONG_NUMBER, '[number]');
   for (const name of names) {
     const re = nameMatcher(name);
     if (re) out = out.replace(re, '[name]');
