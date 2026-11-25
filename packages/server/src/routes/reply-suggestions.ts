@@ -12,7 +12,6 @@ import {
   replySuggestionsEnabled,
   replySuggestionsUpgraded,
   setReplySuggestions,
-  setReplySuggestionsModel,
 } from '../ai/reply-suggestions-setting.js';
 import { requireAdmin, requireUser } from '../auth/guards.js';
 import { ChatRepo } from '../chats/repo.js';
@@ -58,15 +57,32 @@ export default async function replySuggestionRoutes(app: FastifyInstance, ctx: A
     return { jid, signal: cancel.signal };
   };
 
+  // The Writing help row's save limit, shared in spirit with PUT /ai/task-models (30 a minute per admin).
+  const modelLimiter = new WindowLimiter({ windowMs: 60_000, max: 30 });
   // Outside /api/ai on purpose: every /api/ai route is admin-only (ai-routes-access.test.ts).
   app.get('/reply-suggestions', async () => status());
   app.put('/ai/reply-suggestions', { preHandler: requireAdmin(ctx) }, async (req) => {
     const { enabled, model } = parse(ReplySuggestionsBody, req.body);
-    if (model !== undefined && !ai.isSuggestModel(model))
-      throw errors.validation('Choose Fast, Same as the AI agent or a model of this connection');
     const actor = { userId: req.user!.id, ip: clientIp(req) };
+    // Older clients: the model for suggestions is now AI models → Writing help (docs/ai-models.md), with the same
+    // list read and save limit as PUT /ai/task-models. It is saved first: a refused model changes nothing.
+    if (model !== undefined) {
+      const hit = modelLimiter.hit(String(req.user!.id));
+      if (!hit.allowed) throw errors.rateLimited(hit.retryAfterSec);
+      await ai.warmModelList();
+      if (!ai.isSuggestModel(model))
+        throw errors.validation('Choose Fast, Same as the AI agent or a model of this connection');
+      const row = ai.taskModels().tasks.writing;
+      // Keep the row's Speed and quality level when the model stays the same (Fast included).
+      const keep = model === 'fast' ? 'fast' : model === 'agent' ? 'main' : model;
+      const thinking = !row.isDefault && row.choice === keep ? row.thinking : null;
+      const choice = keep === 'fast' && !thinking ? null : keep;
+      ai.setTaskModels(
+        { tasks: { writing: choice ? { choice, ...(thinking ? { thinking } : {}) } : null } },
+        actor,
+      );
+    }
     if (enabled !== undefined) setReplySuggestions(ctx, enabled, actor);
-    if (model !== undefined) setReplySuggestionsModel(ctx, model, actor);
     return status();
   });
   app.get('/ai/reply-suggestions/model', { preHandler: requireAdmin(ctx) }, async () =>

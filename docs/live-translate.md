@@ -34,7 +34,7 @@ shows exactly as sent or received.
   be the caller's, for this chat, at most 30 minutes old, else 400 `translation_expired`) or `sentOriginal: true`. The
   typed record (`message_typed`) is stored in the message's insert transaction and follows the id rename. The
   customer sees no "translated" mark.
-- **Cost:** one call on the "Model for suggestions" per batch (≤ 50 messages on screen), no tools, no retries, no
+- **Cost:** one call on the AI models → Translate row (default Fast, docs/ai-models.md) per batch (≤ 50 messages on screen), no tools, no retries, no
   back-translation. Cached per message, revision (`edited_at`) and target, so a reload or a teammate with the same
   language costs nothing. Each translated message and each draft counts one against the person's daily limit
   (default 200, 0 = none; `live_translate_usage`, business time zone). Limits: translations 120 a minute, drafts 60 a
@@ -58,3 +58,5 @@ shows exactly as sent or received.
 - 2026-11-19: Server: `Message.typed`/`sentOriginal` are optional fields (not zod defaults) so older fixtures and
   servers keep parsing; extra codes `translation_expired` and `translate_failed`; an alias merge keeps the surviving
   chat's languages and fills a chosen language only the other chat had.
+- 2026-11-22: Translations run on their own AI models row, **Translate**, default Fast + Faster (owner, AI models per
+  task; was the "Model for suggestions"). The privacy line names the Translate model in AI models.

@@ -70,6 +70,52 @@ export interface MessageBubbleProps {
   highlighted?: boolean;
   /** Edit and delete (⋮ menu; under Reply in the press-and-hold bar on touch). */
   changes?: MessageChangeProps;
+  /** Admins: the AI agent's setup page, so its name above its message is a link there. */
+  outboundHref?: string | null;
+  /** The agent's own name (without the "(AI)" mark), for the link's screen-reader label. */
+  outboundName?: string | null;
+}
+
+/**
+ * The AI agent's name above its message, linking to its setup page through the navigation guard.
+ * A long press or swipe that starts on the name is a gesture on the bubble, never a tap on the link:
+ * its trailing click is dropped and the touch link menu (Android, iOS) is suppressed.
+ */
+function AgentLink({
+  to,
+  label,
+  name,
+  wasGesture,
+}: Readonly<{ to: string; label: string; name: string; wasGesture: () => boolean }>) {
+  const { t } = useTranslation('inbox');
+  const guarded = useGuardedLinkClick(to);
+  const [touch, setTouch] = useState(false);
+  const open = t('message.openAgent', { name });
+  return (
+    <Link
+      to={to}
+      onPointerDown={(e) => setTouch(e.pointerType === 'touch')}
+      onContextMenu={(e) => {
+        if (touch) e.preventDefault();
+      }}
+      onClick={(e) => {
+        if (wasGesture()) {
+          e.preventDefault();
+          return;
+        }
+        guarded(e);
+      }}
+      aria-label={open}
+      title={open}
+      data-testid="agent-link"
+      // touch: the link itself is 44 px tall inside its own row (no box reaching over the text below)
+      className="group inline-flex max-w-full items-center underline decoration-dotted underline-offset-2 outline-none [-webkit-touch-callout:none] hover:decoration-solid pointer-coarse:min-h-11"
+    >
+      <span className="truncate rounded-sm group-focus-visible:ring-2 group-focus-visible:ring-ring">
+        {label}
+      </span>
+    </Link>
+  );
 }
 
 /** Read-only profile of a group sender, from their direct chat, with a link to that chat. */
@@ -199,6 +245,8 @@ export function MessageBubble({
   changes,
   onOpenQuote,
   highlighted = false,
+  outboundHref = null,
+  outboundName = null,
 }: MessageBubbleProps) {
   const { t } = useTranslation(['inbox', 'common']);
   // Deleted for everyone: no reply, reaction or copy (WhatsApp shows only the placeholder).
@@ -407,8 +455,24 @@ export function MessageBubble({
           )
         )}
         {out && outboundLabel && (
-          <p className="mb-0.5 truncate text-[11px] font-medium text-muted-foreground">
-            {outboundLabel}
+          // The link keeps its own truncation so the paragraph does not clip its focus ring.
+          <p
+            className={cn(
+              'mb-0.5 text-[11px] font-medium text-muted-foreground',
+              // touch: the 44 px row starts at the bubble's top padding edge, so it covers nothing else
+              outboundHref ? 'flex min-w-0 pointer-coarse:-mt-1.5 pointer-coarse:mb-0' : 'truncate',
+            )}
+          >
+            {outboundHref ? (
+              <AgentLink
+                to={outboundHref}
+                label={outboundLabel}
+                name={outboundName ?? outboundLabel}
+                wasGesture={swipe.wasGesture}
+              />
+            ) : (
+              outboundLabel
+            )}
           </p>
         )}
         {/* "Forwarded" / "Forwarded many times", as WhatsApp shows it. */}

@@ -10,9 +10,17 @@ import type {
   AiTestResult,
 } from '@ezychat/shared';
 
+/** Reasoning effort a task row chose ("Speed and quality": Faster · Balanced · Smarter). */
+export type AiReasoningEffort = 'low' | 'medium' | 'high';
+
 export interface AiPrompt {
   instructions: string;
   input: string;
+  /**
+   * The task row's reasoning effort (docs/ai-models.md). Undefined = send nothing (the model's own). ChatGPT
+   * always takes it, an OpenAI key only for reasoning models, Claude never (phase 2).
+   */
+  reasoningEffort?: AiReasoningEffort;
   /**
    * Random per-install id (setting `ai_install_id`). Providers turn it plus the model into a stable
    * `prompt_cache_key` (see promptCacheKey). Never customer data.
@@ -41,7 +49,10 @@ export interface AgentTurnTiming {
   /** 1 when a malformed first answer was asked again (that attempt's steps are not counted). */
   retries: number;
 }
-export type AiRewritePrompt = Pick<AiPrompt, 'instructions' | 'input' | 'cacheId'>;
+export type AiRewritePrompt = Pick<
+  AiPrompt,
+  'instructions' | 'input' | 'cacheId' | 'reasoningEffort'
+>;
 
 /** Ask Ezy: one assistant turn with the signed-in user's read tools (`ask-ezy/`). */
 export interface AiAssistCall {
@@ -54,6 +65,8 @@ export interface AiAssistCall {
    * not the fast one.
    */
   main?: boolean;
+  /** The Ask Ezy row's reasoning effort (undefined = low on the fast model, the model's own on `main`). */
+  reasoningEffort?: AiReasoningEffort;
   /**
    * The whole turn's time limit (Ask Ezy's own budget: 90 s, 150 s for setup). Omitted = the 60 s that customer
    * replies get; an "improve the agent" turn with tests runs longer than that.
@@ -197,6 +210,8 @@ export interface AiProvider {
   models?(): Promise<AiModelList>;
   /** Model ids a ChatGPT connection may save ('' = Auto is always allowed). */
   knownModels?(): readonly string[];
+  /** ChatGPT: the account's live model list has been read since sign-in (else `knownModels` is the built-in list). */
+  modelListRead?(): boolean;
   /** Sends a short prompt with the saved model and reports the reply or error. */
   test?(model: string): Promise<AiTestResult>;
   /** The model a ChatGPT request will use ('' = Auto resolves to the first live model). */

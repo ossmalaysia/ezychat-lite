@@ -44,6 +44,12 @@ into AGENTS.md.
   or trim with a loop, and pin it with a timing test on the longest message (L-27: 2 s → 13 ms). To time it in a Dev
   Build, pick a Live translate target the text is not guessed to be in (else it is `same_language` and the scan never
   runs) and use `e2e/devbuild-translate-check.mjs` against the mock-model `agents-devbuild.ts`.
+- Before timing a flagged regex, trace what really reaches it: a cap on the way in (Safety cuts text to 4,000
+  characters) makes a 2 s bench harmless, while a loader with no cap (`customerTexts`: up to 200 whole messages) makes a
+  harmless-looking trim the real stall (L-29).
+- A redaction pattern must not be made linear with a lookbehind start anchor (`(?<![\w.+-])…@`) or a length cap: both leave
+  an address unredacted (one glued to the previous match, or the start of an over-long run). Use `address-scan.ts`
+  (scan from each `@`, same matches as the plain pattern; L-28).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
   and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code
@@ -295,6 +301,14 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
   no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
   value it found in `finally`.
+- A Playwright element screenshot of a card taller than the window comes out blank below the fold in the app and its
+  mocks (the page scrolls inside its own container, not the document): grow the viewport height for the shot, then
+  restore it (`ai-models-shots.mjs`).
+- Before pruning a feature folder for retention, `grep -rn "features/<name>"` across code, tests and AGENTS.md: if code
+  cites its design, move `design.md` to a lasting `docs/<name>.md` (with a decision log) and repoint the comments; leave
+  numbered SQL migrations untouched.
+- Before designing a model or provider choice, list every AI call and what it really sends per connection: ChatGPT
+  `draft` calls hard-code `low` reasoning even on the main model, so "same as today" defaults must say so.
 
 ## Multi-agent process
 
@@ -303,6 +317,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - A change to an owner rule (e.g. "No tracking in Lite") needs the owner's own words in the session doing it: child
   cloud sessions refuse approvals relayed by another session. When the owner approves in the main session, do the
   work there (or in a fork of it), not in a child.
+- A small core-tier fix with full coverage scores only 55 (`NOT READY`): plan the Dev Build row (+10) and the
+  workbook E2E stage (+10) before pushing, so `MERGE OK` needs no second wait on CI.
 - `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
   counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
   docs-only commit, or the stages show as `✗ missing`. The same holds for the commit cited in a
@@ -476,9 +492,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   on one such test is not a reason to doubt the PR under review.
 
 - Merging main into a branch where two feature mocks were cloned from the same baseline can produce
-  rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
-  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
-  mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
+  rename/rename conflicts: git writes 8-character markers (`<  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
+mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
 - Known slow-runner timeouts on CI, also seen on `main`: `ai-agents-repo.test.ts` and `inbox-access.test.ts`
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
@@ -505,7 +520,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review (it reads the PR on GitHub, so push
-  the records first, and put every record in one push: each push restarts CI); a Dev Build row counts only with the
+  the records first, and put every record in one push: each push restarts CI; SonarCloud's automatic analysis now and
+  then runs on no push at all (no check run, the release review says "missing: SonarCloud"): the next real push
+  brings it back; never an empty commit); a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
   SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
   before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
@@ -900,12 +917,16 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - The service data folder (`C:\ProgramData\wa-team-inbox`, LocalSystem) is unreadable for a normal user: `statSync`
   there throws `EPERM` (Windows) / `EACCES`. Never fold every error into "missing" (`lite-import/detect.ts`
   `mtimeOrDenied`): a locked folder is "found, needs elevation", and the screen must say how to free it, not "not found".
+- `e2e/` is in SonarCloud's sources: a script that `fetch`es a URL taken from an API answer (a sign-in link) fails the
+  security gate (S5144 SSRF, rating C). In screenshot scripts answer that state in the browser with `ctx.route`
+  instead of walking the sign-in flow.
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
   admin, and `/setup` then no longer shows (a second run times out waiting for it). A desktop-only screen gets
   its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`). Grep `e2e/` for a shared module before
-  copying any script's setup (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
+  copying any script's setup (older scripts such as `reply-suggestions-screens.mjs` still inline it: never copy one as a
+  template) (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
   cloud session `launchBrowser` needs `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`. A script's
   fetch sends `content-type: application/json` only with a body: the server answers 400 to a bodiless DELETE with it.
   Its API calls go through `cookieSession` (`devbuild-client.mjs`): a raw `fetch(base + path)` fails SonarCloud's
@@ -1549,6 +1570,25 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Routing an AI call to a chosen model: keep the provider's own meaning of a flag the tests and other callers read
+  (`fast` on drafts, `main` on Ask Ezy as "setup turn"). AI models per task first sent every resolved model with
+  `fast: false` / `main: true`, which kept behaviour but broke 25 Ask Ezy tests that detect a setup turn by `main`;
+  set the flag only when the row really leaves the old default, and pass the new knob (`reasoningEffort`) separately.
+- A per-task model setting is stored per connection mode and resolved at every call (the ChatGPT list is live): a saved
+  model the connection no longer lists runs on the row's fallback with a warning, never on a model it does not offer.
+  ChatGPT's `knownModels()` is the built-in list until something reads the live one (`resolveModel` never does for a
+  known id): never call a saved id "unlisted" from a cold list; keep it and read the list (`models()`) on the screen.
+- A cache flag answers one question: "ever read" (is this list authoritative?) is not "still fresh" (should I refetch?).
+  Validate against the last read copy even when it is stale, refetch when it is old, and when nothing was ever read
+  refuse to store an unchecked name (503) instead of accepting everything.
+- A reasoning model's thinking tokens count against `maxOutputTokens`: give every call path of a reasoning model
+  headroom (draft, agent turn, assistant, rewrite: `withReasoningHeadroom`), and decide "reasons" separately from "takes our
+  level" (o1-mini and -pro reason but take none), or the call ends `incomplete` and fails.
+- A model choice that cannot be checked yet runs on the documented fallback for that call and triggers the check;
+  never let it reach a provider whose own fallback differs (ChatGPT `resolveModel` → Auto, not the row's Fast).
+- Two Playwright projects on one shared e2e server must never write the same setting: let one project write, the
+  other only read layout (`test.skip`/early return on `info.project.name`).
+
 - A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
   `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
   translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.
@@ -1935,11 +1975,26 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A link or label built from a URL id (`&agent=3`, `from=agent:3`) is checked against the same list the page uses
+  for its fallback (one shared helper, e.g. `wayBackAgent`), so a stale id never links one place while the page shows
+  another.
+- Before building a requested screen, grep the page for it: the agent page's Connectors card (`AgentConnectorsCard`) already existed when it was asked for again; the gap was wording and a way back, not a new card. Sibling tests (`GitHubPage`, `GoogleDrivePage`, `GoogleSheetsPage`, `SqlAccountPage`) assert the card's hrefs and copy, so run all of `admin/connectors` after a change to it.
+- Before adding a contract field for a web-only link or label, check what the client already loads (the team
+  directory carries `kind`, `aiAgentId`, `aiDeleted`); add to `packages/shared` only what no loaded response has.
+- A tappable element inside a swipe/long-press surface (a link or button in a message bubble) checks the surface's
+  `wasGesture()` in its `onClick` and drops the click, and a real `<a>` there also blocks the touch link menu
+  (`onContextMenu` for touch, `-webkit-touch-callout:none`); never let `overflow:hidden` on a parent clip its focus
+  ring. A 44 px hit area for a small label next to other tappable content comes from the label's own row height, never
+  from an `after:` box on a `relative` element: that box paints over the unpositioned siblings and steals their taps
+  (a link at the start of the message text opened the agent page).
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
   `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through
   `document.fonts` status and a canvas colour check, not a screenshot; and never assert a page-wide "nothing loaded
   yet" state there: the three projects share one server, so a parallel project's chat may already be on screen.
+- e2e specs run in parallel on one server: never change shared team state a spec does not own (the AI connection, a
+  team switch) even with a restore at the end; another spec reads it meanwhile (AI models' spec switching to ChatGPT
+  broke `ai-member.spec`'s saved-key check). Work on whatever is saved, or use a separate e2e project/port.
 - Never start the app with `Start-Process -WindowStyle Hidden` or `windowsHide`: Windows applies that show state to the
   app's first window, so the first `show()` leaves it invisible (measured: hidden start → invisible, a second `show()` →
   visible). Windows the user must see go through `window-show.ts#showWindow` (shows again when still invisible). The
@@ -2327,6 +2382,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
   that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
   key's `#<id>` suffix, never by an id tail alone.
+- A page that keeps "where I came from" in the URL (`from=agent`) must survive its own pickers: a picker that changes
+  the subject (`agent`) pins the origin first (`from=agent:<id>`), or the way back points at the new subject. Decide
+  UI cues (Set up) from a flag the line builder returns, never by comparing the rendered text with translations.
+- Every in-app `<Link>` that leaves an open chat (also one inside a message bubble) takes `onClick` from
+  `useGuardedLinkClick`, or the Customer panel's unsaved edits are lost; put the hook in a small child component rendered
+  only with the link, because it needs a Router and bubbles render in tests without one.
 
 ## Internationalization
 
