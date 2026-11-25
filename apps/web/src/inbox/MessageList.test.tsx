@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { Message } from '@ezychat/shared';
 import { HIGHLIGHT_MS, MessageList, type MessageListProps } from './MessageList';
 import type { TimelineItem } from './timeline';
 import type { Directory } from './useDirectory';
+import { NavigationGuardProvider, useNavigationGuardRef } from './navigation-guard';
 
 const base: Message = {
   id: 'M-0',
@@ -96,5 +98,100 @@ describe('MessageList jump to a quoted message', () => {
     );
     act(() => getByTestId('quote-jump').click());
     expect(onOpenQuote).toHaveBeenCalledWith('M-1');
+  });
+});
+
+describe('MessageList AI agent link', () => {
+  const agentMsg = (): TimelineItem => ({
+    kind: 'message',
+    key: 'A-1',
+    at: base.timestamp,
+    message: { ...base, id: 'A-1', fromMe: true, sentByUserId: 7 },
+  });
+  const dir = (isAdmin: boolean, row: Record<string, unknown>) =>
+    ({
+      me: null,
+      isAdmin,
+      byId: new Map([
+        [7, { id: 7, kind: 'ai', aiAgentId: 3, displayName: 'Workshop assistant', ...row }],
+      ]),
+      // the real directory adds the "(AI)" mark to an AI user's name
+      nameOf: () => 'Workshop assistant (AI)',
+    }) as unknown as Directory;
+  const view = (d: Directory) =>
+    render(
+      <MemoryRouter>
+        <MessageList {...props({ items: [agentMsg()], directory: d })} />
+      </MemoryRouter>,
+    );
+
+  /** The list inside a navigation guard; returns the guard, which records each leave attempt. */
+  const guarded = (over: Partial<MessageListProps> = {}) => {
+    const guard = vi.fn();
+    function GuardSlot() {
+      useNavigationGuardRef().current = guard;
+      return null;
+    }
+    render(
+      <MemoryRouter>
+        <NavigationGuardProvider>
+          <GuardSlot />
+          <MessageList {...props({ items: [agentMsg()], directory: dir(true, {}), ...over })} />
+        </NavigationGuardProvider>
+      </MemoryRouter>,
+    );
+    return guard;
+  };
+
+  it('links the agent name to its page for admins', () => {
+    const { container } = view(dir(true, {}));
+    const link = container.querySelector('a[href="/admin/members/ai/3"]');
+    expect(link?.textContent).toBe('Workshop assistant (AI)');
+    // the screen-reader label names the agent once, without the visible "(AI)" mark
+    expect(link?.getAttribute('aria-label')).toBe('Open Workshop assistant settings');
+    expect(link?.getAttribute('title')).toBe('Open Workshop assistant settings');
+  });
+  it('asks the navigation guard before leaving the chat', () => {
+    const guard = guarded();
+    fireEvent.click(screen.getByRole('link', { name: /Workshop assistant/ }));
+    expect(guard).toHaveBeenCalledTimes(1);
+  });
+  it('ignores the click a long press leaves behind and blocks the touch link menu', () => {
+    vi.useFakeTimers();
+    const guard = guarded({ onReply: vi.fn() });
+    const link = screen.getByTestId('agent-link');
+    fireEvent.pointerDown(link, { pointerType: 'touch', pointerId: 1, clientX: 5, clientY: 5 });
+    act(() => vi.advanceTimersByTime(600));
+    fireEvent.pointerUp(link, { pointerType: 'touch', pointerId: 1 });
+    // the touch browser's link menu is suppressed
+    expect(fireEvent.contextMenu(link)).toBe(false);
+    // the trailing click neither opens the agent page nor asks the guard
+    expect(fireEvent.click(link)).toBe(false);
+    expect(guard).not.toHaveBeenCalled();
+    // a plain tap afterwards still works
+    fireEvent.pointerDown(link, { pointerType: 'touch', pointerId: 2, clientX: 5, clientY: 5 });
+    fireEvent.pointerUp(link, { pointerType: 'touch', pointerId: 2 });
+    fireEvent.click(link);
+    expect(guard).toHaveBeenCalledTimes(1);
+  });
+  it('keeps its touch area in its own row, never as a box over the text below', () => {
+    view(dir(true, {}));
+    const link = screen.getByTestId('agent-link');
+    // a positioned link with an after: box paints over the message text and steals its taps
+    expect(link.className).not.toMatch(/\brelative\b|after:/);
+    expect(link.className).toContain('pointer-coarse:min-h-11');
+  });
+  it('keeps the context menu for a mouse', () => {
+    view(dir(true, {}));
+    const link = screen.getByTestId('agent-link');
+    fireEvent.pointerDown(link, { pointerType: 'mouse', pointerId: 1 });
+    expect(fireEvent.contextMenu(link)).toBe(true);
+  });
+  it('stays plain text for non-admins and deleted agents', () => {
+    expect(view(dir(false, {})).container.querySelector('a')).toBeNull();
+    cleanup();
+    const deleted = view(dir(true, { aiDeleted: true }));
+    expect(deleted.container.querySelector('a')).toBeNull();
+    expect(deleted.container.textContent).toContain('Workshop assistant');
   });
 });
