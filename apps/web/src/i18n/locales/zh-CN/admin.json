@@ -341,6 +341,7 @@
       "revoked": "已移除",
       "canSendBadge": "可发送",
       "canNewBadge": "新号码",
+      "canResolveBadge": "可解决对话",
       "signedInBadge": "已登录",
       "tokenBadge": "令牌"
     },
@@ -363,7 +364,9 @@
       "canNew": "也可以向新号码发送消息",
       "canNewHint": "助手可以与收件箱中没有的号码开始对话。WhatsApp 会先检查该号码。每天最多 20 个新号码。",
       "canNewWarningTitle": "WhatsApp 封号风险",
-      "canNewWarning": "如果您的号码向未曾要求联系的人发送消息，WhatsApp 可能会封禁该号码。仅当您的团队联系已同意被联系的人时才开启此项。助手也会收到此警告。"
+      "canNewWarning": "如果您的号码向未曾要求联系的人发送消息，WhatsApp 可能会封禁该号码。仅当您的团队联系已同意被联系的人时才开启此项。助手也会收到此警告。",
+      "canResolve": "可解决对话",
+      "canResolveHint": "您的 AI 助手可以以您的身份将对话标记为已解决，也可以重新打开。不会向客户发送消息。"
     },
     "created": {
       "title": "立即复制您的令牌",
@@ -452,11 +455,72 @@
       "cost": "每条建议和每次补全都是对您的 AI 服务商的一次请求，可能会产生费用。",
       "noConnection": "请先在上方连接 AI 服务商，才能使用回复建议。",
       "upgraded": "新功能：回复建议。更新后默认关闭，未经您的选择不会产生新的费用。",
-      "model": "建议所用模型",
-      "modelFast": "快速（推荐）：{{model}}",
-      "modelAgent": "与 AI 连接相同：{{model}}",
-      "modelFastHint": "“建议回复”约 1–2 秒完成，输入时即时显示灰色补全。{{model}} 是此连接的快速模型。",
-      "modelSlowHint": "较大的模型写得更慢：灰色补全常常来得太晚，而且每次请求的费用可能更高。"
+      "modelNote": "建议回复使用的模型现在在「AI 模型 → 写作帮助」中设置。"
+    },
+    "aiModels": {
+      "title": "AI 模型",
+      "description": "为每项工作选择 AI 模型。快速模型回答更快、费用更低。更聪明的模型回答更好，但更慢，也会用掉更多套餐额度。",
+      "connection": "你的 AI 连接：{{connection}} · 主模型 {{main}} · 快速模型 {{fast}}。",
+      "perConnection": "每种连接各自保存选择。",
+      "mode": {
+        "chatgpt": "ChatGPT 登录",
+        "api": "OpenAI API 密钥",
+        "claude": "Claude API 密钥"
+      },
+      "model": "模型",
+      "fast": "快速",
+      "main": "主模型",
+      "recommended": "（推荐）",
+      "fastShort": "快速（{{model}}）",
+      "mainShort": "主模型（{{model}}）",
+      "notOffered": "{{model}} · 已不再提供",
+      "useDefault": "恢复默认",
+      "tier": {
+        "fast": "回答更快，费用更低。",
+        "balanced": "速度与质量兼顾。",
+        "smart": "回答最聪明，但更慢、费用更高。"
+      },
+      "tierShort": {
+        "fast": "更快",
+        "balanced": "均衡",
+        "smart": "更聪明，费用更高"
+      },
+      "thinking": "速度与质量",
+      "thinkingLevel": {
+        "low": "更快",
+        "medium": "均衡",
+        "high": "更聪明"
+      },
+      "thinkingHint": {
+        "low": "更快：回答最快。",
+        "medium": "均衡：速度与质量兼顾。",
+        "high": "更聪明：回答最好，最慢，会用掉更多套餐额度。"
+      },
+      "unavailable": "你的 AI 连接已不再提供 {{model}}。在你选择其他模型之前，EzyChat 使用{{fallback}}。",
+      "alwaysMain": "以下工作始终使用主模型（{{main}}）：用 Ask Ezy 设置代理、梦境模式建议的修改，以及填写客户资料，因为它们会更改你的设置或记录。语音消息按下方自己的设置。",
+      "tasks": {
+        "agentReplies": {
+          "title": "AI 代理回复",
+          "what": "在聊天和群组中回复客户、试一试以及定时消息。"
+        },
+        "askEzy": {
+          "title": "Ask Ezy",
+          "what": "应用内助手，回答你关于聊天和报表的问题。"
+        },
+        "translate": {
+          "title": "翻译",
+          "what": "实时翻译：客户的消息，以及你发送前的回复。"
+        },
+        "writing": {
+          "title": "写作帮助",
+          "what": "建议回复、输入时的灰色提示文字、修正英文以及用 AI 编辑。"
+        },
+        "background": {
+          "title": "后台检查",
+          "what": "对收到消息的安全检查、短语列表，以及梦境模式每晚学到的内容。"
+        }
+      },
+      "writingSlow": "使用较慢的模型时，输入时的灰色提示文字可能来不及出现。"
     },
     "askEzy": {
       "title": "Ask Ezy",
@@ -518,7 +582,7 @@
       "title": "英文修正",
       "description": "团队成员输入英文回复时，拼写错误会立即标出，语法错误在短暂停顿后标出。点一下即可修正；未经成员确认，不会修改或发送任何内容。",
       "enable": "为团队检查英文",
-      "cost": "拼写在每台设备上用内置的英式英文词典检查（约 0.2 MB，只下载一次）：免费，不用 AI。语法在每次停止输入后向您的 AI 服务商发送一个简短请求（建议所用的模型），可能会产生费用。马来文和中文消息不会被检查。",
+      "cost": "拼写在每台设备上用内置的英式英文词典检查（约 0.2 MB，只下载一次）：免费，不用 AI。语法在每次停止输入后向您的 AI 服务商发送一个简短请求（AI 模型中的「写作帮助」模型），可能会产生费用。马来文和中文消息不会被检查。",
       "rules": "只修正拼写和语法。数字、价格、姓名、链接和订单号永远不会被更改，成员的语气保持不变（lah、ya）。",
       "noConnection": "未连接 AI：只检查拼写。在上方连接 AI 服务商后也会检查语法。",
       "upgraded": "新功能：英文修正。更新后默认关闭，未经您选择不会产生新的费用。",
@@ -1719,6 +1783,7 @@
     "requestMessage": "您好 EzyChat 团队，我们想要一个连接器，用于：",
     "breadcrumb": "导航路径",
     "notFound": "此连接器不存在。",
+    "backToAgent": "返回 AI 代理",
     "backToGallery": "所有连接器",
     "byCore": "{{product}} 内置",
     "byEnterprise": "EzyChat Enterprise",
@@ -1754,7 +1819,8 @@
       "description": "{{name}} 在聊天时可以使用的系统。设置在各连接器的页面中。",
       "checkAndBook": "查看空闲时间并预约",
       "checkOnly": "查看空闲时间；由团队预约",
-      "off": "此代理已关闭",
+      "off": "此代理未使用",
+      "setUp": "去设置",
       "none": "尚无连接器。",
       "browse": "浏览连接器",
       "sheetsReads": "读取 {{tabs}}",
@@ -1850,6 +1916,7 @@
       "blocked": "浏览器阻止了登录窗口。请打开登录页面继续。",
       "openSignIn": "打开登录页面",
       "sameComputer": "Google 会返回到运行 {{product}} 的电脑：只有在那台电脑的浏览器中才能完成登录。",
+      "remoteSignIn": "Google 登录只能在运行 {{product}} 的电脑上完成。请在那台电脑上打开 {{product}} 并登录，这里也会显示结果。",
       "cancelSignIn": "取消",
       "failed": {
         "denied": "Google 登录已取消。未连接任何内容。",
@@ -2155,6 +2222,7 @@
         "expired": "文件选择器等待时间过长。请重试。"
       },
       "pickSameComputer": "文件选择器只能在运行 {{product}} 的电脑上的浏览器中使用。",
+      "remotePick": "选择表格只能在运行 {{product}} 的电脑上进行。请在那台电脑上打开 {{product}} 并选择表格，这里也会显示。您仍可在此创建新表格。",
       "tabsTitle": "此代理可使用的工作表",
       "tabsHint": "代理的指示说明何时使用它们。列名来自每个工作表的第一行。在 Google Sheets 中改了工作表？请按“刷新”。",
       "refresh": "刷新",
@@ -2291,6 +2359,7 @@
       "pickBlocked": "浏览器拦截了窗口。请打开文件选择器继续。",
       "openPicker": "打开文件选择器",
       "pickSameComputer": "文件选择器只能在运行 {{product}} 的电脑上的浏览器中使用。",
+      "remotePick": "选择文件夹或文件只能在运行 {{product}} 的电脑上进行。请在那台电脑上打开 {{product}} 并选择，这里也会显示。",
       "pickError": {
         "cancelled": "没有选择任何内容。",
         "failed": "{{product}} 无法打开您选择的内容。请重新选择。",
@@ -3225,5 +3294,18 @@
     "limitNone": "不限制：团队和 AI 助手每天可以给任意数量的新号码发消息。",
     "limitBanTitle": "上限过高可能导致号码被封禁",
     "limitBanBody": "如果号码给很多没有要求联系的人发消息，WhatsApp 可能会封禁该号码。除非对方期待你的消息，否则请保持较低的上限。"
+  },
+  "liveTranslate": {
+    "title": "实时翻译",
+    "description": "团队用自己的语言阅读和回复。客户的消息显示为译文，回复以客户的语言发出。",
+    "enable": "为所有人开启实时翻译",
+    "enableHelp": "所有员工都可以使用。每个人在聊天顶部点“翻译”按钮，按聊天开启；在他们开启之前保持关闭。关闭此项即可为所有人停用。",
+    "limit": "每人每日上限",
+    "limitHelp": "默认 200；0 = 不限。每条译出的消息和每次发送的译文算一次；已翻译过的消息不再计数。",
+    "privacy": "消息文本会发送到你的 AI 连接（「AI 模型」中的翻译模型）进行翻译。EzyChat 日志只记录次数和语言，从不记录文本。客户不会看到“已翻译”标记。",
+    "usage_one": "今天：{{people}} 人共翻译 {{count}} 次",
+    "usage_other": "今天：{{people}} 人共翻译 {{count}} 次",
+    "noConnection": "请先在上方连接 AI。在此之前，聊天按原样显示消息。",
+    "languages": "每个人在 账户 → 我的语言 中选择自己的语言。"
   }
 }

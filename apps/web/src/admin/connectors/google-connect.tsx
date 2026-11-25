@@ -18,6 +18,7 @@ import { Banner, StatusDot, type StatusTone } from '@/components/app';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog, ErrorState, ListSkeleton, Pending } from '../adminUi';
+import { RemoteOnlyNotice } from './connector-ui';
 
 interface Signing {
   requestId: string;
@@ -195,7 +196,11 @@ export function GoogleAccountCard({
 }: Readonly<{
   testId: string;
   icon: LucideIcon;
-  query: UseQueryResult<{ state: GoogleCalendarState; account: string | null }>;
+  query: UseQueryResult<{
+    state: GoogleCalendarState;
+    account: string | null;
+    onThisComputer?: boolean;
+  }>;
   flow: GoogleConnectFlow;
   disconnect: UseMutationResult<unknown, Error, void>;
   texts: GoogleAccountTexts;
@@ -207,20 +212,25 @@ export function GoogleAccountCard({
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const data = query.data;
   const state = data?.state;
+  /** Google's sign-in comes back to the computer that runs EzyChat only. */
+  const remote = data?.onThisComputer === false;
 
-  const connectButton = (label: string, outline = false) => (
-    <Button
-      size="touch"
-      variant={outline ? 'outline' : 'default'}
-      className="self-start"
-      disabled={flow.starting || flow.signing !== null}
-      onClick={flow.connect}
-    >
-      {outline ? null : <Icon aria-hidden />}
-      <Pending show={flow.starting} />
-      {label}
-    </Button>
-  );
+  const connectButton = (label: string, outline = false) =>
+    remote ? (
+      <RemoteOnlyNotice testId="google-remote-notice" textKey="connectors.gc.remoteSignIn" />
+    ) : (
+      <Button
+        size="touch"
+        variant={outline ? 'outline' : 'default'}
+        className="self-start"
+        disabled={flow.starting || flow.signing !== null}
+        onClick={flow.connect}
+      >
+        {outline ? null : <Icon aria-hidden />}
+        <Pending show={flow.starting} />
+        {label}
+      </Button>
+    );
 
   return (
     <Card data-testid={testId}>
@@ -247,7 +257,7 @@ export function GoogleAccountCard({
               ))}
             </ul>
             {!flow.signing && connectButton(texts.connect)}
-            <p className="text-sm text-muted-foreground">{texts.connectHint}</p>
+            {!remote && <p className="text-sm text-muted-foreground">{texts.connectHint}</p>}
           </>
         )}
         {data && (state === 'connected' || state === 'expired' || state === 'unavailable') && (

@@ -41,6 +41,10 @@ function oldestDataDir(): string {
   db.prepare(
     "INSERT INTO quick_replies (shortcut, body, created_by, updated_at) VALUES ('hi', 'Hello!', 1, ?)",
   ).run(now);
+  // The old "Model for suggestions" (later AI models → Writing help, start-up `migrateTaskModels`).
+  db.prepare("INSERT INTO settings (key, value) VALUES ('ai_reply_suggestions_model', ?)").run(
+    JSON.stringify('agent'),
+  );
   db.close();
   mkdirSync(join(dir, 'wa-auth'));
   writeFileSync(join(dir, 'wa-auth', 'creds.json'), CREDS);
@@ -134,6 +138,13 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
     // 025: the same for Fix English (its grammar check calls the AI provider while people type).
     expect(t.ctx.settings.get('fix_english', null)).toBe(false);
     expect(t.ctx.settings.get('fix_english_upgraded', null)).toBe(true);
+    // AI models per task (start-up): "Same as the AI agent" becomes Writing help on the main model of
+    // every connection; Translate and Background checks start on Fast.
+    expect(t.ctx.settings.get('ai_task_models', null)).toEqual({
+      api: { writing: { choice: 'main' } },
+      chatgpt: { writing: { choice: 'main' } },
+      claude: { writing: { choice: 'main' } },
+    });
     // 027: every existing agent keeps answering direct chats.
     expect(listAgents(t.ctx.db).every((agent) => agent.answerDirect)).toBe(true);
     // 037: every existing user keeps seeing all chats; nobody is limited to chosen chats.
@@ -141,6 +152,24 @@ describe('upgrade from the oldest data folder', { timeout: 30_000 }, () => {
       t.ctx.db.prepare("SELECT COUNT(*) AS n FROM users WHERE chat_scope != 'all'").get(),
     ).toEqual({ n: 0 });
     expect(t.ctx.db.prepare('SELECT COUNT(*) AS n FROM member_chats').get()).toEqual({ n: 0 });
+    // 046: Live translate is on for updated installs too (owner decision), with the default limit;
+    // nobody has My language yet (it follows the app language) and old replies have no typed text.
+    expect(
+      (
+        await t.app.inject({ method: 'GET', url: '/api/live-translate', headers: { cookie } })
+      ).json(),
+    ).toMatchObject({ enabled: true, dailyLimit: 200, usedToday: 0 });
+    expect(
+      (await t.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json(),
+    ).toMatchObject({ translateLanguage: null, sendWithoutPreview: false });
+    expect(
+      (messages as Array<{ typed?: unknown; sentOriginal?: unknown }>).every(
+        (m) => m.typed === undefined && m.sentOriginal === undefined,
+      ),
+    ).toBe(true);
+    expect(
+      t.ctx.db.prepare('SELECT translate_language AS l FROM users WHERE id = 1').get(),
+    ).toEqual({ l: null });
 
     // The linked WhatsApp session is left exactly as it was: no relink after an update.
     expect(readFileSync(join(dir, 'wa-auth', 'creds.json'), 'utf8')).toBe(CREDS);

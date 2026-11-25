@@ -10,8 +10,8 @@ import { Pending } from './adminUi';
 import { SendPermissionFields, type SendPermissions } from './SendPermissionFields';
 
 /**
- * The owner of a token changes whether its AI assistant may send, and message new numbers, without a
- * new token. The same options and warnings as Create token.
+ * The owner of a token changes whether its AI assistant may send, message new numbers and resolve
+ * chats, without a new token. The same options and warnings as Create token.
  */
 export function TokenPermissionsDialog({
   token,
@@ -21,11 +21,19 @@ export function TokenPermissionsDialog({
   onClose: () => void;
 }>) {
   const { t } = useTranslation(['admin', 'common']);
-  const [perms, setPerms] = useState<SendPermissions>({ canSend: false, canNew: false });
+  const [perms, setPerms] = useState<SendPermissions>({
+    canSend: false,
+    canNew: false,
+    canResolve: false,
+  });
   useEffect(() => {
-    setPerms({ canSend: token?.canSend ?? false, canNew: token?.canMessageNewNumbers ?? false });
+    setPerms({
+      canSend: token?.canSend ?? false,
+      canNew: token?.canMessageNewNumbers ?? false,
+      canResolve: token?.canResolveChats ?? false,
+    });
   }, [token]);
-  const { canSend, canNew } = perms;
+  const { canSend, canNew, canResolve } = perms;
   const save = useUpdateApiToken();
   const close = () => {
     save.reset();
@@ -34,7 +42,8 @@ export function TokenPermissionsDialog({
   const unchanged =
     token !== null &&
     canSend === token.canSend &&
-    (canSend && canNew) === token.canMessageNewNumbers;
+    (canSend && canNew) === token.canMessageNewNumbers &&
+    canResolve === token.canResolveChats;
 
   return (
     <ResponsiveDialog
@@ -64,7 +73,14 @@ export function TokenPermissionsDialog({
             onClick={() => {
               if (!token) return;
               save.mutate(
-                { id: token.id, body: { canSend, canMessageNewNumbers: canSend && canNew } },
+                {
+                  id: token.id,
+                  body: {
+                    canSend,
+                    canMessageNewNumbers: canSend && canNew,
+                    canResolveChats: canResolve,
+                  },
+                },
                 {
                   onSuccess: () => {
                     toast.success(t('integrations.permissions.saved'));

@@ -36,6 +36,7 @@ import { PushToggle } from '../pwa/PushToggle';
 import { useAuth } from '../auth/AuthProvider';
 import { shortLocaleLabel } from '../auth/UserMenu';
 import { PhoneBar } from './PhoneBar';
+import { MyLanguageField } from './MyLanguageField';
 
 const rowClass =
   'flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
@@ -152,6 +153,9 @@ export function AccountPage() {
             </div>
             <PushToggle />
           </section>
+
+          {/* Live translate: the language I read and write in. */}
+          <MyLanguageField />
 
           <section className="divide-y overflow-hidden rounded-xl border bg-surface">
             <Link to="/change-password" className={rowClass}>

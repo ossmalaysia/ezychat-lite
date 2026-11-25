@@ -23,8 +23,10 @@ import { ErrorState, Field, Pending, SaveBar } from './adminUi';
 import { ResolveAllChatsCard } from './ResolveAllChatsCard';
 import { AiConnectionSection } from './AiConnectionSection';
 import { ReplySuggestionsSection } from './ReplySuggestionsSection';
+import { AiModelsSection } from './AiModelsSection';
 import { AskEzySettingsSection } from './AskEzySettingsSection';
 import { FixEnglishSection } from './FixEnglishSection';
+import { LiveTranslateSection } from './LiveTranslateSection';
 import { PhraseDictionarySection } from './PhraseDictionarySection';
 import { AiVoiceSection } from './AiVoiceSection';
 import { CustomerEnrichmentSection } from './CustomerEnrichmentSection';
@@ -300,10 +302,13 @@ export function SettingsPage() {
 
         <TabsContent value="ai" className="flex flex-col gap-6">
           <AiConnectionSection />
+          {/* AI models per task (docs/ai-models.md): which model does each job, per connection. */}
+          <AiModelsSection />
           <ReplySuggestionsSection />
           <AskEzySettingsSection />
           <PhraseDictionarySection />
           <FixEnglishSection />
+          <LiveTranslateSection />
           {/* Optional features collapsed under one heading, closed by default. */}
           <details className="group rounded-lg border bg-card">
             <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">

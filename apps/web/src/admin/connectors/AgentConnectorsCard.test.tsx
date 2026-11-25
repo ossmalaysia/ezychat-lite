@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { DEFAULT_BOOKING_SETTINGS } from '@ezychat/shared';
 import { AgentConnectorsCard } from './AgentConnectorsCard';
 import {
@@ -28,15 +28,22 @@ describe('Agent page → Connectors', () => {
   it.each([
     [{ ...DEFAULT_BOOKING_SETTINGS, checkFree: true, book: true }, 'Checks free times and books'],
     [DEFAULT_BOOKING_SETTINGS, 'Checks free times; your team books'],
-    [{ ...DEFAULT_BOOKING_SETTINGS, checkFree: false }, 'Off for this agent'],
+    [{ ...DEFAULT_BOOKING_SETTINGS, checkFree: false }, 'Not used by this agent'],
   ])('sums up what the agent may do in Google Calendar', async (booking, summary) => {
     stubServer(world({ bookings: { 3: booking } }));
     card();
     expect(await screen.findByText(summary)).toBeTruthy();
     expect(screen.getByTestId('agent-connector-google-calendar').getAttribute('href')).toBe(
-      '/admin/connectors/google-calendar?tab=settings&agent=3',
+      '/admin/connectors/google-calendar?tab=settings&agent=3&from=agent',
     );
     expect(screen.queryByText('Needs attention')).toBeNull();
+  });
+
+  it('adds a Set up cue to a connected connector this agent does not use', async () => {
+    stubServer(world({ bookings: { 3: { ...DEFAULT_BOOKING_SETTINGS, checkFree: false } } }));
+    card();
+    expect(await screen.findByText('Not used by this agent')).toBeTruthy();
+    expect(screen.getByText(/Set up/)).toBeTruthy();
   });
 
   it('marks a connector that needs attention', async () => {
@@ -82,7 +89,7 @@ describe('Agent page → Connectors', () => {
     // Look-ups start on, so "find" counts until it is switched off.
     expect(await screen.findByText('2 of 3 tools on')).toBeTruthy();
     expect(screen.getByTestId('agent-connector-lejar').getAttribute('href')).toBe(
-      '/admin/connectors/lejar?tab=settings&agent=3',
+      '/admin/connectors/lejar?tab=settings&agent=3&from=agent',
     );
     const kedai = screen.getByTestId('agent-connector-kedai');
     expect(kedai.textContent).toContain('Needs attention');
@@ -90,5 +97,64 @@ describe('Agent page → Connectors', () => {
     expect(await screen.findByText('1 of 1 tools on')).toBeTruthy();
     expect(screen.queryByTestId('agent-connector-stok')).toBeNull();
     expect(screen.queryByText('No connector yet.')).toBeNull();
+  });
+
+  it('says a partner connector with every tool off is not used yet, with the Set up cue', async () => {
+    const tools = [
+      { name: 'find', title: { en: 'Find' }, description: { en: 'Finds.' }, access: 'read' },
+    ] as const;
+    stubServer(
+      world({
+        google: status('disconnected'),
+        gallery: gallery([
+          ...DEFAULT_LIST,
+          listed(entry('lejar', { name: 'Lejar Accounting', tools: [...tools] }), {
+            connection: connection('connected'),
+          }),
+        ]),
+        mcpSettings: { 'lejar:3': { settings: {}, tools: { find: false } } },
+      }),
+    );
+    card();
+    const row = await screen.findByTestId('agent-connector-lejar');
+    await waitFor(() => expect(row.textContent).toContain('Not used by this agent · Set up'));
+    expect(row.textContent).not.toContain('tools on');
+  });
+
+  it('shows no Set up cue while a connector needs attention', async () => {
+    stubServer(
+      world({
+        google: status('expired'),
+        bookings: { 3: { ...DEFAULT_BOOKING_SETTINGS, checkFree: false } },
+      }),
+    );
+    card();
+    const row = await screen.findByTestId('agent-connector-google-calendar');
+    await waitFor(() => expect(row.textContent).toContain('Not used by this agent'));
+    expect(row.textContent).toContain('Needs attention');
+    expect(row.textContent).not.toContain('Set up');
+  });
+
+  it('shows no Set up cue on a partner connector gone from the list', async () => {
+    const tools = [
+      { name: 'find', title: { en: 'Find' }, description: { en: 'Finds.' }, access: 'read' },
+    ] as const;
+    stubServer(
+      world({
+        google: status('disconnected'),
+        gallery: gallery([
+          ...DEFAULT_LIST,
+          listed(entry('lejar', { name: 'Lejar Accounting', tools: [...tools] }), {
+            connection: connection('connected'),
+            delisted: true,
+          }),
+        ]),
+        mcpSettings: { 'lejar:3': { settings: {}, tools: { find: false } } },
+      }),
+    );
+    card();
+    const row = await screen.findByTestId('agent-connector-lejar');
+    await waitFor(() => expect(row.textContent).toContain('Not used by this agent'));
+    expect(row.textContent).not.toContain('Set up');
   });
 });

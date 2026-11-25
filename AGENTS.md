@@ -87,8 +87,11 @@ rejected in service mode.
 Linking: QR or phone-number pairing code (`requestPairingCode`). `FakeWaAdapter` is used by tests and
 `--fake-wa`; with it, `POST /api/dev/fake-incoming` simulates inbound messages. History import defaults to
 3 days; history media is stored `pending` and downloaded on demand (`GET /api/media/:id`, `POST …/redownload`), with the
-adapter's opaque data in `media_refs` so it survives a restart. An image with WhatsApp's `jpegThumbnail` (`media_thumbs`,
-`GET /api/media/:id/thumb`) shows it in the chat; its real file loads only when the image is opened. A new table needs an
+adapter's opaque data in `media_refs` so it survives a restart. An image with a preview (`media_thumbs`,
+`GET /api/media/:id/thumb?v=2`) shows it in the chat; its real file loads only when the image is opened. WhatsApp's
+`jpegThumbnail` (about 48 × 64 px) is the first preview; once a JPEG photo is stored, the first `/thumb` request makes the
+app's own 800 px preview in a worker thread (`messages/image-preview*.ts`, `jpeg-js`, `media_thumbs.own`, migration 047,
+2 at a time, once per message) and caches it 30 days; WhatsApp's is sent `no-cache`. A new table needs an
 entry in the Lite merge's `TABLE_PLAN`.
 PDFs (and photos sent as files) open in the app: `inbox/PdfViewer.tsx` draws them with pdf.js from fetched bytes
 (`lib/pdf.ts`, lazy chunk + worker, 50 MB cap, `%PDF-` check); the media route still serves them as attachments.
@@ -175,7 +178,7 @@ the current text or the suggestion; closing the popup aborts the request and the
 (design `docs/features/ai-reply-suggestions/design.md`): `POST /api/chats/:jid/ai/suggestions` and `…/ai/complete`
 (any user with inbox access, direct chats and groups, 20 and 60 a minute) draft from the chat's agent knowledge even when
 the agent is off (a group gets member names via `groupConversation`, `currentSituation.group`, no customer details; `AiService.draftReply`, `ai/draft-prompt.ts`: `GUARDRAILS` + fixed `DRAFT_RULES`, never
-`CORE_RULES`); both use the "Model for suggestions" (`ai_reply_suggestions_model`: `fast` default = the connection's
+`CORE_RULES`); both use the AI models → Writing help row (formerly the "Model for suggestions" `ai_reply_suggestions_model`: `fast` default = the connection's
 fast model, `agent/draft.ts` ChatGPT `CHATGPT_FAST_DRAFT_MODELS` with reasoning `low`, `DRAFT_FAST_MODELS` for the
 API-key modes; `agent`; or a model of the connection, `GET /api/ai/reply-suggestions/model`); a completion sees only
 the last 6 messages and the typed text, never the knowledge; `ai/draft-check.ts` drops ungrounded drafts, numbers not
@@ -234,6 +237,21 @@ assistant → Ready, `setup/SetupWizard.tsx` + `AiAssistantStep.tsx`). **Tests a
 ChatGPT**: use mock providers; `e2e/ai-member.spec.ts` saves a placeholder key and only exercises states
 that need no model call (Try it with empty context hands off locally).
 
+**AI models per task** (design `docs/features/ai-models-per-task/design.md`, lasting rules and decision log
+`docs/ai-models.md`: read it before changing which model an AI call uses, and add a decision line when you change a rule).
+Settings → AI → AI models (`admin/AiModelsSection.tsx`, `GET/PUT /api/ai/task-models`, admins, 30 saves a minute; shared
+`ai-models.ts`): five rows `agentReplies` (live replies, Try it, scheduled tasks, every preview), `askEzy` (normal
+questions), `translate`, `writing` (Suggest reply, completion, Fix English, Edit with AI), `background` (Safety AI check,
+phrase list, Dream lessons), each Fast / Main model / a model the connection lists plus "Speed and quality" Faster ·
+Balanced · Smarter (reasoning low · medium · high; ChatGPT always, OpenAI key only reasoning models, Claude none until
+phase 2). Setting `ai_task_models[mode][row]` (a save changes only the current mode; audit `settings.ai_task_model`
+before/after); defaults = behaviour before the feature except Translate and Edit with AI (Fast); a saved model the connection no longer
+lists runs on Main (agent replies) or Fast with a warning. Every call resolves its row through `ai/task-models.ts`
+(`taskCall` in `service.ts`; providers take `reasoningEffort` on the prompt/call); log lines add `task` and `thinking`.
+Ask Ezy setup, Dream merge and customer enrichment stay on the main model (no row). Start-up `migrateTaskModels` moves the
+old `ai_reply_suggestions_model` into Writing help once; `GET /api/ai/reply-suggestions/model` and `PUT
+/api/ai/reply-suggestions {model}` stay for older clients and read/write the Writing help row.
+
 **Scheduled tasks** (design `docs/features/scheduled-tasks/design.md`, migration 036, `scheduled/` (`repo.ts` is its only
 SQL), routes `/api/ai/agents/:agentId/scheduled-tasks*`, admins). Up to `SCHEDULED_TASKS_MAX` (10) tasks per agent; each
 sends one message at one time on its days (`ai_timezone`, `scheduled/time.ts`) to ONE existing chat or group of the
@@ -259,7 +277,7 @@ off or `draftConnection()` is not ready. `ai/dream/collect.ts` reads the agent's
 `ai.handoff` audit row, or an `assigned` event with reason `reply` over the AI user, then a person's reply; at most 30, last
 20 messages): never forwarded messages (`forwarding_score`, owner rule), deleted/hidden, scheduled-task, Safety-flagged or
 still-checking, system rows or captionless media; names, emails and long numbers cleaned (`ai/customer-names.ts` +
-`cleanTeamReply`). One `draft` call per chat (`DREAM_LESSON_RULES`, Model for suggestions) → lessons that cite team
+`cleanTeamReply`). One `draft` call per chat (`DREAM_LESSON_RULES`, AI models → Background checks) → lessons that cite team
 messages and keep their numbers; one `draft` call on the main model (`DREAM_MERGE_RULES`) → at most 5 changes; Internal
 items never in the input. `ai/dream/checks.ts`: privacy, leak, grounding on the added lines, then Try-it previews with the
 proposed setup (`AiService.previewWithSetup`; `tryAnswer`'s server-only `items` field) of the source questions and up to 10
@@ -291,7 +309,7 @@ the British English Hunspell dictionary vendored in `apps/web/public/dictionarie
 `spelling.test.ts`; fetched by `lib/dictionary.ts` on first use, never precached), skips links, numbers, all-caps,
 capitalised words inside a sentence, `LOCAL_WORDS` and the accepted words, and Fix all applies only a `safeFix`.
 Grammar: `POST /api/chats/:jid/ai/fix-grammar` (any chat type, 120 a minute per user) → `AiService.fixGrammar`: one
-structured `draft` call on the "Model for suggestions" with the fixed `FIX_GRAMMAR_RULES` and `{text}` only, then
+structured `draft` call on the AI models → Writing help row with the fixed `FIX_GRAMMAR_RULES` and `{text}` only, then
 `fix-english/grammar.ts#grammarIssues` diffs the corrected text into marks and drops changes to numbers, links, emails,
 mentions, more than 4 words, or a rewrite; Malay/Chinese (`notEnglish`) is skipped before any call; logs counts only
 (`fix_grammar`). Team words (`fix_english_words`, ≤ 500): any user adds (`POST /api/fix-english/words`), admins remove;
@@ -299,17 +317,35 @@ audited with the word; `GET` adds the words of every agent's non-Internal Busine
 (hook, marks layer behind the box, card, Fix N / Ctrl+J / Undo), `admin/FixEnglishSection.tsx`; the composer turns the
 browser's own `spellCheck` off while it marks spelling.
 
+**Live translate** (design `docs/features/live-translate/design.md`, lasting rules and decision log
+`docs/live-translate.md`: read it before changing Live translate and add a decision line when you change a rule).
+Migration 046, `live-translate/` (`repo.ts` is its only SQL, `service.ts`, `routes.ts`), shared contract
+`packages/shared/src/live-translate.ts`. Admin switch `live_translate` {enabled (default on), dailyLimit (200, 0 =
+none)} at `PUT /api/live-translate/settings` (audit `settings.live_translate` before/after), status for everyone at
+`GET /api/live-translate`; My language and Send without preview on `PATCH /api/me` (`users.translate_language`, audit
+`user.translate_language`). Per chat (`chatJidParam`, 404 outside access): `GET/PUT /chats/:jid/live-translate` (my
+switch; the customer or group language is shared), `POST …/translations` (≤ 50 ids, cached per message, revision and
+target; the 70 % rule `shareInLanguage`; 120 a minute) and `POST …/translate-draft` (60 a minute; 409 `translate_off`,
+429 `translate_limit`, 503 `ai_unavailable` / `translate_failed`). `AiService.translate` (`ai/translate-prompt.ts`): one
+structured `draft` call on the AI models → Translate row with the fixed `TRANSLATE_RULES`, no tools, no retries, no
+back-translation. Protected items (`protectedItems` / `changedItem`) must come through unchanged: else the incoming
+translation is `unsafe` (never shown), the draft `refused`, the send 400 `translation_changed`. A send carries
+`translation {draftId, typedText, typedLanguage, edited}` or `sentOriginal`; `message_typed` is stored in the message's
+insert transaction, follows the id rename, and `present()` adds `Message.typed` / `sentOriginal`. New tables are in
+`DELETE_PLAN`, `CHAT_TABLES`, the alias merge and the Lite import. Logs `live_translate`: counts, language codes, ms,
+model, result only.
+
 **Ask Ezy** (design and decision log `docs/ask-ezy.md`: read it before changing Ask Ezy and add a decision line when you change a rule). An in-app assistant
 panel for every signed-in user: `POST /api/ask-ezy` (20 a minute per user) streams NDJSON (`step` per tool, then
 `answer` or `error {code}`; shared `AskEzyEvent`). `ask-ezy/tools.ts` reuses the MCP `ToolDef`s as AI SDK tools for
 the signed-in user (team members: the inbox read tools of their own inboxes; admins also the AI setup reads,
-`try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the connection's
-**fast model** (`AiService.assist`, `agent/assist.ts`, ≤ 8 steps, the last without tools, no retries) returns text plus typed blocks
+`try_ai_reply` and `propose_ai_setup_change`), never `update_ai_setup` or a send tool. One turn on the
+**AI models → Ask Ezy row** (default the fast model; `AiService.assist`, `agent/assist.ts`, ≤ 8 steps, the last without tools, no retries) returns text plus typed blocks
 (`AskEzyBlock`: stats, bars, heatmap, chats, customer, change, test); blocks are validated, invalid ones dropped,
 chat and customer blocks filtered by inbox access. A proposed change is held in memory (`ask-ezy/changes.ts`, 30 min,
 20 per user) and saved only by `POST /api/ask-ezy/changes/:id/apply` (admins; 409 `setup_changed` when the text moved
 since Ezy read it; Undo restores it or removes an added item; versions via `{via:'app', reason:'Ask Ezy: …'}`).
-Setup as a conversation (design `docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
+Setup as a conversation (decisions `docs/ask-ezy.md` §5; archived design `git show a09e3a9b:docs/features/ask-ezy-setup/design.md`): a `question` block (text, 1–4 choice chips,
 optional `note` + `tone`) asks one missing detail; a tapped chip is the next user turn, and the panel writes each
 question and card back into the assistant's history line. Setup runs on the **main model**: an admin's normal (fast)
 turn offers only `start_setup` (no arguments); calling it ends the fast turn and the same request (same history) reruns
@@ -428,6 +464,12 @@ using it and hands booking chats over. Chat lines are `ai_tool_used` events with
 when, never chat text. `--fake-wa` swaps in the fake Google (`fake.ts`, `/api/dev/fake-google/*`,
 `/api/dev/fake-google-calendar`); tests never call Google.
 
+**Google sign-in and pickers from another device.** Google's sign-in callback and file pickers finish on `127.0.0.1`,
+so they work only in a browser on the computer that runs EzyChat. The Calendar, Sheets and Drive statuses carry
+`onThisComputer` (`isHostRequest`, zod default `true`); their `/connect` and picker start routes answer 409
+`host_only` from a remote or LAN request (`routes/connectors.ts#requireHost`); the cards show `RemoteOnlyNotice` instead
+of opening a tab. Assessment of running the picker remotely: `docs/backlog.md`.
+
 **Google Sheets** (design `docs/features/google-sheets/design.md`). Core built-in connector like Google Calendar,
 with its own Google sign-in (`connectors/google-account.ts`: the calendar's PKCE/loopback flow made generic; tokens in
 the encrypted `google_sheets_tokens` setting; scope `drive.file`: only files picked in Google's file picker, whose page
@@ -540,7 +582,7 @@ downloaded). A template only fills editable boxes after Apply. `npm run template
 before presenting it; history: name and text only). Local rules `safety/rules.ts` (real type from the first bytes, a
 ZIP's file list only via `safety/zip.ts`: never run, opened or extracted; bounded, fails closed to `cantInspect`) and
 `safety/policy.ts#decide` (critical rule = High; the AI may raise or confirm, lower only a rules-only Warning). AI check
-`AiService.checkSafety` (fast model, fixed `SAFETY_CHECK_RULES`, text + file names + ZIP names, never bytes; 200 a day
+`AiService.checkSafety` (AI models → Background checks, default the fast model, fixed `SAFETY_CHECK_RULES`, text + file names + ZIP names, never bytes; 200 a day
 per inbox; logs level/category/ms only). Table `safety_items` (one per flagged message, migration 028), `safety_numbers`
 (scam / blocked / trusted, shared by inboxes), `safety_downloads`. High files move to `media/quarantine/<path>.bin`; the
 media route answers agents 403 `safety_locked` (recorded), serves admins `application/octet-stream` + `no-store`, and
@@ -596,7 +638,7 @@ XHR, `lib/upload-progress.ts`). Through the tunnel the web refuses files above `
 `message.forwarded` {messageId, chatJids, messageIds}; logs ids and counts only. Web: `inbox/ForwardDialog.tsx`,
 ⋮ menu and touch bar **Forward**, the Forwarded line and "Sending … to WhatsApp" in `MessageBubble`.
 
-**Delete chat** (admins; design `docs/features/chat-hide-delete/design.md` Part B, migration 042). `DELETE /api/chats/:jid`
+**Delete chat** (admins; design `docs/chat-hide-delete.md` Part B, migration 042). `DELETE /api/chats/:jid`
 (admin, `chatJidParam`, 30 a minute per admin, 204; `GET …/delete-preview` gives the dialog's counts) goes only through
 `chats/delete.ts#deleteChat`: it drops the chat's queued sends (`SendQueue.drop`) and AI work (`AiService.cancelChat`),
 then one transaction runs `DELETE_PLAN` (every chat-keyed and message-keyed table, then `chats`) and writes the tombstone
@@ -607,7 +649,7 @@ touches `contacts`, `jid_aliases`, `safety_numbers` or `audit_log`. A new table 
 into `DELETE_PLAN` (`test/chat-delete-coverage.test.ts` fails otherwise). Audit `chat.deleted` {chatJid, messages, files};
 socket `chat:deleted` {jid} drops it from every web cache. Web: chat header ⋮ (admins) → `inbox/DeleteChatDialog.tsx`.
 
-**Hide chats on Log out** (design `docs/features/chat-hide-delete/design.md` Part A, migration 043). `chats/hide.ts` is the
+**Hide chats on Log out** (design `docs/chat-hide-delete.md` Part A, migration 043). `chats/hide.ts` is the
 only code that hides, shows or archives. A `logged_out` status of an adapter with `WaCapabilities.qrLink` (the admin's Log
 out or Link again, which marks itself via `markAdminLogout`, or an unlink from the phone; never a connection drop, never an
 adapter the inbox already let go of on remove or type change) runs `hideInbox`: one transaction sets `chats.hidden_at` and
@@ -782,6 +824,15 @@ a native module in dev, set `WATI_DESKTOP_RUNTIME=node` to run the server with s
   `inbox:send_new`, ticked at creation under "Can send", default off) may start a chat with a number not
   in the inbox only after `WaAdapter.checkNumber` confirms it, through the New chat service (20 checks a day per
   token, then the inbox's shared daily limit, counted before the check; audit `chat.new_number` via `mcp`); its description and every result carry the WhatsApp ban warning.
+  `resolve_chat` {chatId, requestId, note?} and `reopen_chat` {chatId, requestId} (scope `inbox:manage`, "Can resolve
+  chats", design `docs/features/mcp-resolve-chat/design.md`) exist only for a token whose owner ticked it at creation or
+  later in Settings (`canResolveChats`, independent of sending; PATCH without the field keeps it; audit `api_token.update`
+  before/after; OAuth app tokens start without it) and go only through `InboxManagePort` (`mcp/manage.ts`), which
+  rechecks the scope: an existing chat the owner may open (`findChats`: other inboxes and hidden chats are "not found"),
+  the app's own `chats.patch(jid, {status})` (same events, sockets, unassign, AI and Reports effects; nothing goes to
+  WhatsApp), the optional note through `chats.addNote`; idempotent per token + `requestId` (in memory, 24 h); 30 a
+  minute and 300 a day per token; audit `mcp.resolve` / `mcp.reopen` {tokenId, chatJid} only when the status changed,
+  never the note. Ask Ezy never gets them (`neverManage`).
   Tools log tool name, counts and token id, never arguments, phone numbers or message text.
 - MCP sign-in (OAuth, `mcp/oauth.ts`, `mcp/oauth-routes.ts`, `routes/oauth.ts`): apps register at
   `/mcp/oauth/register` (https, loopback http or an app scheme only), an admin approves on the web page
@@ -851,7 +902,7 @@ A Quick Tunnel is Running only after URL assignment and edge registration.
 Admin shell links and fallback redirects must use absolute `/admin/...` paths. Routing changes must
 cover navigation from every admin section and recovery from malformed URLs.
 
-App navigation (design `docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
+App navigation (archived design `git show 0738d562:docs/features/app-navigation/design.md`, design-system "App navigation"): `nav/AppNav.tsx`
 `AppShell` wraps every signed-in page (`/`, `/chats/:jid`, `/account`, `/admin/*`, extension user routes): a rail
 from 768 px, bottom tabs below, no tabs inside an open chat. Reports and Members are rail places; every other admin
 page is under Settings (side menu on desktop, the `/admin` list on phones, `PhoneBar` back one level; unknown admin
@@ -914,9 +965,8 @@ a page header.
 - **Release review** (skill `release-review`, design `docs/superpowers/specs/2026-10-24-release-review-design.md`):
   after the last verification of a feature PR, score it with `node scripts/release-review.mjs <pr>` and log it;
   it scores, logs, comments and labels only. It is also the **final merge check**: run it on the head right before
-  a merge the owner asked for; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
-  (`build-summary.mjs record` does it) and put the short commit in each Dev Build row. The merge rule
-  below is unchanged until the owner approves the design's section 9 in writing.
+  a merge; its first line is `MERGE OK` or `NOT READY: <reasons>` (design §3.7). Record workbook stages with the checked commit
+  (`build-summary.mjs record` does it) and put the short commit in each Dev Build row.
   **A low score is a to-do list, not a stop** (owner rule): run every check you can for each `✗` item and
   hard stop (e2e + links, Dev Build, packaged `--dir` smoke for critical runtime parts: see LEARNINGS), then
   score again. Hand a PR to the owner only when everything testable is done and it is still `risk:human`
@@ -1059,10 +1109,15 @@ campaign tags (`utm_*`).
 track own follow-ups in `docs/backlog.md` (bugs and next steps), a feature's `design.md`, PR descriptions or workbooks. Treat each issue as an
 external report: verify it in the code, then reply (confirm with the fix PR, or ask for the missing
 details); a confirmed bug may be fixed and released.
-**Merge only when the owner explicitly requests merging that PR.** Never merge automatically or
-enable auto-merge. Requests to fix, implement, commit, push or open a PR do not authorize merging;
-passing checks and resolved reviews do not authorize it either. Finish the work and report readiness,
-then leave the PR open until the owner requests the merge.
+**Merge only on the owner's explicit request, or when the final check passes** (owner approved design §9 in writing,
+2026-11-20). The final check is `node scripts/release-review.mjs <pr>` on the PR's head: a first line `MERGE OK` with
+`risk:auto` or `risk:pipeline` lets the agent squash-merge it, with no push between the check and the merge. A
+`risk:human` PR and any `NOT READY` wait for the owner's explicit request. Still never: GitHub auto-merge, `--approve`
+without the owner's own words, a release PR, tag or publish without "release", or skipping or weakening any test, check
+or rule to reach `MERGE OK`. A request to fix, implement, commit, push or open a PR does not authorize a merge. A merge
+never starts a release. The PreToolUse hook `.claude/hooks/merge-gate.mjs` enforces this for Claude Code (see CLAUDE.md);
+other agents follow the text. The gate's own files are `security: true` in the component map, so a change to them is
+always `risk:human`.
 **Healthy PR list: four days at most** (owner rule, 2026-11-14): a PR is open for at most 4 days, so branches stay
 free of merge conflicts. The goal is merged, never parked: drive every check to done in that time (CI, coverage, e2e,
 Dev Build, screen review, release review), then ask the owner for the merge as soon as all checks are done (the
@@ -1077,7 +1132,7 @@ This is currently a solo-maintainer repository, so a second maintainer's approva
 the owner's explicit merge request is still required.
 Never bypass its CI or conversation-resolution requirements for routine changes. Restore a required
 approval when another maintainer can review changes.
-**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, then tag + publish through `release-approve.yml` (§4, started only when the owner says "release"), permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). After both editions are out, the release day goes on the website release page `/releases` (ossmalaysia/ezychat-website, `src/lib/release-calendar.json` + translations; `docs/release.md` §6); the release is done only when that PR is merged. Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
+**Releases** follow `docs/release.md` (EzyChat Lite: release PR, CHANGELOG section as the notes, then tag + publish through `release-approve.yml` (§4, started only when the owner says "release"), held as a draft until McAfee clears every installer, then Promote release (§3; owner rule 2026-11-20: "latest" and the in-app updater stay on the newest cleared version), permanent download links); EzyChat Enterprise has its own flow in its repo (`docs/releases.md`). After both editions are out, the release day goes on the website release page `/releases` (ossmalaysia/ezychat-website, `src/lib/release-calendar.json` + translations; `docs/release.md` §6); the release is done only when that PR is merged. Before deploying a changed build, bump the root package version, run `npm run version:sync`, sync the
 lockfile, and verify that `/api/health` and the UI identify the deployed version. Activate the complete
 build with a server restart; never rebuild the distribution directory while the server is serving it.
 Before `npm run dist`, confirm no installed app or service runs from `apps/desktop/release`

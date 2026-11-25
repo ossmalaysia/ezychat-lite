@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Banner, EmptyState } from '@/components/app';
 import { GettingStartedCard } from './GettingStartedCard';
 import { ChatListItem } from './ChatListItem';
+import { useCachedLastTranslations } from '../api/live-translate';
 import type { Directory } from './useDirectory';
 import { useInboxOfChat } from './useVisibleInboxes';
 import { replyWindowLeft, useNow, useReplyWindowHours } from './reply-window';
@@ -73,6 +74,8 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
       }
     return out;
   }, [q.data]);
+  // Live translate: the last-message line in my language where I switched it on (cached only, no AI call).
+  const translated = useCachedLastTranslations(chats);
 
   // Infinite scroll: load the next page when the bottom sentinel becomes visible.
   useEffect(() => {
@@ -187,6 +190,7 @@ export function ChatList({ filters, activeJid, directory, onResetFilters }: Chat
           <li key={c.jid}>
             <MemoChatListItem
               chat={c}
+              translatedPreview={translated.get(c.jid) ?? null}
               active={c.jid === activeJid}
               assigneeName={directory.nameOf(c.assignedTo, { youLabel: true })}
               assignedToMe={c.assignedTo != null && c.assignedTo === directory.me?.id}

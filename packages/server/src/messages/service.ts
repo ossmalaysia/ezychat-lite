@@ -1,4 +1,5 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileTypeFromBuffer, fileTypeFromFile } from 'file-type';
 import mime from 'mime-types';
@@ -49,6 +50,8 @@ import { MediaStore } from './media-store.js';
 import { MessageRepo, previewOf, rowToMessage, STATUS_RANK, type MessageRow } from './repo.js';
 import { SendQueue, type SendJob } from './send-queue.js';
 import { DownloadLimiter } from './download-limiter.js';
+import { PREVIEW_TIMEOUT_MS, makeImagePreview } from './image-preview.js';
+import { PREVIEW_MAX_FILE_BYTES, isJpeg } from './image-preview-scale.js';
 import { createMentionPresenter, outgoingMentions } from './mentions.js';
 import { OWN_REACTOR, createReactionPresenter, reactionRow } from './reactions.js';
 import { VOICE_NOTE_MAX_SECONDS, voiceNoteSeconds, voiceNoteWaveform } from './voice-note.js';
@@ -149,7 +152,12 @@ export interface MessageService {
      * `scheduledTaskId`: an AI agent's scheduled task sends it (the "Scheduled" mark); such a send
      * never claims or assigns the chat.
      */
-    opts?: { viaTokenId?: number; scheduledTaskId?: number },
+    opts?: {
+      viaTokenId?: number;
+      scheduledTaskId?: number;
+      /** Live translate: stores the typed record in the same transaction as the message. */
+      onStored?: (messageId: string) => void;
+    },
   ): Message;
   /**
    * Sends an approved template (also outside the reply window): the stored message is the filled
@@ -248,8 +256,11 @@ export interface MessageService {
   /** Earlier versions; the original of a deleted message (and its versions) only for admins. */
   messageEdits(id: string, isAdmin: boolean): MessageEditsResponse;
   mediaPath(id: string): MediaFile | null;
-  /** WhatsApp's small preview of an image; null when it has none, or for a deleted or hidden message. */
-  mediaThumb(id: string): Buffer | null;
+  /**
+   * An image's chat preview: the app's own 800 px preview, made once from the stored photo, else
+   * WhatsApp's small one; null when it has neither, or for a deleted or hidden message.
+   */
+  mediaThumb(id: string): Promise<{ jpeg: Buffer; own: boolean } | null>;
   redownload(id: string): Promise<Message>;
   /**
    * The one way to turn stored rows into outbound Messages (REST and socket): maps each row and
@@ -317,7 +328,14 @@ export interface MessageServiceDeps {
   queue?: { spacingMs?: number; maxAgeMs?: number; sleep?: (ms: number) => Promise<void> };
   /** overrides for the media download limiter (tests) */
   downloads?: { concurrency?: number; timeoutMs?: number };
+  /** the chat image preview maker (tests); default: `makeImagePreview` in a worker thread */
+  imagePreview?: (path: string) => Promise<Buffer | null>;
 }
+
+/** Chat image previews made at once: each runs in its own worker thread. */
+const PREVIEW_CONCURRENCY = 2;
+/** Message ids kept as "no preview possible" before the list starts again. */
+const PREVIEW_FAILED_MAX = 5000;
 
 export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps): MessageService {
   const repo = new MessageRepo(ctx.db);
@@ -420,9 +438,11 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
           : m,
     );
     // Nor a Safety finding: its reasons name the file and text the deletion hides.
-    return (ctx.services.safety?.attach(shown) ?? shown).map((m) =>
+    const safe = (ctx.services.safety?.attach(shown) ?? shown).map((m) =>
       m.deletedAt != null && m.safety ? { ...m, safety: null } : m,
     );
+    // Live translate: what a teammate typed before the reply was translated.
+    return ctx.services.liveTranslate?.attach(safe) ?? safe;
   };
   const present = (row: MessageRow): Message => presentAll([row])[0]!;
 
@@ -954,9 +974,14 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     ctx.bus.emit('chat:event', ev);
   };
 
-  const insertOutgoing = (row: MessageRow): Message => {
+  const insertOutgoing = (row: MessageRow, onStored?: (id: string) => void): Message => {
     const t = row.created_at;
-    repo.insert(row);
+    if (onStored)
+      ctx.db.transaction(() => {
+        repo.insert(row);
+        onStored(row.id);
+      })();
+    else repo.insert(row);
     touchChat(row, t);
     const msg = present(repo.get(row.id)!);
     ctx.bus.emit('message:new', msg);
@@ -970,6 +995,48 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
     timeoutMs: deps?.downloads?.timeoutMs ?? MEDIA_DOWNLOAD_TIMEOUT_MS,
   });
   const redownloads = new Map<string, Promise<Message>>();
+
+  // The app's own chat preview of a photo, made once from the stored file when the chat first asks.
+  const imagePreview = deps?.imagePreview ?? makeImagePreview;
+  const previewLimiter = new DownloadLimiter({
+    concurrency: PREVIEW_CONCURRENCY,
+    timeoutMs: PREVIEW_TIMEOUT_MS + 5_000,
+  });
+  const previews = new Map<string, Promise<Buffer | null>>();
+  // Files that can never become a preview (not a JPEG, rotated, too large, unreadable): not asked again
+  // until a restart or a new download. A temporary failure (timeout, worker crash) is not kept.
+  const previewFailed = new Set<string>();
+  const failPreview = (id: string, reason: string) => {
+    if (previewFailed.size >= PREVIEW_FAILED_MAX) previewFailed.clear();
+    previewFailed.add(id);
+    // Without WhatsApp's thumbnail the link would only answer 404: the chat shows the file instead.
+    if (!repo.mediaThumb(id)) repo.update(id, { media_has_thumb: 0 });
+    log.info({ id, reason }, 'image preview not made');
+  };
+  const buildPreview = async (id: string, path: string): Promise<Buffer | null> => {
+    const started = Date.now();
+    let jpeg: Buffer | null;
+    try {
+      if ((await stat(path)).size > PREVIEW_MAX_FILE_BYTES) {
+        failPreview(id, 'too_large');
+        return null;
+      }
+      jpeg = await previewLimiter.run(() => imagePreview(path));
+    } catch (err) {
+      log.info({ id, reason: (err as Error).message }, 'image preview not made, will try again');
+      return null;
+    }
+    if (!jpeg) {
+      failPreview(id, 'unreadable');
+      return null;
+    }
+    // the message may have been deleted or hidden while the worker ran
+    const r = repo.get(id);
+    if (!r || r.deleted_at != null || r.hidden_at != null) return null;
+    repo.setOwnPreview(id, jpeg);
+    log.debug({ id, bytes: jpeg.length, ms: Date.now() - started }, 'image preview made');
+    return jpeg;
+  };
 
   const doRedownload = async (id: string): Promise<Message> => {
     const r = repo.get(id);
@@ -1000,7 +1067,10 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       media_mime: mimeType,
       media_status: 'ok',
       media_size: buf.length,
+      ...(r.type === 'image' && isJpeg(buf) ? { media_has_thumb: 1 } : {}),
     });
+    // a new file may make a preview possible again
+    previewFailed.delete(id);
     return present(repo.get(id)!);
   };
 
@@ -1364,7 +1434,13 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
         try {
           const buf = await downloads.run(() => dl());
           const rel = media.save(chatJid, id, buf, extFor(m.media.mime, m.media.fileName));
-          repo.update(id, { media_path: rel, media_status: 'ok', media_size: buf.length });
+          repo.update(id, {
+            media_path: rel,
+            media_status: 'ok',
+            media_size: buf.length,
+            // a photo gets the app's own chat preview (made when the chat first asks for it)
+            ...(m.type === 'image' && isJpeg(buf) ? { media_has_thumb: 1 } : {}),
+          });
           mediaBytes = buf;
           mediaRel = rel;
           // Live customer voice notes are transcribed (marked pending before message:new).
@@ -1434,31 +1510,34 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       const mentions = checkMentions(jid, body.text, body.mentions);
       const t = now();
       if (opts?.scheduledTaskId === undefined) claimOnReply(jid, userId, t);
-      return insertOutgoing({
-        id: `local-${body.clientId}`,
-        chat_jid: jid,
-        sender_jid: ownJidOf(jid),
-        sender_name: null,
-        from_me: 1,
-        sent_by_user_id: userId,
-        type: 'text',
-        body: body.text,
-        media_path: null,
-        media_mime: null,
-        media_name: null,
-        media_status: 'none',
-        quoted_id: quotedId,
-        status: 'pending',
-        error: null,
-        timestamp: t,
-        created_at: t,
-        client_id: body.clientId,
-        wa_remote_jid: replyTarget(jid),
-        sent_via_token_id: opts?.viaTokenId ?? null,
-        scheduled_task_id: opts?.scheduledTaskId ?? null,
-        // Kept with the message: the queue sends them, and the bubble names the tagged members.
-        mentioned_jids: mentions.length ? JSON.stringify(mentions) : '[]',
-      });
+      return insertOutgoing(
+        {
+          id: `local-${body.clientId}`,
+          chat_jid: jid,
+          sender_jid: ownJidOf(jid),
+          sender_name: null,
+          from_me: 1,
+          sent_by_user_id: userId,
+          type: 'text',
+          body: body.text,
+          media_path: null,
+          media_mime: null,
+          media_name: null,
+          media_status: 'none',
+          quoted_id: quotedId,
+          status: 'pending',
+          error: null,
+          timestamp: t,
+          created_at: t,
+          client_id: body.clientId,
+          wa_remote_jid: replyTarget(jid),
+          sent_via_token_id: opts?.viaTokenId ?? null,
+          scheduled_task_id: opts?.scheduledTaskId ?? null,
+          // Kept with the message: the queue sends them, and the bubble names the tagged members.
+          mentioned_jids: mentions.length ? JSON.stringify(mentions) : '[]',
+        },
+        opts?.onStored,
+      );
     },
 
     async listTemplates(inboxId, refresh = false) {
@@ -1851,10 +1930,23 @@ export function createMessageService(ctx: AppContext, deps?: MessageServiceDeps)
       return { path: p, mime: r.media_mime ?? 'application/octet-stream', name: r.media_name };
     },
 
-    mediaThumb(id) {
+    async mediaThumb(id) {
       const r = repo.get(id);
       if (!r || r.deleted_at != null || r.hidden_at != null) return null;
-      return repo.mediaThumb(id);
+      const stored = repo.mediaThumb(id);
+      if (stored?.own || r.type !== 'image' || previewFailed.has(id)) return stored;
+      const file = svc.mediaPath(id);
+      if (!file) return stored;
+      let job = previews.get(id);
+      if (!job) {
+        job = buildPreview(id, file.path).finally(() => previews.delete(id));
+        previews.set(id, job);
+      }
+      const jpeg = await job;
+      // the message may have been deleted or hidden while the preview was made
+      const latest = repo.get(id);
+      if (!latest || latest.deleted_at != null || latest.hidden_at != null) return null;
+      return jpeg ? { jpeg, own: true } : repo.mediaThumb(id);
     },
 
     redownload(id) {

@@ -30,6 +30,8 @@ into AGENTS.md.
   its tool wrapper, account-card texts, picker waiting card or route-test setup are copied: put each in one shared helper
   (`connectors/tool-run.ts`, `googleAccountTexts`, `PickerWaiting`, `connectorTestApp`) and move the older connector onto
   it in the same PR. Read the duplicated blocks with `api/duplications/show?key=<project>:<path>&pullRequest=<n>`.
+  A same-shaped test added to each connector's test file (8 lines ×2) also fails it: write it once as a loop over
+  the connectors. Find the files with `api/measures/component_tree?metricKeys=new_duplicated_lines&strategy=leaves`.
 - A time-based cache of counted data (`cachedReport`) also keys on whether the database changed (SQLite
   `total_changes()` + `PRAGMA data_version`, both free): a TTL alone serves a count from before the newest write, which
   users see as missing data and the full e2e as an order-dependent flake (L-23).
@@ -37,6 +39,17 @@ into AGENTS.md.
   compare one with the other as if they were the same clock without a small grace (`LINK_GRACE_MS` in Reports, L-24).
 - `.partial()` keeps a zod `.default()`: a PATCH schema built from a response schema with a defaulted field fills that
   field on every patch. Re-declare such fields `.optional()` in the patch body (e.g. `SettingsPatchBody.usageStats`).
+- A scanning regex over customer text must be linear on WhatsApp's longest message (65,536 characters): an unbounded
+  run that can start at any letter (`[\w.]+@`) or a `[…]+$` trim is quadratic, so cap the run (a mailbox name is ≤ 64)
+  or trim with a loop, and pin it with a timing test on the longest message (L-27: 2 s → 13 ms). To time it in a Dev
+  Build, pick a Live translate target the text is not guessed to be in (else it is `same_language` and the scan never
+  runs) and use `e2e/devbuild-translate-check.mjs` against the mock-model `agents-devbuild.ts`.
+- Before timing a flagged regex, trace what really reaches it: a cap on the way in (Safety cuts text to 4,000
+  characters) makes a 2 s bench harmless, while a loader with no cap (`customerTexts`: up to 200 whole messages) makes a
+  harmless-looking trim the real stall (L-29).
+- A redaction pattern must not be made linear with a lookbehind start anchor (`(?<![\w.+-])…@`) or a length cap: both leave
+  an address unredacted (one glued to the previous match, or the start of an over-long run). Use `address-scan.ts`
+  (scan from each `@`, same matches as the plain pattern; L-28).
 - SonarCloud flags a scanning regex with two adjacent overlapping quantifiers as super-linear (S8786), e.g.
   `matchAll(/(name)\s*\(/g)` or `[\d,\s]*\s*`: match the token alone and check what follows with `slice`/`startsWith`,
   and trim before a plain-value regex instead of allowing spaces twice. A copy of an existing pattern counts as new code
@@ -163,6 +176,9 @@ into AGENTS.md.
   leftovers (routes, keys, guards) survive a patch-out and drift from the design.
 - Mock dialogs fade in: wait about 400 ms after a dialog or sheet appears before its screenshot, or the capture shows
   a faint, half-transparent card that reads like a z-index bug.
+- Screenshot of a state the page adds below the first screen: the app scrolls inside its own container, so
+  `fullPage` captures only the viewport. Scroll the element into view (`scrollIntoViewIfNeeded`) and open the image
+  before handing it over: all six first shots of a new notice showed the page without it.
 - Copy is for a business owner (owner rule, design-system "Writing"): few plain words, the reason and the next action;
   technical terms (AI connection, Business API, auto-block, where files are kept) go behind an `InfoTip`.
 - Format only the mock files you changed (`npx prettier --write <paths>`), never a mock's whole `src/`: the
@@ -255,6 +271,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   and no test key. Compare the published `minAppVersion` with the branch version first: entries for the next release
   are hidden on the current one, so check both (the build as is, and `WATI_VERSION=<release>`).
 
+- Retention counts every feature folder in `docs/features/` (except the README, index and live tooling), also one
+  that has no entry in `mock-index.json` (ask-ezy-setup had none): date it with `git log --diff-filter=A`, and before
+  pruning point AGENTS.md and code links at its lasting doc or a `git show <rev>:<path>` reference.
+- Phone shot scripts (`isMobile`, `hasTouch`) press the composer's Send button: Enter adds a new line on touch, so a
+  step that waits for what Enter opens times out only in the 360 px pass.
 - Touch gestures (swipe rows, press and hold) read the drag offset from a ref on pointer up, never from state: events
   that arrive in one task (fast swipes, scripted pointer events) reach the handler before React renders the last move,
   so a state read sees 0 and the swipe does nothing. Reset the offset on every pointer down and up.
@@ -272,10 +293,22 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   in the new dialog: the forward dialog offered "send as file", but the composer's 70 MB video on a linked phone just
   failed until a Dev Build check with a real-sized file found it. Test limits with files at the real size.
 - Hunting an e2e flake with `--repeat-each` shares one signed-in user and one server: a per-user rate limit (reactions: 30 a minute) turns the repeats into 429s that look like the flake. Read the failing trace's `.network` for 4xx before blaming timing; cap repeats so the user's requests stay under the limit.
+- After typing into a filter backed by `useDeferredValue`, an e2e spec waits for the filtered result (`toHaveCount`)
+  before clicking a match: the list renders the unfiltered rows first, and under full-suite load the click resolves
+  them (group-info's hidden-number member hit a strict-mode violation on 6 rows). When a spec fails only in the full
+  run, work out which rows the wrong locator saw before blaming the branch's diff.
 - A screen change ships with at least one e2e spec that clicks it, not only component tests: the "?" tips
   (#227) and the "Closing chats" switch (#230) reached `main` with unit tests only, so a regression run found
   no browser test for them. A switch on a shared Lite agent runs in the desktop project only and restores the
   value it found in `finally`.
+- A Playwright element screenshot of a card taller than the window comes out blank below the fold in the app and its
+  mocks (the page scrolls inside its own container, not the document): grow the viewport height for the shot, then
+  restore it (`ai-models-shots.mjs`).
+- Before pruning a feature folder for retention, `grep -rn "features/<name>"` across code, tests and AGENTS.md: if code
+  cites its design, move `design.md` to a lasting `docs/<name>.md` (with a decision log) and repoint the comments; leave
+  numbered SQL migrations untouched.
+- Before designing a model or provider choice, list every AI call and what it really sends per connection: ChatGPT
+  `draft` calls hard-code `low` reasoning even on the main model, so "same as today" defaults must say so.
 
 ## Multi-agent process
 
@@ -284,6 +317,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - A change to an owner rule (e.g. "No tracking in Lite") needs the owner's own words in the session doing it: child
   cloud sessions refuse approvals relayed by another session. When the owner approves in the main session, do the
   work there (or in a fork of it), not in a child.
+- A small core-tier fix with full coverage scores only 55 (`NOT READY`): plan the Dev Build row (+10) and the
+  workbook E2E stage (+10) before pushing, so `MERGE OK` needs no second wait on CI.
 - `build-summary.mjs record` takes the short stage keys (`design dev unit e2e devbuild screen`), and release-review
   counts a stage only when the code diff at its `--sha` equals the head's: re-record with `--sha <head>` after a
   docs-only commit, or the stages show as `✗ missing`. The same holds for the commit cited in a
@@ -300,7 +335,8 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   the head SHA right before the merge (pass it as `expectedHeadSha`), because a child session may still be pushing.
 - Cloud sessions cannot push git tags (the git proxy answers 403 on tag refs) or run `gh release edit`. Release
   from the cloud with **Release (approved)** (`release-approve.yml`, `docs/release.md` §4): after the release PR
-  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and publishes.
+  merges and the owner says "release", dispatch it with `version` and `confirm`; it tags, builds and holds a complete
+  draft. **Promote release** (`promote-release.yml`, §3) publishes it once McAfee clears every installer.
 - "release" alone does not open the merge gate (`.claude/hooks/merge-gate.mjs`): it denies `gh pr merge` always and
   merges a release PR only on "merge <n>" or "merge … and release" in the owner's newest message, and only through
   `mcp__github__merge_pull_request`. A merge word sent while a turn runs (a mid-turn message) does not count: on
@@ -310,6 +346,12 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
   gate reads `pullNumber`, the official `github-mcp-server` schema: run that image in Docker from a launcher that sets
   `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token` at start (never write the token to config), added from
   PowerShell (Git Bash turns `cmd /c` into `cmd C:/`). A server added mid-session loads only after a restart (`claude --continue`); `/mcp` does not load it. Never merge through `gh api` or another path around the gate.
+- To hold installed Lite apps on a version, keep the newer release a **draft**: the updater reads the whole release
+  list (never `releases/latest`) and a 0.x install takes published pre-releases, so `make_latest=false` or a
+  pre-release holds nothing. Check what the real client reads before choosing a GitHub release flag.
+- Test a workflow's `run:` steps with a fake `gh` on PATH that serves fixtures, each step in its own `bash -e`; copy
+  the scripts, never symlink them (a symlinked `argv[1]` fails `import.meta.url` main checks, so the CLI silently
+  does nothing and every check "passes").
 - A tag (or any push) made with `GITHUB_TOKEN` starts no `on: push` workflow; only `workflow_dispatch` and
   `repository_dispatch` are allowed from it. A workflow that tags must start the tag's workflows itself
   (`gh workflow run <file> --ref v<version> -f ref=v<version>`, `actions: write`). Workflow inputs reach shells only
@@ -361,6 +403,11 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 
 ## Git, GitHub and CI
 
+- The merge rule is enforced twice: AGENTS.md text and the PreToolUse hook `.claude/hooks/merge-gate.mjs` (denies the CLI
+  merge command, GitHub auto-merge and pushes to main; allows the MCP merge only on the owner's newest-message merge word
+  or `MERGE OK` risk:auto/pipeline). The hook matches Bash text, so even a heredoc that merely contains the command is
+  refused: write such text with Edit/Write. The gate's own files are `security: true` in `components.json`, so changing
+  them is always `risk:human`; never weaken the hook or its map entries to reach `MERGE OK`.
 - `gh pr merge --match-head-commit` takes the full 40-character SHA only (a short one fails "Could not coerce …
   to GitObjectID"): pass `gh pr view <n> --json headRefOid --jq .headRefOid`, the head the merge check scored.
 - Many open PRs on this repo (squash only, branches must be up to date): one PR at a time costs a full CI run per merge.
@@ -423,6 +470,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   merge from `main`, and before merging compare with the tag (`git show v<version>:CHANGELOG.md`).
   A long-lived branch can also land its entry in an old released section (#240 went into 0.1.66): every release PR
   checks `git diff v<prev>..main -- CHANGELOG.md` for lines added outside `[Unreleased]` and moves them in.
+- A workflow run that ends in `startup_failure` with 0 jobs never reaches a log: diff the workflow against the last
+  green run of it first (an action bump is the usual suspect), and dry-run release.yml with a dispatch on main
+  (`publish=false`, draft only) after any action bump, before release day.
 - The update helper is built by the app that is running, so an updater fix protects only updates that start from a
   version which already has it: the one update into the fixed version still runs the old helper. Say so when reporting
   an updater fix.
@@ -453,9 +503,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   on one such test is not a reason to doubt the PR under review.
 
 - Merging main into a branch where two feature mocks were cloned from the same baseline can produce
-  rename/rename conflicts: git writes 8-character markers (`<<<<<<<< HEAD:old/path`) into the mock files, and
-  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
-  mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
+  rename/rename conflicts: git writes 8-character markers (`<  nothing in CI type-checks or formats mock folders. Search with `^(<{7,8}|>{7,8})( |$)`; restore a confirmed
+mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`), then `snapshot.mjs --check`.
 - Known slow-runner timeouts on CI, also seen on `main`: `ai-agents-repo.test.ts` and `inbox-access.test.ts`
   hooks on Windows, `scripts/review/components.test.mjs` on macOS, and network timeouts in `npm ci`. Check
   the same job on the previous commit and on `main`, comment once, re-run the failed job once when the run
@@ -482,7 +531,9 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   push shows only SonarCloud, check the merge state and merge `main` first. Commit before recording a stage or
   writing a Dev Build row: `build-summary.mjs record` stores the current HEAD, and checks recorded on an
   older commit (or "uncommitted") count as ✗ missing in the release review (it reads the PR on GitHub, so push
-  the records first, and put every record in one push: each push restarts CI); a Dev Build row counts only with the
+  the records first, and put every record in one push: each push restarts CI; SonarCloud's automatic analysis now and
+  then runs on no push at all (no check run, the release review says "missing: SonarCloud"): the next real push
+  brings it back; never an empty commit); a Dev Build row counts only with the
   tested commit in backticks in its Build column (a branch name does not), and a later test-only commit (a
   SonarCloud duplication fix, or a change to the capture script itself) voids it too: push and settle SonarCloud
   before the Dev Build check, else re-run it and record with `--sha <head>`. Rebase onto `main` before the checks
@@ -883,12 +934,16 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - The service data folder (`C:\ProgramData\wa-team-inbox`, LocalSystem) is unreadable for a normal user: `statSync`
   there throws `EPERM` (Windows) / `EACCES`. Never fold every error into "missing" (`lite-import/detect.ts`
   `mtimeOrDenied`): a locked folder is "found, needs elevation", and the screen must say how to free it, not "not found".
+- `e2e/` is in SonarCloud's sources: a script that `fetch`es a URL taken from an API answer (a sign-in link) fails the
+  security gate (S5144 SSRF, rating C). In screenshot scripts answer that state in the browser with `ctx.route`
+  instead of walking the sign-in flow.
 - A new `e2e/*-screens.mjs` script imports `e2e/screens-common.mjs` (argv checks, demo admin, browser, sizes,
   shot helper): copying that setup from an older script made SonarCloud fail on duplication of new code (20 %,
   limit 3 %). A script that shoots the setup wizard needs fresh data on every run: `signInDemoAdmin` creates the
   admin, and `/setup` then no longer shows (a second run times out waiting for it). A desktop-only screen gets
   its bridge from `addInitScript` (`e2e/lite-protected-screens.mjs`). Grep `e2e/` for a shared module before
-  copying any script's setup (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
+  copying any script's setup (older scripts such as `reply-suggestions-screens.mjs` still inline it: never copy one as a
+  template) (the rule applies to Dev Build checks too: PASS/FAIL from `devbuild-client.mjs`). In a
   cloud session `launchBrowser` needs `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux64/chrome`. A script's
   fetch sends `content-type: application/json` only with a body: the server answers 400 to a bodiless DELETE with it.
   Its API calls go through `cookieSession` (`devbuild-client.mjs`): a raw `fetch(base + path)` fails SonarCloud's
@@ -927,6 +982,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   submit." (nothing was sent; the script then stops on its 480 s wait). Read `after.png` before any rerun, then rerun
   the same command: `results.json` skips what went out. From a Mac, `mcafee-submit.mjs --only mac-arm64,mac-x64`
   checks the app inside each `.dmg` and only then names the Developer ID and notarization in the report.
+- A cloud container (Linux) can run `mcafee-submit.mjs` (headless Chromium from `/opt/pw-browsers/chromium` through
+  `HTTPS_PROXY`, details from `MCAFEE_REPORTER_JSON`, signature by `osslsigncode`; without it the report claims none), but
+  www.mcafee.com answered it with HTTP/2 INTERNAL_ERROR, 403 and timeouts (2026-11-20, edge block of the egress): that is
+  not ours to work around, so a cloud dry run proves download, hash and signature only; submit from a Mac or PC.
 - A GitHub release asset can answer 504 on its `releases/download/...` link for one file while the asset API
   (`Accept: application/octet-stream`) serves it and its digest matches; re-uploading with `--clobber` did not help and
   the link recovered by itself within about 15 minutes. That link is what the in-app updater downloads, so after a
@@ -1261,6 +1320,15 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Security
 
+- A flow that must finish on 127.0.0.1 (Google sign-in callback, Google's file picker) cannot be started from a
+  remote or LAN browser: the page opened a tab on the visitor's own 127.0.0.1 ("refused to connect"). Decide "on this
+  computer" on the server with the same `isHostRequest` rule as the host-only routes, send it as `onThisComputer`
+  on the status (zod default `true`), refuse the start routes with 409 `host_only` (`requireHost`), and let the page
+  show a notice instead of opening a window. Test it with a LAN peer and a `cf-connecting-ip` request, and assert the
+  answer holds no `127.0.0.1` link; a status with a new field breaks every exact-equality test of that status.
+- Release review rates a PR by the files it touches: a one-line helper in a security-rule file (`http/errors.ts`) made
+  a small route fix "critical" (score 10, real-part test required). Build such an error where it is used
+  (`new HttpError(...)` in the route file) and check `release-review.mjs`'s "Tier … set by" line before the first push.
 - A narrower access level (e.g. an agent limited to chosen chats) fails closed through the old checks: make `scopeFor`
   return an empty inbox scope for it **before** any shortcut (Lite single inbox), so every existing `canOpen` caller
   denies, then add one per-chat check (`canOpenChat`) for the places that open one chat, and one recipient function
@@ -1343,6 +1411,12 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
   mutation hands them to the showing component's state via a callback and returns metadata only;
   clear that state when the dialog closes. Tests assert the secret is absent from both caches.
 - Per-key limiters or caches reachable without a session must expire entries and cap their size.
+- MCP tools register `input.shape`, so the SDK validates fields but drops unknown keys (no `strictObject` at the
+  tool): never rely on an extra key being refused; test refusals with a bad value of a real field. A new token
+  permission (`inbox:manage`) is optional in `UpdateApiTokenBody` (omitted = unchanged) and defaults in
+  `ApiTokenSchema`, so an older client or Enterprise build never turns it off by accident.
+- `PATCH /api/integrations/tokens/:id` shares Create token's 10-a-minute limiter per admin: a test suite with many
+  permission changes uses a second admin's token for the extra cases instead of raising the limit.
 - An MCP tool that takes a link (e.g. `send_image` `imageUrl`) downloads it only through `guardedFetch` (https,
   public address checked at connect, size and time cap) and checks the file type on the bytes; a large-body tool
   raises `bodyLimit` on its own route only, after the token check in `onRequest`, never the app-wide 1 MB.
@@ -1403,7 +1477,10 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 - Imported (history) image messages carry `width` and `height` but no `jpegThumbnail` (0 of 203 on real WhatsApp), and a
   live one's is tiny (48 × 64 px, 622 bytes, on one photo the number sent): do not plan a chat preview from that field; the
-  app must make its own. The adapter's `raw` cache is memory only, so a later download goes
+  app makes its own from the stored JPEG (`messages/image-preview.ts`). Decode images in pure JS (`jpeg-js`) inside a
+  worker: `sharp` is only Baileys' optional peer, external to the server bundle and not shipped. A preview URL served
+  `immutable` must change when its bytes improve (`?v=2`), and a placeholder that gets replaced is sent `no-cache`, or
+  browsers keep the blurry one for 30 days. The adapter's `raw` cache is memory only, so a later download goes
   through the stored `media_refs` row: restart the server when you test on-demand media.
 - Opening a chat sends read receipts for its newest 20 customer messages while the number is connected, also in a Dev Build
   (`chats/service.ts#markRead`). To drive a screen on real data, copy `app.db`, `secret.key` and `media/` without `wa-auth/`
@@ -1517,6 +1594,33 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## AI sales agent
 
+- Routing an AI call to a chosen model: keep the provider's own meaning of a flag the tests and other callers read
+  (`fast` on drafts, `main` on Ask Ezy as "setup turn"). AI models per task first sent every resolved model with
+  `fast: false` / `main: true`, which kept behaviour but broke 25 Ask Ezy tests that detect a setup turn by `main`;
+  set the flag only when the row really leaves the old default, and pass the new knob (`reasoningEffort`) separately.
+- A per-task model setting is stored per connection mode and resolved at every call (the ChatGPT list is live): a saved
+  model the connection no longer lists runs on the row's fallback with a warning, never on a model it does not offer.
+  ChatGPT's `knownModels()` is the built-in list until something reads the live one (`resolveModel` never does for a
+  known id): never call a saved id "unlisted" from a cold list; keep it and read the list (`models()`) on the screen.
+- A cache flag answers one question: "ever read" (is this list authoritative?) is not "still fresh" (should I refetch?).
+  Validate against the last read copy even when it is stale, refetch when it is old, and when nothing was ever read
+  refuse to store an unchecked name (503) instead of accepting everything.
+- A reasoning model's thinking tokens count against `maxOutputTokens`: give every call path of a reasoning model
+  headroom (draft, agent turn, assistant, rewrite: `withReasoningHeadroom`), and decide "reasons" separately from "takes our
+  level" (o1-mini and -pro reason but take none), or the call ends `incomplete` and fails.
+- A model choice that cannot be checked yet runs on the documented fallback for that call and triggers the check;
+  never let it reach a provider whose own fallback differs (ChatGPT `resolveModel` → Auto, not the row's Fast).
+- Two Playwright projects on one shared e2e server must never write the same setting: let one project write, the
+  other only read layout (`test.skip`/early return on `info.project.name`).
+
+- A field added to a shared response schema that every fixture builds by hand (`Message`) is `.optional()`, not a zod
+  `.default()`: a default makes the output type require it, and every web and server fixture stops typechecking (Live
+  translate's `typed`/`sentOriginal` broke 20 web test files that another session owned). Clients read `x ?? default`.
+- A per-person quota checked before an awaited model call is counted (reserved) before the `await` and given back
+  on failure; counting after the answer lets parallel requests pass it (Live translate's daily limit). A server-held
+  draft a later request refers to is bound to its owner, chat and exact input, and used once.
+- A row keyed by a message id with no foreign key must follow `MessageRepo.rename` (the optimistic `local-…` id becomes
+  WhatsApp's id after the send) and be in `DELETE_PLAN`; test the rename, not only the insert.
 - A step that silently drops a model's result (dream mode's checks, draft and phrase filters) logs which check dropped
   it, by name and fixed detail only, never the text: with counts alone the owner's first real-model test ("Dropped by
   the checks: 1") could not be diagnosed. A dev "run now" must not share the nightly window: dream mode's started
@@ -1895,11 +1999,26 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 
 ## Desktop and web UI
 
+- A link or label built from a URL id (`&agent=3`, `from=agent:3`) is checked against the same list the page uses
+  for its fallback (one shared helper, e.g. `wayBackAgent`), so a stale id never links one place while the page shows
+  another.
+- Before building a requested screen, grep the page for it: the agent page's Connectors card (`AgentConnectorsCard`) already existed when it was asked for again; the gap was wording and a way back, not a new card. Sibling tests (`GitHubPage`, `GoogleDrivePage`, `GoogleSheetsPage`, `SqlAccountPage`) assert the card's hrefs and copy, so run all of `admin/connectors` after a change to it.
+- Before adding a contract field for a web-only link or label, check what the client already loads (the team
+  directory carries `kind`, `aiAgentId`, `aiDeleted`); add to `packages/shared` only what no loaded response has.
+- A tappable element inside a swipe/long-press surface (a link or button in a message bubble) checks the surface's
+  `wasGesture()` in its `onClick` and drops the click, and a real `<a>` there also blocks the touch link menu
+  (`onContextMenu` for touch, `-webkit-touch-callout:none`); never let `overflow:hidden` on a parent clip its focus
+  ring. A 44 px hit area for a small label next to other tappable content comes from the label's own row height, never
+  from an `after:` box on a `relative` element: that box paints over the unpositioned siblings and steals their taps
+  (a link at the start of the message text opened the agent page).
 - A glyph a platform lacks (flag emoji on Windows) is fixed with a self-hosted `@font-face` in `index.css` limited by
   `unicode-range` and put first in `--font-sans`, its `src` a package path (Vite resolves it; `build-web-lib.mjs` moves
   it out as a file for Enterprise), never a polyfill's CDN default (CSP `font-src 'self'`). Prove it in e2e through
   `document.fonts` status and a canvas colour check, not a screenshot; and never assert a page-wide "nothing loaded
   yet" state there: the three projects share one server, so a parallel project's chat may already be on screen.
+- e2e specs run in parallel on one server: never change shared team state a spec does not own (the AI connection, a
+  team switch) even with a restore at the end; another spec reads it meanwhile (AI models' spec switching to ChatGPT
+  broke `ai-member.spec`'s saved-key check). Work on whatever is saved, or use a separate e2e project/port.
 - Never start the app with `Start-Process -WindowStyle Hidden` or `windowsHide`: Windows applies that show state to the
   app's first window, so the first `show()` leaves it invisible (measured: hidden start → invisible, a second `show()` →
   visible). Windows the user must see go through `window-show.ts#showWindow` (shows again when still invisible). The
@@ -1917,7 +2036,8 @@ dirty`): GitHub creates no `pull_request` run until the base is merged in. Check
 - Login returns to `state.from`, the page where the session ended: a page where people sign out (`/account`) must
   never be a return target (`safeFrom`), or the next person signs in to someone else's last page.
 - Judge e2e failures on a full run, not a subset: some specs depend on another spec's data (`reports.spec` counts a
-  new customer only after the number's first stored message, so alone in fresh data it reads 0). Rerun failed specs
+  new customer only after the number's first stored message, so alone in fresh data it reads 0; in a full run it can
+  also fail when another spec adds a customer between its API read and its page read). Rerun failed specs
   to iterate, then one full run decides.
 - In screen scripts, scope action buttons to the page content (`getByRole('main').getByRole('button', { name,
 exact: true })`): on admin pages a bare "Log out" also matches the account menu's sign-out, and `.first()` signs
@@ -2255,6 +2375,27 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   backdrop (a ref), not handlers on plain `<div>`/`<img>` with `stopPropagation`: SonarCloud counts each click handler
   on a non-interactive element as a bug (S1082), and `role="presentation"` only swaps it for S6819. Esc and the Close
   button already serve keyboard users.
+- A hook that reads the query cache from a list (`useCachedLastTranslations`) must not `notify` on cache events that fire
+  while another component renders (`added`, `fetch`): React warns "Cannot update a component while rendering a
+  different component". Notify only on `updated` + `success`. A chat-list row also takes such data as a prop and never
+  calls `useQuery` itself: `ChatList.test` renders without a `QueryClientProvider` and counts row renders.
+- `/api/me` is parsed with `MeResponse` (the user schema plus per-user preferences), and `useAuth().user` is typed
+  `User`: a new per-user field (Live translate's `translateLanguage`) is stripped until `MeResponse` carries it, and
+  the web reads it through a `MeResponse` cast. A component test that mocks `fetch` with the field catches a missing
+  schema entry; one that mocks `useAuth` does not.
+- A header that has one button in two places (narrow beside the name, wide in the action row) takes two slot props, not a
+  render function with class-name strings: `i18next/no-literal-string` flags the string argument.
+- Never run `prettier --write` on a whole directory of an old checkout; run it on the files you changed. It reformatted
+  every `components/ui/*` file here and had to be reverted.
+- A web feature built beside a server PR is tested in the browser with the new routes answered by `page.route` (no model, as
+  `reply-suggestions.spec.ts` does), so the spec is green before the server exists; the full e2e then runs once on a local
+  throwaway branch that merges the server branch, never on the PR branch. A failure that appears only after that merge is
+  the server branch's: confirm it by running the spec on `main` and on the web-only branch before reporting it.
+- Placeholder and label text that fits a 1280 px composer wraps to three lines at 360 px: give phones a short variant
+  (`wideComposer` picks it) and check the 360 px screenshot, not only the 360 px overflow test.
+
+- A new chat-header button squeezes the assignee select at 360 px (the action row has no room left): show it beside the
+  name on narrow headers (`@2xl:hidden` copy) and in the action row from `@2xl`, icon-only below `@4xl`.
 
 - A picker over a long list (chats, customers) searches on the server with the typed text, never a client filter over the
   first loaded page: older items vanish and numbers never match. Dedupe by the item's key, leave out chosen ones by key
@@ -2265,6 +2406,12 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
   list shows one clipped row and looks broken; probe `scrollHeight > clientHeight` before calling it an app bug. Names
   that can repeat across inboxes (the same group on two numbers) are told apart by the inbox name, derived from the chat
   key's `#<id>` suffix, never by an id tail alone.
+- A page that keeps "where I came from" in the URL (`from=agent`) must survive its own pickers: a picker that changes
+  the subject (`agent`) pins the origin first (`from=agent:<id>`), or the way back points at the new subject. Decide
+  UI cues (Set up) from a flag the line builder returns, never by comparing the rendered text with translations.
+- Every in-app `<Link>` that leaves an open chat (also one inside a message bubble) takes `onClick` from
+  `useGuardedLinkClick`, or the Customer panel's unsaved edits are lost; put the hook in a small child component rendered
+  only with the link, because it needs a Router and bubbles render in tests without one.
 
 ## Internationalization
 

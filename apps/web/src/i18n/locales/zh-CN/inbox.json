@@ -326,6 +326,7 @@
     "jumpToLatest": "跳到最新"
   },
   "message": {
+    "openAgent": "打开 {{name}} 的设置",
     "status": {
       "pending": "待发送",
       "sent": "已发送",
@@ -1275,5 +1276,98 @@
     "confirm": "屏蔽",
     "done": "号码已屏蔽。",
     "isBlocked": "这个号码已在 WhatsApp 上屏蔽。"
+  },
+  "liveTranslate": {
+    "button": "实时翻译",
+    "buttonShort": "翻译",
+    "buttonOn": "此聊天已开启实时翻译（仅对你）。点击关闭。",
+    "buttonOff": "实时翻译：用你自己的语言阅读和回复",
+    "composer": {
+      "placeholder": "你用{{my}}输入，客户收到{{customer}}",
+      "placeholderShort": "用{{my}}输入 → {{customer}}"
+    },
+    "hint": {
+      "text": "客户使用{{customer}}书写",
+      "dismiss": "暂不"
+    },
+    "bar": {
+      "label": "实时翻译",
+      "pair": "{{customer}} → {{my}}",
+      "groupPair": "成员 → {{my}} · 回复用{{out}}",
+      "unknown": "客户的语言",
+      "detected": "已识别",
+      "showOriginals": "显示原文",
+      "languages": "语言",
+      "languagesTitle": "此聊天的实时翻译",
+      "customerWrites": "客户使用",
+      "auto": "自动识别",
+      "autoDetected": "{{lang}}（已识别）",
+      "autoCommon": "{{lang}}（此处最常用）",
+      "customerHelp": "与团队共享。你的回复会以这种语言发出。",
+      "groupGets": "回复群组时使用",
+      "groupHelp": "整个群组使用一种语言，与团队共享。",
+      "youWrite": "你使用的语言",
+      "youHelp": "适用于所有聊天。也可在“账户”中更改。",
+      "usage": "今天：已用 {{used}} / {{limit}} 次翻译",
+      "usageNoLimit": "今天：已用 {{used}} 次翻译",
+      "turnOff": "关闭实时翻译",
+      "noConnection": "实时翻译需要 AI。请管理员在 设置 → AI 中连接 AI。",
+      "limit": "今日翻译次数已用完。明天之前消息按原样显示。",
+      "same": "这位客户使用你的语言，无需翻译。",
+      "notDetected": "客户发来下一条消息后即可识别语言，也可以在“语言”中选择。",
+      "groupNote": "每位成员的消息都从其自己的语言翻译。",
+      "offline": "无法翻译：没有网络连接。消息按原样显示。"
+    },
+    "bubble": {
+      "translatedFrom": "译自{{lang}}",
+      "showOriginal": "显示原文",
+      "hide": "隐藏",
+      "originalLabel": "原文",
+      "translating": "正在翻译…",
+      "retry": "重试",
+      "failed": {
+        "error": "无法翻译",
+        "unsafe": "无法安全翻译",
+        "limit": "未翻译：今日次数已用完",
+        "ai": "未翻译：实时翻译需要 AI",
+        "offline": "未翻译：没有网络连接"
+      },
+      "sentIn": "以{{lang}}发送",
+      "showSent": "显示发送的文本",
+      "sentLabel": "发送的文本",
+      "writtenIn": "原文为{{lang}}",
+      "showTyped": "显示输入的内容",
+      "typedLabel": "输入的内容",
+      "typedEdited": "输入的内容（发送前改过译文）",
+      "sentOriginal": "未翻译直接发送"
+    },
+    "preview": {
+      "title": "客户将收到 · {{lang}}",
+      "close": "继续编辑",
+      "youWrote": "你写的（{{lang}}）",
+      "editMine": "修改",
+      "translateAgain": "重新翻译",
+      "translating": "正在翻译成{{lang}}…",
+      "sending": "正在翻译成{{lang}}并发送…",
+      "edit": "编辑译文",
+      "done": "完成",
+      "editLabel": "编辑译文",
+      "edited": "已编辑",
+      "kept": "保持不变：",
+      "refusedTitle": "未发送",
+      "refused": "{{item}} 变成了 {{became}}。未发送任何内容。",
+      "errors": {
+        "offline": "无法翻译：没有网络连接。未发送任何内容。",
+        "noAi": "实时翻译需要 AI。请管理员在 设置 → AI 中连接 AI。未发送任何内容。",
+        "limit": "今日翻译次数已用完（{{count}} 次）。未发送任何内容。",
+        "off": "管理员已关闭实时翻译。未发送任何内容。",
+        "error": "无法翻译。未发送任何内容。",
+        "changed": "译文改动了数字、链接或联系方式。未发送任何内容。",
+        "expired": "译文已过期，请重新翻译。未发送任何内容。"
+      },
+      "retry": "重试",
+      "sendOriginal": "改为发送原文",
+      "send": "发送"
+    }
   }
 }

@@ -344,6 +344,7 @@
       "revoked": "Removed",
       "canSendBadge": "Can send",
       "canNewBadge": "New numbers",
+      "canResolveBadge": "Resolves chats",
       "signedInBadge": "Signed in",
       "tokenBadge": "Token"
     },
@@ -366,7 +367,9 @@
       "canNew": "Can also message new numbers",
       "canNewHint": "The assistant can start a chat with a number that is not in the inbox. WhatsApp checks the number first. Up to 20 new numbers a day.",
       "canNewWarningTitle": "Risk of a WhatsApp ban",
-      "canNewWarning": "WhatsApp can ban your number if it messages people who did not ask for it. Turn this on only if your team messages people who agreed to be contacted. The assistant also gets this warning."
+      "canNewWarning": "WhatsApp can ban your number if it messages people who did not ask for it. Turn this on only if your team messages people who agreed to be contacted. The assistant also gets this warning.",
+      "canResolve": "Can resolve chats",
+      "canResolveHint": "Your AI assistant can mark chats resolved and reopen them, as you. The customer is not messaged."
     },
     "created": {
       "title": "Copy your token now",
@@ -455,11 +458,72 @@
       "cost": "Each suggestion and each completion is one request to your AI provider, which may charge for it.",
       "noConnection": "Connect an AI provider above to use reply suggestions.",
       "upgraded": "New: reply suggestions. They are off after the update so that nothing new costs money without your choice.",
-      "model": "Model for suggestions",
-      "modelFast": "Fast (recommended): {{model}}",
-      "modelAgent": "Same as the AI connection: {{model}}",
-      "modelFastHint": "Suggest reply in about 1–2 s and grey text while you type. {{model}} is the fast model of this connection.",
-      "modelSlowHint": "A larger model writes slower: grey text often comes too late to help, and each request may cost more."
+      "modelNote": "Which model writes suggestions is now set in AI models → Writing help."
+    },
+    "aiModels": {
+      "title": "AI models",
+      "description": "Choose which AI model does each job. Fast models answer sooner and cost less. Smarter models give better answers, but they are slower and use more of your plan.",
+      "connection": "Your AI connection: {{connection}} · main model {{main}} · fast model {{fast}}.",
+      "perConnection": "Each connection keeps its own choices.",
+      "mode": {
+        "chatgpt": "ChatGPT sign-in",
+        "api": "OpenAI API key",
+        "claude": "Claude API key"
+      },
+      "model": "Model",
+      "fast": "Fast",
+      "main": "Main model",
+      "recommended": "(recommended)",
+      "fastShort": "Fast ({{model}})",
+      "mainShort": "the main model ({{model}})",
+      "notOffered": "{{model}} · no longer offered",
+      "useDefault": "Use default",
+      "tier": {
+        "fast": "Answers sooner and costs less.",
+        "balanced": "A good balance of speed and quality.",
+        "smart": "Smartest answers. Slower and costs more."
+      },
+      "tierShort": {
+        "fast": "faster",
+        "balanced": "balanced",
+        "smart": "smarter, costs more"
+      },
+      "thinking": "Speed and quality",
+      "thinkingLevel": {
+        "low": "Faster",
+        "medium": "Balanced",
+        "high": "Smarter"
+      },
+      "thinkingHint": {
+        "low": "Faster: answers soonest.",
+        "medium": "Balanced: a good mix of speed and quality.",
+        "high": "Smarter: best answers, slowest, uses more of your plan."
+      },
+      "unavailable": "{{model}} is no longer offered by your AI connection. EzyChat uses {{fallback}} until you choose another model.",
+      "alwaysMain": "Always the main model ({{main}}): setting up agents with Ask Ezy, the changes Dream mode suggests and filling in customer details, because they change your setup or records. Voice notes follow their own setting below.",
+      "tasks": {
+        "agentReplies": {
+          "title": "AI agent replies",
+          "what": "Answers customers in chats and groups, Try it and scheduled messages."
+        },
+        "askEzy": {
+          "title": "Ask Ezy",
+          "what": "The in-app assistant that answers your questions about chats and reports."
+        },
+        "translate": {
+          "title": "Translate",
+          "what": "Live translate: customers' messages, and your replies before they are sent."
+        },
+        "writing": {
+          "title": "Writing help",
+          "what": "Suggest reply, the grey text while you type, Fix English and Edit with AI."
+        },
+        "background": {
+          "title": "Background checks",
+          "what": "Safety checks on incoming messages, the phrase list, and what Dream mode learns each night."
+        }
+      },
+      "writingSlow": "The grey text while you type may not appear in time with a slower model."
     },
     "askEzy": {
       "title": "Ask Ezy",
@@ -523,7 +587,7 @@
       "title": "Fix English",
       "description": "While a teammate types an English reply, spelling mistakes are marked at once and grammar mistakes after a short pause. One tap fixes them; nothing is changed or sent without the teammate.",
       "enable": "Check English for the team",
-      "cost": "Spelling is checked on each device with a built-in British English dictionary (about 0.2 MB, downloaded once): free, no AI. Grammar is one short request to your AI provider after each pause in typing (the model for suggestions), which may charge for it. Malay and Chinese messages are not checked.",
+      "cost": "Spelling is checked on each device with a built-in British English dictionary (about 0.2 MB, downloaded once): free, no AI. Grammar is one short request to your AI provider after each pause in typing (the Writing help model in AI models), which may charge for it. Malay and Chinese messages are not checked.",
       "rules": "Only spelling and grammar are fixed. Numbers, prices, names, links and order numbers are never changed, and the teammate's tone stays (lah, ya).",
       "noConnection": "No AI connection: only spelling is checked. Connect an AI provider above to check grammar too.",
       "upgraded": "New: Fix English. It is off after the update so that nothing new costs money without your choice.",
@@ -1733,6 +1797,7 @@
     "requestMessage": "Hi EzyChat team, we would like a connector for: ",
     "breadcrumb": "Breadcrumb",
     "notFound": "This connector does not exist.",
+    "backToAgent": "Back to AI agent",
     "backToGallery": "All connectors",
     "byCore": "Built into {{product}}",
     "byEnterprise": "EzyChat Enterprise",
@@ -1768,7 +1833,8 @@
       "description": "Systems {{name}} can use while it chats. Settings are on each connector's page.",
       "checkAndBook": "Checks free times and books",
       "checkOnly": "Checks free times; your team books",
-      "off": "Off for this agent",
+      "off": "Not used by this agent",
+      "setUp": "Set up",
       "none": "No connector yet.",
       "browse": "Browse connectors",
       "sheetsReads": "Reads {{tabs}}",
@@ -1864,6 +1930,7 @@
       "blocked": "Your browser blocked the sign-in window. Open the sign-in page to continue.",
       "openSignIn": "Open the sign-in page",
       "sameComputer": "Google returns to the computer that runs {{product}}: the sign-in only finishes in a browser on that computer.",
+      "remoteSignIn": "Google sign-in works only on the computer that runs {{product}}. Open {{product}} there and sign in; it will show here too.",
       "cancelSignIn": "Cancel",
       "failed": {
         "denied": "Google sign-in was cancelled. Nothing was connected.",
@@ -2176,6 +2243,7 @@
         "expired": "The file picker took too long. Try again."
       },
       "pickSameComputer": "The file picker works only in a browser on the computer that runs {{product}}.",
+      "remotePick": "Choosing a sheet works only on the computer that runs {{product}}. Open {{product}} there, choose the sheet, and it will show here too. You can still create a new sheet from here.",
       "tabsTitle": "Tabs this agent may use",
       "tabsHint": "The agent's instructions say when to use them. Column names come from the first row of each tab. Changed a tab in Google Sheets? Press Refresh.",
       "refresh": "Refresh",
@@ -2314,6 +2382,7 @@
       "pickBlocked": "Your browser blocked the window. Open the file picker to continue.",
       "openPicker": "Open the file picker",
       "pickSameComputer": "The file picker works only in a browser on the computer that runs {{product}}.",
+      "remotePick": "Choosing a folder or files works only on the computer that runs {{product}}. Open {{product}} there, choose them, and they will show here too.",
       "pickError": {
         "cancelled": "Nothing was chosen.",
         "failed": "{{product}} could not open what you chose. Choose it again.",
@@ -3267,5 +3336,18 @@
     "limitNone": "No limit: your team and AI assistants can message as many new numbers a day as they like.",
     "limitBanTitle": "A high limit can get your number banned",
     "limitBanBody": "WhatsApp can ban a number that messages many people who did not ask for it. Keep the limit low unless these people expect your message."
+  },
+  "liveTranslate": {
+    "title": "Live translate",
+    "description": "Your team reads and replies in their own language. Customers' messages show translated, and replies go out in the customer's language.",
+    "enable": "Live translate for everyone",
+    "enableHelp": "All staff may use it. Each person turns it on per chat with the Translate button in the chat header; it stays off in every chat until they do. Turn this off to stop it for everyone.",
+    "limit": "Daily limit per person",
+    "limitHelp": "Default 200; 0 = no limit. Each translated message and each sent translation counts once; a message already translated is free.",
+    "privacy": "Message text goes to your AI connection (the Translate model in AI models) to be translated. EzyChat's logs keep only counts and languages, never the text. Customers never see a \"translated\" mark.",
+    "usage_one": "Today: {{count}} translation by {{people}} people",
+    "usage_other": "Today: {{count}} translations by {{people}} people",
+    "noConnection": "Connect AI above first. Until then, chats show messages as they were sent.",
+    "languages": "People choose their own language in Account → My language."
   }
 }

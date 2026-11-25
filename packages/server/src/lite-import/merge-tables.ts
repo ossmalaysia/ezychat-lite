@@ -58,11 +58,18 @@ export const TABLE_PLAN: Readonly<Record<string, { merged: true } | { skip: stri
   connector_calls: { merged: true },
   connector_values: { merged: true },
   safety_items: { merged: true },
+  message_translations: { merged: true },
+  message_typed: { merged: true },
+  chat_languages: { merged: true },
+  live_translate_switches: { skip: "each teammate's own switch: turned on again in the new inbox" },
+  live_translate_usage: { skip: 'a daily counter for the limit: starts again at 0' },
   ai_scheduled_tasks: { merged: true },
   ai_scheduled_runs: { skip: 'run history: the imported tasks start switched off, with no runs' },
   ai_dream_settings: { merged: true },
   ai_dream_runs: { skip: 'run history: dream mode arrives switched off, with no runs' },
-  ai_dream_changes: { skip: "suggestions name the Lite install's setup texts; the target's own setup is kept" },
+  ai_dream_changes: {
+    skip: "suggestions name the Lite install's setup texts; the target's own setup is kept",
+  },
   safety_downloads: { merged: true },
   safety_numbers: { merged: true },
   sql_account_agent_settings: { merged: true },
@@ -579,6 +586,17 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       const id = maps.message(e.message_id as string);
       if (id) addEdit({ ...e, message_id: id, user_id: maps.user(e.user_id) });
     }
+    // Live translate: what teammates typed before their replies were translated, and the cache.
+    const addTyped = inserter(target, 'message_typed');
+    for (const row of rows(lite, 'SELECT * FROM message_typed')) {
+      const id = maps.message(row.message_id as string);
+      if (id) addTyped({ ...row, message_id: id, user_id: maps.user(row.user_id) });
+    }
+    const addTranslation = inserter(target, 'message_translations');
+    for (const row of rows(lite, 'SELECT * FROM message_translations')) {
+      const id = maps.message(row.message_id as string);
+      if (id) addTranslation({ ...row, message_id: id });
+    }
     const addPending = inserter(target, 'message_changes_pending');
     for (const p of rows(lite, 'SELECT * FROM message_changes_pending')) {
       const id = maps.message(p.message_id as string);
@@ -605,6 +623,11 @@ export function mergeTables(input: MergeInput): MergeOutcome {
       const userId = maps.user(n.user_id);
       if (userId === null) throw new Error('a note names an unknown Lite user');
       addNote({ ...n, chat_jid: chat, user_id: userId });
+    }
+    const addLanguage = inserter(target, 'chat_languages');
+    for (const l of rows(lite, 'SELECT * FROM chat_languages')) {
+      const chat = maps.chat(l.chat_jid as string);
+      if (chat) addLanguage({ ...l, chat_jid: chat });
     }
     const addState = inserter(target, 'ai_chat_state');
     for (const s of rows(lite, 'SELECT * FROM ai_chat_state')) {

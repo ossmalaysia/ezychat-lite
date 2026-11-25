@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import jpeg from 'jpeg-js';
 import { MessageListResponse, MessageLocateResponse, MessageSchema } from '@ezychat/shared';
 import { FAKE_RUN } from '@ezychat/wa';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -725,12 +726,13 @@ describe('messages routes', () => {
     it('serves the preview as a JPEG, and the message links to it', async () => {
       const { cookie } = await createUserAndLogin(t);
       const m = await ingestWithThumb('TH-1');
-      expect(m!.mediaThumbUrl).toBe('/api/media/TH-1/thumb');
+      expect(m!.mediaThumbUrl).toBe('/api/media/TH-1/thumb?v=2');
       const res = await getThumb('TH-1', cookie);
       expect(res.statusCode).toBe(200);
       expect(res.headers['content-type']).toBe('image/jpeg');
       expect(res.headers['x-content-type-options']).toBe('nosniff');
-      expect(res.headers['cache-control']).toContain('private');
+      // WhatsApp's tiny thumbnail is replaced once the photo is stored: the browser must ask again
+      expect(res.headers['cache-control']).toBe('private, no-cache');
       expect(res.rawPayload.equals(JPEG)).toBe(true);
     });
 
@@ -784,6 +786,165 @@ describe('messages routes', () => {
       vi.spyOn(t.ctx.services.safety!, 'cacheable').mockReturnValue(false);
       const res = await getThumb('TH-9', cookie);
       expect(res.headers['cache-control']).toBe('no-store');
+    });
+  });
+
+  describe("the app's own image preview", () => {
+    // a real 1600 x 1200 photo-sized JPEG: the preview must come out at 800 x 600
+    const photo = (() => {
+      const width = 1600;
+      const height = 1200;
+      const data = Buffer.alloc(width * height * 4);
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = (i / 4) % 256;
+        data[i + 1] = 120;
+        data[i + 2] = 200;
+        data[i + 3] = 255;
+      }
+      return Buffer.from(jpeg.encode({ data, width, height }, 90).data);
+    })();
+    const TINY = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9, 9, 9]);
+    const ingestLive = (id: string, file: Buffer, thumbnail?: Buffer) =>
+      getMessages(t.ctx).ingest(
+        {
+          id,
+          chatJid: JID,
+          senderJid: JID,
+          senderName: 'Gus',
+          fromMe: false,
+          type: 'image',
+          body: null,
+          quotedId: null,
+          timestamp: 1_700_000_000_000,
+          media: { mime: 'image/jpeg', fileName: null, download: async () => file, thumbnail },
+        },
+        'live',
+      );
+    const getThumb = (id: string, cookie: string) =>
+      t.app.inject({ method: 'GET', url: `/api/media/${id}/thumb?v=2`, headers: { cookie } });
+
+    it("replaces WhatsApp's tiny thumbnail with an 800 px preview of the stored photo, made once", async () => {
+      const { cookie } = await createUserAndLogin(t);
+      const m = await ingestLive('OWN-1', photo, TINY);
+      expect(m!.mediaThumbUrl).toBe('/api/media/OWN-1/thumb?v=2');
+      const res = await getThumb('OWN-1', cookie);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['cache-control']).toBe('private, max-age=2592000, immutable');
+      const preview = jpeg.decode(res.rawPayload);
+      expect([preview.width, preview.height]).toEqual([800, 600]);
+      expect(res.rawPayload.length).toBeLessThan(photo.length);
+      const repo = new MessageRepo(t.ctx.db);
+      expect(repo.mediaThumb('OWN-1')).toMatchObject({ own: true });
+      // the second view reads the stored preview: same bytes, no new work
+      expect((await getThumb('OWN-1', cookie)).rawPayload.equals(res.rawPayload)).toBe(true);
+    });
+
+    it('gives a photo without a WhatsApp thumbnail a preview too', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      const m = await ingestLive('OWN-2', photo);
+      expect(m!.mediaThumbUrl).toBe('/api/media/OWN-2/thumb?v=2');
+      expect((await getThumb('OWN-2', cookie)).statusCode).toBe(200);
+    });
+
+    it('a photo opened later from history gets the preview link after its download', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestHistoryImage('OWN-3');
+      vi.spyOn(t.wa, 'downloadMedia').mockResolvedValueOnce(photo);
+      const res = await t.app.inject({
+        method: 'POST',
+        url: '/api/media/OWN-3/redownload',
+        headers: authHeaders(cookie),
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().mediaThumbUrl).toBe('/api/media/OWN-3/thumb?v=2');
+      expect((await getThumb('OWN-3', cookie)).statusCode).toBe(200);
+    });
+
+    it("keeps WhatsApp's thumbnail when the stored file is no readable JPEG, and does not try again", async () => {
+      const { cookie } = await createUserAndLogin(t);
+      // JPEG magic bytes, then nothing a decoder can read
+      const broken = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 7)]);
+      await ingestLive('OWN-4', broken, TINY);
+      const first = await getThumb('OWN-4', cookie);
+      expect(first.rawPayload.equals(TINY)).toBe(true);
+      expect(first.headers['cache-control']).toBe('private, no-cache');
+      const repo = new MessageRepo(t.ctx.db);
+      expect(repo.mediaThumb('OWN-4')).toMatchObject({ own: false });
+      expect((await getThumb('OWN-4', cookie)).rawPayload.equals(TINY)).toBe(true);
+    });
+
+    it('gives a PNG no preview link: the chat shows the file itself', async () => {
+      const m = await ingestLive('OWN-5', PNG);
+      expect(m).not.toHaveProperty('mediaThumbUrl');
+    });
+
+    it('drops the preview link of a photo without WhatsApp thumbnail that cannot get one', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      const broken = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 7)]);
+      const m = await ingestLive('OWN-6', broken);
+      expect(m!.mediaThumbUrl).toBe('/api/media/OWN-6/thumb?v=2');
+      expect((await getThumb('OWN-6', cookie)).statusCode).toBe(404);
+      // the next read has no link, so the chat shows the file itself instead of asking for a 404 again
+      expect(rowToMessage(new MessageRepo(t.ctx.db).get('OWN-6')!)).not.toHaveProperty(
+        'mediaThumbUrl',
+      );
+    });
+
+    it('tries again after a temporary failure (timeout), but never after a permanent one', async () => {
+      await ingestLive('OWN-7', photo, TINY);
+      const made = Buffer.from([0xff, 0xd8, 0xff, 0xdb, 1, 2, 3]);
+      const imagePreview = vi
+        .fn<(path: string) => Promise<Buffer | null>>()
+        .mockRejectedValueOnce(new Error('timeout'))
+        .mockResolvedValueOnce(made);
+      const svc = createMessageService(t.ctx, { imagePreview });
+      expect(await svc.mediaThumb('OWN-7')).toEqual({ jpeg: TINY, own: false });
+      expect(await svc.mediaThumb('OWN-7')).toEqual({ jpeg: made, own: true });
+      expect(imagePreview).toHaveBeenCalledTimes(2);
+
+      await ingestLive('OWN-8', photo, TINY);
+      const never = vi.fn<(path: string) => Promise<Buffer | null>>().mockResolvedValue(null);
+      const svc2 = createMessageService(t.ctx, { imagePreview: never });
+      expect(await svc2.mediaThumb('OWN-8')).toEqual({ jpeg: TINY, own: false });
+      expect(await svc2.mediaThumb('OWN-8')).toEqual({ jpeg: TINY, own: false });
+      expect(never).toHaveBeenCalledTimes(1);
+      svc.shutdown();
+      svc2.shutdown();
+    });
+
+    it('serves nothing when the message is deleted while its preview is made', async () => {
+      await ingestLive('OWN-9', photo, TINY);
+      const repo = new MessageRepo(t.ctx.db);
+      const svc = createMessageService(t.ctx, {
+        imagePreview: async () => {
+          repo.update('OWN-9', { deleted_at: 1, deleted_by: 'sender' });
+          return Buffer.from([0xff, 0xd8, 0xff, 0xdb]);
+        },
+      });
+      expect(await svc.mediaThumb('OWN-9')).toBeNull();
+      expect(repo.mediaThumb('OWN-9')).toBeNull();
+      svc.shutdown();
+    });
+
+    it('serves no preview when WhatsApp Safety flags the photo while it is made', async () => {
+      const { cookie } = await createUserAndLogin(t);
+      await ingestLive('OWN-10', photo, TINY);
+      const level = vi
+        .spyOn(t.ctx.services.safety!, 'levelOf')
+        .mockReturnValueOnce('none')
+        .mockReturnValue('high');
+      expect((await getThumb('OWN-10', cookie)).statusCode).toBe(404);
+      level.mockRestore();
+    });
+
+    it('makes no preview of a photo above 15 MB', async () => {
+      const huge = Buffer.concat([photo, Buffer.alloc(15 * 1024 * 1024)]);
+      await ingestLive('OWN-11', huge, TINY);
+      const imagePreview = vi.fn<(path: string) => Promise<Buffer | null>>();
+      const svc = createMessageService(t.ctx, { imagePreview });
+      expect(await svc.mediaThumb('OWN-11')).toEqual({ jpeg: TINY, own: false });
+      expect(imagePreview).not.toHaveBeenCalled();
+      svc.shutdown();
     });
   });
 

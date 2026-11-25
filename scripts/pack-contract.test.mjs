@@ -38,6 +38,8 @@ const PACKAGES = [
       'dist/extensions.d.ts',
       'dist/ai/document-worker.js',
       'dist/voice/transcribe-worker.js',
+      // Chat image previews: an edition's bundle takes this worker by name.
+      'dist/messages/image-preview-worker.js',
       // Data imported by the connector list (tsc copies imported JSON).
       'dist/connectors/list/builtin-list.json',
       ...readdirSync(join(root, 'packages/server/src/db/migrations'))

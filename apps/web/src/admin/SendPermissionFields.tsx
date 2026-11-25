@@ -8,11 +8,14 @@ export interface SendPermissions {
   canSend: boolean;
   /** Only meaningful while canSend is on; turning canSend off clears it. */
   canNew: boolean;
+  /** Resolve and reopen chats (scope `inbox:manage`); independent of sending. */
+  canResolve: boolean;
 }
 
 /**
- * "Can send WhatsApp messages" and, under it, "Can also message new numbers", each with its warning.
- * Shared by Create token and the Permissions dialog, so both show the same rules and texts.
+ * "Can send WhatsApp messages" and, under it, "Can also message new numbers", each with its warning,
+ * then "Can resolve chats". Shared by Create token and the Permissions dialog, so both show the same
+ * rules and texts.
  */
 export function SendPermissionFields({
   value,
@@ -26,7 +29,8 @@ export function SendPermissionFields({
   const { t } = useTranslation('admin');
   const canSendId = useId();
   const canNewId = useId();
-  const { canSend, canNew } = value;
+  const canResolveId = useId();
+  const { canSend, canNew, canResolve } = value;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-start gap-3">
@@ -34,7 +38,9 @@ export function SendPermissionFields({
           id={canSendId}
           checked={canSend}
           disabled={disabled}
-          onCheckedChange={(v) => onChange({ canSend: v === true, canNew: v === true && canNew })}
+          onCheckedChange={(v) =>
+            onChange({ ...value, canSend: v === true, canNew: v === true && canNew })
+          }
           className="mt-0.5"
         />
         <div className="flex flex-col gap-1">
@@ -51,7 +57,7 @@ export function SendPermissionFields({
               id={canNewId}
               checked={canNew}
               disabled={disabled}
-              onCheckedChange={(v) => onChange({ canSend, canNew: v === true })}
+              onCheckedChange={(v) => onChange({ ...value, canNew: v === true })}
               className="mt-0.5"
             />
             <div className="flex flex-col gap-1">
@@ -66,6 +72,20 @@ export function SendPermissionFields({
           )}
         </div>
       )}
+      {/* Resolving chats messages nobody: no warning, only what it does. */}
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id={canResolveId}
+          checked={canResolve}
+          disabled={disabled}
+          onCheckedChange={(v) => onChange({ ...value, canResolve: v === true })}
+          className="mt-0.5"
+        />
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={canResolveId}>{t('integrations.create.canResolve')}</Label>
+          <p className="text-sm text-muted-foreground">{t('integrations.create.canResolveHint')}</p>
+        </div>
+      </div>
     </div>
   );
 }

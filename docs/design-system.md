@@ -171,6 +171,34 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   the same Tags editor (bottom sheet on phones, dialog on desktop): search or type to add, tick to keep, **Done**.
   Never a coloured or bordered tag, and never a second way to edit them. — mobile-redesign `14-chat-header`,
   `24-group-tags-saved`, `25-group-info-tags`, `32-desktop-group-info-tags`
+- **Translated text** (Live translate): a translated bubble shows the text in the reader's language with one
+  `text-[11px] text-muted-foreground` line under it: the languages icon, "Translated from 中文" and a `link` button
+  "Show original"; the original opens inside the same bubble in a `bg-muted/60` block with a left rule, never
+  replacing the translation. Don't colour or badge translated bubbles, and don't hide that a text was translated. —
+  live-translate `03-chat-on`, `04-show-original`
+- **Translation preview** (Live translate): "Customer will get · 中文" is a card above the composer (like the reply
+  bar), never a dialog: what was typed (small, muted, with Change), the result in the outbound colour, "Kept
+  unchanged:" chips for the protected items, then Send (primary), Edit translation (outline) and a ghost way out
+  ("Send original instead"); ✕ is Keep editing. No back-translation. Failures use an inline `Banner` in the card and
+  keep the way out; nothing is sent until a button is pressed (or the person chose Send without preview). —
+  live-translate `07-preview`, `12-preview-refused`
+- **Way back before the breadcrumb**: a page opened from another place's card (a connector's Settings opened from
+  Agent page → Connectors) puts one muted link to that place first ("Back to AI agent ›", then the usual
+  "Connectors › <name>"), wrapping on phones. It shows only while that place still exists (a deleted agent gives no
+  link), and it points where the page came from, not to whatever the page now shows. Don't add a second back
+  button or replace the breadcrumb. — `docs/screenshots/connectors/agent-back-link-*`
+- **Set up cue in a summary row**: a row whose summary says the thing is not used yet ("Not used by this agent")
+  adds " · Set up" in `font-medium text-foreground`, kept on one line (`whitespace-nowrap`); the whole row is the
+  link. Only when the connector works and has something to switch on: never with a "Needs attention" or "No longer
+  available" badge. Don't make the cue a separate button or colour it primary. —
+  `docs/screenshots/connectors/agent-card-*`
+- **Inline link in a bubble** (an admin opening the AI agent's page from the name above its message): the small label
+  keeps its size and colour and gets a dotted underline (`decoration-dotted`, solid on hover) as the only link cue, so
+  it reads as text for everyone else. It truncates on its own inner span, not on the paragraph, so the focus ring is
+  not clipped; on touch screens the link is 44 px tall inside its own row (`pointer-coarse:min-h-11`, the row pulled up to the
+  bubble's top padding edge), never an `after:` box that would reach over the message text; a long press or swipe that starts on it stays
+  a bubble gesture (no navigation, no browser link menu). Don't turn it into a button or colour it primary. —
+  `docs/screenshots/chat/agent-link-*`
 - **Empty states** use `EmptyState` with an illustration from `public/illustrations/`.
 - **Loading** uses `Skeleton` rows, not spinners, for lists.
 - **Upload progress** of a file this browser sends sits at the top of its pending bubble, above the file's

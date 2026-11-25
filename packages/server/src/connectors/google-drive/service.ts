@@ -254,7 +254,7 @@ export function createGoogleDriveService(ctx: AppContext, options: GoogleDriveSe
     configured,
     timeZone,
 
-    status(): GoogleDriveStatus {
+    status(): Omit<GoogleDriveStatus, 'onThisComputer'> {
       const tokens = configured() ? account.tokens() : null;
       return {
         state: configured() ? account.state() : 'not_configured',

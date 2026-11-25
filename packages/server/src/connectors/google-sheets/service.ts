@@ -429,7 +429,7 @@ export function createGoogleSheetsService(
     timeZone,
     savedContact,
 
-    status(): GoogleSheetsStatus {
+    status(): Omit<GoogleSheetsStatus, 'onThisComputer'> {
       const tokens = configured() ? account.tokens() : null;
       return {
         state: configured() ? account.state() : 'not_configured',
