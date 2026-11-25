@@ -4,7 +4,7 @@ import { api } from './client';
 import { qk, type ChatsData } from './queries';
 
 /**
- * Delete chat (admins, docs/features/chat-hide-delete/design.md Part B): the chat, its messages,
+ * Delete chat (admins, docs/chat-hide-delete.md Part B): the chat, its messages,
  * notes and files go for good in EzyChat; the WhatsApp phone keeps its copy.
  */
 

@@ -172,7 +172,8 @@ export function generateClaude(
   return withClaudeKey(settings, apiKey, signal, async (model, _id, bounded) => {
     const turn = await runAgentTurn({
       model,
-      prompt,
+      // Extended thinking is phase 2: no reasoning level reaches Claude.
+      prompt: { ...prompt, reasoningEffort: undefined },
       tools: prompt.tools,
       signal: bounded,
       onTiming: prompt.onTiming,
@@ -206,7 +207,7 @@ export function assistClaude(
     apiKey,
     signal,
     async (model, id, bounded) => ({
-      ...(await runAssist({ ...call, model, signal: bounded })),
+      ...(await runAssist({ ...call, reasoningEffort: undefined, model, signal: bounded })),
       model: id,
     }),
     call.timeoutMs,
@@ -239,7 +240,11 @@ export function rewriteClaude(
   signal: AbortSignal,
 ): Promise<{ text: string; model: string }> {
   return withClaudeKey(settings, apiKey, signal, async (model, id, bounded) => ({
-    ...(await runRewrite({ model, prompt, signal: bounded })),
+    ...(await runRewrite({
+      model,
+      prompt: { ...prompt, reasoningEffort: undefined },
+      signal: bounded,
+    })),
     model: id,
   }));
 }
