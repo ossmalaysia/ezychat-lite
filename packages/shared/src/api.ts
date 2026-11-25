@@ -90,7 +90,7 @@ export type ResolveAllChatsBody = z.infer<typeof ResolveAllChatsBody>;
 export const ResolveAllChatsResponse = z.object({ resolvedCount: z.number().int().nonnegative() });
 export type ResolveAllChatsResponse = z.infer<typeof ResolveAllChatsResponse>;
 /**
- * Delete chat (admins, docs/features/chat-hide-delete/design.md Part B): what `DELETE /api/chats/:jid`
+ * Delete chat (admins, docs/chat-hide-delete.md Part B): what `DELETE /api/chats/:jid`
  * would remove, shown in the confirmation (`GET /api/chats/:jid/delete-preview`).
  */
 export const ChatDeletePreview = z.object({

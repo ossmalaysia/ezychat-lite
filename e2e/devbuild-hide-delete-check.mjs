@@ -1,4 +1,4 @@
-// Dev Build check for Delete chat and hiding chats on Log out (docs/features/chat-hide-delete/design.md)
+// Dev Build check for Delete chat and hiding chats on Log out (docs/chat-hide-delete.md)
 // against e2e/agents-devbuild.ts (fake WhatsApp, temp data). Usage: node e2e/devbuild-hide-delete-check.mjs <port>
 // The fake phone keeps one number, so "a different number" is covered by unit tests only.
 import { apiClient, checker, poll } from './devbuild-client.mjs';

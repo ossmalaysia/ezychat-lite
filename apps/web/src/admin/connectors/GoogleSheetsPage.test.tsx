@@ -364,7 +364,7 @@ describe('Google Sheets: Settings', () => {
       agents: [agent(1, 'Aina'), agent(2, 'Ben')],
     });
     const fetchMock = stubServer(w);
-    page(`${GS}?tab=settings&agent=2`);
+    page(`${GS}?tab=settings&agent=2&from=agent`);
     expect(await screen.findByText('Paused: sign in to Google again')).toBeTruthy();
     expect(screen.getByText('Ben does not use the sheet until it works again.')).toBeTruthy();
     expect(within(screen.getByTestId('sheets-chosen')).getByText('Kopi Apong prices')).toBeTruthy();
@@ -634,7 +634,7 @@ describe('Google Sheets: Activity and the agent page', () => {
       'Reads Menu · Adds rows to Leads, Claims',
     ],
     [[{ title: 'Leads', access: 'add' }], 'Adds rows to Leads'],
-    [[], 'Off for this agent'],
+    [[], 'Not used by this agent'],
   ])('sums up the agent’s Google Sheets on the agent page', async (patch, summary) => {
     stubServer(
       connected({
@@ -651,7 +651,7 @@ describe('Google Sheets: Activity and the agent page', () => {
       route: '/admin/members/ai/:agentId',
     });
     const row = await screen.findByTestId('agent-connector-google-sheets');
-    expect(row.getAttribute('href')).toBe(`${GS}?tab=settings&agent=3`);
+    expect(row.getAttribute('href')).toBe(`${GS}?tab=settings&agent=3&from=agent`);
     expect(await within(row).findByText(summary)).toBeTruthy();
   });
 });

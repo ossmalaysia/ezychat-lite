@@ -1,4 +1,4 @@
-// Hide chats on Log out (docs/features/chat-hide-delete/design.md Part A): the admin's Log out and an
+// Hide chats on Log out (docs/chat-hide-delete.md Part A): the admin's Log out and an
 // unlink from the phone hide every chat of a linked phone's inbox; a connection drop and the Business API
 // hide nothing; hidden chats are missing for every reader; the same number shows only chats WhatsApp
 // reports; a different number archives them for good.

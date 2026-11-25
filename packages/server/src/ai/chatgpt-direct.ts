@@ -414,6 +414,11 @@ export class DirectChatGptProvider implements AiProvider {
     };
   }
 
+  /** The account's live list has been read since sign-in (a stale copy still counts: it is what `knownModels` gives). */
+  modelListRead(): boolean {
+    return !!this.modelCache;
+  }
+
   /** Synchronous validation list: the cached live list, else the documented fallback. */
   knownModels(): readonly string[] {
     return (this.modelCache?.models ?? fallbackModels()).map((model) => model.id);
@@ -597,7 +602,8 @@ export class DirectChatGptProvider implements AiProvider {
         model,
         prompt,
         signal: turnSignal,
-        reasoningEffort: CHATGPT_DRAFT_REASONING,
+        // The task row's level, else low (every draft call before AI models per task).
+        reasoningEffort: prompt.reasoningEffort ?? CHATGPT_DRAFT_REASONING,
       }),
       model: id,
     }));
@@ -633,7 +639,12 @@ export class DirectChatGptProvider implements AiProvider {
           ...call,
           model,
           signal: turnSignal,
-          ...(call.main ? {} : { reasoningEffort: 'low' as const }),
+          // The Ask Ezy row's level; without one: the model's own on `main`, low on the fast model.
+          ...(call.reasoningEffort
+            ? { reasoningEffort: call.reasoningEffort }
+            : call.main
+              ? {}
+              : { reasoningEffort: 'low' as const }),
         })),
         model: id,
       }),

@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronRight, ExternalLink, Loader2, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { connectorText, type ConnectorEntry } from '@ezychat/shared';
 import { useConnectorGallery } from '../../api/connector-list';
+import { useAiAgents } from '../../api/ai';
+import { wayBackAgent } from './AgentPicker';
 import { Banner } from '@/components/app';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -118,8 +120,27 @@ export function ConnectorIcon({
 /** "Connectors › <name>" above a connector page. */
 export function ConnectorBreadcrumb({ name }: { name: string }) {
   const { t } = useTranslation('admin');
+  const [params] = useSearchParams();
+  // Opened from an agent page's Connectors card: the way back to that agent comes first, only
+  // while that agent still exists (the same rule as the agent picker on the Settings tab).
+  const agents = useAiAgents(params.has('from')).data?.agents;
+  const agent = wayBackAgent(params, agents);
   return (
-    <nav aria-label={t('connectors.breadcrumb')} className="flex items-center gap-1 text-sm">
+    <nav
+      aria-label={t('connectors.breadcrumb')}
+      className="flex flex-wrap items-center gap-1 text-sm"
+    >
+      {agent !== null && (
+        <>
+          <Link
+            to={`/admin/members/ai/${agent}`}
+            className="text-muted-foreground underline-offset-4 hover:underline"
+          >
+            {t('connectors.backToAgent')}
+          </Link>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </>
+      )}
       <Link
         to="/admin/connectors"
         className="text-muted-foreground underline-offset-4 hover:underline"
