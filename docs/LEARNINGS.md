@@ -304,6 +304,10 @@ baseline> <parallel>` (the shared baseline folder is still in the tree), merge c
 - A Playwright element screenshot of a card taller than the window comes out blank below the fold in the app and its
   mocks (the page scrolls inside its own container, not the document): grow the viewport height for the shot, then
   restore it (`ai-models-shots.mjs`).
+- A mock state that comes after a fake-WhatsApp action needs a stand-in: `FakeWaAdapter` re-opens at once after Re-link
+  (`autoOpen`), so the QR page after Re-link never shows; add a `/api/mock/…` route that calls `simulateStatus({ state:
+  'qr' })` and call it from the shot script. A cloud worktree on the same commit as the primary checkout can run mocks
+  with `ln -s <primary>/node_modules` (and each `packages/*`/`apps/*` `node_modules`) instead of a fresh `npm ci`.
 - Before pruning a feature folder for retention, `grep -rn "features/<name>"` across code, tests and AGENTS.md: if code
   cites its design, move `design.md` to a lasting `docs/<name>.md` (with a decision log) and repoint the comments; leave
   numbered SQL migrations untouched.

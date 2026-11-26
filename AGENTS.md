@@ -525,7 +525,7 @@ amount owed comes only from `/customerinvoice` / `customer.outstanding`, said ex
 phone index reads each customer's `sdsbranch` in the background (one every 4 s). Logs and Activity: tool, ok, ms, ids only. `--fake-wa` swaps in
 `FakeSqlAccount` (`fake.ts`, checks SigV4 with `FAKE_SQL_ACCESS_KEY`/`FAKE_SQL_SECRET`; `/api/dev/fake-sql-account/*`).
 
-**GitHub** (design `docs/features/github/design.md`, beta, **Lite only** for now: outside Lite the service is not
+**GitHub** (design `docs/github.md`, beta, **Lite only** for now: outside Lite the service is not
 created, routes answer 404, no tools). Read only, issues and pull requests, never code. Sign-in (one per install, encrypted
 `github_auth`): Anchor Sprint's GitHub App "EzyChat by Anchor Sprint" through the device flow with only the public Client ID
 (`GITHUB_APP_CLIENT_ID` in `packages/shared/src/github.ts`; no client secret, no private key in the app), or a fine-grained

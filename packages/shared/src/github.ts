@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * GitHub connector (core code, offered in Lite only for now; design docs/features/github/design.md,
+ * GitHub connector (core code, offered in Lite only for now; design docs/github.md,
  * rules docs/connector-design.md). One GitHub sign-in per install, two ways: Anchor Sprint's GitHub
  * App through GitHub's device flow (Client ID only, no secret), or a fine-grained personal access
  * token. Per AI agent: the repositories it may look in and two look-up switches. Read only: issues
