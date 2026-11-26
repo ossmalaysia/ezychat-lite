@@ -117,7 +117,7 @@ describe('changing a token’s permissions', () => {
     expect((await patch(old.id, { canSend: true, canMessageNewNumbers: false })).statusCode).toBe(
       400,
     );
-    t.ctx.services.apiTokens!.revoke(old.id, owner.id, 'ip');
+    t.ctx.services.apiTokens!.revoke(old.id, owner, 'ip');
     expect((await patch(old.id, { canSend: true, canMessageNewNumbers: false })).statusCode).toBe(
       404,
     );
@@ -218,9 +218,10 @@ describe('changing a token’s permissions', () => {
       payload: body,
     });
     expect(res.statusCode).toBe(401);
-    expect(t.ctx.services.apiTokens!.list().find((x) => x.id === theirs.id)?.canResolveChats).toBe(
-      false,
-    );
+    expect(
+      t.ctx.services.apiTokens!.list({ id: 0, role: 'admin' }).find((x) => x.id === theirs.id)
+        ?.canResolveChats,
+    ).toBe(false);
   });
 
   it('is off for new tokens and app sign-ins unless ticked at creation, and audited there', () => {

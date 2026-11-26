@@ -211,7 +211,8 @@
       "safetyAutoBlock": "Nombor disekat secara automatik",
       "chatNewNumber": "Sembang dimulakan dengan nombor baharu",
       "settingsNewChatStaff": "Tetapan sembang baharu ditukar",
-      "settingsNewChatDailyLimit": "Had harian sembang baharu ditukar"
+      "settingsNewChatDailyLimit": "Had harian sembang baharu ditukar",
+      "settingsMcpMembers": "Tetapan pembantu AI ahli ditukar"
     },
     "fields": {
       "chat": "Sembang",
@@ -270,7 +271,9 @@
       "expired": "Token tamat tempoh",
       "userInactive": "Pemilik dinyahaktifkan",
       "notAdmin": "Pemilik bukan pentadbir",
-      "mustChangePassword": "Pemilik perlu menukar kata laluan"
+      "mustChangePassword": "Pemilik perlu menukar kata laluan",
+      "membersOff": "Ahli tidak dibenarkan menyambung pembantu AI",
+      "notAllowed": "Pemilik tidak dibenarkan menyambung pembantu AI"
     },
     "yes": "Ya",
     "no": "Tidak",
@@ -344,7 +347,8 @@
       "canNewBadge": "Nombor baharu",
       "canResolveBadge": "Selesaikan chat",
       "signedInBadge": "Log masuk",
-      "tokenBadge": "Token"
+      "tokenBadge": "Token",
+      "memberBadge": "Ahli"
     },
     "create": {
       "title": "Cipta token akses",
@@ -399,6 +403,18 @@
       "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya oleh pembantu. Membaca peti masuk dan alat persediaan AI kekal hidup.",
       "save": "Simpan",
       "saved": "Kebenaran disimpan"
+    },
+    "members": {
+      "label": "Ahli boleh menyambung pembantu AI",
+      "hint": "Ahli pasukan boleh menyambung Claude atau ChatGPT ke akaun mereka sendiri melalui log masuknya. Pembantu hanya melihat sembang yang boleh dibuka ahli itu, dan hanya menghantar jika mereka membenarkannya.",
+      "needsAccess": "Hidupkan akses pembantu AI di atas dahulu.",
+      "turnedOn": "Ahli kini boleh menyambung pembantu AI",
+      "turnedOff_one": "Ahli tidak lagi boleh menyambung pembantu AI. {{count}} token dibatalkan.",
+      "turnedOff_other": "Ahli tidak lagi boleh menyambung pembantu AI. {{count}} token dibatalkan.",
+      "offTitle": "Hentikan ahli menyambung pembantu AI?",
+      "offBody_one": "Pembantu setiap ahli diputuskan serta-merta: {{count}} token dibatalkan. Ahli perlu menyambung semula jika anda menghidupkannya kembali.",
+      "offBody_other": "Pembantu setiap ahli diputuskan serta-merta: {{count}} token dibatalkan. Ahli perlu menyambung semula jika anda menghidupkannya kembali.",
+      "offConfirm": "Matikan dan putuskan"
     }
   },
   "settings": {
@@ -3299,6 +3315,26 @@
     "limitNone": "Tiada had: pasukan anda dan pembantu AI boleh menghantar mesej kepada seberapa banyak nombor baharu sehari.",
     "limitBanTitle": "Had yang tinggi boleh menyebabkan nombor anda disekat",
     "limitBanBody": "WhatsApp boleh menyekat nombor yang menghantar mesej kepada ramai orang yang tidak memintanya. Kekalkan had yang rendah melainkan orang ini menjangkakan mesej anda."
+  },
+  "memberAssistants": {
+    "title": "Pembantu AI saya",
+    "description": "Sambungkan Claude atau ChatGPT ke akaun {{product}} anda sendiri.",
+    "off": "Minta admin membenarkan ahli menyambung pembantu AI.",
+    "reach": "Ia melihat sembang yang sama yang anda lihat dalam {{product}}.",
+    "reachLimited": "Ia hanya melihat sembang yang dipilih untuk anda.",
+    "howTo": "Dalam Claude atau ChatGPT, tambah {{product}} sebagai penyambung dengan alamat ini. Ia membuka halaman log masuk di sini untuk anda luluskan.",
+    "apps": "Pembantu yang disambung",
+    "empty": "Belum ada pembantu disambung.",
+    "sendNote": "Pembantu tidak boleh menghantar mesej sehingga anda membenarkannya. Guna Kebenaran untuk membenarkannya.",
+    "connectedOn": "Disambung {{date}}",
+    "disconnect": "Putuskan",
+    "disconnectLabel": "Putuskan {{name}}",
+    "disconnectTitle": "Putuskan “{{name}}”?",
+    "disconnectBody": "Pembantu ini berhenti berfungsi serta-merta. Anda boleh menyambungnya semula bila-bila masa.",
+    "disconnected": "Pembantu diputuskan",
+    "newBlocked": "Anda tidak boleh memulakan sembang baharu dalam {{product}}, jadi pembantu anda pun tidak boleh.",
+    "permsDescription": "Pilih apa yang boleh dilakukan pembantu ini untuk anda. Ia kekal bersambung: tidak perlu log masuk semula.",
+    "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya pembantu. Pembantu anda masih hanya melihat apa yang boleh anda buka."
   },
   "liveTranslate": {
     "title": "Terjemah langsung",

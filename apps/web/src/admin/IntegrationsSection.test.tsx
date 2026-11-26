@@ -37,6 +37,7 @@ function token(over: Partial<ApiToken> = {}): ApiToken {
     canMessageNewNumbers: false,
     canResolveChats: false,
     connectedApp: false,
+    memberToken: false,
     ...over,
   };
 }
@@ -49,15 +50,29 @@ function json(data: unknown, code = 200) {
 }
 
 function setup({
-  mcp = { enabled: true, endpointPath: '/mcp', publicUrl: null, localUrl: LOCAL },
+  mcp = {
+    enabled: true,
+    endpointPath: '/mcp',
+    publicUrl: null,
+    localUrl: LOCAL,
+    membersEnabled: false,
+    canConnect: true,
+    canMessageNewNumbers: true,
+  },
   tokens = [],
   fail = {},
 }: {
-  mcp?: McpSettingsResponse;
+  mcp?: Omit<McpSettingsResponse, 'membersEnabled' | 'canConnect' | 'canMessageNewNumbers'> &
+    Partial<McpSettingsResponse>;
   tokens?: ApiToken[];
   fail?: { patch?: boolean; post?: boolean; revokeGone?: boolean; permissions?: boolean };
 } = {}) {
-  let settings = mcp;
+  let settings: McpSettingsResponse = {
+    membersEnabled: false,
+    canConnect: true,
+    canMessageNewNumbers: true,
+    ...mcp,
+  };
   let list = tokens;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -121,6 +136,9 @@ const OFF: McpSettingsResponse = {
   endpointPath: '/mcp',
   publicUrl: null,
   localUrl: LOCAL,
+  membersEnabled: false,
+  canConnect: true,
+  canMessageNewNumbers: true,
 };
 
 /** Create token sits under "For developer tools" (closed by default) in the Connect card. */
@@ -171,6 +189,66 @@ describe('Settings → Integrations', () => {
     expect(patch![0]).toBe('/api/integrations/mcp');
     expect(JSON.parse(String((patch![1] as RequestInit).body))).toEqual({ enabled: true });
     expect(screen.getByText(/Chats an assistant reads are sent/)).toBeTruthy();
+  });
+
+  it('lets members connect assistants, and asks before turning that off', async () => {
+    const { fetchMock } = setup({
+      tokens: [
+        token({ id: 4, userId: 2, userName: 'Daniel', connectedApp: true, memberToken: true }),
+      ],
+    });
+    const user = userEvent.setup();
+    const toggle = await screen.findByRole('switch', {
+      name: 'Members can connect AI assistants',
+    });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    await user.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'));
+    expect(JSON.parse(String((calls(fetchMock, 'PATCH')[0]![1] as RequestInit).body))).toEqual({
+      membersEnabled: true,
+    });
+    // a member's connected app shows whose it is and can be revoked by the admin
+    expect(await screen.findByTestId('token-member')).toBeTruthy();
+    await user.click(toggle);
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText(/1 token is revoked/)).toBeTruthy();
+    expect(calls(fetchMock, 'PATCH')).toHaveLength(1);
+    await user.click(within(dialog).getByRole('button', { name: 'Turn off and disconnect' }));
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
+    expect(JSON.parse(String((calls(fetchMock, 'PATCH')[1]![1] as RequestInit).body))).toEqual({
+      membersEnabled: false,
+    });
+  });
+
+  it('reloads the token list when access goes off (members are revoked with it)', async () => {
+    const { fetchMock } = setup({
+      mcp: { ...OFF, enabled: true, membersEnabled: true },
+      tokens: [
+        token({ id: 4, userId: 2, userName: 'Daniel', connectedApp: true, memberToken: true }),
+      ],
+    });
+    const user = userEvent.setup();
+    const toggle = await screen.findByRole('switch', { name: 'Let AI assistants read this inbox' });
+    await screen.findByTestId('token-member');
+    const tokenLoads = () =>
+      fetchMock.mock.calls.filter(
+        (c) =>
+          c[0] === '/api/integrations/tokens' &&
+          ((c[1] as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+      ).length;
+    const before = tokenLoads();
+    await user.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
+    await waitFor(() => expect(tokenLoads()).toBeGreaterThan(before));
+  });
+
+  it('keeps the members switch off while AI assistant access is off', async () => {
+    setup({ mcp: OFF });
+    const toggle = await screen.findByRole('switch', {
+      name: 'Members can connect AI assistants',
+    });
+    expect(toggle.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Turn on AI assistant access above first.')).toBeTruthy();
   });
 
   it('warns when no tunnel runs and links to the Cloudflare page', async () => {

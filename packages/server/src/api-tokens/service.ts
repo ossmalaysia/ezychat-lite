@@ -9,7 +9,9 @@ import type { AppContext } from '../context.js';
 import { getAuth } from '../auth/guards.js';
 import { randomToken, sha256 } from '../crypto/secret.js';
 import { audit } from '../db/audit.js';
-import { errors } from '../http/errors.js';
+import { errors, HttpError } from '../http/errors.js';
+import { canStartNewChats } from '../chats/new-chat.js';
+import { mcpHolderRefusal, type McpHolderRefusal } from '../mcp/settings.js';
 
 /** Every token secret starts with this, so logs and support exports can redact it by shape. */
 export const TOKEN_PREFIX = 'ezc_pat_';
@@ -31,11 +33,7 @@ const TOUCH_INTERVAL_MS = 60_000;
  * the same way as `inbox:send` (ticked at creation or later by the owner in Settings).
  */
 export type TokenScope =
-  | 'inbox:read'
-  | 'ai:setup'
-  | 'inbox:send'
-  | 'inbox:send_new'
-  | 'inbox:manage';
+  'inbox:read' | 'ai:setup' | 'inbox:send' | 'inbox:send_new' | 'inbox:manage';
 const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>([
   'inbox:read',
   'ai:setup',
@@ -44,6 +42,13 @@ const KNOWN_SCOPES: ReadonlySet<string> = new Set<TokenScope>([
   'inbox:manage',
 ]);
 const NEW_TOKEN_SCOPES = 'inbox:read ai:setup';
+/** A team member's token never holds `ai:setup` (AI setup is for admins only). */
+const NEW_MEMBER_TOKEN_SCOPES = 'inbox:read';
+/** Scopes a token can use for its owner's role, whatever is stored (defence in depth). */
+const ROLE_SCOPES: Record<'admin' | 'agent', ReadonlySet<TokenScope>> = {
+  admin: KNOWN_SCOPES as ReadonlySet<TokenScope>,
+  agent: new Set<TokenScope>(['inbox:read', 'inbox:send', 'inbox:send_new']),
+};
 const SEND_SCOPE: TokenScope = 'inbox:send';
 const SEND_NEW_SCOPE: TokenScope = 'inbox:send_new';
 const MANAGE_SCOPE: TokenScope = 'inbox:manage';
@@ -55,6 +60,7 @@ interface GrantBody {
   canMessageNewNumbers?: boolean;
   canResolveChats?: boolean;
 }
+const baseScopes = (role: Role) => (role === 'admin' ? NEW_TOKEN_SCOPES : NEW_MEMBER_TOKEN_SCOPES);
 
 /**
  * `base` plus the scopes the body grants (`inbox:send_new` only together with `inbox:send`;
@@ -69,7 +75,6 @@ function withGrantedScopes(base: string, body: GrantBody): string {
   if (body.canResolveChats === true) add.push(MANAGE_SCOPE);
   return [base, ...add].join(' ');
 }
-const newTokenScopes = (body: GrantBody) => withGrantedScopes(NEW_TOKEN_SCOPES, body);
 
 export interface ApiPrincipal {
   tokenId: number;
@@ -77,21 +82,16 @@ export interface ApiPrincipal {
   scopes: ReadonlySet<TokenScope>;
 }
 
-export type ResolveFailure =
-  | 'malformed'
-  | 'unknown'
-  | 'revoked'
-  | 'expired'
-  | 'user_inactive'
-  | 'not_admin'
-  | 'must_change_password';
+export type ResolveFailure = 'malformed' | 'unknown' | 'revoked' | 'expired' | McpHolderRefusal;
 
 export type ResolveResult =
-  | { ok: true; principal: ApiPrincipal }
-  | { ok: false; reason: ResolveFailure; tokenId?: number };
+  { ok: true; principal: ApiPrincipal } | { ok: false; reason: ResolveFailure; tokenId?: number };
 
 export interface ApiTokenService {
-  /** Issues a token for an admin; the secret is in the response only. */
+  /**
+   * Issues a token for an admin, or for a team member while members may connect (their token reaches
+   * only what they can open and never gets `ai:setup`); the secret is in the response only.
+   */
   create(
     userId: number,
     body: Pick<CreateApiTokenBody, 'name' | 'expiresInDays'> & GrantBody,
@@ -106,10 +106,18 @@ export interface ApiTokenService {
     userId: number,
     app: { clientId: string; name: string },
     ip: string,
+    /** `role`: the approver's role when they approved; a different role now refuses (403). */
+    opts?: { canSend?: boolean; role?: Role },
   ): CreateApiTokenResponse;
-  /** Tokens that are not revoked (expired ones included, so the admin can see them). */
-  list(): ApiToken[];
-  revoke(id: number, actorId: number, ip: string): void;
+  /**
+   * Tokens that are not revoked (expired ones included, so the owner can see them): every token for an
+   * admin, else only the viewer's own.
+   */
+  list(viewer: Pick<User, 'id' | 'role'>): ApiToken[];
+  /** Admins revoke any token; anyone else only their own (another's is "not found"). */
+  revoke(id: number, actor: Pick<User, 'id' | 'role'>, ip: string): void;
+  /** Revokes every team member's token (the members switch went off); returns how many. */
+  revokeMemberTokens(): number;
   /**
    * Its owner changes whether a token may send (and message new numbers) and resolve chats
    * (`canResolveChats` omitted = unchanged); takes effect on the next call.
@@ -140,6 +148,12 @@ interface TokenRow {
   revoked_at: number | null;
   oauth_client_id: string | null;
 }
+
+/** 403 for a person who may not hold a token right now; `code` tells the web why. */
+const holderForbidden = (reason: McpHolderRefusal) =>
+  reason === 'members_off'
+    ? new HttpError(403, 'mcp_members_off', 'Your admin has not let members connect AI assistants')
+    : errors.forbidden('You cannot connect an AI assistant');
 
 /** Bearer secret from an Authorization header value, or null when it is not one of our tokens. */
 export function parseBearer(header: string | string[] | undefined): string | null {
@@ -175,6 +189,11 @@ export function createApiTokenService(
     revokeForUser: ctx.db.prepare(
       'UPDATE api_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL',
     ),
+    revokeMembers: ctx.db.prepare(
+      `UPDATE api_tokens SET revoked_at = ?
+       WHERE revoked_at IS NULL
+         AND user_id NOT IN (SELECT id FROM users WHERE role = 'admin' AND kind = 'human')`,
+    ),
     touch: ctx.db.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?'),
     setScopes: ctx.db.prepare(
       'UPDATE api_tokens SET scopes = ? WHERE id = ? AND revoked_at IS NULL',
@@ -194,6 +213,7 @@ export function createApiTokenService(
     canMessageNewNumbers: r.scopes.split(' ').includes(SEND_NEW_SCOPE),
     canResolveChats: r.scopes.split(' ').includes(MANAGE_SCOPE),
     connectedApp: r.oauth_client_id !== null,
+    memberToken: auth.getUser(r.user_id)?.role !== 'admin',
   });
 
   /** The token's owner when the token can be used right now, else why it cannot. */
@@ -201,19 +221,17 @@ export function createApiTokenService(
     if (row.revoked_at !== null) return { reason: 'revoked' };
     if (row.expires_at !== null && row.expires_at <= t) return { reason: 'expired' };
     const user = auth.getUser(row.user_id);
-    if (!user || user.disabled || user.kind === 'ai') return { reason: 'user_inactive' };
-    if (user.role !== 'admin') return { reason: 'not_admin' };
-    if (user.mustChangePassword) return { reason: 'must_change_password' };
+    const refused = mcpHolderRefusal(ctx, user);
+    if (refused || !user) return { reason: refused ?? 'user_inactive' };
     return { user };
   };
 
-  // Tokens act with the owner's live role; revoking them on disable/demotion is housekeeping
-  // (resolve() refuses them anyway) that also removes them from the admin list.
+  // Tokens act with the owner's live role and access. A disabled owner's tokens are refused anyway;
+  // any role change (admin ↔ member) revokes them, so a token never silently gains or loses a whole
+  // class of reach (a member's token becoming an admin's, or the reverse).
   const revokeForUser = (userId: number) => q.revokeForUser.run(now(), userId);
   const onDisabled = (userId: number) => revokeForUser(userId);
-  const onRoleChanged = (userId: number, role: Role) => {
-    if (role !== 'admin') revokeForUser(userId);
-  };
+  const onRoleChanged = (userId: number, _role: Role) => revokeForUser(userId);
   ctx.bus.on('user:disabled', onDisabled);
   ctx.bus.on('user:role-changed', onRoleChanged);
 
@@ -226,7 +244,17 @@ export function createApiTokenService(
     ip: string,
   ): CreateApiTokenResponse => {
     const owner = auth.getUser(userId);
-    if (!owner || owner.role !== 'admin' || owner.disabled) throw errors.forbidden('Admin only');
+    const refused = mcpHolderRefusal(ctx, owner);
+    // A password change still to make does not block creating one (it blocks using it).
+    if (refused && refused !== 'must_change_password') throw holderForbidden(refused);
+    if (!owner) throw errors.forbidden('You cannot connect an AI assistant');
+    // A member's token never holds AI setup; send scopes only as ticked, new numbers only when they
+    // could start a new chat in the app.
+    const allowed = ROLE_SCOPES[owner.role === 'admin' ? 'admin' : 'agent'];
+    if (scopes.split(' ').some((s) => !allowed.has(s as TokenScope)))
+      throw errors.forbidden('You cannot connect an AI assistant');
+    if (scopes.split(' ').includes(SEND_NEW_SCOPE) && !canStartNewChats(ctx, owner))
+      throw new HttpError(403, 'new_chat_not_allowed', 'You cannot start new chats');
     const secret = TOKEN_PREFIX + randomToken(32);
     const t = now();
     const expiresAt = expiresInDays === null ? null : t + expiresInDays * DAY_MS;
@@ -263,18 +291,44 @@ export function createApiTokenService(
 
   return {
     create(userId, body, ip) {
-      return issue(userId, body.name, body.expiresInDays, newTokenScopes(body), null, ip);
+      // Personal access tokens are admins' "master tokens" (owner decision 2026-11-20): a team member
+      // connects an assistant only through its app sign-in (OAuth), never with a pasted token.
+      const role = auth.getUser(userId)?.role;
+      if (role !== 'admin')
+        throw errors.forbidden(
+          'Access tokens are for admins; connect your assistant with its sign-in',
+        );
+      return issue(
+        userId,
+        body.name,
+        body.expiresInDays,
+        withGrantedScopes(baseScopes(role), body),
+        null,
+        ip,
+      );
     },
 
-    createForApp(userId, app, ip) {
+    createForApp(userId, app, ip, opts) {
       return ctx.db.transaction(() => {
+        const role = auth.getUser(userId)?.role ?? 'agent';
+        // Approved as a member, promoted before the app used the code: never an admin token.
+        if (opts?.role !== undefined && opts.role !== role)
+          throw errors.forbidden('The approving person changed role');
         q.revokeForApp.run(now(), userId, app.clientId);
-        return issue(userId, app.name, null, NEW_TOKEN_SCOPES, app.clientId, ip);
+        const scopes = withGrantedScopes(baseScopes(role), { canSend: opts?.canSend === true });
+        return issue(userId, app.name, null, scopes, app.clientId, ip);
       })();
     },
 
-    list() {
-      return (q.active.all() as TokenRow[]).map(toApiToken);
+    list(viewer) {
+      const rows = q.active.all() as TokenRow[];
+      return (viewer.role === 'admin' ? rows : rows.filter((r) => r.user_id === viewer.id)).map(
+        toApiToken,
+      );
+    },
+
+    revokeMemberTokens() {
+      return q.revokeMembers.run(now()).changes;
     },
 
     updatePermissions(id, actorId, body, ip) {
@@ -282,10 +336,21 @@ export function createApiTokenService(
       // Unknown and revoked tokens alike: a revoked row has a non-null revoked_at.
       if (row?.revoked_at !== null) throw errors.notFound('Token');
       // A token acts as its owner: only the owner may let it send in their name.
-      if (row.user_id !== actorId)
+      if (row.user_id !== actorId) {
+        // A member never learns that someone else's token exists (as revoke): not found.
+        if (auth.getUser(actorId)?.role !== 'admin') throw errors.notFound('Token');
         throw errors.forbidden('Only the owner of a token can change what it may do');
+      }
       if (row.expires_at !== null && row.expires_at <= now())
         throw errors.validation('This token has expired; create a new one');
+      const owner = auth.getUser(actorId);
+      const refused = mcpHolderRefusal(ctx, owner);
+      if (refused && refused !== 'must_change_password') throw holderForbidden(refused);
+      if (body.canMessageNewNumbers && owner && !canStartNewChats(ctx, owner))
+        throw new HttpError(403, 'new_chat_not_allowed', 'You cannot start new chats');
+      // `inbox:manage` is admin-only (ROLE_SCOPES drops it for members anyway): refuse rather than store it.
+      if (body.canResolveChats === true && owner?.role !== 'admin')
+        throw errors.forbidden('Only an admin assistant can resolve chats');
       const before = toApiToken(row);
       const base = row.scopes
         .split(' ')
@@ -322,12 +387,14 @@ export function createApiTokenService(
       return token;
     },
 
-    revoke(id, actorId, ip) {
+    revoke(id, actor, ip) {
       const row = q.byId.get(id) as TokenRow | undefined;
-      if (!row || row.revoked_at !== null) throw errors.notFound('Token');
+      // Someone else's token reads as missing for a member (never a hint it exists).
+      if (!row || row.revoked_at !== null || (actor.role !== 'admin' && row.user_id !== actor.id))
+        throw errors.notFound('Token');
       q.revoke.run(now(), id);
       audit(ctx.db, {
-        userId: actorId,
+        userId: actor.id,
         action: 'api_token.revoke',
         ip,
         meta: { tokenId: id, name: row.name, prefix: row.prefix },
@@ -344,8 +411,12 @@ export function createApiTokenService(
       if (row.last_used_at === null || t - row.last_used_at >= TOUCH_INTERVAL_MS) {
         q.touch.run(t, row.id);
       }
+      // Only the scopes the owner's live role may use, whatever is stored.
+      const allowed = ROLE_SCOPES[result.user.role === 'admin' ? 'admin' : 'agent'];
       const scopes = new Set(
-        row.scopes.split(' ').filter((s): s is TokenScope => KNOWN_SCOPES.has(s)),
+        row.scopes
+          .split(' ')
+          .filter((s): s is TokenScope => KNOWN_SCOPES.has(s) && allowed.has(s as TokenScope)),
       );
       return { ok: true, principal: { tokenId: row.id, user: result.user, scopes } };
     },

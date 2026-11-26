@@ -56,6 +56,15 @@ no-store` and a token valid for the one request, a security review (AGENTS.md "S
 
 ## Ideas and next steps
 
+- **MCP sends: recheck the holder after a long link download** (2026-11-26, independent review of #402, low):
+  `send_image` / `send_file` / `send_video` check the holder rule before the tool runs (`mcp/server.ts` `stillValid`),
+  but not again after `from.load()` downloads a link (up to 60 min). A member switched off, disabled or removed from
+  the chat meanwhile still gets the file sent. Admin tokens have the same gap. Fix: call `stillValid()` and
+  `targetChat()` again just before `messages.sendMedia` in `mcp/send.ts#sendAttachment`, with a test that revokes
+  during a slow download.
+- **MCP address shown to members while the switch is off** (2026-11-26, review of #402, information only):
+  `GET /api/integrations/mcp` answers every signed-in member with `publicUrl` / `localUrl`. Members reach the app
+  through these addresses anyway; decide whether to answer only while `mcp_members_enabled` is on.
 - **Split the web app's main file** (2026-11-14): `assets/index-*.js` is 2.13 MB after the combined merge and passed
   the PWA precache default (2 MiB, now raised to 3 MiB in `apps/web/vite.config.ts`). Load the admin area
   (`AdminLayout` and its pages) with `React.lazy` so agents and phones download less.

@@ -27,6 +27,8 @@ export const ApiTokenSchema = z.object({
   canResolveChats: z.boolean().default(false),
   /** Made by an app's sign-in (OAuth approval), not by Create token in Settings. */
   connectedApp: z.boolean().default(false),
+  /** The owner is a team member (not an admin): the token reaches only what that member can open. */
+  memberToken: z.boolean().default(false),
 });
 export type ApiToken = z.infer<typeof ApiTokenSchema>;
 
@@ -79,10 +81,24 @@ export const McpSettingsResponse = z.object({
   publicUrl: z.string().nullable(),
   /** Loopback base URL on the port this server listens on (works only on the server's computer). */
   localUrl: z.string(),
+  /** Admin switch: team members may connect AI assistants to their own account (default off). */
+  membersEnabled: z.boolean().default(false),
+  /**
+   * The signed-in person may create tokens and approve an app sign-in right now (admins: always;
+   * members: while AI assistant access and the members switch are both on).
+   */
+  canConnect: z.boolean().default(true),
+  /** The signed-in member could start a new chat in the app, so a token may message new numbers. */
+  canMessageNewNumbers: z.boolean().default(true),
 });
 export type McpSettingsResponse = z.infer<typeof McpSettingsResponse>;
 
-export const McpSettingsPatch = z.strictObject({ enabled: z.boolean() });
+/** Admins only. At least one field. */
+export const McpSettingsPatch = z
+  .strictObject({ enabled: z.boolean().optional(), membersEnabled: z.boolean().optional() })
+  .refine((b) => b.enabled !== undefined || b.membersEnabled !== undefined, {
+    message: 'Nothing to change',
+  });
 export type McpSettingsPatch = z.infer<typeof McpSettingsPatch>;
 
 // MCP sign-in (OAuth 2.1 authorization code + PKCE): an AI assistant app (claude.ai, ChatGPT, …)
@@ -109,7 +125,11 @@ export const OAuthRequestInfo = z.object({
 });
 export type OAuthRequestInfo = z.infer<typeof OAuthRequestInfo>;
 
-export const OAuthDecisionBody = OAuthAuthorizeParams.extend({ approve: z.boolean() });
+export const OAuthDecisionBody = OAuthAuthorizeParams.extend({
+  approve: z.boolean(),
+  /** The approving person lets this app send WhatsApp messages as them (off unless ticked). */
+  canSend: z.boolean().optional(),
+});
 export type OAuthDecisionBody = z.infer<typeof OAuthDecisionBody>;
 
 /** Where the page sends the browser next: back to the app with a code, or with access_denied. */

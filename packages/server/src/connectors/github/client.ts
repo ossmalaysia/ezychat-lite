@@ -1,7 +1,7 @@
 import { guardedFetch } from '../mcp/net.js';
 
 /**
- * Requests to GitHub (design docs/features/github/design.md, "Network"): only `https://github.com`
+ * Requests to GitHub (design docs/github.md, "Network"): only `https://github.com`
  * (device flow, token refresh) and `https://api.github.com` (REST, GET only), through the connector
  * network guard (no private address, no redirect at all, 10 s, 1 MB). Errors carry what they mean:
  * a 5xx, a timeout or a rate-limit answer (403/429 with rate-limit headers) is `unavailable` /

@@ -10,5 +10,7 @@ declare module 'pino-roll' {
     dateFormat?: string;
     mkdir?: boolean;
   }
-  export default function pinoRoll(opts: PinoRollOptions): Promise<DestinationStream & { end(): void }>;
+  export default function pinoRoll(
+    opts: PinoRollOptions,
+  ): Promise<DestinationStream & { end(): void }>;
 }

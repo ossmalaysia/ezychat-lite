@@ -26,6 +26,10 @@ vi.mock('@/i18n/use-change-locale', () => ({
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.84' }));
 vi.mock('./MyLanguageField', () => ({ MyLanguageField: () => null }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => <p>Notifications</p> }));
+// Its own test (MemberAssistantCard.test.tsx) covers it; here only where it shows.
+vi.mock('./MemberAssistantCard', () => ({
+  MemberAssistantCard: () => <p data-testid="member-assistant">My AI assistants</p>,
+}));
 const feedback = vi.hoisted(() => vi.fn());
 vi.mock('@/components/app/FeedbackDialog', () => ({ openFeedback: feedback }));
 const toast = vi.hoisted(() => ({ error: vi.fn() }));
@@ -93,6 +97,8 @@ it('signs out once at a time, and says so when signing out fails', async () => {
 it('a team member has no way back to Settings (the Account tab is their own place)', () => {
   setup();
   expect(within(screen.getByTestId('phone-bar')).queryByRole('link')).toBeNull();
+  // a team member's own AI assistants live here
+  expect(screen.getByTestId('member-assistant')).toBeTruthy();
 });
 
 it('an admin gets the upgrade link and a way back to the Settings list', () => {
@@ -102,6 +108,8 @@ it('an admin gets the upgrade link and a way back to the Settings list', () => {
   expect(screen.getByRole('link', { name: 'Back to Settings' }).getAttribute('href')).toBe(
     '/admin',
   );
+  // admins manage assistants in Settings → Integrations
+  expect(screen.queryByTestId('member-assistant')).toBeNull();
   const upgrade = screen.getAllByRole('link').find((l) => l.getAttribute('target') === '_blank');
   expect(upgrade?.getAttribute('rel')).toBe('noopener noreferrer');
 });

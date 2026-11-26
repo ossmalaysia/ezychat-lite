@@ -60,7 +60,8 @@
     "sendFeedback": "Send feedback",
     "emailSupport": "Email support",
     "signingOut": "Signing out…",
-    "signOutFailed": "Could not sign out: {{error}}"
+    "signOutFailed": "Could not sign out: {{error}}",
+    "aiAssistants": "My AI assistants"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -238,6 +239,10 @@
       "title": "Which token?",
       "body": "A fine-grained token limited to the repositories you choose, with Issues and Pull requests Read-only. Classic tokens (ghp_…) reach every repository, so {{product}} refuses them.",
       "action": "Make a token on GitHub"
+    },
+    "memberNewChats": {
+      "title": "Why is this greyed out?",
+      "body": "You can't start new chats in {{product}}, so your assistant can't either."
     }
   },
   "appNav": {

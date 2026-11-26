@@ -15,7 +15,11 @@ export const SESSION_COOKIE = 'sid';
 export const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60;
 
 /** Paths a user with must_change_password may still reach. */
-const PASSWORD_CHANGE_ALLOWED = new Set(['/api/me', '/api/auth/change-password', '/api/auth/logout']);
+const PASSWORD_CHANGE_ALLOWED = new Set([
+  '/api/me',
+  '/api/auth/change-password',
+  '/api/auth/logout',
+]);
 
 export function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): void {
   reply.setCookie(SESSION_COOKIE, token, {

@@ -110,7 +110,7 @@ export function githubLookupsAvailable(ctx: AppContext, agentId?: number | null)
 }
 
 /**
- * The GitHub tools for one AI agent turn (design docs/features/github/design.md): look-ups only, in
+ * The GitHub tools for one AI agent turn (design docs/github.md): look-ups only, in
  * the agent's chosen repositories that GitHub still shares, issues with Issues on and pull requests
  * with Pull requests on. Every search query is rebuilt by the server (`query.ts`) and every named
  * repo is checked against the list. Allowed in Try it and group turns. At most

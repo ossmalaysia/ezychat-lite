@@ -146,6 +146,7 @@ into AGENTS.md.
 - A new test must be seen failing for the right reason: timing thresholds pass on a fast machine
   (test the observable fallback instead), and vitest does not type-check, so a not-yet-exported
   constant yields `undefined`/`NaN` and a vacuous pass — assert the inputs are what you meant.
+  Run the package's `tsc --noEmit` after every test edit too, before pushing: green tests can still fail CI's typecheck.
 - Before designing a change, grep `AGENTS.md` for the subsystem's terms (e.g. "profile", "prompt"):
   recent features leave placement rules in the architecture paragraphs, not only in Working rules.
 - Before production UI work, commit a complete interactive HTML mock in `docs/features/<feature>/mock/`
@@ -688,7 +689,9 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   A junction to another branch's install links `@ezychat/*` to that branch's sources: link only to a
   checkout on the same base, else `tsc` reports the other branch's contract changes as your errors.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
-  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Before writing a rule, also
+  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. `--theirs` on any file with a
+  conflict (AGENTS.md too) also throws away the hunks git already merged from your branch: edit only the marked
+  hunks, and recover from a wrong `--ours`/`--theirs` with `git checkout -m -- <file>`. Before writing a rule, also
   search the open `docs(learnings)` PRs (`gh pr diff <n>`), not only `main`: one may already hold it. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
   commit. After a base PR is squash-merged, replay only your own commits
@@ -856,6 +859,9 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 
 ## Build, tooling and Windows
 
+- `npm run test:coverage` on a busy Windows PC can fail a few server tests with `EPERM … wati-test-*` (a temp data
+  folder still held open while `makeTestApp` makes or removes it). That is not a code failure: run those files alone
+  (`npx vitest run <files>`) and let CI's three OS jobs decide; report both results.
 - An MCP server that is configured (`~/.claude.json` `mcpServers`) but has no tools in the session and is not in the
   "failed to connect" list usually needs a sign-in: check its port (`Get-NetTCPConnection`) and one `tools/list`
   request; a 401 means the owner must run `/mcp` → the server → Authenticate (never sign in for them).
@@ -1415,9 +1421,20 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 - To screenshot the app "through the tunnel" locally: set the `named_tunnel_hostname` setting, launch Chromium with
   `--host-resolver-rules=MAP <host> 127.0.0.1` and `--unsafely-treat-insecure-origin-as-secure=http://<host>:<port>`
   (the session cookie is Secure off loopback), as `docs/features/mcp-file-upload/screens/shots.mjs` does.
+- Widening who may call a path (e.g. MCP tokens for team members) means re-auditing every service entry the old
+  callers reached: a method written for admins only (`newChat.openChecked`) may skip the who/which-inbox check its
+  sibling does (`inboxFor`). Per-chat checks go through `canOpenChat`, never `canOpen(scopeFor(...))`, which
+  misses chosen-chat agents (empty scope) and hidden chats; test each role (admin, member, chosen-chat) live.
+- A switch that depends on another (members ← AI assistant access) must follow it on the server: turning the parent
+  off also turns the child off and revokes what it granted, and the child cannot be armed while the parent is off;
+  a greyed web switch is not enough. A "not yours" answer is 404 on every verb (PATCH like DELETE), never 403.
 - OAuth for MCP: build the issuer and resource from `new URL(...).origin` (no default `:80`/`:443`),
   because MCP clients compare origins exactly; anyone can register an app, so the approval page shows
   the redirect host (not the app's self-chosen name) and never redirects a request it has not checked.
+- Pending grants (one-time OAuth codes, in-memory proposals) are tokens that are not stored yet: every rule
+  that revokes stored tokens (role change, a switch going off) must also drop or recheck them. Keep the
+  approver's role in the code and refuse a different role at exchange; never derive scopes from the role
+  at exchange time alone.
 - Real-app OAuth checks run through a Quick Tunnel (claude.ai and ChatGPT reach only public https). An
   agent never types a password on a tunnel host, even a demo one: the owner signs in there, the agent
   clicks Approve and runs the rest. Keep guide screenshots cropped to the dialog (no sidebars) and blur
@@ -2394,6 +2411,8 @@ htmlFor>`, `min-h-11 min-w-11`). Desktop-only text (`window.watiNotifications`) 
 
 ## Internationalization
 
+- Porting strings from a feature mock into the app catalogs: replace a literal "EzyChat" with `{{product}}` (mocks
+  write the name out; editions rename it), and drop mock-only keys (`mock*`, demo panels) instead of copying them.
 - Searchable catalog content (template gallery `keywords`) keeps the English words beside the
   translated ones, so a search works in either language; Malaysian users mix them ("aircond", "gigi").
   Translate large catalog batches with a field-by-field checker (same keys, lines, list items, colons).
