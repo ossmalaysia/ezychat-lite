@@ -28,6 +28,7 @@ import { GROUP_HANDOVER_REPLY, GROUP_RULES } from '../src/ai/prompt.js';
 import type { AiPrompt, AiProvider } from '../src/ai/provider-types.js';
 import { createAiService } from '../src/ai/service.js';
 import type { AppContext } from '../src/context.js';
+import type { AgentToolsInput, ServerExtension } from '../src/index.js';
 import { createMessageService } from '../src/messages/service.js';
 import { createPushService, type PushSender } from '../src/push/service.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
@@ -58,7 +59,14 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-async function setUp(opts: { maxInboxes?: number; inboxes?: number; groups?: boolean } = {}) {
+async function setUp(
+  opts: {
+    maxInboxes?: number;
+    inboxes?: number;
+    groups?: boolean;
+    extensions?: ServerExtension[];
+  } = {},
+) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   prompts = [];
   decide = () => ({ reply: 'We open at 8am, Farah.', action: 'answer' });
@@ -76,6 +84,7 @@ async function setUp(opts: { maxInboxes?: number; inboxes?: number; groups?: boo
     wa: new FakeWaAdapter({ me: { jid: OWN, name: 'Kopi Apong', lid: OWN_LID } }),
     ...(opts.maxInboxes ? { maxInboxes: opts.maxInboxes } : {}),
     ...(opts.inboxes ? { inboxes: opts.inboxes } : {}),
+    ...(opts.extensions ? { extensions: opts.extensions } : {}),
     beforeBuild: async (ctx: AppContext) => {
       await ctx.services.ai!.shutdown();
       ctx.services.messages!.shutdown();
@@ -256,6 +265,23 @@ describe('answers in a group', { timeout: 30_000 }, () => {
       { speaker: 'customer', name: 'Farah Aziz', text: expect.stringContaining('what time') },
     ]);
     expect(prompt.input).not.toMatch(/60111111111|60122222222|60000000000/);
+  });
+
+  it('tells an extension the group turn is look-ups only', async () => {
+    const inputs: AgentToolsInput[] = [];
+    const recorder: ServerExtension = {
+      name: 'recorder',
+      async agentTools(_ctx, input) {
+        inputs.push(input);
+        return { tools: {} };
+      },
+    };
+    await setUp({ extensions: [recorder] });
+    await tag();
+    await settle();
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toMatchObject({ agent: 'sales', agentId, chatJid: G, lookupsOnly: true });
   });
 
   it('leaves a message deleted for everyone out of the group conversation', async () => {

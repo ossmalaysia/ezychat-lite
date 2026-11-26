@@ -1583,7 +1583,14 @@ export function createAiService(
         const extension = await agentTurnTools(
           ctx,
           log,
-          { agent: 'sales', agentId: agent.id, chatJid: jid, signal: turnSignal },
+          // A group answer: look-ups only, for the core and for extensions.
+          {
+            agent: 'sales',
+            agentId: agent.id,
+            chatJid: jid,
+            signal: turnSignal,
+            lookupsOnly: true,
+          },
           {
             onFailure: () => {
               lookupFailed = true;
@@ -1947,7 +1954,8 @@ export function createAiService(
         const extension = await agentTurnTools(
           ctx,
           log,
-          { agent: 'sales', agentId: agent.id, chatJid: jid, signal },
+          // A live direct-chat reply: the only turn where extensions may offer tools that change data.
+          { agent: 'sales', agentId: agent.id, chatJid: jid, signal, lookupsOnly: false },
           {
             onFailure: () => {
               lookupFailed = true;
@@ -2954,7 +2962,8 @@ export function createAiService(
         extension = await agentTurnTools(
           ctx,
           log,
-          { agent: 'sales', agentId: agent?.id, chatJid: null, signal },
+          // No chat: extensions offer look-ups only (the core keeps its own Try it rules).
+          { agent: 'sales', agentId: agent?.id, chatJid: null, signal, lookupsOnly: true },
           { onFailure: () => lookupAbort.abort(), lookupsOnly: group },
         );
         const decision = await provider.generate(
@@ -3648,7 +3657,13 @@ export function createAiService(
               ctx,
               log,
               // A preview names no chat: tools that change data are not run (as in Try it).
-              { agent: 'sales', agentId: agent.id, chatJid: preview ? null : chatJid, signal },
+              {
+                agent: 'sales',
+                agentId: agent.id,
+                chatJid: preview ? null : chatJid,
+                signal,
+                lookupsOnly: true,
+              },
               {
                 onFailure: () => lookupAbort.abort(),
                 onCall: (name) => toolCalls.push(name),
