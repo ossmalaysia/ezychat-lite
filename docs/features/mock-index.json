@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "history-and-message-info",
+      "creationOrder": 52,
+      "createdAt": "2026-11-26",
+      "design": "docs/features/history-and-message-info/design.md",
+      "mock": "docs/features/history-and-message-info/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "ai-models-per-task",
+      "baselineGitRevision": "c4584db69e366a7770b40ffdf717b75d1cae66dd",
+      "coverage": "Full clone of the confirmed ai-models-per-task reference; adds History import (No history, 3, 7, 14, 30 days, Custom 0–365) before the QR / pairing code in the setup wizard WhatsApp step, Admin → WhatsApp Re-link and Admin → Inboxes Add inbox, the same control in Settings → General, and Message info (⋮ menu, the ticks, press-and-hold bar) for direct chats (all times, read without a time, sent only, still sending, failed) and groups (several members, long names, none yet); desktop 1280 / phone 360, light and dark (history-info-shots.mjs, 47 shots).",
+      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed (ai-models-per-task). Retention: six counted folders, so github (oldest, order 45) is archived; its design moved to docs/github.md. Counted now: dream-mode, live-translate, mcp-resolve-chat, ai-models-per-task, history-and-message-info. template-store stays (live tooling)."
+    },
+    {
       "feature": "agent-connectors-summary",
       "creationOrder": 51,
       "createdAt": "2026-11-23",
@@ -118,18 +130,6 @@
       "status": "design-only",
       "coverage": "No mock (one team-only chat line in the existing event chip style; the owner chose design notes + screenshots on 2026-11-12): the design section of the workbook and Dev Build screenshots at 1280/360, light and dark.",
       "note": "Not a mock baseline and no feature folder: the next clone still starts from latestConfirmed (forward-message). No retention change."
-    },
-    {
-      "feature": "github",
-      "creationOrder": 45,
-      "createdAt": "2026-11-10",
-      "design": "docs/features/github/design.md",
-      "mock": "docs/features/github/mock/index.html",
-      "status": "proposal",
-      "baselineFeature": "forward-message",
-      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
-      "coverage": "Full app clone of the confirmed forward-message reference; Admin → Connectors gallery card (GitHub under Other), connector page Overview (four look-ups; GitHub account card: Sign in with GitHub and Use a token instead, device code dialog with waiting / cancelled / expired, app not installed with Install on GitHub and Check again, connected with the App, token form with classic / not accepted / no repositories errors, connected with a token, token expiring, sign-in expired, unreachable, Disconnect confirm; Your data), Settings per AI agent (repositories none / picker with search, owners, private-public, at most 20, refresh and a link to share more on GitHub / chosen / no longer shared, who-can-be-told notice, Issues and Pull requests switches, instructions link, Save bar, paused banner), Mock only chat simulator (issue, pull request, other repo refused, issue text with orders read as information, paused hand-over), Activity, agent page Connectors row; localStorage; desktop 1280 / mobile 360 touch, light/dark (github-shots.mjs)",
-      "note": "Requester (Frankie) 2026-11-10: \"Open PR and build\" after the screenshots, decisions Q1-Q3 and the spike; repository owner (Jazz) not yet asked, so latestConfirmed stays forward-message. Connector list entry: anchorsprint/ezychat-connectors PR #6."
     },
     {
       "feature": "new-chat",
@@ -861,6 +861,21 @@
       "archivedAt": "2026-11-20",
       "archivedRevision": "0738d562",
       "archivedReason": "Retention: sixth counted folder added by mcp-resolve-chat (#388). Lasting rules live in docs/design-system.md \"App navigation\" and AGENTS.md."
+    },
+    {
+      "feature": "github",
+      "creationOrder": 45,
+      "createdAt": "2026-11-10",
+      "design": "docs/features/github/design.md",
+      "mock": "docs/features/github/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "forward-message",
+      "baselineGitRevision": "2549b7afac813d8c2c957d15d653b2a150325866",
+      "coverage": "Full app clone of the confirmed forward-message reference; Admin → Connectors gallery card (GitHub under Other), connector page Overview (four look-ups; GitHub account card: Sign in with GitHub and Use a token instead, device code dialog with waiting / cancelled / expired, app not installed with Install on GitHub and Check again, connected with the App, token form with classic / not accepted / no repositories errors, connected with a token, token expiring, sign-in expired, unreachable, Disconnect confirm; Your data), Settings per AI agent (repositories none / picker with search, owners, private-public, at most 20, refresh and a link to share more on GitHub / chosen / no longer shared, who-can-be-told notice, Issues and Pull requests switches, instructions link, Save bar, paused banner), Mock only chat simulator (issue, pull request, other repo refused, issue text with orders read as information, paused hand-over), Activity, agent page Connectors row; localStorage; desktop 1280 / mobile 360 touch, light/dark (github-shots.mjs)",
+      "note": "Requester (Frankie) 2026-11-10: \"Open PR and build\" after the screenshots, decisions Q1-Q3 and the spike; repository owner (Jazz) not yet asked, so latestConfirmed stays forward-message. Connector list entry: anchorsprint/ezychat-connectors PR #6.",
+      "archivedAt": "2026-11-26",
+      "archivedRevision": "f4b650b8",
+      "archivedReason": "Retention: sixth counted folder added by history-and-message-info. Lasting design moved to docs/github.md (code comments and AGENTS.md repointed; migration 044 comment left as is); mock: git show f4b650b8:docs/features/github/."
     }
   ]
 }

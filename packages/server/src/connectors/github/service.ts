@@ -1,5 +1,5 @@
 /**
- * GitHub connector (core code, offered in Lite only for now; design docs/features/github/design.md,
+ * GitHub connector (core code, offered in Lite only for now; design docs/github.md,
  * rules docs/connector-design.md). One GitHub sign-in per install (the App through the device flow,
  * or a fine-grained token). Per AI agent: the repositories it may look in (from what GitHub allows,
  * at most 20) and the Issues and Pull requests switches. Read only, never code. The connector only
