@@ -39,15 +39,13 @@ describe('Cloudflare certificate', () => {
 
 describe('Cloudflare API', () => {
   it('uses the official API, bearer authentication, a timeout and no redirects', async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        Response.json({
-          success: true,
-          result: { id: 'safe-id' },
-          result_info: { total_pages: 3 },
-        }),
-      );
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        success: true,
+        result: { id: 'safe-id' },
+        result_info: { total_pages: 3 },
+      }),
+    );
     const api = new CloudflareApi(credentials, silentLogger(), fetcher);
     await expect(
       api.request('/zones', z.object({ id: z.string() }), 'list domains'),

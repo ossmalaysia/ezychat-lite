@@ -30,6 +30,7 @@ const LABEL_KEYS = {
   'chat.start_from_group': 'audit.actions.chatStartFromGroup',
   'chat.new_number': 'audit.actions.chatNewNumber',
   'settings.new_chat_staff': 'audit.actions.settingsNewChatStaff',
+  'settings.mcp_members': 'audit.actions.settingsMcpMembers',
   'settings.new_chat_daily_limit': 'audit.actions.settingsNewChatDailyLimit',
   'logs.download': 'audit.actions.logsDownload',
   'ai.agent_create': 'audit.actions.aiAgentCreate',
@@ -179,6 +180,8 @@ const VALUE_KEYS: Record<string, Record<string, string>> = {
     user_inactive: 'audit.reasons.userInactive',
     not_admin: 'audit.reasons.notAdmin',
     must_change_password: 'audit.reasons.mustChangePassword',
+    members_off: 'audit.reasons.membersOff',
+    not_allowed: 'audit.reasons.notAllowed',
   },
 };
 

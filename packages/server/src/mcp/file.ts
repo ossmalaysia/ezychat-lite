@@ -13,8 +13,7 @@ import { NO_READABLE_TEXT } from '../ai/knowledge.js';
 import { extractKnowledgeIsolated } from '../ai/knowledge-worker.js';
 import { HttpError } from '../http/errors.js';
 import { WindowLimiter } from '../http/window-limiter.js';
-import { canOpen, scopeFor } from '../inboxes/access.js';
-import { isChatHidden } from '../chats/hidden-sql.js';
+import { canOpenChat } from '../inboxes/access.js';
 import { inboxOfKeyOrNull } from '../inboxes/service.js';
 import { getMessages } from '../wa-bridge/index.js';
 import { ToolError } from './tools.js';
@@ -145,8 +144,7 @@ export function createMessageFilePort(
         !r ||
         r.hidden_at != null ||
         inboxId === null ||
-        isChatHidden(ctx.db, r.chat_jid) ||
-        !canOpen(scopeFor(ctx, principal.user), inboxId)
+        !canOpenChat(ctx, principal.user, { jid: r.chat_jid, inbox_id: inboxId })
       )
         throw new ToolError(`No message found for ${messageId}.`);
       if (r.deleted_at != null) throw new ToolError('This message was deleted; its file is gone.');

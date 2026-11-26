@@ -46,7 +46,7 @@ const TOKEN_PLACEHOLDER = 'github_pat_…';
 type TokenError = (typeof TOKEN_ERRORS)[number];
 
 /**
- * The GitHub sign-in (one per install, design docs/features/github/design.md): Sign in with
+ * The GitHub sign-in (one per install, design docs/github.md): Sign in with
  * GitHub (Anchor Sprint's GitHub App, through GitHub's device flow) or a fine-grained token; the
  * install step, the token expiry, problems and Disconnect. Repositories per agent are on Settings.
  */

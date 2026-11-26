@@ -1,5 +1,5 @@
 /**
- * The GitHub sign-in of the connector (design docs/features/github/design.md, "Sign-in"), one per
+ * The GitHub sign-in of the connector (design docs/github.md, "Sign-in"), one per
  * install, two ways:
  *
  * - App: Anchor Sprint's GitHub App through GitHub's device flow, with the public client id only

@@ -55,7 +55,8 @@ export function createSettingsService(ctx: AppContext): SettingsService {
         s.set(SETTINGS_KEYS.namedTunnelHostname, body.namedTunnelHostname?.trim() || null);
       }
       const settings = get();
-      const restartRequired = settings.port !== before.port || settings.lanEnabled !== before.lanEnabled;
+      const restartRequired =
+        settings.port !== before.port || settings.lanEnabled !== before.lanEnabled;
       return { settings, restartRequired };
     },
   };

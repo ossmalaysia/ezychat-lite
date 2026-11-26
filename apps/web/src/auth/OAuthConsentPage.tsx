@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,14 +7,19 @@ import { ApiError, errorMessage } from '../api/client';
 import { useOAuthDecision, useOAuthRequest } from '../api/queries';
 import { Banner } from '@/components/app';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { AuthShell, ButtonSpinner, FullPageLoader } from './AuthShell';
+import { useAuth } from './AuthProvider';
 
 /** Why the page cannot ask for approval, in the admin's language. */
-function useProblem() {
+function useProblem(isAdmin: boolean) {
   const { t } = useTranslation('auth');
   return (e: unknown): string => {
     if (e instanceof ApiError) {
-      if (e.status === 403) return t('oauth.adminOnly');
+      if (e.code === 'mcp_members_off') return t('oauth.member.off');
+      // "Only an admin can approve" is wrong for a member: they get the server's own reason.
+      if (e.status === 403) return isAdmin ? t('oauth.adminOnly') : errorMessage(e);
       if (e.status === 409) return t('oauth.accessOff');
       if (e.status === 400) return t('oauth.badRequest');
     }
@@ -23,9 +28,11 @@ function useProblem() {
 }
 
 /**
- * /oauth/authorize: an AI assistant app (claude.ai, ChatGPT, …) sent the admin here to approve its
- * connection to the inbox. Approve sends the browser back to the app with a one-time code; the
- * server never redirects an unchecked request (bad requests stay on this page).
+ * /oauth/authorize: an AI assistant app (claude.ai, ChatGPT, …) sent the signed-in person here to
+ * approve its connection to the inbox, always for themselves. Approve sends the browser back to the
+ * app with a one-time code; the server never redirects an unchecked request (bad requests stay on this
+ * page). A team member (while the admin lets members connect, docs/features/mcp-for-members) sees what
+ * the assistant reaches as them and may tick "Let it send" (off by default); admins keep their page.
  */
 export function OAuthConsentPage() {
   const { t } = useTranslation('auth');
@@ -33,14 +40,24 @@ export function OAuthConsentPage() {
   const query = search.startsWith('?') ? search.slice(1) : search;
   const request = useOAuthRequest(query);
   const decision = useOAuthDecision();
-  const problem = useProblem();
   // The button the admin pressed: it spins until the browser has left for the app.
   const [choice, setChoice] = useState<boolean | null>(null);
+  const { user, isAdmin } = useAuth();
+  const [canSend, setCanSend] = useState(false);
+  const sendId = useId();
+  const member = !isAdmin;
+  const problem = useProblem(isAdmin);
 
   if (request.isPending) return <FullPageLoader />;
   if (request.isError) {
     return (
-      <AuthShell title={t('oauth.errorTitle')}>
+      <AuthShell
+        title={
+          request.error instanceof ApiError && request.error.code === 'mcp_members_off'
+            ? t('oauth.member.offTitle')
+            : t('oauth.errorTitle')
+        }
+      >
         <div className="flex flex-col gap-4">
           <Banner tone="danger">{problem(request.error)}</Banner>
           <Button asChild variant="outline" size="touch">
@@ -57,14 +74,27 @@ export function OAuthConsentPage() {
   const decide = (approve: boolean) => {
     setChoice(approve);
     const params = Object.fromEntries(new URLSearchParams(query));
-    decision.mutate({ ...params, approve } as OAuthDecisionBody, {
+    const body = { ...params, approve, ...(member && approve ? { canSend } : {}) };
+    decision.mutate(body as OAuthDecisionBody, {
       onSuccess: ({ redirectTo }) => window.location.assign(redirectTo),
     });
   };
 
   return (
-    <AuthShell title={t('oauth.title', { name })} subtitle={t('oauth.subtitle')}>
+    <AuthShell
+      title={
+        member
+          ? t('oauth.member.title', { app: name, name: user?.displayName ?? '' })
+          : t('oauth.title', { name })
+      }
+      subtitle={member ? t('oauth.member.body') : t('oauth.subtitle')}
+    >
       <div className="flex flex-col gap-4" data-testid="oauth-consent">
+        {member && (
+          <p className="text-center text-sm text-muted-foreground" data-testid="oauth-signed-in-as">
+            {t('oauth.member.signedInAs', { name: user?.displayName ?? '' })}
+          </p>
+        )}
         <p className="rounded-md bg-muted px-3 py-2.5 text-sm">
           {/* A margin, not a literal space, separates the label: Chinese takes no space. */}
           <span className="me-1 font-medium">{t('oauth.returnsTo')}</span>
@@ -72,17 +102,34 @@ export function OAuthConsentPage() {
             {redirectHost}
           </code>
         </p>
-        <div className="flex flex-col gap-1.5 text-sm">
-          <p className="flex items-center gap-1.5 font-medium">
-            <ShieldCheck aria-hidden="true" className="size-4 text-primary" />
-            {t('oauth.canTitle')}
-          </p>
-          <ul className="list-disc ps-5 text-muted-foreground">
-            <li>{t('oauth.canRead')}</li>
-            <li>{t('oauth.canSetup')}</li>
-          </ul>
-          <p className="text-muted-foreground">{t('oauth.sendLater')}</p>
-        </div>
+        {member ? (
+          <div className="flex items-start gap-3 rounded-md border px-3 py-2.5">
+            <Checkbox
+              id={sendId}
+              checked={canSend}
+              disabled={busy}
+              onCheckedChange={(v) => setCanSend(v === true)}
+              className="mt-0.5"
+              data-testid="oauth-can-send"
+            />
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={sendId}>{t('oauth.member.sendLabel')}</Label>
+              <p className="text-sm text-muted-foreground">{t('oauth.member.sendHint')}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5 text-sm">
+            <p className="flex items-center gap-1.5 font-medium">
+              <ShieldCheck aria-hidden="true" className="size-4 text-primary" />
+              {t('oauth.canTitle')}
+            </p>
+            <ul className="list-disc ps-5 text-muted-foreground">
+              <li>{t('oauth.canRead')}</li>
+              <li>{t('oauth.canSetup')}</li>
+            </ul>
+            <p className="text-muted-foreground">{t('oauth.sendLater')}</p>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">{t('oauth.trust', { host: redirectHost })}</p>
         {decision.error != null && <Banner tone="danger">{problem(decision.error)}</Banner>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

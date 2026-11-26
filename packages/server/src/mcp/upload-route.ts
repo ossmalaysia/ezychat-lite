@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ApiPrincipal } from '../api-tokens/index.js';
 import type { AppContext } from '../context.js';
 import { errors } from '../http/errors.js';
-import { scopeFor, scopeIds } from '../inboxes/access.js';
+import { scopeIds, visibleInboxIds } from '../inboxes/access.js';
 import { maxBytesOfInboxes } from '../inboxes/media-limits.js';
 import type { UploadStore } from '../uploads/store.js';
 import { MCP_UPLOADS_PATH } from './settings.js';
@@ -74,7 +74,10 @@ export async function registerUploadRoute(
       },
       async (req, reply) => {
         const principal = principalOf(req);
-        const maxBytes = maxBytesOfInboxes(ctx, scopeIds(ctx, scopeFor(ctx, principal.user)));
+        const maxBytes = maxBytesOfInboxes(
+          ctx,
+          scopeIds(ctx, visibleInboxIds(ctx, principal.user)),
+        );
         const file = await uploadedFile(req, maxBytes);
         const uploaded = await uploads.receive(principal.tokenId, file.body, {
           name: file.name,

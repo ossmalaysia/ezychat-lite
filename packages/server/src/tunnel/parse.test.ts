@@ -7,12 +7,14 @@ import { parseQuickTunnelUrl } from './parse.js';
 
 describe('parseQuickTunnelUrl', () => {
   it('extracts the URL from the cloudflared banner line', () => {
-    expect(parseQuickTunnelUrl('2024-01-01T00:00:00Z INF |  https://abc-def.trycloudflare.com  |')).toBe(
-      'https://abc-def.trycloudflare.com',
-    );
+    expect(
+      parseQuickTunnelUrl('2024-01-01T00:00:00Z INF |  https://abc-def.trycloudflare.com  |'),
+    ).toBe('https://abc-def.trycloudflare.com');
   });
   it('returns null for unrelated lines', () => {
-    expect(parseQuickTunnelUrl('INF Requesting new quick Tunnel on trycloudflare.com...')).toBeNull();
+    expect(
+      parseQuickTunnelUrl('INF Requesting new quick Tunnel on trycloudflare.com...'),
+    ).toBeNull();
     expect(parseQuickTunnelUrl('https://api.trycloudflare.com/tunnel')).toBeNull();
     expect(parseQuickTunnelUrl('')).toBeNull();
   });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
+  Bot,
   ExternalLink,
   Info,
   KeyRound,
@@ -208,6 +209,15 @@ export function UserMenu({
                 {t('upgrade.cta')}
                 <ExternalLink aria-hidden="true" className="ml-auto" />
               </a>
+            </DropdownMenuItem>
+          )}
+          {/* A team member's own AI assistants (admins use Settings → Integrations). */}
+          {!isAdmin && (
+            <DropdownMenuItem asChild className="min-h-11">
+              <Link to="/account" data-testid="menu-ai-assistant">
+                <Bot aria-hidden="true" />
+                {t('account.aiAssistants')}
+              </Link>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem asChild className="min-h-11">

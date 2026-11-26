@@ -43,7 +43,10 @@ export function IntegrationsSection() {
   const mcp = useMcpSettings();
   const patch = usePatchMcpSettings();
   const switchId = useId();
+  const membersId = useId();
   const [createOpen, setCreateOpen] = useState(false);
+  const [confirmMembersOff, setConfirmMembersOff] = useState(false);
+  const tokens = useApiTokens();
 
   if (!mcp.data)
     return mcp.isError ? (
@@ -52,7 +55,22 @@ export function IntegrationsSection() {
       <ListSkeleton rows={3} />
     );
 
-  const { enabled, publicUrl, localUrl, endpointPath } = mcp.data;
+  const { enabled, publicUrl, localUrl, endpointPath, membersEnabled } = mcp.data;
+  const memberTokenCount = (tokens.data ?? []).filter((x) => x.memberToken).length;
+  const setMembers = (next: boolean) =>
+    patch.mutate(
+      { membersEnabled: next },
+      {
+        onSuccess: () => {
+          setConfirmMembersOff(false);
+          toast.success(
+            next
+              ? t('integrations.members.turnedOn')
+              : t('integrations.members.turnedOff', { count: memberTokenCount }),
+          );
+        },
+      },
+    );
   const endpoint = `${assistantBaseUrl(publicUrl, localUrl)}${endpointPath}`;
 
   return (
@@ -122,9 +140,46 @@ export function IntegrationsSection() {
               </p>
             </div>
           )}
+          {/* Team members connect their own assistant through its sign-in (mcp-for-members). */}
+          <div
+            className="flex items-start justify-between gap-4 border-t pt-4"
+            data-testid="members-switch-row"
+          >
+            <div className="min-w-0">
+              <Label htmlFor={membersId} className="leading-normal">
+                {t('integrations.members.label')}
+              </Label>
+              <p id={`${membersId}-desc`} className="mt-0.5 text-sm text-muted-foreground">
+                {enabled ? t('integrations.members.hint') : t('integrations.members.needsAccess')}
+              </p>
+            </div>
+            <Label
+              htmlFor={membersId}
+              className="inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"
+            >
+              <Switch
+                id={membersId}
+                aria-describedby={`${membersId}-desc`}
+                checked={membersEnabled && enabled}
+                disabled={!enabled || patch.isPending}
+                onCheckedChange={(next) => (next ? setMembers(true) : setConfirmMembersOff(true))}
+              />
+            </Label>
+          </div>
           {patch.error != null && <Banner tone="danger">{errorMessage(patch.error)}</Banner>}
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={confirmMembersOff}
+        title={t('integrations.members.offTitle')}
+        confirmLabel={t('integrations.members.offConfirm')}
+        danger
+        loading={patch.isPending}
+        onConfirm={() => setMembers(false)}
+        onClose={() => setConfirmMembersOff(false)}
+      >
+        {t('integrations.members.offBody', { count: memberTokenCount })}
+      </ConfirmDialog>
 
       {/* One place to connect: sign-in first (most people), a token only for developer tools. */}
       {enabled && (
@@ -392,6 +447,12 @@ function TokenRow({
           {token.prefix}…
         </code>
         <span className="[overflow-wrap:anywhere]">{token.userName}</span>
+        {/* A team member's own assistant: an admin sees and can revoke it. */}
+        {token.memberToken && (
+          <Badge variant="secondary" data-testid="token-member">
+            {t('integrations.tokens.memberBadge')}
+          </Badge>
+        )}
         {/* Tokens that may send messages, message new numbers or resolve chats say so. */}
         {token.canSend && (
           <Badge variant="outline" data-testid="token-can-send">

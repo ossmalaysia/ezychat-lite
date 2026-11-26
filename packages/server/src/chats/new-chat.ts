@@ -45,6 +45,19 @@ const IDEMPOTENCY_MS = 10 * 60_000;
 
 type Actor = Pick<User, 'id' | 'role' | 'kind'>;
 
+/**
+ * Whether the user may start a new chat at all (before inbox and limits): admins always; agents while
+ * `new_chat_staff` is on, unless limited to chosen chats; nobody else. Read live on every call.
+ */
+export function canStartNewChats(ctx: Pick<AppContext, 'db' | 'settings'>, user: Actor): boolean {
+  if (user.kind === 'ai') return false;
+  if (user.role === 'admin') return true;
+  if (user.role !== 'agent') return false;
+  return (
+    ctx.settings.get<boolean>(NEW_CHAT_STAFF_KEY, false) === true && chosenChats(ctx, user) === null
+  );
+}
+
 /** Who started it: the inbox (app) or an AI assistant's access token (MCP). */
 export type NewChatVia = { via: 'app'; ip: string | null } | { via: 'mcp'; tokenId: number };
 
@@ -132,12 +145,7 @@ export function createNewChatService(
   };
 
   /** Admins always; agents with the switch on, unless limited to chosen chats; nobody else. */
-  const allowed = (user: Actor): boolean => {
-    if (user.kind === 'ai') return false;
-    if (user.role === 'admin') return true;
-    if (user.role !== 'agent') return false;
-    return staffEnabled() && chosenChats(ctx, user) === null;
-  };
+  const allowed = (user: Actor): boolean => canStartNewChats(ctx, user);
 
   const modeOf = (wa: WaAdapter): NewChatMode => {
     const caps = capabilitiesOf(wa);
@@ -368,7 +376,9 @@ export function createNewChatService(
     },
 
     async openChecked(user, inboxId, digits, via, opts) {
-      const wa = ctx.inboxes.connections.adapter(inboxId);
+      // Who and which inbox, rechecked on every call (a team member's token: the staff switch and
+      // their inbox access as they are now).
+      const { wa } = inboxFor(user, inboxId);
       if (ownNumber(digits))
         throw fail(400, 'own_number', 'This is a linked WhatsApp number itself');
       const chat = existing(inboxId, `${digits}@s.whatsapp.net`);

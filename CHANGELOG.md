@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.87] - 2026-11-27
+
 ### Added
 
+- Team members can connect Claude or ChatGPT to their own account (off until an admin turns on **Members can connect AI assistants** in Settings → Integrations). A member adds EzyChat as a connector in the assistant and approves it on the sign-in page; it then sees only the chats that member can open, and sends WhatsApp messages only if they tick **Let it send** (only into chats they can open). Each member finds their assistants under **Your account → My AI assistants**, where they can change what it may do or disconnect it. Admins see every member's assistant in Settings → Integrations and can revoke it; turning the switch off, or changing a member's role, disconnects them. Access tokens stay for admins only.
 - **Choose which AI model does each job** (Settings → AI → **AI models**). Five rows: **AI agent replies**, **Ask Ezy**, **Translate**, **Writing help** (Suggest reply, the grey text, Fix English and Edit with AI) and **Background checks** (Safety checks, the phrase list and what Dream mode learns). Each can use **Fast**, the **Main model** or any model your AI connection offers, and, where the model has it, **Speed and quality: Faster · Balanced · Smarter**. ChatGPT sign-in, an OpenAI key and a Claude key each keep their own choices. Translate now uses Fast by default, so Live translate answers sooner. If a chosen model is no longer offered, EzyChat uses Fast (or the Main model for agent replies) and says so on the row.
 
 ### Changed
