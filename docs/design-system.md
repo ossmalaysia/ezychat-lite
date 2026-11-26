@@ -342,9 +342,8 @@ rule. Code: `apps/web/src/nav/AppNav.tsx`.
 ## Long lists, pickers and row menus
 
 Three patterns for admin pages with many items (40 connector tools, a growing list of AI agents). They work on
-desktop and on phones. Mock: Enterprise
-[`connector-per-agent`](https://github.com/anchorsprint/ezychat-enterprise/tree/3b5d7368d47529850e6e969cad534aaa72e43e2a/docs/features/connector-per-agent/screenshots)
-(PR #136, owner confirmed 2026-11-27; files are `<shot>-1280|360-light|dark.png`). Build them only from components
+desktop and on phones. First used by the Enterprise connector screens (owner confirmed 2026-11-27; the mock is
+private, so each pattern below describes its screens in one line). Build them only from components
 that `@ezychat/web` exports: `Input`, `Button`, `Badge`, `Switch`, `Card`, `Banner`, `EmptyState`,
 `ResponsiveDialog`, `AlertDialog`, `DropdownMenu`, `Separator` and the `sonner` toast. `SearchField` is in
 `components/app` but is not exported yet, and `FilterChip` is only proposed (see
@@ -377,7 +376,8 @@ Under 15 items, show the list without search.
 - **Don't** search on Enter only, hide the count, wrap chips onto a second line, show the bulk strip when nothing
   safe is shown, or let a bulk action change items the person cannot see. Don't show a spinner while filtering a
   list that is already loaded.
-- Screens: `10-tools`, `11-tools-search`, `12-tools-changes`, `13-tools-empty`, `14-tools-bulk`
+- Screens: a connector's tool list for one AI agent (40 tools) with search, the chips, "Showing N of M", the bulk
+  strip and the empty result.
 
 ### Picker dialog (choose from a list to add)
 
@@ -397,7 +397,8 @@ For adding one item from a list that can be long ("Add AI agent" to a connector)
 - **Don't** use a select for a list that can be long, add a Save or Done button (each Add is final), show items that
   are already added as disabled rows, or stack the picker on another sheet. Don't use it to edit several values: that
   is the Tags editor (tick, then **Done**).
-- Screens: `05-picker`, `06-picker-search`, `07-picker-all`
+- Screens: "Add AI agent" on a connector page: the picker, the picker with a search, and the picker when every
+  agent already uses the connector.
 
 ### List row with a second action
 
@@ -419,7 +420,8 @@ agent in a "Used by" list). It extends the **Row actions** rule above: here the 
 - **Don't** show the second action as a second visible button next to the chevron, hide a main task in the menu,
   use red for an item that can be undone, or use a toast with **Undo** instead of a dialog when settings are
   deleted.
-- Screens: `01-connector`, `02-used-menu`, `03-stop-confirm`, `04-used-empty`
+- Screens: the "Used by" list on a connector page: rows with a chevron and "…", the open menu, the "Stop using"
+  confirm, and the empty list.
 
 ## Editions
 
