@@ -24,6 +24,7 @@ vi.mock('@/i18n/use-change-locale', () => ({
   useChangeLocale: () => ({ locale: 'en', changeLocale }),
 }));
 vi.mock('@/lib/version', () => ({ useAppVersion: () => '0.1.84' }));
+vi.mock('./MyLanguageField', () => ({ MyLanguageField: () => null }));
 vi.mock('../pwa/PushToggle', () => ({ PushToggle: () => <p>Notifications</p> }));
 // Its own test (MemberAssistantCard.test.tsx) covers it; here only where it shows.
 vi.mock('./MemberAssistantCard', () => ({

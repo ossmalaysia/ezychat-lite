@@ -16,6 +16,7 @@
 // "Amount:" calls add_sheet_row on the tab Claims and repeats what it said; a claim without an amount
 // asks for it; anything else gets no_reply. Check: e2e/devbuild-claims-check.mjs.
 // Scheduled tasks: see mockDecision (SKIP, LEAK); check: e2e/devbuild-scheduled-check.mjs.
+// Live translate: each item comes back unchanged, detected as Malay; check: e2e/devbuild-translate-check.mjs.
 // Dream mode: DREAMQ / MARK-DREAM (see mockDecision) and the lesson and merge calls (mockDraft); check:
 // e2e/devbuild-dream-check.mjs.
 // Data lives in a fresh OS temp folder (prefix ezychat-agents-devbuild-). Checks: e2e/devbuild-agents-check.mjs,
@@ -35,6 +36,7 @@ import { createContext, runInitializers, shutdownServices } from '../packages/se
 import { createLogger } from '../packages/server/src/logger.js';
 import { createAiService } from '../packages/server/src/ai/service.js';
 import { DREAM_LESSON_RULES, DREAM_MERGE_RULES } from '../packages/server/src/ai/dream/prompts.js';
+import { TRANSLATE_RULES } from '../packages/server/src/ai/translate-prompt.js';
 import { buildApp } from '../packages/server/src/app.js';
 import { attachRealtime } from '../packages/server/src/realtime/index.js';
 
@@ -253,6 +255,11 @@ async function mockDecision(prompt: AiPrompt, signal: AbortSignal): Promise<AiDe
  */
 function mockDraft(prompt: AiRewritePrompt, signal: AbortSignal): unknown {
   signal.throwIfAborted();
+  // Live translate: every item comes back unchanged (so its protected items match), detected as Malay.
+  if (prompt.instructions === TRANSLATE_RULES) {
+    const input = JSON.parse(prompt.input) as { items: { id: string; text: string }[] };
+    return { items: input.items.map((i) => ({ id: i.id, translation: i.text, detected: 'ms' })) };
+  }
   // Dream mode step 1: every team message is one fact lesson, in the team's own words.
   if (prompt.instructions === DREAM_LESSON_RULES) {
     const chat = JSON.parse(prompt.input) as {

@@ -27,50 +27,83 @@ const ROW =
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/** A summary line and whether the agent still has to set the connector up. */
+type Line = { text: string; setup: boolean };
+
 /** Signed in (also while it needs attention): the connector's row shows. */
 const linkedState = (state: string | undefined) =>
   state === 'connected' || state === 'expired' || state === 'unavailable';
 
 /** Google Calendar: Off, Checks free times, or Checks and books. */
-function calendarLine(t: Translate, booking: { checkFree: boolean; book: boolean }): string {
-  if (!booking.checkFree) return t('connectors.agentCard.off');
-  return t(booking.book ? 'connectors.agentCard.checkAndBook' : 'connectors.agentCard.checkOnly');
+function calendarLine(t: Translate, booking: { checkFree: boolean; book: boolean }): Line {
+  if (!booking.checkFree) return { text: t('connectors.agentCard.off'), setup: true };
+  return {
+    text: t(booking.book ? 'connectors.agentCard.checkAndBook' : 'connectors.agentCard.checkOnly'),
+    setup: false,
+  };
 }
 
 /** Google Sheets: the tabs it reads and adds rows to, or Off. */
-function sheetsLine(t: Translate, settings: SheetsAgentSettings): string {
+function sheetsLine(t: Translate, settings: SheetsAgentSettings): Line {
   const tabs = (access: 'read' | 'add') =>
     settings.spreadsheetId
       ? settings.tabs.filter((x) => x.access === access).map((x) => x.title)
       : [];
   const reads = tabs('read');
   const adds = tabs('add');
-  if (reads.length + adds.length === 0) return t('connectors.agentCard.off');
-  const parts: string[] = [];
+  if (reads.length + adds.length === 0) return { text: t('connectors.agentCard.off'), setup: true };
+  const parts: string[] = settings.spreadsheetName ? [settings.spreadsheetName] : [];
   if (reads.length) parts.push(t('connectors.agentCard.sheetsReads', { tabs: reads.join(', ') }));
   if (adds.length) parts.push(t('connectors.agentCard.sheetsAdds', { tabs: adds.join(', ') }));
-  return parts.join(' · ');
+  return { text: parts.join(' · '), setup: false };
 }
 
 /** Google Drive: no folder, saves, reads N files, both, or Off. */
-function driveLine(t: Translate, settings: DriveAgentSettings): string {
-  if (!settings.folder) return t('connectors.agentCard.driveNoFolder');
+function driveLine(t: Translate, settings: DriveAgentSettings): Line {
+  if (!settings.folder) return { text: t('connectors.agentCard.driveNoFolder'), setup: true };
   const count = settings.read ? settings.files.length : 0;
-  if (settings.save && count) return t('connectors.agentCard.driveSavesAndReads', { count });
-  if (settings.save) return t('connectors.agentCard.driveSaves');
-  if (count) return t('connectors.agentCard.driveReads', { count });
-  return t('connectors.agentCard.off');
+  let what: string | null = null;
+  if (settings.save && count) what = t('connectors.agentCard.driveSavesAndReads', { count });
+  else if (settings.save) what = t('connectors.agentCard.driveSaves');
+  else if (count) what = t('connectors.agentCard.driveReads', { count });
+  return what
+    ? { text: `${settings.folder.name} · ${what}`, setup: false }
+    : { text: t('connectors.agentCard.off'), setup: true };
 }
 
 /** GitHub: what it looks up in how many repositories GitHub still shares, or Off. */
-function githubLine(t: Translate, view: GitHubAgentView): string {
+function githubLine(t: Translate, view: GitHubAgentView): Line {
   const { repos, issues, pulls } = view.settings;
-  if (repos.length === 0) return t('connectors.github.agentCard.noRepos');
+  if (repos.length === 0) return { text: t('connectors.github.agentCard.noRepos'), setup: true };
   const count = repos.filter((r) => !view.unavailableRepoIds.includes(r.id)).length;
-  if (issues && pulls) return t('connectors.github.agentCard.both', { count });
-  if (issues) return t('connectors.github.agentCard.issues', { count });
-  if (pulls) return t('connectors.github.agentCard.pulls', { count });
-  return t('connectors.agentCard.off');
+  if (issues && pulls)
+    return { text: t('connectors.github.agentCard.both', { count }), setup: false };
+  if (issues) return { text: t('connectors.github.agentCard.issues', { count }), setup: false };
+  if (pulls) return { text: t('connectors.github.agentCard.pulls', { count }), setup: false };
+  return { text: t('connectors.agentCard.off'), setup: true };
+}
+
+/**
+ * One line under a connector's name. `setup` (not used yet, nothing chosen) adds a Set up cue, but
+ * only while the connector works (`ready`): a sign-in that needs attention shows its badge instead.
+ */
+function Summary({
+  text,
+  setup = false,
+  ready,
+}: Readonly<{ text: string; setup?: boolean; ready: boolean }>) {
+  const { t } = useTranslation('admin');
+  return (
+    <span className="text-sm text-muted-foreground">
+      {text}
+      {setup && ready && (
+        <span className="font-medium whitespace-nowrap text-foreground">
+          {' · '}
+          {t('connectors.agentCard.setUp')}
+        </span>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -133,7 +166,7 @@ export function AgentConnectorsCard({
       <CardContent className="flex flex-col gap-3">
         {connected && (
           <Link
-            to={`/admin/connectors/google-calendar?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/google-calendar?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-google-calendar"
           >
@@ -143,14 +176,14 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-calendar.name')}
                 {state !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {summary && <span className="text-sm text-muted-foreground">{summary}</span>}
+              {summary && <Summary {...summary} ready={state === 'connected'} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {sheetsLinked && (
           <Link
-            to={`/admin/connectors/google-sheets?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/google-sheets?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-google-sheets"
           >
@@ -160,16 +193,14 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-sheets.name')}
                 {sheetsState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {sheetsSummary && (
-                <span className="text-sm text-muted-foreground">{sheetsSummary}</span>
-              )}
+              {sheetsSummary && <Summary {...sheetsSummary} ready={sheetsState === 'connected'} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {driveLinked && (
           <Link
-            to={`/admin/connectors/google-drive?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/google-drive?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-google-drive"
           >
@@ -179,16 +210,14 @@ export function AgentConnectorsCard({
                 {t('connectors.items.google-drive.name')}
                 {driveState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
-              {driveSummary && (
-                <span className="text-sm text-muted-foreground">{driveSummary}</span>
-              )}
+              {driveSummary && <Summary {...driveSummary} ready={driveState === 'connected'} />}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         )}
         {githubLinked && (
           <Link
-            to={`/admin/connectors/github?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/github?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-github"
           >
@@ -201,7 +230,10 @@ export function AgentConnectorsCard({
                 )}
               </span>
               {githubView && (
-                <span className="text-sm text-muted-foreground">{githubLine(t, githubView)}</span>
+                <Summary
+                  {...githubLine(t, githubView)}
+                  ready={githubState === 'connected' || githubState === 'expiring'}
+                />
               )}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -209,7 +241,7 @@ export function AgentConnectorsCard({
         )}
         {sqlLinked && (
           <Link
-            to={`/admin/connectors/sql-account?tab=settings&agent=${agentId}`}
+            to={`/admin/connectors/sql-account?tab=settings&agent=${agentId}&from=agent`}
             className={ROW}
             data-testid="agent-connector-sql-account"
           >
@@ -220,11 +252,15 @@ export function AgentConnectorsCard({
                 {sqlState !== 'connected' && <ConnectorStatusBadge status="attention" />}
               </span>
               {sqlOn !== null && (
-                <span className="text-sm text-muted-foreground">
-                  {sqlOn === 0
-                    ? t('connectors.agentCard.off')
-                    : t('connectors.sql.agentCard', { on: sqlOn, total: SQL_OBJECTS.length })}
-                </span>
+                <Summary
+                  setup={sqlOn === 0}
+                  ready={sqlState === 'connected'}
+                  text={
+                    sqlOn === 0
+                      ? t('connectors.agentCard.off')
+                      : t('connectors.sql.agentCard', { on: sqlOn, total: SQL_OBJECTS.length })
+                  }
+                />
               )}
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -239,7 +275,7 @@ export function AgentConnectorsCard({
           return (
             <Link
               key={c.entry.id}
-              to={`/admin/connectors/${c.entry.id}?tab=settings&agent=${agentId}`}
+              to={`/admin/connectors/${c.entry.id}?tab=settings&agent=${agentId}&from=agent`}
               className={ROW}
               data-testid={`agent-connector-${c.entry.id}`}
             >
@@ -253,9 +289,17 @@ export function AgentConnectorsCard({
                   {c.delisted && <ConnectorStatusBadge status="delisted" />}
                 </span>
                 {on !== null && (
-                  <span className="text-sm text-muted-foreground">
-                    {t('connectors.partner.agentCardTools', { count: on, total: tools.length })}
-                  </span>
+                  <Summary
+                    // gone from the list, or nothing to switch on (the list contract already refuses an
+                    // MCP entry without tools): no Set up cue
+                    setup={on === 0 && tools.length > 0 && !c.delisted}
+                    ready={c.connection?.state === 'connected'}
+                    text={
+                      on === 0
+                        ? t('connectors.agentCard.off')
+                        : t('connectors.partner.agentCardTools', { count: on, total: tools.length })
+                    }
+                  />
                 )}
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />

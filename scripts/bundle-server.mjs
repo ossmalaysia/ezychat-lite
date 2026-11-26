@@ -110,6 +110,21 @@ await build({
   legalComments: 'linked',
 });
 
+// Chat image previews: messages/image-preview.ts looks for this file next to server.cjs.
+await build({
+  entryPoints: [join(root, 'packages/server/src/messages/image-preview-worker.ts')],
+  outfile: join(outDir, 'image-preview-worker.cjs'),
+  bundle: true,
+  platform: 'node',
+  target: 'node22',
+  format: 'cjs',
+  external,
+  mainFields: ['module', 'main'],
+  conditions,
+  logLevel: 'warning',
+  legalComments: 'linked',
+});
+
 // Voice notes: the long-lived Whisper worker (voice/local-engine.ts looks for this file next to
 // server.cjs). ogg-opus-decoder's WASM is inlined in its JS, so it survives bundling.
 await build({

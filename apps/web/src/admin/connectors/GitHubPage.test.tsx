@@ -142,7 +142,9 @@ describe('GitHub: Overview and sign-in', () => {
     expect(await screen.findByText('Working', {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('kopiapong-dev')).toBeTruthy();
-    expect(screen.getByText('Signed in with the GitHub App “EzyChat by Anchor Sprint”')).toBeTruthy();
+    expect(
+      screen.getByText('Signed in with the GitHub App “EzyChat by Anchor Sprint”'),
+    ).toBeTruthy();
     expect(await screen.findByText(/GitHub shares 4 repositories with EzyChat Lite/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Change on GitHub' }).getAttribute('href')).toBe(
       'https://github.com/apps/ezychat-by-anchor-sprint/installations/new',
@@ -281,7 +283,9 @@ describe('GitHub: Overview and sign-in', () => {
     page(GH);
     await user.click(await screen.findByRole('button', { name: 'Disconnect' }));
     const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText(/uninstall “EzyChat by Anchor Sprint” in your GitHub settings/)).toBeTruthy();
+    expect(
+      within(dialog).getByText(/uninstall “EzyChat by Anchor Sprint” in your GitHub settings/),
+    ).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: 'Disconnect' }));
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy();
     expect(toast.success).toHaveBeenCalledWith('GitHub disconnected');
@@ -320,7 +324,9 @@ describe('GitHub: Settings', () => {
     expect(within(picker).getAllByText('Private')).toHaveLength(2);
     expect(within(picker).getAllByText('Public')).toHaveLength(2);
     expect(
-      within(picker).getByRole('link', { name: 'Share it with “EzyChat by Anchor Sprint” on GitHub' }),
+      within(picker).getByRole('link', {
+        name: 'Share it with “EzyChat by Anchor Sprint” on GitHub',
+      }),
     ).toBeTruthy();
     // Refresh reads the list again from GitHub.
     w.githubRepos = [...GITHUB_REPOS, { id: 31, fullName: 'kopiapong/kitchen', private: true }];
@@ -432,13 +438,15 @@ describe('Agent page → Connectors: GitHub', () => {
     [view({ repos: [POS, PAYROLL] }, [PAYROLL.id]), 'Issues and pull requests in 1 repository'],
     [view({ repos: [POS, WEBSITE], pulls: false }), 'Issues in 2 repositories'],
     [view({ repos: [POS], issues: false }), 'Pull requests in 1 repository'],
-    [view({ repos: [POS], issues: false, pulls: false }), 'Off for this agent'],
+    [view({ repos: [POS], issues: false, pulls: false }), 'Not used by this agent'],
   ])('sums up what the agent may look up (%#)', async (settings, summary) => {
     stubServer(connected({ githubAgents: { 3: settings } }));
     card();
     const row = await screen.findByTestId('agent-connector-github');
     await waitFor(() => expect(row.textContent).toContain(summary));
-    expect(row.getAttribute('href')).toBe('/admin/connectors/github?tab=settings&agent=3');
+    expect(row.getAttribute('href')).toBe(
+      '/admin/connectors/github?tab=settings&agent=3&from=agent',
+    );
     expect(row.textContent).not.toContain('Needs attention');
   });
 

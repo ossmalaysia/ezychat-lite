@@ -39,7 +39,9 @@ On the merge commit, an annotated tag: `git tag -a v<version> <commit> -m "EzyCh
 
 Releases go out daily, but **"latest" stays on the newest version whose installers McAfee has cleared**: every
 installer (Windows, Mac Apple silicon, Mac Intel) is **Whitelisted** or the owner's **Passed** in
-`anchorsprint/ezychat-enterprise` → `docs/antivirus-allowlist.md`. "Latest" means the in-app updater, GitHub
+`anchorsprint/ezychat-enterprise` → `docs/antivirus-allowlist.md`. **Mac 5-day rule** (owner rule, 2026-11-22): a Mac
+installer counts as cleared when it was Submitted 5 or more days ago and McAfee has not answered that it is
+detected; the Windows installer still needs Whitelisted or Passed. "Latest" means the in-app updater, GitHub
 `releases/latest` and the permanent links in §5. So a new version is built, tagged and published to npm, then
 **held as a complete draft**; **Promote release** publishes it once McAfee clears it. Installed apps are usually one
 release behind the newest build.
@@ -52,7 +54,9 @@ contract is pinned by a test in `update-checker.test.ts` ("holds a 0.x install o
 
 1. Check the held draft: `gh release view v<version>` — 6 installer files (3 versioned + 3 copies) and the notes.
    `release.yml` checks this itself and says so in its run summary. Check npm: `npm view @ezychat/server version`.
-2. Submit the installers to McAfee (`submit-installers` skill; it downloads a draft's files through the API).
+2. Submit the installers to McAfee (`submit-installers` skill; it downloads a draft's files through the API). The
+   owner's "release" covers this submit, and the session that released the version does it at once (owner rule,
+   2026-11-22). The release is not done while any of its 3 installers is "Not submitted" in the record.
 3. When McAfee clears **all** installers of the version, start **Promote release**
    (`.github/workflows/promote-release.yml`) on `main`:
    `gh workflow run promote-release.yml --ref main -f version=<version> -f confirm=<version> -f mcafee_cleared=true -f hold_newer=false`

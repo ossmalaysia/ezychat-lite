@@ -16,7 +16,11 @@ vi.mock('./AiConnectionSection', () => ({
   AiConnectionSection: () => <p>Inline AI connection</p>,
 }));
 vi.mock('./PhraseDictionarySection', () => ({ PhraseDictionarySection: () => null }));
+vi.mock('./AiModelsSection', () => ({ AiModelsSection: () => <p>AI models card</p> }));
 vi.mock('./FixEnglishSection', () => ({ FixEnglishSection: () => <p>Fix English card</p> }));
+vi.mock('./LiveTranslateSection', () => ({
+  LiveTranslateSection: () => <p>Live translate card</p>,
+}));
 vi.mock('./NewChatSection', () => ({ NewChatSection: () => <p>New chats card</p> }));
 vi.mock('./ReplySuggestionsSection', () => ({
   ReplySuggestionsSection: () => <p>Reply suggestions card</p>,
@@ -80,6 +84,7 @@ beforeEach(() => {
 it('shows the AI connection inline on the AI tab (no popup)', () => {
   renderAt('/admin/settings/ai');
   expect(screen.getByText('Inline AI connection')).toBeTruthy();
+  expect(screen.getByText('AI models card')).toBeTruthy();
   expect(screen.getByText('Reply suggestions card')).toBeTruthy();
   expect(screen.getByText('Ask Ezy card')).toBeTruthy();
   expect(screen.getByText('Voice messages card')).toBeTruthy();

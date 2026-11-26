@@ -86,28 +86,15 @@ test('a phrase from the team list shows at once, with no model call, and Tab cou
   await expect(ghost).toHaveText('谢谢您的留言！我们会尽快回复您。');
 });
 
-test('Settings → AI shows the model for suggestions and the phrase list', async ({
-  page,
-}, info) => {
+test('Settings → AI points to AI models and shows the phrase list', async ({ page }, info) => {
   test.skip(!['desktop-chromium', 'mobile'].includes(info.project.name));
   await page.route('**/api/reply-suggestions', (route) =>
     route.fulfill({ json: { enabled: true, connected: true, state: 'on', upgraded: false } }),
   );
-  await page.route('**/api/ai/reply-suggestions/model', (route) =>
-    route.fulfill({
-      json: {
-        model: 'fast',
-        fastModel: 'gpt-6-luna',
-        agentModel: 'gpt-6.1-sol',
-        models: ['gpt-6.1-sol', 'gpt-6-luna'],
-        resolved: 'gpt-6-luna',
-      },
-    }),
-  );
   await page.route('**/api/ai/phrases?*', (route) => route.fulfill({ json: ADMIN }));
   await page.goto('/admin/settings/ai');
   const suggest = page.getByTestId('reply-suggestions-settings');
-  await expect(suggest.getByText('Fast (recommended): gpt-6-luna')).toBeVisible();
+  await expect(suggest.getByText(/AI models → Writing help/)).toBeVisible();
   const card = page.getByTestId('phrase-dictionary-settings');
   await expect(card.getByText('Phrases: 3')).toBeVisible();
   await expect(card.getByText('English · 2')).toBeVisible();

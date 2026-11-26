@@ -118,8 +118,10 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
     requireMessageAccess(ctx, req.user!, msgId);
     // A flagged image shows no preview: its safety notice and the file route decide what happens.
     if ((ctx.services.safety?.levelOf(msgId) ?? 'none') !== 'none') throw errors.notFound('Media');
-    const jpeg = messages.mediaThumb(msgId);
-    if (!jpeg) throw errors.notFound('Media');
+    const thumb = await messages.mediaThumb(msgId);
+    if (!thumb) throw errors.notFound('Media');
+    // the preview may take a moment: a Safety flag set meanwhile still wins
+    if ((ctx.services.safety?.levelOf(msgId) ?? 'none') !== 'none') throw errors.notFound('Media');
     return reply
       .header('content-type', 'image/jpeg')
       .header('x-content-type-options', 'nosniff')
@@ -129,9 +131,12 @@ export default async function mediaRoutes(app: FastifyInstance, ctx: AppContext)
         'cache-control',
         ctx.services.safety?.cacheable(msgId) === false
           ? 'no-store'
-          : 'private, max-age=2592000, immutable',
+          : // WhatsApp's tiny thumbnail is replaced once the photo is stored: never keep it long.
+            thumb.own
+            ? 'private, max-age=2592000, immutable'
+            : 'private, no-cache',
       )
-      .send(jpeg);
+      .send(thumb.jpeg);
   });
 
   app.post('/media/:msgId/redownload', async (req, reply) => {

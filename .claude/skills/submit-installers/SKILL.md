@@ -8,8 +8,12 @@ description: Submit released EzyChat installers (Lite and Enterprise; Windows, M
 An allowlisting covers one exact file (one SHA-256), so every release has new files that need new reports. The script
 `scripts/mcafee-submit.mjs` does the work and the owner attaches nothing by hand.
 
-Run this only when the owner asks for it: a report goes to an outside company and cannot be taken back. A release or
-a merge alone is not a request.
+A report goes to an outside company and cannot be taken back, so it runs only on the owner's word. **The owner's
+"release" is that word for the released version** (owner rule, 2026-11-22: one word, one submitter): the session that
+releases a version submits its 3 installers right after the build, without a second ask, and records them (step 5). A
+merge alone is not a request, and older versions need the owner's own request. A `--dry-run` is not a submit: the
+proof is the file's entry in `results.json`. If the submit cannot finish (captcha, McAfee down), the release report
+names every file still "Not submitted".
 
 ## Submit
 
@@ -88,7 +92,9 @@ The form says about 2 business days; one answer came within the hour.
 
 - A Windows **Enterprise** file is not "latest" until McAfee whitelists it. The hold and the commands that move the
   link are in the record, section "After each release". Changing a live link needs the owner's request.
-- A **Lite** version stays a held draft until McAfee clears all three files (Whitelisted, or the owner's Passed).
+- A **Lite** version stays a held draft until McAfee clears all three files (Whitelisted, or the owner's Passed; a
+  Mac file also counts once it was Submitted 5 or more days ago with no detection answer: Mac 5-day rule,
+  `docs/release.md` §3).
   Then start Promote release (`docs/release.md` §3):
   `gh workflow run promote-release.yml --ref main -f version=<x.y.z> -f confirm=<x.y.z> -f mcafee_cleared=true -f hold_newer=false`
   (from a cloud session: the GitHub tools' workflow run on `promote-release.yml`, `main`, same inputs). Only on the
