@@ -689,7 +689,9 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   A junction to another branch's install links `@ezychat/*` to that branch's sources: link only to a
   checkout on the same base, else `tsc` reports the other branch's contract changes as your errors.
 - Append-only files (`LEARNINGS.md`, `CHANGELOG.md`, fixtures) conflict on every parallel branch: keep both
-  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. Before writing a rule, also
+  sides, never `--ours`/`--theirs`, then check CHANGELOG headings for duplicates. `--theirs` on any file with a
+  conflict (AGENTS.md too) also throws away the hunks git already merged from your branch: edit only the marked
+  hunks, and recover from a wrong `--ours`/`--theirs` with `git checkout -m -- <file>`. Before writing a rule, also
   search the open `docs(learnings)` PRs (`gh pr diff <n>`), not only `main`: one may already hold it. Bring a long PR branch
   up to date by merging `main` into it (one resolution, squash-merged later) rather than rebasing every
   commit. After a base PR is squash-merged, replay only your own commits
@@ -857,6 +859,9 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 
 ## Build, tooling and Windows
 
+- `npm run test:coverage` on a busy Windows PC can fail a few server tests with `EPERM … wati-test-*` (a temp data
+  folder still held open while `makeTestApp` makes or removes it). That is not a code failure: run those files alone
+  (`npx vitest run <files>`) and let CI's three OS jobs decide; report both results.
 - An MCP server that is configured (`~/.claude.json` `mcpServers`) but has no tools in the session and is not in the
   "failed to connect" list usually needs a sign-in: check its port (`Get-NetTCPConnection`) and one `tools/list`
   request; a 401 means the owner must run `/mcp` → the server → Authenticate (never sign in for them).
