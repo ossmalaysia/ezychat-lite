@@ -1359,6 +1359,10 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   ternaries (S3358), `toSorted`/`replaceAll`/`find`, no `async` without `await`, one import per module, no `await` inside a loop (S9382:
   a deliberately sequential, paced loop becomes a recursive step function), functions under cognitive complexity 15: a first push of a new feature otherwise drew 42 findings.
   Tests of such a guard build paths from `os.tmpdir()`, never `/tmp`: macOS's temp folder is `/var/folders/…`.
+  Reformatting a file (Prettier rewrapping a line) makes Sonar count its old smells as new code for that PR
+  (#402 rewrapped `http/errors.ts` and drew its old S3358/S3776): fix them in the same PR or expect them.
+  A status-to-code choice is a lookup table with a default, never a ternary chain; pin every branch with a
+  test that passes on the old code before changing it (L-31).
 - Every `/api/ai` route is admin-only (`ai-routes-access.test.ts` lists them all): an AI route that every
   signed-in user may call lives outside that prefix (`GET /api/reply-suggestions`, `/api/chats/:jid/ai/*`).
 - An edition limit (e.g. `maxInboxes`) never widens access by itself: a data dir can hold more rows than
