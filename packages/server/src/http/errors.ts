@@ -51,6 +51,13 @@ export function sendError(
   return reply.status(status).type('application/json').send({ error: { code, message } });
 }
 
+/** Code for a Fastify client error (4xx) by status; any other 4xx is a validation error. */
+const CLIENT_ERROR_CODES: Readonly<Record<number, string>> = {
+  404: ErrorCode.NOT_FOUND,
+  413: 'payload_too_large',
+  429: ErrorCode.RATE_LIMITED,
+};
+
 /** Fastify error handler: HttpError → its status; ZodError → 400; fastify client errors → their status; else 500. */
 export function errorHandler(
   err: FastifyError | Error,
@@ -67,15 +74,12 @@ export function errorHandler(
   }
   const status = (err as FastifyError).statusCode;
   if (typeof status === 'number' && status >= 400 && status < 500) {
-    const code =
-      status === 413
-        ? 'payload_too_large'
-        : status === 404
-          ? ErrorCode.NOT_FOUND
-          : status === 429
-            ? ErrorCode.RATE_LIMITED
-            : ErrorCode.VALIDATION;
-    return sendError(reply, status, code, err.message);
+    return sendError(
+      reply,
+      status,
+      CLIENT_ERROR_CODES[status] ?? ErrorCode.VALIDATION,
+      err.message,
+    );
   }
   req.log.error({ err }, 'unhandled error');
   return sendError(reply, 500, 'internal', 'Internal server error');
