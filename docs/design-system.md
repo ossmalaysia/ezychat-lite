@@ -339,6 +339,90 @@ rule. Code: `apps/web/src/nav/AppNav.tsx`.
   Settings page the bar's back arrow goes one level up (the Settings list, Members, Connectors).
 - **Don't** trap Back, or leave a chat by Back into a reopened sheet.
 
+## Long lists, pickers and row menus
+
+Three patterns for admin pages with many items (40 connector tools, a growing list of AI agents). They work on
+desktop and on phones. First used by the Enterprise connector screens (owner confirmed 2026-11-27; the mock is
+private, so each pattern below describes its screens in one line). Build them only from components
+that `@ezychat/web` exports: `Input`, `Button`, `Badge`, `Switch`, `Card`, `Banner`, `EmptyState`,
+`ResponsiveDialog`, `AlertDialog`, `DropdownMenu`, `Separator` and the `sonner` toast. `SearchField` is in
+`components/app` but is not exported yet, and `FilterChip` is only proposed (see
+[Components](#components-all-in-srccomponentsui)). Until the build PR exports them, compose the search field from
+`Input` and the chip from `Button`; do not add a copy.
+
+### Search and filters above a long list
+
+For one list of about 15 or more items that people scan, switch on or off, or look up (the tools of a connector).
+Under 15 items, show the list without search.
+
+- **Do** put one block above the list, in this order:
+  1. A search field: `Input`, `h-11`, 16 px text on phones, a search icon at the left and a clear button (×,
+     `size="icon-touch"`) at the right while it holds text. It searches the name and the short description.
+  2. One row of filter chips (`rounded-full` 36 px `Button`s with a 44 px hit area, see
+     [Filter chips above lists](#filter-chips-above-lists)): a count only where it helps (`All 40`, `Look-ups 30`),
+     one selected at a time (`bg-primary/10 text-primary border-primary/30`). The row scrolls sideways on a phone
+     (`overflow-x-auto`, `scroll-px-4`, `whitespace-nowrap`); it never wraps.
+  3. A result line, `text-xs text-muted-foreground`: "Showing 7 of 40 tools". It updates on every keystroke and is
+     a polite live region (`aria-live="polite"`).
+- **Do** make the block sticky under the card heading when the list is long. Search and chips work together: the
+  result is the items that match both.
+- **Do** offer a bulk action only when it is safe: a muted strip (`bg-muted/60`, `rounded-lg`, `p-3`) under the
+  result line says what it will touch ("6 look-ups shown. Tools that change data are never switched here.") with one
+  `outline` `Button` ("Turn all 6 look-ups on"). It acts only on the items shown, never on items the filter hides or
+  on risky items. It uses normal styling (a reversible bulk action is not red) and ends with a toast with **Undo**.
+- **Do** show an empty result with `EmptyState` (no illustration is needed inside a card): "No tool matches
+  “refrigerator”", one hint line, and a **Clear search and filters** button. The search block stays above it, so the
+  person can edit the search.
+- **Don't** search on Enter only, hide the count, wrap chips onto a second line, show the bulk strip when nothing
+  safe is shown, or let a bulk action change items the person cannot see. Don't show a spinner while filtering a
+  list that is already loaded.
+- Screens: a connector's tool list for one AI agent (40 tools) with search, the chips, "Showing N of M", the bulk
+  strip and the empty result.
+
+### Picker dialog (choose from a list to add)
+
+For adding one item from a list that can be long ("Add AI agent" to a connector). It is a pick, not a form.
+
+- **Do** open a `ResponsiveDialog` (a dialog on desktop, a bottom sheet below 640 px). The title names the action
+  ("Add AI agent"); the description says what a tap does ("It starts with look-ups on and change tools off.").
+- **Do** put a search field first (the same one as above; show it when there are about 8 or more rows), then one
+  row per item that can still be added: name and one muted line on the left, an **Add** cue (an `outline`
+  `Button`) on the right (rows are 48 px or more). Only items not added yet appear, so there is no "Added"
+  state. The list scrolls inside the dialog (`max-h-[70dvh]`); the title and the search stay in view.
+- **Do** make one tap on **Add** do the whole job: add the item, close the dialog, and show a
+  toast that says what was added and what the defaults are. The whole row is the tap target. To leave without
+  adding, use the dialog's close button.
+- **Do** show `EmptyState` when nothing is left ("Every AI agent already uses this.") with **Close**. The same
+  component says "No AI agent matches “…”" for a search with no result.
+- **Don't** use a select for a list that can be long, add a Save or Done button (each Add is final), show items that
+  are already added as disabled rows, or stack the picker on another sheet. Don't use it to edit several values: that
+  is the Tags editor (tick, then **Done**).
+- Screens: "Add AI agent" on a connector page: the picker, the picker with a search, and the picker when every
+  agent already uses the connector.
+
+### List row with a second action
+
+For a row that opens a detail page and also has one more action that is not the main one ("Stop using" on an AI
+agent in a "Used by" list). It extends the **Row actions** rule above: here the row itself is the main action.
+
+- **Do** make the whole row a link (name, one muted line, a chevron at the right) to the detail page, and put one
+  "…" `DropdownMenu` button after it. The "…" button is a ghost `Button` with `size="icon-touch"` and an accessible
+  name that names the row ("Actions for Sales assistant"). Keep the button's slot in every row so the chevrons line
+  up. On a phone the menu is a bottom sheet (`ResponsiveDialog` rows, 48 px or more), not a desktop dropdown.
+- **Do** keep the two targets apart: the row link and the "…" button are separate controls, each at least 44 px,
+  with no overlap and a small gap between them. A tap on the "…" never opens the detail page.
+- **Do** write menu items as a plain verb for the row ("Stop using"). An item that deletes settings or cannot be
+  undone uses `text-danger` and always opens an `AlertDialog` (a bottom sheet below 640 px). The dialog says what
+  happens to this row in one sentence ("Sales assistant stops using Orders. Its tool choices for this connector are
+  deleted."), then two buttons: **Cancel** (outline, first) and the action by name (`destructive`, never "OK").
+  Focus starts on **Cancel**. Nothing changes until the action button is pressed.
+- **Do** run an item that can be undone (Pause, Add back) without a confirm, and say what happened in a toast.
+- **Don't** show the second action as a second visible button next to the chevron, hide a main task in the menu,
+  use red for an item that can be undone, or use a toast with **Undo** instead of a dialog when settings are
+  deleted.
+- Screens: the "Used by" list on a connector page: rows with a chevron and "…", the open menu, the "Stop using"
+  confirm, and the empty list.
+
 ## Editions
 
 Enterprise follows this file through the published `@ezychat/web` components and its extension slots; it never
