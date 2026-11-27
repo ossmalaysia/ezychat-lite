@@ -60,7 +60,8 @@
     "sendFeedback": "Send feedback",
     "emailSupport": "Email support",
     "signingOut": "Signing out…",
-    "signOutFailed": "Could not sign out: {{error}}"
+    "signOutFailed": "Could not sign out: {{error}}",
+    "aiAssistants": "My AI assistants"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -238,6 +239,10 @@
       "title": "Which token?",
       "body": "A fine-grained token limited to the repositories you choose, with Issues and Pull requests Read-only. Classic tokens (ghp_…) reach every repository, so {{product}} refuses them.",
       "action": "Make a token on GitHub"
+    },
+    "memberNewChats": {
+      "title": "Why is this greyed out?",
+      "body": "You can't start new chats in {{product}}, so your assistant can't either."
     }
   },
   "appNav": {
@@ -261,5 +266,12 @@
     "attentionRow": "Needs attention",
     "backTo": "Back to {{place}}",
     "more": "More"
+  },
+  "liveTranslate": {
+    "label": "My language",
+    "help": "Live translate shows customers' messages in this language, and you type your replies in it.",
+    "default": "Same as the app ({{lang}}).",
+    "skipPreview": "Send without preview",
+    "skipPreviewHelp": "Off: you see what the customer will get before it is sent. On: Send translates and sends at once; a translation that changes a number, price, link or contact is still stopped."
   }
 }

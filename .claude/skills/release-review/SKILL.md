@@ -9,15 +9,17 @@ Design: `docs/superpowers/specs/2026-10-24-release-review-design.md`. Tier map:
 `docs/release-review/components.json`. The score comes from `scripts/release-review.mjs`; **never change
 points or decide the score yourself.**
 
-**Policy now:** the review only scores, logs, comments and labels. Merge only on the owner's explicit
-request, also for `risk:auto`, until the owner approves section 9 of the design in writing.
+**Policy (design §9, approved by the owner 2026-11-20):** the script only scores, logs, comments and labels. Merge
+only on the owner's explicit request, or when the final check on the PR's head prints `MERGE OK` with `risk:auto` or
+`risk:pipeline`: then squash-merge with no push between the check and the merge. Never GitHub auto-merge, `--approve`
+without the owner's own words, a release PR, tag or publish without "release", or skipping or weakening a check to reach
+`MERGE OK`. A merge never starts a release. The `merge-gate.mjs` hook enforces this.
 
 ## Steps
 
 1. Run `node scripts/release-review.mjs <pr>` (Node 24) from the repo checkout. It reads GitHub REST and git at
    the PR head commit (no GraphQL: the same command works in a cloud session). The first line is the final merge
-   verdict, `MERGE OK …` or `NOT READY: <reasons> …` (exit code 2). Run it once more right before any merge
-   the owner asks for.
+   verdict, `MERGE OK …` or `NOT READY: <reasons> …` (exit code 2). Run it once more right before any merge.
 2. If it lists a new migration, read the migration. Run again with `--migration adds-only` (only new
    tables, columns or indexes) or `--migration moves-data` (it changes or moves existing rows).
 3. If it lists unmapped code files, add rules for them to `components.json` in the same PR.

@@ -256,6 +256,10 @@ const NEW_CHAT_REFUSALS: Record<string, ((message: string) => string) | undefine
   wa_disconnected: () =>
     'WhatsApp is not connected, so the number cannot be checked. Try again when it is connected.',
   not_on_whatsapp: () => 'This number does not have WhatsApp.',
+  new_chat_not_allowed: () =>
+    'This person cannot start new chats in EzyChat, so this assistant cannot message new numbers either.',
+  not_found: () => 'No inbox to send from.',
+  inbox_removed: () => 'This WhatsApp number was removed.',
   new_chat_daily_limit: (message) =>
     `${message}; the team's daily limit of new chats protects the number from a WhatsApp ban. Try again tomorrow.`,
 };
@@ -628,6 +632,9 @@ export function createInboxSendPort(
         }
         throw err;
       }
+      // Defence in depth: the chat it found or made must be one the owner may open.
+      if (!findChats(ctx, opened.chatJid, principal.user).length)
+        throw new SendError(`No chat found for ${input.phone}.`);
       return {
         ...send(principal, opened.chatJid, input),
         newChat: opened.created,

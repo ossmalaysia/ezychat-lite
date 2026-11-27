@@ -1,3 +1,5 @@
+import type { AiReasoningEffort } from '../provider-types.js';
+import { withReasoningHeadroom } from './draft.js';
 import {
   generateText,
   NoObjectGeneratedError,
@@ -49,7 +51,9 @@ export interface AssistCall {
   /** Receives the tool names of each finished step (for the live "Read …" lines). */
   onStep?: (toolNames: string[]) => void;
   /** OpenAI Responses reasoning effort for ChatGPT sign-in; omitted = the model's default. */
-  reasoningEffort?: 'low';
+  reasoningEffort?: AiReasoningEffort;
+  /** The model reasons: its reasoning tokens count against the output cap, so the cap gets headroom. */
+  reasons?: boolean;
   /** One record per model call (counts and times only, never text), for the latency and cache trace. */
   onTrace?: (trace: AssistCallTrace) => void;
 }
@@ -70,6 +74,9 @@ export interface AssistCallTrace {
   /** Tools this call asked for (run before the next call). */
   tools: string[];
   finish: string;
+  /** The AI models row (or `askEzySetup`) and its level, added by the service for the log. */
+  task?: string;
+  thinking?: string | null;
 }
 
 export interface AssistResult {
@@ -177,7 +184,11 @@ function generate(call: AssistCall, onStepNames: (names: string[]) => void) {
     output: Output.object({ schema: AssistOutput }),
     abortSignal: call.signal,
     maxRetries: 0,
-    maxOutputTokens: ASSIST_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: withReasoningHeadroom(
+      ASSIST_MAX_OUTPUT_TOKENS,
+      call.reasons,
+      call.reasoningEffort,
+    ),
     onStepFinish: (step) => {
       const names = step.toolCalls.map((c) => c.toolName);
       onStepNames(names);

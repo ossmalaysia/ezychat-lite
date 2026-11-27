@@ -1,7 +1,7 @@
 import type { DB } from '../db/index.js';
 
 /**
- * Hidden chats (docs/features/chat-hide-delete/design.md Part A), the small read side used by every
+ * Hidden chats (docs/chat-hide-delete.md Part A), the small read side used by every
  * reader: a hidden chat (`chats.hidden_at` set) behaves like a chat that does not exist. Writes live
  * only in `chats/hide.ts`.
  */

@@ -17,7 +17,7 @@ import { getGoogleSheets } from '../connectors/google-sheets/service.js';
 import { isHostRequest } from '../http/access.js';
 import { clientIp } from '../http/client-ip.js';
 import { errors, parse } from '../http/errors.js';
-import { escapeHtml, sendPage } from './connectors.js';
+import { escapeHtml, requireHost, sendPage, withHostFlag } from './connectors.js';
 
 const AgentParams = z.object({ agentId: z.coerce.number().int().positive() });
 const RequestParams = z.object({ requestId: z.string().regex(/^[a-f0-9]{24}$/) });
@@ -55,11 +55,12 @@ export default async function connectorGoogleSheetsRoutes(app: FastifyInstance, 
   const admin = { preHandler: requireAdmin(ctx) };
   const actor = (req: FastifyRequest) => ({ userId: req.user!.id, ip: clientIp(req) });
 
-  app.get('/connectors/google-sheets', admin, async () => sheets.status());
+  app.get('/connectors/google-sheets', admin, async (req) => withHostFlag(req, sheets.status()));
 
-  app.post('/connectors/google-sheets/connect', admin, async (req) =>
-    sheets.startConnect(redirectUri(req, ctx), actor(req)),
-  );
+  app.post('/connectors/google-sheets/connect', admin, async (req) => {
+    requireHost(req);
+    return sheets.startConnect(redirectUri(req, ctx), actor(req));
+  });
 
   app.get('/connectors/google-sheets/connect/:requestId', admin, async (req) => {
     const { requestId } = parse(RequestParams, req.params);
@@ -85,7 +86,7 @@ export default async function connectorGoogleSheetsRoutes(app: FastifyInstance, 
 
   app.post('/connectors/google-sheets/disconnect', admin, async (req) => {
     await sheets.disconnect(actor(req));
-    return sheets.status();
+    return withHostFlag(req, sheets.status());
   });
 
   app.post('/connectors/google-sheets/spreadsheet', admin, async (req) => {
@@ -95,9 +96,10 @@ export default async function connectorGoogleSheetsRoutes(app: FastifyInstance, 
 
   // Google's file picker: the admin starts it here; its page, script, token and answer are served
   // only to this computer (like the sign-in callback), guarded by the one-time picker token.
-  app.post('/connectors/google-sheets/picker', admin, async (req) =>
-    sheets.startPicker(loopbackOrigin(req, ctx), actor(req)),
-  );
+  app.post('/connectors/google-sheets/picker', admin, (req) => {
+    requireHost(req);
+    return sheets.startPicker(loopbackOrigin(req, ctx), actor(req));
+  });
 
   app.get('/connectors/google-sheets/picker/:requestId', admin, async (req) => {
     const { requestId } = parse(RequestParams, req.params);
@@ -229,7 +231,7 @@ export default async function connectorGoogleSheetsRoutes(app: FastifyInstance, 
 
   app.post('/dev/fake-google-sheets', admin, async (req) => {
     fake.mode = parse(FakeSheetsBody, req.body ?? {}).state;
-    return sheets.status();
+    return withHostFlag(req, sheets.status());
   });
 
   app.get('/dev/fake-google-sheets', admin, async () => ({

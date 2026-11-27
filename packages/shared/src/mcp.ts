@@ -23,8 +23,12 @@ export const ApiTokenSchema = z.object({
   canSend: z.boolean(),
   /** Scope `inbox:send_new`: the assistant may also start a chat with a number not in the inbox. */
   canMessageNewNumbers: z.boolean(),
+  /** Scope `inbox:manage`: the assistant may resolve and reopen chats (never messages anyone). */
+  canResolveChats: z.boolean().default(false),
   /** Made by an app's sign-in (OAuth approval), not by Create token in Settings. */
   connectedApp: z.boolean().default(false),
+  /** The owner is a team member (not an admin): the token reaches only what that member can open. */
+  memberToken: z.boolean().default(false),
 });
 export type ApiToken = z.infer<typeof ApiTokenSchema>;
 
@@ -36,6 +40,8 @@ export const CreateApiTokenBody = z
     canSend: z.boolean().default(false),
     /** Grant scope `inbox:send_new` too (needs canSend; off unless the admin ticks it). */
     canMessageNewNumbers: z.boolean().default(false),
+    /** Grant scope `inbox:manage` (resolve and reopen chats; off unless the admin ticks it). */
+    canResolveChats: z.boolean().default(false),
   })
   .refine((b) => b.canSend || !b.canMessageNewNumbers, {
     message: 'Messaging new numbers needs "Can send WhatsApp messages"',
@@ -45,7 +51,12 @@ export type CreateApiTokenBody = z.infer<typeof CreateApiTokenBody>;
 
 /** Change what an existing token may do (only its owner, in Settings; never through a token). */
 export const UpdateApiTokenBody = z
-  .strictObject({ canSend: z.boolean(), canMessageNewNumbers: z.boolean() })
+  .strictObject({
+    canSend: z.boolean(),
+    canMessageNewNumbers: z.boolean(),
+    /** Omitted: unchanged (an older client never turns it off by accident). */
+    canResolveChats: z.boolean().optional(),
+  })
   .refine((b) => b.canSend || !b.canMessageNewNumbers, {
     message: 'Messaging new numbers needs "Can send WhatsApp messages"',
     path: ['canMessageNewNumbers'],
@@ -70,10 +81,24 @@ export const McpSettingsResponse = z.object({
   publicUrl: z.string().nullable(),
   /** Loopback base URL on the port this server listens on (works only on the server's computer). */
   localUrl: z.string(),
+  /** Admin switch: team members may connect AI assistants to their own account (default off). */
+  membersEnabled: z.boolean().default(false),
+  /**
+   * The signed-in person may create tokens and approve an app sign-in right now (admins: always;
+   * members: while AI assistant access and the members switch are both on).
+   */
+  canConnect: z.boolean().default(true),
+  /** The signed-in member could start a new chat in the app, so a token may message new numbers. */
+  canMessageNewNumbers: z.boolean().default(true),
 });
 export type McpSettingsResponse = z.infer<typeof McpSettingsResponse>;
 
-export const McpSettingsPatch = z.strictObject({ enabled: z.boolean() });
+/** Admins only. At least one field. */
+export const McpSettingsPatch = z
+  .strictObject({ enabled: z.boolean().optional(), membersEnabled: z.boolean().optional() })
+  .refine((b) => b.enabled !== undefined || b.membersEnabled !== undefined, {
+    message: 'Nothing to change',
+  });
 export type McpSettingsPatch = z.infer<typeof McpSettingsPatch>;
 
 // MCP sign-in (OAuth 2.1 authorization code + PKCE): an AI assistant app (claude.ai, ChatGPT, …)
@@ -100,7 +125,11 @@ export const OAuthRequestInfo = z.object({
 });
 export type OAuthRequestInfo = z.infer<typeof OAuthRequestInfo>;
 
-export const OAuthDecisionBody = OAuthAuthorizeParams.extend({ approve: z.boolean() });
+export const OAuthDecisionBody = OAuthAuthorizeParams.extend({
+  approve: z.boolean(),
+  /** The approving person lets this app send WhatsApp messages as them (off unless ticked). */
+  canSend: z.boolean().optional(),
+});
 export type OAuthDecisionBody = z.infer<typeof OAuthDecisionBody>;
 
 /** Where the page sends the browser next: back to the app with a code, or with access_denied. */
@@ -181,6 +210,37 @@ export const McpGetMessageFileInput = z.strictObject({
     .describe('Message id from get_messages (a message with media)'),
 });
 export type McpGetMessageFileInput = z.infer<typeof McpGetMessageFileInput>;
+
+// Chat tools (scope `inbox:manage`): resolve and reopen, as the token's owner; nobody is messaged.
+
+const McpRequestId = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{8,64}$/)
+  .describe(
+    'A unique id you choose for this change (8-64 letters, digits, _ or -); repeat it on a retry so the change is never made twice',
+  );
+const McpChatId = z.string().min(1).max(200).describe('Chat id from list_chats or get_chat');
+
+/** Longest team note resolve_chat accepts. */
+export const MCP_RESOLVE_NOTE_MAX = 2000;
+
+export const McpResolveChatInput = z.strictObject({
+  chatId: McpChatId,
+  requestId: McpRequestId,
+  note: z
+    .string()
+    .trim()
+    .min(1)
+    .max(MCP_RESOLVE_NOTE_MAX)
+    .optional()
+    .describe(
+      'Optional internal note for the team (why it was resolved); teammates see it in the chat, the customer never does',
+    ),
+});
+export type McpResolveChatInput = z.infer<typeof McpResolveChatInput>;
+
+export const McpReopenChatInput = z.strictObject({ chatId: McpChatId, requestId: McpRequestId });
+export type McpReopenChatInput = z.infer<typeof McpReopenChatInput>;
 
 // Send tool (scope `inbox:send`).
 

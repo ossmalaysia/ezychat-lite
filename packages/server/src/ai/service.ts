@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { AI_TASK_DEFAULTS } from '@ezychat/shared';
 import type {
+  AiTaskGroup,
+  AiTaskModelsBody,
+  AiTaskModelsStatus,
+  AiThinking,
   AiAgentBody,
   AiAgentPreset,
   FixGrammarResult,
@@ -26,6 +31,7 @@ import type {
   ChatEvent,
   Message,
   ScheduledRunReason,
+  TranslateLanguage,
 } from '@ezychat/shared';
 import {
   AI_GROUP_CONTEXT_MESSAGES,
@@ -135,16 +141,28 @@ import {
 import { AI_VOICE_WAIT_MS, conversationLine, customerText, isTranscribed } from './conversation.js';
 import { CompletionOutput, DraftOutput, buildDraftPrompt } from './draft-prompt.js';
 import { acceptDrafts, checkCompletion, type CompletionDrop } from './draft-check.js';
+import { replySuggestionsEnabled } from './reply-suggestions-setting.js';
 import {
-  AGENT_SUGGEST_MODEL,
-  FAST_SUGGEST_MODEL,
-  replySuggestionsEnabled,
-  replySuggestionsModel,
-} from './reply-suggestions-setting.js';
+  migrateTaskModels,
+  readTaskModels,
+  resolveTask,
+  saveTaskModels,
+  taskModelsStatus,
+  type TaskConnection,
+} from './task-models.js';
 import { CHATGPT_FAST_DRAFT_MODELS, DRAFT_FAST_MODELS } from './agent/draft.js';
 import { FIX_GRAMMAR_RULES, FixGrammarOutput, grammarIssues } from '../fix-english/grammar.js';
 import { SAFETY_CHECK_RULES, SafetyAiOutput } from '../safety/ai-check.js';
 import { fixEnglishEnabled } from '../fix-english/setting.js';
+import {
+  TRANSLATE_RULES,
+  TranslateOutput,
+  detectedLanguage,
+  keepWords,
+  translateInput,
+  type TranslateItem,
+} from './translate-prompt.js';
+import { TeamWordStore } from '../fix-english/words.js';
 import { PhraseOutput, buildPhrasePrompt } from './phrases/prompt.js';
 import { WINDOW_CLOSED, isWindowClosed, replyWindowOpen } from '../inboxes/reply-window.js';
 import type { z } from 'zod';
@@ -280,6 +298,15 @@ interface State {
   due_at: number | null;
 }
 
+/** The settings, `fast` flag and reasoning effort one call of a task row uses, plus its log fields. */
+interface TaskCall {
+  settings: AiSettings;
+  fast: boolean;
+  reasoningEffort: AiThinking | undefined;
+  task: AiTaskGroup;
+  thinking: AiThinking | null;
+}
+
 export interface AiService {
   /** Shared connection, independent of the Sales Agent's on/off and ownership. */
   connectionReady(): boolean;
@@ -395,6 +422,26 @@ export interface AiService {
    * is sent or stored. Throws 409 `fix_english_off` / 503 `ai_unavailable`.
    */
   fixGrammar(jid: string, text: string, signal: AbortSignal): Promise<FixGrammarResult>;
+  /**
+   * Live translate (docs/live-translate.md): one structured call on the "Model for suggestions" with
+   * the fixed `TRANSLATE_RULES` and the items as data; no tools, no retries. Logs nothing here (the
+   * caller logs counts). Throws 503 `ai_unavailable` when no AI is ready, `TranslateFailedError` when
+   * the call fails or answers without an item.
+   */
+  translate(
+    jid: string,
+    request: {
+      items: readonly TranslateItem[];
+      target: TranslateLanguage;
+      source?: TranslateLanguage | undefined;
+    },
+    signal: AbortSignal,
+  ): Promise<{
+    items: Array<{ id: string; translation: string; detected: TranslateLanguage | null }>;
+    model: string;
+    /** The Translate row's level (null = the model has none), for the log. */
+    thinking: AiThinking | null;
+  }>;
   /** Dream mode step 1: what the team's replies in one take-over chat teach (Model for suggestions). */
   dreamLessons(agentId: number, chat: TakeoverChat, signal: AbortSignal): Promise<DreamLesson[]>;
   /** Dream mode step 2: lessons merged into at most 5 setup changes (the connection's main model). */
@@ -414,6 +461,15 @@ export interface AiService {
   suggestModelInfo(): ReplySuggestModelInfo;
   /** `fast`, `agent` or a model of the current connection. */
   isSuggestModel(model: string): boolean;
+  /** ChatGPT: reads the account's live model list when none is cached yet, so AI models shows real models. */
+  warmModelList(): Promise<void>;
+  /** Settings → AI → AI models: the current connection's rows (docs/ai-models.md). */
+  taskModels(): AiTaskModelsStatus;
+  /** Saves changed rows of the current connection (400 `model_not_listed` / `thinking_not_supported`). */
+  setTaskModels(
+    body: AiTaskModelsBody,
+    actor: { userId: number | null; ip: string | null },
+  ): AiTaskModelsStatus;
   /**
    * One phrase-list build for an agent (the phrase worker calls it): its business context, AI
    * instructions, the cleaned team replies and the stored phrases into one structured call on the
@@ -426,7 +482,14 @@ export interface AiService {
       existing: readonly { text: string; language: string }[];
     },
     signal: AbortSignal,
-  ): Promise<{ output: PhraseOutput; model: string; business: string; internalTexts: string[] }>;
+  ): Promise<{
+    output: PhraseOutput;
+    model: string;
+    /** The Background checks row's level (null = the model has none), for the log. */
+    thinking: AiThinking | null;
+    business: string;
+    internalTexts: string[];
+  }>;
   /**
    * A scheduled task's turn (docs/features/scheduled-tasks/design.md): one agent turn for the chat
    * with the agent's knowledge and look-ups (no writes but a sheet row on an Add rows tab), answer
@@ -468,6 +531,19 @@ export const AI_COMPLETION_TURNS = 6;
 const AI_SUGGESTION_TIMEOUT_MS = 30_000;
 /** A grammar check slower than this is dropped: the teammate has typed on or sent by then. */
 export const FIX_GRAMMAR_TIMEOUT_MS = 10_000;
+/** A batch of up to 50 messages: more output than a grammar check. */
+export const TRANSLATE_TIMEOUT_MS = 45_000;
+
+/** A Live translate call failed or did not translate every item (nothing is shown or sent). */
+export class TranslateFailedError extends Error {
+  constructor(
+    readonly causeName: string | null,
+    readonly status: number | null,
+  ) {
+    super('translation failed');
+    this.name = 'TranslateFailedError';
+  }
+}
 /** One dream mode model call (a night has time; a stuck call must still end). */
 export const DREAM_CALL_TIMEOUT_MS = 120_000;
 /** WhatsApp Safety's AI check: past this the rules' result stands. */
@@ -610,15 +686,64 @@ export function createAiService(
         agentModel(current))
       : DRAFT_FAST_MODELS[current.mode];
   /**
-   * The settings and `fast` flag a draft call uses, from the "Model for suggestions" choice. A model
-   * that the connection no longer lists (the mode changed) falls back to the fast model.
+   * ChatGPT: read the account's model list (the provider answers from its cache while fresh). A failure keeps the
+   * last list, or the built-in one, and a save of a named model then answers 503. One read at a time.
    */
-  const draftChoice = (current: AiSettings): { settings: AiSettings; fast: boolean } => {
-    const choice = replySuggestionsModel(ctx.settings);
-    if (choice === AGENT_SUGGEST_MODEL) return { settings: current, fast: false };
-    if (choice !== FAST_SUGGEST_MODEL && suggestModels(current).includes(choice))
-      return { settings: { ...current, model: choice }, fast: false };
-    return { settings: current, fast: true };
+  /** After a ChatGPT model list read failed, AI calls wait this long before starting another one. */
+  const LIST_RETRY_MS = 5 * 60_000;
+  let warming: Promise<void> | null = null;
+  let listRetryAt = 0;
+  const warmList = (): Promise<void> => {
+    if (aiProviderSettings(ctx.settings).mode !== 'chatgpt' || !provider.models)
+      return Promise.resolve();
+    warming ??= provider
+      .models()
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+      .finally(() => {
+        warming = null;
+        // Still unread: the account's list could not be read; the calls try again later.
+        if (!(provider.modelListRead?.() ?? true)) listRetryAt = Date.now() + LIST_RETRY_MS;
+      });
+    return warming;
+  };
+  /** What the current connection offers the AI models rows (docs/ai-models.md). */
+  const taskConnection = (current: AiSettings): TaskConnection => ({
+    mode: current.mode,
+    mainModel: agentModel(current),
+    fastModel: fastModel(current),
+    models: suggestModels(current),
+    // ChatGPT before its live list was ever read: the built-in list may miss the account's models, so a saved id
+    // runs as saved (the provider checks it against the live list on the call). Once read, even an expired copy is
+    // the list: a model the account lost falls back to the row's default with a warning.
+    listComplete: current.mode !== 'chatgpt' || (provider.modelListRead?.() ?? true),
+  });
+  /**
+   * The settings, `fast` flag and reasoning effort one call of a task row uses. Main keeps the saved connection
+   * (Auto stays Auto); Fast and a listed model name the model; an unlisted saved model runs on the row's fallback.
+   */
+  const taskCall = (group: AiTaskGroup, current: AiSettings): TaskCall => {
+    const r = resolveTask(
+      group,
+      readTaskModels(ctx.settings)[current.mode]?.[group],
+      taskConnection(current),
+    );
+    // A saved ChatGPT model the account list has not confirmed yet: read the list now, this call runs the default.
+    // After a read that failed, the calls wait `LIST_RETRY_MS` before the next try (no read per call).
+    if (r.unchecked && Date.now() >= listRetryAt) void warmList();
+    const fellBack = r.unavailable !== null || r.unchecked;
+    const runsMain = fellBack ? AI_TASK_DEFAULTS[group] === 'main' : r.choice === 'main';
+    const runsFast = (fellBack ? AI_TASK_DEFAULTS[group] : r.choice) === 'fast';
+    return {
+      settings: runsMain ? current : { ...current, model: r.model },
+      // Draft calls keep the provider's own fast-model pick (the same model, read live on ChatGPT).
+      fast: runsFast,
+      reasoningEffort: r.reasoningEffort,
+      task: group,
+      thinking: r.thinking,
+    };
   };
   /** Dream mode runs only on a ready connection with the gate open, for an existing agent. */
   const dreamAgent = (agentId: number): AgentRow => {
@@ -631,7 +756,7 @@ export function createAiService(
   /** One dream mode model call: no tools, no retries; logs counts, ms and model, never the text. */
   const dreamCall = async <T>(
     event: 'dream_lessons' | 'dream_merge',
-    choice: { settings: AiSettings; fast: boolean },
+    choice: { settings: AiSettings; fast: boolean } & Partial<TaskCall>,
     instructions: string,
     input: string,
     schema: z.ZodType<T>,
@@ -645,7 +770,12 @@ export function createAiService(
       const answer = await provider.draft!(
         choice.settings,
         aiApiKey(ctx.settings),
-        { instructions, input, cacheId: `${installId()}#dream` },
+        {
+          instructions,
+          input,
+          cacheId: `${installId()}#dream`,
+          reasoningEffort: choice.reasoningEffort,
+        },
         { schema, fast: choice.fast, maxOutputTokens },
         AbortSignal.any([signal, AbortSignal.timeout(DREAM_CALL_TIMEOUT_MS)]),
       );
@@ -653,13 +783,21 @@ export function createAiService(
       ok = true;
       return answer.output;
     } finally {
-      log.info({ event, ok, ms: Date.now() - started, model }, 'Dream mode model call');
+      log.info(
+        { event, ok, ms: Date.now() - started, model, ...taskLog(choice) },
+        'Dream mode model call',
+      );
     }
   };
-  const resolvedSuggestModel = (current: AiSettings): string => {
-    const { settings: chosen, fast } = draftChoice(current);
-    return fast ? fastModel(current) : agentModel(chosen);
-  };
+  /** The model, `task` and `thinking` of an AI agent replies log line (Main on Auto logs null, as before). */
+  const replyLog = (r: TaskCall) => ({
+    model: r.settings.model || null,
+    task: r.task,
+    thinking: r.thinking,
+  });
+  /** The `task` and `thinking` fields of a model-call log line (never text). */
+  const taskLog = (choice: Partial<TaskCall>) =>
+    choice.task ? { task: choice.task, thinking: choice.thinking ?? null } : {};
   const installId = () => {
     let id = ctx.settings.get<string | null>(INSTALL_ID_KEY, null);
     if (typeof id !== 'string' || !id) {
@@ -1421,6 +1559,8 @@ export function createAiService(
     let lookups: AgentToolInfo[] = [];
     let lookupFailed = false;
     const started = Date.now();
+    // One read of the row per turn: the call and its log line name the same model and level.
+    const replyCall = taskCall('agentReplies', current);
     const handover = (handoffReason: AiHandoffReason): AiDecision => ({
       action: 'handoff',
       reply: GROUP_HANDOVER_REPLY,
@@ -1443,7 +1583,14 @@ export function createAiService(
         const extension = await agentTurnTools(
           ctx,
           log,
-          { agent: 'sales', agentId: agent.id, chatJid: jid, signal: turnSignal },
+          // A group answer: look-ups only, for the core and for extensions.
+          {
+            agent: 'sales',
+            agentId: agent.id,
+            chatJid: jid,
+            signal: turnSignal,
+            lookupsOnly: true,
+          },
           {
             onFailure: () => {
               lookupFailed = true;
@@ -1457,9 +1604,10 @@ export function createAiService(
         try {
           decision = AiDecision.parse(
             await provider.generate(
-              current,
+              replyCall.settings,
               aiApiKey(ctx.settings),
               {
+                reasoningEffort: replyCall.reasoningEffort,
                 ...prompt(
                   agent.id,
                   { ...current, preset: agent.preset },
@@ -1538,7 +1686,7 @@ export function createAiService(
         action: decision.action,
         handoffReason: decision.handoffReason ?? null,
         toolCalls,
-        model: current.model ?? null,
+        ...replyLog(replyCall),
         ms: Date.now() - started,
       },
       'AI decision',
@@ -1780,6 +1928,8 @@ export function createAiService(
       let lookups: AgentToolInfo[] = [];
       let lookupFailed = false;
       const started = Date.now();
+      // One read of the row per turn: the call and its log line name the same model and level.
+      const replyCall = taskCall('agentReplies', current);
       /** Page `n` of this chat's messages older than the prompt's, oldest first. */
       const olderMessages = (n: number) => {
         let before = olderBefore;
@@ -1804,7 +1954,8 @@ export function createAiService(
         const extension = await agentTurnTools(
           ctx,
           log,
-          { agent: 'sales', agentId: agent.id, chatJid: jid, signal },
+          // A live direct-chat reply: the only turn where extensions may offer tools that change data.
+          { agent: 'sales', agentId: agent.id, chatJid: jid, signal, lookupsOnly: false },
           {
             onFailure: () => {
               lookupFailed = true;
@@ -1817,9 +1968,10 @@ export function createAiService(
         try {
           return AiDecision.parse(
             await provider.generate(
-              current,
+              replyCall.settings,
               aiApiKey(ctx.settings),
               {
+                reasoningEffort: replyCall.reasoningEffort,
                 ...prompt(
                   agent.id,
                   knowledgeOf,
@@ -2020,7 +2172,7 @@ export function createAiService(
           ...promptFilesLog(files),
           toolCalls,
           voiceNotes: voiceNotes.length,
-          model: current.model ?? null,
+          ...replyLog(replyCall),
           ms: Date.now() - started,
         },
         'AI decision',
@@ -2797,25 +2949,30 @@ export function createAiService(
         const calls = extension?.calls() ?? [];
         return calls.length ? { lookups: calls } : {};
       };
+      // Try it and every preview run on the AI agent replies row, like a live reply.
+      const replyCall = taskCall('agentReplies', current);
       try {
+        const runs = replyCall.settings;
         model =
-          current.mode === 'api'
-            ? current.model || OPENAI_DEFAULT_MODEL
-            : current.mode === 'claude'
-              ? claudeModelId(current)
-              : ((await provider.resolveModel?.(current.model)) ?? current.model);
+          runs.mode === 'api'
+            ? runs.model || OPENAI_DEFAULT_MODEL
+            : runs.mode === 'claude'
+              ? claudeModelId(runs)
+              : ((await provider.resolveModel?.(runs.model)) ?? runs.model);
         extension = await agentTurnTools(
           ctx,
           log,
-          { agent: 'sales', agentId: agent?.id, chatJid: null, signal },
+          // No chat: extensions offer look-ups only (the core keeps its own Try it rules).
+          { agent: 'sales', agentId: agent?.id, chatJid: null, signal, lookupsOnly: true },
           { onFailure: () => lookupAbort.abort(), lookupsOnly: group },
         );
         const decision = await provider.generate(
-          { ...current, ...body.knowledge },
+          { ...replyCall.settings, ...body.knowledge },
           aiApiKey(ctx.settings),
           // Draft rules when the page sends them, else the saved ones. Same knowledge tools as a
           // live reply, so Try it tests what customers get; no chat, so no chat history.
           {
+            reasoningEffort: replyCall.reasoningEffort,
             ...prompt(
               agent?.id ?? 0,
               {
@@ -2910,11 +3067,14 @@ export function createAiService(
       const started = Date.now();
       let model: string | null = null;
       let result: AiEditResult;
+      // Edit with AI is Writing help (owner 2026-11-22).
+      const choice = taskCall('writing', settings());
       try {
         const suggestion = await provider.rewrite(
-          settings(),
+          choice.settings,
           aiApiKey(ctx.settings),
           {
+            reasoningEffort: choice.reasoningEffort,
             ...buildEditPrompt({
               field: body.field,
               current: body.current,
@@ -2952,27 +3112,45 @@ export function createAiService(
       }
       // Never the request, the current text or the suggestion: they can hold business details.
       log.info(
-        { event: 'ai_edit', field: body.field, ok: result.ok, ms: Date.now() - started, model },
+        {
+          event: 'ai_edit',
+          field: body.field,
+          ok: result.ok,
+          ms: Date.now() - started,
+          model,
+          ...taskLog(choice),
+        },
         'AI edit',
       );
       return result;
     },
     suggestModelInfo() {
       const current = settings();
+      const row = resolveTask(
+        'writing',
+        readTaskModels(ctx.settings)[current.mode]?.writing,
+        taskConnection(current),
+      );
       return {
-        model: replySuggestionsModel(ctx.settings),
+        model: row.choice === 'main' ? 'agent' : row.choice,
         fastModel: fastModel(current),
         agentModel: agentModel(current),
         models: suggestModels(current),
-        resolved: resolvedSuggestModel(current),
+        // The model the calls run now (an unchecked or unlisted choice runs the row default).
+        resolved: row.model,
       };
     },
     isSuggestModel(model) {
-      return (
-        model === FAST_SUGGEST_MODEL ||
-        model === AGENT_SUGGEST_MODEL ||
-        suggestModels(settings()).includes(model)
-      );
+      return model === 'fast' || model === 'agent' || suggestModels(settings()).includes(model);
+    },
+    warmModelList: () => warmList(),
+    taskModels() {
+      return taskModelsStatus(readTaskModels(ctx.settings), taskConnection(settings()));
+    },
+    setTaskModels(body, actor) {
+      const conn = taskConnection(settings());
+      saveTaskModels(ctx.db, ctx.settings, body, conn, actor);
+      return taskModelsStatus(readTaskModels(ctx.settings), conn);
     },
     async buildPhrases(agentId, input, signal) {
       if (service.draftConnection() !== 'ready' || !gateOpen())
@@ -2992,17 +3170,18 @@ export function createAiService(
         }),
         cacheId: `${installId()}#agent:${agent.id}#phrases`,
       };
-      const choice = draftChoice(current);
+      const choice = taskCall('background', current);
       const answer = await provider.draft!(
         choice.settings,
         aiApiKey(ctx.settings),
-        prompt,
+        { ...prompt, reasoningEffort: choice.reasoningEffort },
         { schema: PhraseOutput, fast: choice.fast, maxOutputTokens: 8_000 },
         AbortSignal.any([signal, AbortSignal.timeout(AI_PHRASE_BUILD_TIMEOUT_MS)]),
       );
       return {
         output: answer.output,
         model: answer.model,
+        thinking: choice.thinking,
         // Facts may come from the business context and the administrator instructions.
         business: [business, administratorInstructions({ ...current, preset: agent.preset })].join(
           '\n',
@@ -3025,10 +3204,39 @@ export function createAiService(
     assist(call, signal) {
       if (!provider.assist)
         throw new HttpError(503, 'ai_unavailable', 'Ask Ezy is not available now');
+      // A setup turn (`main`) stays on the main model; a normal question runs on the Ask Ezy row.
+      const current = settingsFor(null);
+      if (call.main)
+        return provider.assist(
+          current,
+          aiApiKey(ctx.settings),
+          {
+            ...call,
+            cacheId: `${installId()}#ask-ezy`,
+            // Setup has no row: it always runs on the main model at its own level.
+            ...(call.onTrace
+              ? {
+                  onTrace: (trace) =>
+                    call.onTrace!({ ...trace, task: 'askEzySetup', thinking: null }),
+                }
+              : {}),
+          },
+          signal,
+        );
+      const choice = taskCall('askEzy', current);
       return provider.assist(
-        settingsFor(null),
+        choice.settings,
         aiApiKey(ctx.settings),
-        { ...call, cacheId: `${installId()}#ask-ezy` },
+        {
+          ...call,
+          // Fast keeps the provider's own fast pick; Main or a listed model runs the named model.
+          ...(choice.fast ? {} : { main: true }),
+          reasoningEffort: choice.reasoningEffort,
+          cacheId: `${installId()}#ask-ezy`,
+          ...(call.onTrace
+            ? { onTrace: (trace) => call.onTrace!({ ...trace, ...taskLog(choice) }) }
+            : {}),
+        },
         signal,
       );
     },
@@ -3108,7 +3316,8 @@ export function createAiService(
         }),
         cacheId: `${installId()}#agent:${agent?.id ?? 0}`,
       };
-      const choice = draftChoice(current);
+      const choice = taskCall('writing', current);
+      const promptWithEffort = { ...prompt, reasoningEffort: choice.reasoningEffort };
       const started = Date.now();
       let model: string | null = null;
       let count = 0;
@@ -3129,7 +3338,7 @@ export function createAiService(
             const answer = await provider.draft!(
               choice.settings,
               aiApiKey(ctx.settings),
-              prompt,
+              promptWithEffort,
               { schema: DraftOutput, fast: choice.fast, maxOutputTokens: 2_000 },
               AbortSignal.any([signal, AbortSignal.timeout(AI_SUGGESTION_TIMEOUT_MS)]),
             );
@@ -3155,7 +3364,7 @@ export function createAiService(
           const answer = await provider.draft!(
             choice.settings,
             aiApiKey(ctx.settings),
-            prompt,
+            promptWithEffort,
             { schema: CompletionOutput, fast: choice.fast, maxOutputTokens: 300 },
             AbortSignal.any([signal, bound.signal]),
           );
@@ -3192,6 +3401,7 @@ export function createAiService(
             ...(cause ?? {}),
             ...(dropped ? { dropped } : {}),
             ...(timedOut ? { timedOut } : {}),
+            ...taskLog(choice),
           },
           'AI draft',
         );
@@ -3205,7 +3415,7 @@ export function createAiService(
       if ((text.match(/\p{L}+/gu) ?? []).length < 2)
         return { status: 'skipped', reason: 'too_short' };
       if (notEnglish(text)) return { status: 'skipped', reason: 'not_english' };
-      const choice = draftChoice(settingsFor(agentOfChat(jid)));
+      const choice = taskCall('writing', settingsFor(agentOfChat(jid)));
       const started = Date.now();
       let model: string | null = null;
       let count = 0;
@@ -3219,6 +3429,7 @@ export function createAiService(
             instructions: FIX_GRAMMAR_RULES,
             input: JSON.stringify({ text }),
             cacheId: `${installId()}#fix-english`,
+            reasoningEffort: choice.reasoningEffort,
           },
           { schema: FixGrammarOutput, fast: choice.fast, maxOutputTokens: 3_000 },
           AbortSignal.any([signal, AbortSignal.timeout(FIX_GRAMMAR_TIMEOUT_MS)]),
@@ -3237,10 +3448,66 @@ export function createAiService(
       } finally {
         // Never the text or the corrections: counts and timing only.
         log.info(
-          { event: 'fix_grammar', ok, ms: Date.now() - started, model, count, ...cause },
+          {
+            event: 'fix_grammar',
+            ok,
+            ms: Date.now() - started,
+            model,
+            count,
+            ...cause,
+            ...taskLog(choice),
+          },
           'Fix English grammar check',
         );
       }
+    },
+    async translate(jid, request, signal) {
+      if (service.draftConnection() !== 'ready' || !gateOpen())
+        throw new HttpError(503, 'ai_unavailable', 'Live translate needs AI');
+      const choice = taskCall('translate', settingsFor(agentOfChat(jid)));
+      const texts = request.items.map((i) => i.text);
+      const keep = keepWords(
+        new TeamWordStore(ctx.db).list().words.map((w) => w.word),
+        texts,
+      );
+      const chars = texts.reduce((sum, t) => sum + t.length, 0);
+      let answer: { output: TranslateOutput; model: string };
+      try {
+        answer = await provider.draft!(
+          choice.settings,
+          aiApiKey(ctx.settings),
+          {
+            instructions: TRANSLATE_RULES,
+            input: translateInput({ ...request, keep }),
+            cacheId: `${installId()}#live-translate`,
+            reasoningEffort: choice.reasoningEffort,
+          },
+          {
+            schema: TranslateOutput,
+            fast: choice.fast,
+            maxOutputTokens: Math.min(16_000, 500 + Math.ceil(chars * 3)),
+          },
+          AbortSignal.any([signal, AbortSignal.timeout(TRANSLATE_TIMEOUT_MS)]),
+        );
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const failure = (error as { statusCode?: unknown; status?: unknown } | null) ?? {};
+        const code = failure.statusCode ?? failure.status;
+        throw new TranslateFailedError(errorNameOf(error), typeof code === 'number' ? code : null);
+      }
+      const byId = new Map(answer.output.items.map((i) => [i.id, i]));
+      const items = request.items.map((item) => {
+        const got = byId.get(item.id);
+        return got && got.translation.trim()
+          ? { id: item.id, translation: got.translation, detected: detectedLanguage(got.detected) }
+          : null;
+      });
+      if (items.some((i) => i === null)) throw new TranslateFailedError('MissingItem', null);
+      return {
+        items: items as NonNullable<(typeof items)[number]>[],
+        model: answer.model,
+        thinking: choice.thinking,
+      };
     },
     previewWithSetup(agentId, override, question) {
       const status = service.agentStatus(agentId);
@@ -3259,7 +3526,7 @@ export function createAiService(
       const agent = dreamAgent(agentId);
       const output = await dreamCall(
         'dream_lessons',
-        draftChoice(settingsFor(agent)),
+        taskCall('background', settingsFor(agent)),
         DREAM_LESSON_RULES,
         lessonInput(chat),
         DreamLessonsOutput,
@@ -3297,17 +3564,22 @@ export function createAiService(
     },
     async checkSafety(chatJid, input, signal) {
       if (service.draftConnection() !== 'ready' || !gateOpen()) return null;
-      const current = settingsFor(agentOfChat(chatJid));
+      const choice = taskCall('background', settingsFor(agentOfChat(chatJid)));
       const started = Date.now();
       let model: string | null = null;
       let answer: SafetyAiAnswer | null = null;
       let cause: { causeName: string | null; status: number | null } | null = null;
       try {
         const result = await provider.draft!(
-          current,
+          choice.settings,
           aiApiKey(ctx.settings),
-          { instructions: SAFETY_CHECK_RULES, input, cacheId: `${installId()}#safety` },
-          { schema: SafetyAiOutput, fast: true, maxOutputTokens: 600 },
+          {
+            instructions: SAFETY_CHECK_RULES,
+            input,
+            cacheId: `${installId()}#safety`,
+            reasoningEffort: choice.reasoningEffort,
+          },
+          { schema: SafetyAiOutput, fast: choice.fast, maxOutputTokens: 600 },
           AbortSignal.any([signal, AbortSignal.timeout(SAFETY_CHECK_TIMEOUT_MS)]),
         );
         model = result.model;
@@ -3333,6 +3605,7 @@ export function createAiService(
             ms: Date.now() - started,
             model,
             ...cause,
+            ...taskLog(choice),
           },
           'WhatsApp Safety AI check',
         );
@@ -3372,6 +3645,8 @@ export function createAiService(
         AbortSignal.timeout(AI_SCHEDULED_TURN_TIMEOUT_MS),
       ]);
       const started = Date.now();
+      // One read of the row per turn: the call and its log line name the same model and level.
+      const replyCall = taskCall('agentReplies', current);
       const toolCalls: string[] = [];
       let extension: Awaited<ReturnType<typeof agentTurnTools>> | null = null;
       let decision: AiDecision;
@@ -3382,7 +3657,13 @@ export function createAiService(
               ctx,
               log,
               // A preview names no chat: tools that change data are not run (as in Try it).
-              { agent: 'sales', agentId: agent.id, chatJid: preview ? null : chatJid, signal },
+              {
+                agent: 'sales',
+                agentId: agent.id,
+                chatJid: preview ? null : chatJid,
+                signal,
+                lookupsOnly: true,
+              },
               {
                 onFailure: () => lookupAbort.abort(),
                 onCall: (name) => toolCalls.push(name),
@@ -3402,9 +3683,10 @@ export function createAiService(
         delete tools[SAVE_FILE_TO_DRIVE];
         decision = AiDecision.parse(
           await provider.generate(
-            current,
+            replyCall.settings,
             aiApiKey(ctx.settings),
             {
+              reasoningEffort: replyCall.reasoningEffort,
               ...prompt(
                 agent?.id ?? 0,
                 { ...current, preset },
@@ -3488,7 +3770,7 @@ export function createAiService(
           outcome: result.outcome,
           reason: result.reason,
           toolCalls,
-          model: current.model ?? null,
+          ...replyLog(replyCall),
           ms: Date.now() - started,
         },
         'AI scheduled turn',
@@ -3534,6 +3816,8 @@ export function createAiService(
   migrateLegacyContext();
   // Permanent start-up step: the old member texts become agent 1 (once, see ai/agents.ts).
   migrateMemberSetting(ctx.db, ctx.settings);
+  // Permanent start-up step: the old "Model for suggestions" becomes the Writing help row (docs/ai-models.md).
+  migrateTaskModels(ctx.settings, taskConnection(settings()));
   // Permanent start-up step: a switched-on group with no agent gets its inbox's only agent.
   backfillGroupAgents(ctx.db);
   // Restore only explicitly recorded live inbound work; imported WhatsApp history never creates state.

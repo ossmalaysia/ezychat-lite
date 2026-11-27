@@ -9,7 +9,8 @@ export class SettingsStore {
   ) {}
 
   private raw(key: string): string | undefined {
-    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+      { value: string } | undefined;
     return row?.value;
   }
 
@@ -17,7 +18,9 @@ export class SettingsStore {
     if (value === null) this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
     else
       this.db
-        .prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+        .prepare(
+          'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+        )
         .run(key, value);
   }
 

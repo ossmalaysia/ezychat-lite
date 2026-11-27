@@ -24,7 +24,8 @@ export const errors = {
     new HttpError(429, ErrorCode.RATE_LIMITED, `Too many attempts, retry in ${retryAfterSec}s`, {
       'retry-after': String(Math.max(1, Math.ceil(retryAfterSec))),
     }),
-  waUnavailable: (msg = 'WhatsApp is not connected') => new HttpError(503, ErrorCode.WA_UNAVAILABLE, msg),
+  waUnavailable: (msg = 'WhatsApp is not connected') =>
+    new HttpError(503, ErrorCode.WA_UNAVAILABLE, msg),
   badOrigin: () => new HttpError(403, ErrorCode.BAD_ORIGIN, 'Origin does not match host'),
 };
 
@@ -41,12 +42,28 @@ export function parse<T extends z.ZodTypeAny>(schema: T, data: unknown): z.infer
   return r.data;
 }
 
-export function sendError(reply: FastifyReply, status: number, code: string, message: string): FastifyReply {
+export function sendError(
+  reply: FastifyReply,
+  status: number,
+  code: string,
+  message: string,
+): FastifyReply {
   return reply.status(status).type('application/json').send({ error: { code, message } });
 }
 
+/** Code for a Fastify client error (4xx) by status; any other 4xx is a validation error. */
+const CLIENT_ERROR_CODES: Readonly<Record<number, string>> = {
+  404: ErrorCode.NOT_FOUND,
+  413: 'payload_too_large',
+  429: ErrorCode.RATE_LIMITED,
+};
+
 /** Fastify error handler: HttpError → its status; ZodError → 400; fastify client errors → their status; else 500. */
-export function errorHandler(err: FastifyError | Error, req: FastifyRequest, reply: FastifyReply): FastifyReply {
+export function errorHandler(
+  err: FastifyError | Error,
+  req: FastifyRequest,
+  reply: FastifyReply,
+): FastifyReply {
   if (err instanceof HttpError) {
     if (err.headers) reply.headers(err.headers);
     return sendError(reply, err.status, err.code, err.message);
@@ -57,9 +74,12 @@ export function errorHandler(err: FastifyError | Error, req: FastifyRequest, rep
   }
   const status = (err as FastifyError).statusCode;
   if (typeof status === 'number' && status >= 400 && status < 500) {
-    const code =
-      status === 413 ? 'payload_too_large' : status === 404 ? ErrorCode.NOT_FOUND : status === 429 ? ErrorCode.RATE_LIMITED : ErrorCode.VALIDATION;
-    return sendError(reply, status, code, err.message);
+    return sendError(
+      reply,
+      status,
+      CLIENT_ERROR_CODES[status] ?? ErrorCode.VALIDATION,
+      err.message,
+    );
   }
   req.log.error({ err }, 'unhandled error');
   return sendError(reply, 500, 'internal', 'Internal server error');

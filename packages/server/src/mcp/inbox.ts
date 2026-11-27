@@ -14,8 +14,15 @@ import { AI_TIMEZONE_SETTING, resolveAiTimeZone } from '../ai/prompt.js';
 import { computeInboxActivity, type InboxActivity } from '../chats/activity.js';
 import { computeInboxStats, type InboxStats } from '../chats/stats.js';
 import { cachedReport } from '../reports/report.js';
-import { canOpen, scopeFor, scopeIds, type InboxScope } from '../inboxes/access.js';
-import { isChatHidden } from '../chats/hidden-sql.js';
+import {
+  canOpen,
+  canOpenChat,
+  chosenChats,
+  scopeFor,
+  scopeIds,
+  visibleInboxIds,
+  type InboxScope,
+} from '../inboxes/access.js';
 import { chatKey } from '../inboxes/keys.js';
 import { getChats, getMessages } from '../wa-bridge/index.js';
 import { ToolError } from './tools.js';
@@ -103,24 +110,24 @@ const sum = <T>(rows: readonly T[], pick: (r: T) => number) =>
   rows.reduce((total, r) => total + pick(r), 0);
 
 /**
- * The chats a tool's `jid` input names inside the reader's scope. A chat key (as list_chats returns
+ * The chats a tool's `jid` input names that the reader may open. A chat key (as list_chats returns
  * it: inbox 1's plain JID, `…#<inboxId>` for the others) names one chat. A phone number or a WhatsApp
- * JID that is not a chat key is looked up in every active inbox in scope: it can name a chat in
- * several inboxes, and the caller must then ask for the chat key (`ambiguousChat`).
+ * JID that is not a chat key is looked up in every active inbox the reader can see: it can name a chat
+ * in several inboxes, and the caller must then ask for the chat key (`ambiguousChat`). Every chat is
+ * checked with the app's own `canOpenChat` (inbox scope, chats chosen for a limited team member, chats
+ * hidden on Log out), so a token reaches exactly what its owner opens in the app.
  */
 export function findChats(ctx: AppContext, jid: string, reader: Reader): Chat[] {
   const chats = getChats(ctx);
-  const scope = scopeFor(ctx, reader);
-  // a chat hidden on Log out is no chat for a tool either
   const inScope = (c: Chat | null): c is Chat =>
-    c !== null && canOpen(scope, c.inboxId) && !isChatHidden(ctx.db, c.jid);
+    c !== null && canOpenChat(ctx, reader, { jid: c.jid, inbox_id: c.inboxId });
   const exact = chats.get(jid);
   if (jid.includes('#')) return inScope(exact) ? [exact] : [];
   if (exact?.jid === jid && inScope(exact)) return [exact];
   const phone = jid.includes('@') ? null : normalizeNewChatPhone(jid);
   const waJid = phone ? `${phone}@s.whatsapp.net` : jid;
   const found = new Map<string, Chat>();
-  for (const id of scopeIds(ctx, scope)) {
+  for (const id of scopeIds(ctx, visibleInboxIds(ctx, reader))) {
     let chat: Chat | null;
     try {
       chat = chats.get(chatKey(id, waJid));
@@ -166,16 +173,29 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
 
   /**
    * The inboxes a read covers: `undefined` = every inbox (an admin's 'all', removed ones too),
-   * else the ids in the scope, or only `inboxId` when it is chosen.
+   * else the ids in the scope, or only `inboxId` when it is chosen. A team member limited to chosen
+   * chats has an empty scope (no whole inbox): their chat list goes through `chatJids` instead.
    */
   function cover(reader: Reader, inboxId?: number) {
     const scope = scopeFor(ctx, reader);
+    const chosen = chosenChats(ctx, reader);
+    if (chosen) {
+      const visible = visibleInboxIds(ctx, reader);
+      if (inboxId !== undefined && (!canOpen(visible, inboxId) || !ctx.inboxes.repo.get(inboxId)))
+        throw noInbox(inboxId, visible);
+      return { scope, inboxIds: [], breakdown: [], chatJids: [...chosen] };
+    }
     if (inboxId !== undefined && (!canOpen(scope, inboxId) || !ctx.inboxes.repo.get(inboxId)))
       throw noInbox(inboxId, scope);
     const inboxIds = inboxId !== undefined ? [inboxId] : scope === 'all' ? undefined : [...scope];
     // byInbox only for a whole-scope read over more than one active inbox
     const breakdown = inboxId === undefined ? scopeIds(ctx, scope) : [];
-    return { scope, inboxIds, breakdown: breakdown.length > 1 ? breakdown : [] };
+    return {
+      scope,
+      inboxIds,
+      breakdown: breakdown.length > 1 ? breakdown : [],
+      chatJids: undefined as string[] | undefined,
+    };
   }
 
   function noInbox(inboxId: number, scope: InboxScope): ToolError {
@@ -216,9 +236,11 @@ export function createInboxReadPort(ctx: AppContext): InboxReadPort {
     computeInboxActivity(ctx.db, { days, timeZone: timeZone(), now: Date.now(), inboxIds });
 
   return {
-    inboxesFor: (reader) => inboxesIn(scopeFor(ctx, reader)),
+    // A member limited to chosen chats sees the inboxes their chats belong to (as in the app).
+    inboxesFor: (reader) => inboxesIn(visibleInboxIds(ctx, reader)),
     listChats(q, reader, inboxId) {
-      const { inboxIds } = cover(reader, inboxId);
+      const { inboxIds, chatJids } = cover(reader, inboxId);
+      if (chatJids) return chats.list(q, reader.id, { chatJids, inbox: inboxId });
       return chats.list(q, reader.id, { inboxIds, inbox: inboxId });
     },
     getChat(jid, reader) {

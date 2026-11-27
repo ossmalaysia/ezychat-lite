@@ -225,7 +225,9 @@ describe('MCP sign-in with the real MCP SDK client', () => {
     expect(tools.map((x) => x.name)).not.toContain('send_message');
     await client.close();
 
-    const listed = t.ctx.services.apiTokens!.list().find((x) => x.name === 'SDK Assistant')!;
+    const listed = t.ctx.services
+      .apiTokens!.list({ id: 0, role: 'admin' })
+      .find((x) => x.name === 'SDK Assistant')!;
     expect(listed).toMatchObject({
       userId: admin.id,
       expiresAt: null,
@@ -501,7 +503,9 @@ describe('token endpoint', () => {
     const { client_id } = await newClient({ client_name: 'Reconnect' });
     await token(exchangeForm(client_id, await approvedCode(client_id)));
     await token(exchangeForm(client_id, await approvedCode(client_id)));
-    const mine = t.ctx.services.apiTokens!.list().filter((x) => x.name === 'Reconnect');
+    const mine = t.ctx.services
+      .apiTokens!.list({ id: 0, role: 'admin' })
+      .filter((x) => x.name === 'Reconnect');
     expect(mine).toHaveLength(1);
   });
 
@@ -517,7 +521,11 @@ describe('token endpoint', () => {
     const code = new URL((await decide(params, true)).json().redirectTo).searchParams.get('code')!;
     const res = await token(exchangeForm(id, code, { redirect_uri: params.redirect_uri }));
     expect(res.statusCode).toBe(200);
-    expect(t.ctx.services.apiTokens!.list().some((x) => x.name === 'chatgpt.com')).toBe(true);
+    expect(
+      t.ctx.services
+        .apiTokens!.list({ id: 0, role: 'admin' })
+        .some((x) => x.name === 'chatgpt.com'),
+    ).toBe(true);
   });
 
   it('refuses the code when the approving admin lost the admin role meanwhile', async () => {

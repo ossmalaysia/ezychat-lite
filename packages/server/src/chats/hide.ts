@@ -12,7 +12,7 @@ import { LOGGED_OUT_MESSAGE } from './hidden-sql.js';
 import { waJidOf, type ChatColumns } from './repo.js';
 
 /**
- * Hide chats on Log out (docs/features/chat-hide-delete/design.md Part A). The only code that hides,
+ * Hide chats on Log out (docs/chat-hide-delete.md Part A). The only code that hides,
  * shows again or archives chats. A hidden chat (`chats.hidden_at` set) behaves like a chat that does
  * not exist for everyone (admins, the AI and MCP too); nothing is deleted.
  */

@@ -112,6 +112,11 @@ What the core guarantees:
 - A tool that throws (`ToolHandoverError` or any other error) aborts the turn and hands the chat to
   the team with reason `lookup_failed` ("a look-up in a connected system failed"). Return "nothing
   found" as a normal result instead of throwing.
+- `input.lookupsOnly` says whether the turn may change data. It is `true` for a WhatsApp group
+  answer, a scheduled task, Try it and every preview (no chat), and `false` only for a live
+  direct-chat reply, where the core also offers its own tools that change data (calendar booking,
+  connector writes). Offer a tool that changes data only when it is exactly `false`; treat a missing
+  value (an older core) as look-ups only. Look-up tools may be offered in every turn.
 - Every call emits `ai:tool_call` `{agent, chatJid, tool, source, title, ok, ms}` on the bus and logs
   tool, source, ok and ms only. Inputs and outputs are never logged or emitted.
 - Each successful live look-up stores one `ai_tool_used` chat event `{title, sourceLabel}`, shown as

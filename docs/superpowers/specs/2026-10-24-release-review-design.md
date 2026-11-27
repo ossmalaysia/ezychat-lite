@@ -1,7 +1,6 @@
 # Release review: risk score for every change (Lite and Enterprise)
 
-Status: draft for owner approval (2026-10-24). Nothing is built before the owner approves this document.
-**The current merge rule stays in force until the owner approves the policy change in writing** (section 9).
+Status: section 9 (merge policy) approved in writing by the owner on 2026-11-20.
 
 ## 1. Intent
 
@@ -149,7 +148,7 @@ line is the verdict; the exit code is 2 when it is not ready:
 
 Every fact is read from GitHub REST and git (no GraphQL needed, so it runs the same in a cloud session and on
 a PC; the repository is `GH_REPO` or the `origin` remote). Same PR state, same verdict. The verdict line is also
-written under the heading of the log entry. It never merges: the merge rule in AGENTS.md is unchanged.
+written under the heading of the log entry. The script itself never merges; under the AGENTS.md merge rule (§9) the agent may squash-merge on `MERGE OK` with `risk:auto` / `risk:pipeline`.
 
 ### 3.5 Worked examples (from merged Lite PRs)
 
@@ -282,12 +281,23 @@ After the owner approves section 9:
 - GitHub Actions stay pinned to full SHAs (no change expected).
 - No secrets, customer data or phone numbers in logs.
 
-## 9. Policy change (needs the owner's written approval)
+## 9. Policy change (approved by the owner, 2026-11-20)
 
-When the owner approves this document, AGENTS.md "Merge only when the owner explicitly requests merging that
-PR" is changed to: "Merge only on the owner's explicit request, **or** when the newest release review of the
-PR's head commit is `risk:auto` or `risk:pipeline` (docs/release-review)." The same change goes into the
-Enterprise AGENTS.md and into the agent's memory. Until then, the skill only scores, logs, comments and labels.
+Approved in writing by the owner on 2026-11-20 ("if the PR meet auto merge just merge it after all the test evident
+pass"; "the merge rules should be in hook also"). AGENTS.md now says: "Merge only on the owner's explicit request,
+**or** when the final check `node scripts/release-review.mjs <pr>` on the PR's head prints `MERGE OK` with `risk:auto`
+or `risk:pipeline`": a squash merge with no push between the check and the merge. Still never: GitHub auto-merge,
+`--approve` without the owner's own words, a release PR, tag or publish without "release", or skipping or weakening
+any test, check or rule to reach `MERGE OK`. A merge never starts a release.
+
+Enforcement in Claude Code: the PreToolUse hook `.claude/hooks/merge-gate.mjs` (tests `scripts/merge-gate.test.mjs`)
+denies `mcp__github__enable_pr_auto_merge`, `gh pr merge`, a push to `main`/`master`, and
+`mcp__github__merge_pull_request` unless the owner's newest real message holds the merge word for that PR
+(`merge <n>`, also in a list; "merge … and release" for a release PR) or, for this repository only, the final check
+prints `MERGE OK` with `risk:auto` / `risk:pipeline`. It fails closed. The gate's own files (`.claude/hooks/**`,
+`.claude/settings.json`, `scripts/release-review.mjs`, `scripts/review/**`, `docs/release-review/components.json`) are
+`security: true`, so a change to them is hard stop 3 and always needs the owner's word. The same text and hook are in
+the Enterprise repo and the master repo's CLAUDE.md ("Risk score and auto-merge").
 
 ## 10. Left to the builder
 

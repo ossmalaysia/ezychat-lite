@@ -23,7 +23,7 @@ steps, with the address and **Copy address**. You do not need a token.
 a tool asks for a token or an "Authorization" header.
 
 Every app you connect shows under **Connected apps**, marked **Signed in** (sign-in) or **Token**. Use
-**Permissions** to let it send messages, or **Remove** to disconnect it.
+**Permissions** to let it send messages or resolve chats, or **Remove** to disconnect it.
 
 ## 2a. claude.ai
 
@@ -59,7 +59,10 @@ Sign in to EzyChat if it asks. Check **Returns to**: it must be the app you just
 ![EzyChat approval page](ezychat-approve.png)
 
 The app can read chats, notes and statistics and work on the AI agents' setup. It cannot send messages
-to customers until you allow it in Settings → Integrations → **Permissions**.
+to customers, or resolve chats, until you allow it in Settings → Integrations → **Permissions**
+(**Can send WhatsApp messages**, **Can resolve chats**). With **Can resolve chats** you can ask, for
+example, "Resolve the chats where the customer only said thanks": the app resolves them as you, like
+Resolve in the inbox, and can reopen one ("reopen that chat"). The customer is never messaged.
 
 ## 4. Ask a question
 

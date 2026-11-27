@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { TimerOff, UserRound, Users } from 'lucide-react';
+import { Languages, TimerOff, UserRound, Users } from 'lucide-react';
 import type { Chat, Inbox } from '@ezychat/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,8 @@ export interface ChatListItemProps {
   inbox?: Pick<Inbox, 'name' | 'tone'>;
   /** The chat's reply window has closed (WhatsApp Business API): only a template may be sent. */
   windowClosed?: boolean;
+  /** Live translate on in this chat: the cached translation of the last message (the list never asks the AI). */
+  translatedPreview?: string | null;
 }
 
 export function GroupIcon({ className }: { className?: string }) {
@@ -37,6 +39,7 @@ export function ChatListItem({
   assignedToMe = false,
   inbox,
   windowClosed = false,
+  translatedPreview = null,
 }: ChatListItemProps) {
   // Subscribes to language changes so the localized list time re-renders.
   const { t } = useTranslation('inbox');
@@ -108,7 +111,17 @@ export function ChatListItem({
               unread ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
-            {chat.lastMessagePreview ? plainWhatsApp(chat.lastMessagePreview) : ' '}
+            {translatedPreview && (
+              <Languages
+                className="mr-1 inline size-3.5 align-[-2px] text-muted-foreground"
+                aria-label={t('liveTranslate.bar.label')}
+              />
+            )}
+            {translatedPreview
+              ? plainWhatsApp(translatedPreview)
+              : chat.lastMessagePreview
+                ? plainWhatsApp(chat.lastMessagePreview)
+                : ' '}
           </p>
           {assigneeName && (
             <Badge

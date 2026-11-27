@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       publish:
-        description: Publish the draft as Latest when every build succeeded (set by release-approve.yml)
+        description: Check the draft is complete when every build succeeded and hold it for Promote release (set by release-approve.yml)
         required: false
         type: boolean
         default: false
@@ -163,7 +163,7 @@ jobs:
             cp "$f" "$copy"
             echo "copied $(basename "$f") -> $(basename "$copy")"
           done
-      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ inputs.ref || github.ref_name }}
           draft: true
@@ -173,16 +173,19 @@ jobs:
             apps/desktop/release/*-${{ matrix.arch }}.exe
             apps/desktop/release/*-${{ matrix.arch }}.dmg
 
-  # Option A of the approved one-click release (docs/release.md §4): release-approve.yml starts this workflow on
-  # the tag with publish=true after the owner's approval. Runs only when every package job succeeded; any
-  # missing installer or notes leave the draft unpublished and fail the run.
+  # The approved one-click release (docs/release.md §4): release-approve.yml starts this workflow on the tag with
+  # publish=true. Runs only when every package job succeeded and checks that the draft is complete, then HOLDS it as a
+  # draft (owner rule 2026-11-20): installed apps and the releases/latest links stay on the newest version McAfee has
+  # cleared. Promote release (promote-release.yml) publishes it as Latest once McAfee clears all its installers. A
+  # draft is the only state every shipped in-app updater ignores (it reads the whole release list, never
+  # releases/latest, and a 0.x install also takes a published pre-release; scripts/release-publish.mjs).
   publish:
-    name: Publish the release
+    name: Check the held draft
     needs: package
     if: success() && github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == format('refs/tags/{0}', inputs.ref)
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # drafts are listed only to tokens with push access; this job writes nothing
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
@@ -202,15 +205,8 @@ jobs:
           node scripts/release-publish.mjs version "$version"
           gh release view "$TAG" --repo "$REPO" --json isDraft,body,assets > release.json
           node scripts/release-publish.mjs draft "$version" release.json
-      # One call: without --prerelease=false GitHub refuses Latest and installed apps ignore the release.
-      - name: Publish as Latest
-        run: gh release edit "$TAG" --repo "$REPO" --draft=false --prerelease=false --latest
-      - name: Check releases/latest
-        run: |
-          set -euo pipefail
-          latest="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
-          if [ "$latest" != "$TAG" ]; then
-            echo "::error::releases/latest is $latest, not $TAG"
-            exit 1
-          fi
-          echo "Published $TAG as Latest" >> "$GITHUB_STEP_SUMMARY"
+          latest="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          {
+            echo "$TAG is a complete draft, held until McAfee clears its installers (docs/release.md §3)."
+            echo "Latest stays ${latest:-unset}. Next: submit-installers, then Promote release with version ${version}."
+          } >> "$GITHUB_STEP_SUMMARY"

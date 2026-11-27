@@ -117,7 +117,7 @@ describe('changing a token’s permissions', () => {
     expect((await patch(old.id, { canSend: true, canMessageNewNumbers: false })).statusCode).toBe(
       400,
     );
-    t.ctx.services.apiTokens!.revoke(old.id, owner.id, 'ip');
+    t.ctx.services.apiTokens!.revoke(old.id, owner, 'ip');
     expect((await patch(old.id, { canSend: true, canMessageNewNumbers: false })).statusCode).toBe(
       404,
     );
@@ -135,5 +135,113 @@ describe('changing a token’s permissions', () => {
       payload: { canSend: true, canMessageNewNumbers: true },
     });
     expect(res.statusCode).toBe(401);
+  });
+
+  // Another admin's own token: PATCH is limited to 10 a minute per admin, and the owner used most.
+  let theirs: { id: number; secret: string };
+  const theirTools = async () =>
+    (
+      (await mcp.post(rpc('tools/list'), theirs.secret)).json().result.tools as Array<{
+        name: string;
+      }>
+    ).map((x) => x.name);
+
+  it('"Can resolve chats" is its own permission: on, kept when omitted, off; audited; tools follow', async () => {
+    const other = t.ctx.services.auth!.listUsers().find((u) => u.username === 'other')!;
+    const made = t.ctx.services.apiTokens!.create(
+      other.id,
+      { name: 'theirs', expiresInDays: 90 },
+      'ip',
+    );
+    theirs = { id: made.token.id, secret: made.secret };
+    const toolNames = theirTools;
+    const patch = (_id: number, payload: unknown) =>
+      t.app.inject({
+        method: 'PATCH',
+        url: `/api/integrations/tokens/${theirs.id}`,
+        headers: authHeaders(otherCookie),
+        payload: payload as Record<string, unknown>,
+      });
+    const tokenId = theirs.id;
+    await patch(tokenId, { canSend: false, canMessageNewNumbers: false });
+    expect(await toolNames()).not.toContain('resolve_chat');
+
+    const on = await patch(tokenId, {
+      canSend: false,
+      canMessageNewNumbers: false,
+      canResolveChats: true,
+    });
+    expect(on.statusCode).toBe(200);
+    expect(on.json().token).toMatchObject({ canSend: false, canResolveChats: true });
+    const names = await toolNames();
+    expect(names).toEqual(expect.arrayContaining(['resolve_chat', 'reopen_chat']));
+    expect(names).not.toContain('send_message');
+
+    // an older client that does not know the field never takes it away
+    const kept = await patch(tokenId, { canSend: true, canMessageNewNumbers: false });
+    expect(kept.json().token).toMatchObject({ canSend: true, canResolveChats: true });
+    // and turning sending off leaves it on
+    const sendOff = await patch(tokenId, { canSend: false, canMessageNewNumbers: false });
+    expect(sendOff.json().token).toMatchObject({ canSend: false, canResolveChats: true });
+
+    const off = await patch(tokenId, {
+      canSend: false,
+      canMessageNewNumbers: false,
+      canResolveChats: false,
+    });
+    expect(off.json().token.canResolveChats).toBe(false);
+    expect(await toolNames()).not.toContain('resolve_chat');
+
+    const row = t.ctx.db
+      .prepare(
+        "SELECT meta FROM audit_log WHERE action = 'api_token.update' ORDER BY id DESC LIMIT 1",
+      )
+      .get() as { meta: string };
+    expect(JSON.parse(row.meta)).toMatchObject({
+      before: { canResolveChats: true },
+      after: { canResolveChats: false },
+    });
+  });
+
+  it('another admin cannot grant it, nor can a token', async () => {
+    const body = { canSend: false, canMessageNewNumbers: false, canResolveChats: true };
+    // the owner of the first token is not the owner of this one
+    expect((await patch(theirs.id, body)).statusCode).toBe(403);
+    const res = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/integrations/tokens/${theirs.id}`,
+      headers: {
+        host: 'localhost',
+        origin: 'http://localhost',
+        authorization: `Bearer ${theirs.secret}`,
+      },
+      payload: body,
+    });
+    expect(res.statusCode).toBe(401);
+    expect(
+      t.ctx.services.apiTokens!.list({ id: 0, role: 'admin' }).find((x) => x.id === theirs.id)
+        ?.canResolveChats,
+    ).toBe(false);
+  });
+
+  it('is off for new tokens and app sign-ins unless ticked at creation, and audited there', () => {
+    const tokens = t.ctx.services.apiTokens!;
+    expect(tokens.create(owner.id, { name: 'plain', expiresInDays: 30 }, 'ip').token).toMatchObject(
+      { canResolveChats: false },
+    );
+    const app = tokens.createForApp(owner.id, { clientId: 'client-1', name: 'Claude' }, 'ip');
+    expect(app.token).toMatchObject({ canSend: false, canResolveChats: false, connectedApp: true });
+    const ticked = tokens.create(
+      owner.id,
+      { name: 'triage', expiresInDays: 30, canResolveChats: true },
+      'ip',
+    );
+    expect(ticked.token).toMatchObject({ canSend: false, canResolveChats: true });
+    const row = t.ctx.db
+      .prepare(
+        "SELECT meta FROM audit_log WHERE action = 'api_token.create' ORDER BY id DESC LIMIT 1",
+      )
+      .get() as { meta: string };
+    expect(JSON.parse(row.meta)).toMatchObject({ name: 'triage', canResolveChats: true });
   });
 });

@@ -32,6 +32,21 @@ describe('component map', () => {
     expect(tier('docs/release.md')).toBe('docs');
     expect(tier('apps/web/src/admin/MembersPage.test.tsx')).toBe('docs');
     expect(tier('.github/workflows/ci.yml')).toBe('pipeline');
+    // The merge gate's own files are security: a change to them can never auto-merge.
+    for (const gate of [
+      '.claude/hooks/merge-gate.mjs',
+      '.claude/hooks/review-nudge.mjs',
+      '.claude/settings.json',
+      'scripts/release-review.mjs',
+      'scripts/review/rubric.mjs',
+      'docs/release-review/components.json',
+    ]) {
+      expect(classifyFile(map, gate), gate).toMatchObject({ tier: 'core', security: true });
+    }
+    expect(classifyFile(map, '.claude/skills/release-review/SKILL.md')).toMatchObject({
+      tier: 'docs',
+      security: false,
+    });
     // A manifest inside a critical folder: its dependency changes decide the risk, not the folder.
     expect(classifyFile(map, 'packages/wa/package.json')).toMatchObject({
       tier: 'noncore',

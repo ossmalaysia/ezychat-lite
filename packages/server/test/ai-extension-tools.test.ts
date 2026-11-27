@@ -15,6 +15,8 @@ import {
 } from '../src/index.js';
 import { getChats, getMessages } from '../src/wa-bridge/index.js';
 import { extensionLookupsAvailable } from '../src/ai/agent/extension-tools.js';
+import { listAgents } from '../src/ai/agents.js';
+import { agentTurnTools } from '../src/ai/agent/turn-tools.js';
 import { createMessageService } from '../src/messages/service.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
@@ -104,7 +106,11 @@ async function setUp(extensions: ServerExtension[], { context = true } = {}) {
   t.ctx.services.ai!.saveConnection({ mode: 'api', model: '', apiKey: 'test-api-key-123' }, actor);
   t.ctx.services.ai!.saveMember({ ...body, enabled: false }, actor);
   if (context)
-    t.ctx.services.ai!.addText(null, { name: 'Business context', text: 'Orders ship in 2 days.' }, actor);
+    t.ctx.services.ai!.addText(
+      null,
+      { name: 'Business context', text: 'Orders ship in 2 days.' },
+      actor,
+    );
   if (context || extensionLookupsAvailable(t.ctx, 'sales'))
     t.ctx.services.ai!.saveMember(body, actor);
 }
@@ -150,7 +156,8 @@ it('merges extension tools with the core tools for a live reply and disposes the
   const prompt = vi.mocked(provider.generate).mock.calls[0]![2];
   expect(Object.keys(prompt.tools ?? {})).toEqual(['get_order_status']);
   expect(inputs).toHaveLength(1);
-  expect(inputs[0]).toMatchObject({ agent: 'sales', chatJid: jid });
+  // A live direct-chat reply is the only turn that may offer tools that change data.
+  expect(inputs[0]).toMatchObject({ agent: 'sales', chatJid: jid, lookupsOnly: false });
   expect(inputs[0]!.signal).toBeInstanceOf(AbortSignal);
   expect(disposed).toBe(1);
   expect(t.wa.sent[0]?.text).toContain('shipped');
@@ -302,7 +309,8 @@ it('Try it uses extension tools without a chat and lists the look-ups', async ()
       },
     ],
   });
-  expect(inputs[0]).toMatchObject({ agent: 'sales', chatJid: null });
+  // No chat: look-ups only.
+  expect(inputs[0]).toMatchObject({ agent: 'sales', chatJid: null, lookupsOnly: true });
   expect(events[0]).toMatchObject({ chatJid: null, ok: true });
   expect(disposed).toBe(1);
   expect(t.ctx.db.prepare('SELECT count(*) AS n FROM chat_events').get()).toEqual({ n: 0 });
@@ -322,6 +330,38 @@ it('Try it returns the lookup_failed hand-over when a look-up fails', async () =
     lookups: [{ tool: 'get_order_status', ok: false }],
   });
   expect(disposed).toBe(1);
+});
+
+it('tells extensions a scheduled task turn and its preview are look-ups only', async () => {
+  await setUp([orders]);
+  getChats(t.ctx).upsertFromWa({ jid, type: 'dm', name: 'Customer' });
+  const agentId = listAgents(t.ctx.db)[0]!.id;
+  const task = { name: 'Order news', instruction: 'Tell the customer where order A-1001 is.' };
+  const ai = t.ctx.services.ai!;
+  for (const preview of [false, true])
+    await ai.scheduledTurn({ agentId, chatJid: jid, task, preview }, new AbortController().signal);
+  expect(inputs).toHaveLength(2);
+  expect(inputs[0]).toMatchObject({ chatJid: jid, lookupsOnly: true });
+  expect(inputs[1]).toMatchObject({ chatJid: null, lookupsOnly: true });
+});
+
+it('tells extensions lookupsOnly: false only for a direct chat whose caller said false (fail closed)', async () => {
+  await setUp([orders]);
+  const agentId = listAgents(t.ctx.db)[0]!.id;
+  const signal = new AbortController().signal;
+  const turn = (input: Partial<AgentToolsInput>, lookupsOnly?: boolean) =>
+    agentTurnTools(
+      t.ctx,
+      t.ctx.log,
+      { agent: 'sales', agentId, chatJid: jid, signal, ...input },
+      { onFailure: () => {}, ...(lookupsOnly === undefined ? {} : { lookupsOnly }) },
+    ).then((tools) => tools.dispose());
+  await turn({ lookupsOnly: false });
+  await turn({}); // an older caller that does not say
+  await turn({ lookupsOnly: false }, true); // the core turn is look-ups only
+  await turn({ lookupsOnly: false, chatJid: null }); // no chat
+  await turn({ lookupsOnly: true });
+  expect(inputs.map((input) => input.lookupsOnly)).toEqual([false, true, true, true, true]);
 });
 
 it('tryAgentReply answers with the saved setup for extension routes', async () => {

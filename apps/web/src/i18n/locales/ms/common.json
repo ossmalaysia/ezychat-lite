@@ -60,7 +60,8 @@
     "sendFeedback": "Hantar maklum balas",
     "emailSupport": "E-mel sokongan",
     "signingOut": "Sedang log keluar…",
-    "signOutFailed": "Tidak dapat log keluar: {{error}}"
+    "signOutFailed": "Tidak dapat log keluar: {{error}}",
+    "aiAssistants": "Pembantu AI saya"
   },
   "errorBoundary": {
     "title": "Berlaku ralat",
@@ -238,6 +239,10 @@
       "title": "Token yang mana?",
       "body": "Token terperinci (fine-grained) yang terhad kepada repositori pilihan anda, dengan Issues dan Pull requests Read-only. Token klasik (ghp_…) mencapai semua repositori, jadi {{product}} menolaknya.",
       "action": "Buat token di GitHub"
+    },
+    "memberNewChats": {
+      "title": "Kenapa ini dikelabukan?",
+      "body": "Anda tidak boleh memulakan sembang baharu dalam {{product}}, jadi pembantu anda pun tidak boleh."
     }
   },
   "appNav": {
@@ -261,5 +266,12 @@
     "attentionRow": "Perlu perhatian",
     "backTo": "Kembali ke {{place}}",
     "more": "Lain-lain"
+  },
+  "liveTranslate": {
+    "label": "Bahasa saya",
+    "help": "Terjemah langsung memaparkan mesej pelanggan dalam bahasa ini, dan anda menaip balasan dalam bahasa ini.",
+    "default": "Sama seperti aplikasi ({{lang}}).",
+    "skipPreview": "Hantar tanpa pratonton",
+    "skipPreviewHelp": "Mati: anda nampak apa yang pelanggan akan terima sebelum dihantar. Hidup: Hantar terus menterjemah dan menghantar; terjemahan yang mengubah nombor, harga, pautan atau maklumat hubungan tetap dihalang."
   }
 }

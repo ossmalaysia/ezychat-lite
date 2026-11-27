@@ -8,8 +8,12 @@ description: Submit released EzyChat installers (Lite and Enterprise; Windows, M
 An allowlisting covers one exact file (one SHA-256), so every release has new files that need new reports. The script
 `scripts/mcafee-submit.mjs` does the work and the owner attaches nothing by hand.
 
-Run this only when the owner asks for it: a report goes to an outside company and cannot be taken back. A release or
-a merge alone is not a request.
+A report goes to an outside company and cannot be taken back, so it runs only on the owner's word. **The owner's
+"release" is that word for the released version** (owner rule, 2026-11-22: one word, one submitter): the session that
+releases a version submits its 3 installers right after the build, without a second ask, and records them (step 5). A
+merge alone is not a request, and older versions need the owner's own request. A `--dry-run` is not a submit: the
+proof is the file's entry in `results.json`. If the submit cannot finish (captcha, McAfee down), the release report
+names every file still "Not submitted".
 
 ## Submit
 
@@ -33,9 +37,18 @@ a merge alone is not a request.
    Developer ID and notarized by Apple" (Lite 0.1.82 and Enterprise 0.1.30 onwards); an older ad-hoc build, or a
    run on Windows, claims no Mac signature.
 
+   In a cloud session (Linux container): the script uses headless Playwright Chromium (`require('playwright')`,
+   preinstalled; install no browser) through the session's `HTTPS_PROXY`. If `~/.ezychat/mcafee-reporter.json` is
+   missing it reads the JSON from the `MCAFEE_REPORTER_JSON` variable; no argument names another file. Put the details
+   in the file with mode 600 only for the run and delete it at the end; never print them or commit them (this repo is
+   public). A Windows file is checked with `osslsigncode` (`apt install osslsigncode`) when present; without it the
+   report claims no signature. Mac ZIPs never claim "notarized" off a Mac. A captcha stops the run: report it, never
+   work around it. Run `--dry-run` first.
+
    Before publishing (owner rule from 2026-11-09: McAfee gets the installers first):
-   - Lite: push the tag by hand (`release.yml` then leaves a draft), run `--edition lite --version <x.y.z>` (it finds the
-     draft and downloads through the API), then publish that draft (`docs/release.md` §3).
+   - Lite: every release is held as a draft until McAfee clears it (`docs/release.md` §3), so run
+     `--edition lite --version <x.y.z>` (it finds the draft and downloads through the API). Never publish the draft
+     by hand: Promote release does it once McAfee clears every file.
    - Enterprise: run Installers from `main` (`gh workflow run installers.yml --ref main`; no tag, so nothing is
      published), run `--edition enterprise --run <run id>`, then publish the same run in the Enterprise repo with
      `node scripts/publish-release.mjs --run <run id>` (a logged-in wrangler), and put the Windows hold back.
@@ -67,6 +80,11 @@ Claude in Chrome cannot attach these files (10 MB limit), which is why the scrip
 2. Read which file the answer names. It can name the `.dmg` inside a ZIP, or only the ZIP; we do not know yet. Quote
    the name to the owner. Only a named file becomes **Whitelisted** in the record.
 3. For an Enterprise Windows file, follow "After each release" in the record to move the permanent link.
+4. Website calendar and download (owner rule, 2026-11-20): when every installer of a version (Windows, Mac Apple
+   silicon, Mac Intel) is Whitelisted or the owner's Passed, open an ossmalaysia/ezychat-website PR that sets that
+   version's `security` to `"whitelisted"` in `src/lib/release-calendar.json` and moves that edition's download pin
+   to it if it is newer. Release it with the website's release skill. Never mark a version whitelisted on a
+   submission alone.
 
 The form says about 2 business days; one answer came within the hour.
 
@@ -74,5 +92,12 @@ The form says about 2 business days; one answer came within the hour.
 
 - A Windows **Enterprise** file is not "latest" until McAfee whitelists it. The hold and the commands that move the
   link are in the record, section "After each release". Changing a live link needs the owner's request.
-- Lite releases on GitHub have no such hold. Do not move a Lite link without the owner's word.
+- A **Lite** version stays a held draft until McAfee clears all three files (Whitelisted, or the owner's Passed; a
+  Mac file also counts once it was Submitted 5 or more days ago with no detection answer: Mac 5-day rule,
+  `docs/release.md` §3).
+  Then start Promote release (`docs/release.md` §3):
+  `gh workflow run promote-release.yml --ref main -f version=<x.y.z> -f confirm=<x.y.z> -f mcafee_cleared=true -f hold_newer=false`
+  (from a cloud session: the GitHub tools' workflow run on `promote-release.yml`, `main`, same inputs). Only on the
+  owner's word that the version is cleared; never on a submission alone. Then the website PR (calendar ✓ and the
+  download pin).
 - Never say that a file is whitelisted because the form accepted the report.

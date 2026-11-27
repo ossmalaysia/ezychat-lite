@@ -1,9 +1,10 @@
 # Live translate
 
-Status: **owner decisions received 2026-11-19 (relayed by the main session); mock updated to them, waiting for the
-owner's look at the updated screenshots.** No production code yet. Branch `claude/happy-bardeen-p0jwtc`, PR #387.
+Status: **mock confirmed by the owner 2026-11-19 ("ok mock").** Server: branch `claude/live-translate-server`
+(session A); web: a parallel session (B). Mock PR #387, branch `claude/happy-bardeen-p0jwtc`.
 Same behaviour, labels and protected-items list as Cloud's proposal (`anchorsprint/ezychat-cloud` PR #107,
-`docs/proposals/2026-11-19-live-translate.md`); only the look differs (Calm Desk here, Familiar there).
+`docs/proposals/2026-11-19-live-translate.md`); only the look differs (Calm Desk here, Familiar there). Lasting rules
+and the decision log: [docs/live-translate.md](../../live-translate.md).
 
 ## Request (owner, verbatim)
 
@@ -368,12 +369,10 @@ none had either. The mock does not cover: voice-note transcript translation (it 
 list line, editing a sent reply, reply suggestions in My language, and Fix English being turned off (no English is
 typed in the demo).
 
-## Still open (small, my default first)
+## Closed after the owner's look (2026-11-19)
 
-1. **Hint while off** ("This customer writes in 中文. Read and reply in Bahasa Melayu?"): shown, as in Cloud, and
-   dismissable per chat. Keep it?
-2. **Admin default:** on for new and updated installs (decision 5: all staff may use it). Cloud's proposal text still
-   says off by default; Cloud should be aligned to on, or both to off.
+1. **Hint while off** ("Customer writes in 中文 · Translate"): shown, as in Cloud, and dismissable per chat.
+2. **Admin default:** "Live translate for everyone" is **on** for new and updated installs. Cloud should align to on.
 
 ## Mock
 
@@ -402,5 +401,22 @@ The mock never calls a model. Translations come from a fixed phrase table; text 
 ## Confirmation record
 
 - 2026-11-19: owner decisions 1–10 above, relayed by the main session (session_01J4pmGkCf1Mvdepudm8WQAd); the mock
-  was updated to them. The owner has not confirmed the updated mock itself yet. Record that here, then update
-  `docs/features/mock-index.json` `latestConfirmed`.
+  was updated to them.
+- 2026-11-19: **the owner confirmed the updated mock ("ok mock")**, relayed by the main session, with the final
+  decisions: the admin switch is on by default for new and updated installs, and the off-state hint "Customer writes
+  in 中文 · Translate" is shown. Confirmed revision `ea070366d62d4ecf72a57479c0829861d74cfee5`;
+  `docs/features/mock-index.json` `latestConfirmed` now points to it.
+
+## Implementation notes (server, session A)
+
+Deviations from the contract above, agreed by keeping clients working:
+
+- `Message.typed` and `Message.sentOriginal` are **optional** on `Message` (`typed?: TypedRecordValue | null`,
+  `sentOriginal?: boolean`) instead of zod defaults, so existing fixtures and older servers keep parsing. Read them as
+  `typed ?? null` and `sentOriginal ?? false`. `TypedRecord` (nullable, default null) is still exported.
+- `PatchMeBody` fields are all optional; `MeResponse` = `UserSchema` plus `translateLanguage` and `sendWithoutPreview`.
+- Extra error codes: 400 `translation_expired` (the draft is unknown, older than 30 minutes, or not the caller's or
+  this chat's: translate again) and 503 `translate_failed` (the model call failed: "Could not translate. Nothing was
+  sent.").
+- Extra shared helpers: `TRANSLATE_LANGUAGE_NAMES`, `translateLanguageForLocale`, `guessLanguage`,
+  `LIVE_TRANSLATE_TEXT_CHARACTERS`.

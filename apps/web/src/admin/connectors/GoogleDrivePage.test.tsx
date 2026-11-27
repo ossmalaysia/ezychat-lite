@@ -61,6 +61,21 @@ const putBodies = (fetchMock: ReturnType<typeof stubServer>) =>
     .map((c) => JSON.parse(String(c[1]!.body)) as DriveAgentSettings);
 
 describe('Google Drive: gallery and Overview', () => {
+  it('offers the way back to the agent page when opened from its Connectors card', async () => {
+    // the way back shows only to an agent that still exists
+    stubServer(connected({ agents: [agent(1, 'Aina'), agent(3, 'Ben')] }));
+    page(`${GD}?tab=settings&agent=3&from=agent`);
+    const back = await screen.findByRole('link', { name: 'Back to AI agent' });
+    expect(back.getAttribute('href')).toBe('/admin/members/ai/3');
+  });
+
+  it('names the folder on the agent page row', async () => {
+    stubServer(connected({ driveSettings: { 3: withFolder({ save: true }) } }));
+    renderAt('/admin/members/ai/3', <AgentConnectorsCard agentId={3} name="Aina" />, {
+      route: '/admin/members/ai/:agentId',
+    });
+    expect(await screen.findByText(`${DRIVE_FOLDER.name} · Saves files`)).toBeTruthy();
+  });
   it('shows the built-in card in the gallery with its own sign-in state', async () => {
     stubServer(connected());
     renderAt('/admin/connectors', <ConnectorsGalleryPage />, { route: '/admin/connectors' });
@@ -151,6 +166,31 @@ describe('Google Drive: Settings', () => {
       await screen.findByText('Google sign-in is not set up in this build of EzyChat Lite.'),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Connect Google Drive' })).toBeNull();
+  });
+
+  it('on a remote device explains where to choose the folder and opens no window', async () => {
+    const fetchMock = stubServer(
+      world({ drive: driveStatus('connected', { onThisComputer: false }) }),
+    );
+    const open = vi.spyOn(window, 'open');
+    page(`${GD}?tab=settings`);
+    const notice = await screen.findByTestId('drive-remote-notice');
+    expect(notice.textContent).toContain('works only on the computer that runs EzyChat Lite');
+    expect(screen.queryByTestId('drive-choose-folder')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Choose a folder' })).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    expect(writes(fetchMock)).toEqual([]);
+  });
+
+  it('on a remote device does not offer Google sign-in', async () => {
+    stubServer(world({ drive: driveStatus('disconnected', { onThisComputer: false }) }));
+    const open = vi.spyOn(window, 'open');
+    page(GD);
+    expect((await screen.findByTestId('google-remote-notice')).textContent).toContain(
+      'Google sign-in works only on the computer',
+    );
+    expect(screen.queryByRole('button', { name: 'Connect Google Drive' })).toBeNull();
+    expect(open).not.toHaveBeenCalled();
   });
 
   it('keeps both switches off without a folder, picks one in Google and saves it', async () => {
@@ -433,13 +473,15 @@ describe('Agent page → Connectors: Google Drive', () => {
     [withFolder({ save: true }), 'Saves files'],
     [withFolder({ files: [PRICES, FAQ] }), 'Reads 2 files'],
     [withFolder({ save: true, files: [PRICES] }), 'Saves files and reads 1 file'],
-    [withFolder({ read: false }), 'Off for this agent'],
+    [withFolder({ read: false }), 'Not used by this agent'],
   ])('sums up what the agent may do in Google Drive (%#)', async (settings, summary) => {
     stubServer(connected({ google: status('disconnected'), driveSettings: { 3: settings } }));
     card();
     const row = await screen.findByTestId('agent-connector-google-drive');
     await waitFor(() => expect(row.textContent).toContain(summary));
-    expect(row.getAttribute('href')).toBe('/admin/connectors/google-drive?tab=settings&agent=3');
+    expect(row.getAttribute('href')).toBe(
+      '/admin/connectors/google-drive?tab=settings&agent=3&from=agent',
+    );
     expect(row.textContent).not.toContain('Needs attention');
     expect(screen.queryByText('No connector yet.')).toBeNull();
   });

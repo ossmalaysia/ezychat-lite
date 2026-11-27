@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.88] - 2026-11-27
+
+### Fixed
+
+- **EzyChat no longer pauses on an odd AI reply.** A reply with one very long line after a heading mark (#) could keep the app busy for up to 30 seconds, and during that time no chat got an answer. EzyChat now cleans up such a reply at once.
+
+## [0.1.87] - 2026-11-27
+
+### Added
+
+- Team members can connect Claude or ChatGPT to their own account (off until an admin turns on **Members can connect AI assistants** in Settings → Integrations). A member adds EzyChat as a connector in the assistant and approves it on the sign-in page; it then sees only the chats that member can open, and sends WhatsApp messages only if they tick **Let it send** (only into chats they can open). Each member finds their assistants under **Your account → My AI assistants**, where they can change what it may do or disconnect it. Admins see every member's assistant in Settings → Integrations and can revoke it; turning the switch off, or changing a member's role, disconnects them. Access tokens stay for admins only.
+- **Choose which AI model does each job** (Settings → AI → **AI models**). Five rows: **AI agent replies**, **Ask Ezy**, **Translate**, **Writing help** (Suggest reply, the grey text, Fix English and Edit with AI) and **Background checks** (Safety checks, the phrase list and what Dream mode learns). Each can use **Fast**, the **Main model** or any model your AI connection offers, and, where the model has it, **Speed and quality: Faster · Balanced · Smarter**. ChatGPT sign-in, an OpenAI key and a Claude key each keep their own choices. Translate now uses Fast by default, so Live translate answers sooner. If a chosen model is no longer offered, EzyChat uses Fast (or the Main model for agent replies) and says so on the row.
+
+### Changed
+
+- **Agent page → Connectors** now names what each connector uses (the sheet, the Drive folder), says **Not used by this agent · Set up** for a connected connector that agent does not use, and the connector's page offers **Back to AI agent** when you came from there.
+- **Open an AI agent from its message.** In a chat, admins can click the agent's name above its message (for example "Workshop assistant") to open that agent's settings. Other team members still see plain text.
+- The **Model for suggestions** choice moved from Reply suggestions to AI models → **Writing help** (your choice is kept). The phrase list and Dream mode's nightly lessons now follow **Background checks** (Fast), and **Edit with AI** follows Writing help (Fast by default; it used the main model before).
+
+### Fixed
+
+- **Photos in a chat are sharp.** A customer's photo showed blurry in the chat, because the chat used WhatsApp's tiny preview. EzyChat now makes its own clear preview from the photo, still small enough to load fast through remote access. Tap the photo to see it in full, as before.
+
+## [0.1.86] - 2026-11-22
+
+### Added
+
+- **Live translate**: read and reply to customers who write another language. Turn on **Translate** in a chat: the customer's messages show in your own language (set it in Account → My language), with **Show original** on each one. Type your reply in your language; **Customer will get** shows the translation before it is sent, with prices, numbers, links, phone numbers and order codes kept exactly as you wrote them (a translation that changes one is never sent). Every reply keeps what you typed, so your team can see both. Admins can switch it off for everyone and set a daily limit per person (200 by default) in Settings → AI. **Send without preview** (Account) sends at once. It uses your AI connection, like reply suggestions.
+- **AI assistants can resolve chats.** Tick **Can resolve chats** for a connected AI app (Settings → Integrations → Create token or **Permissions**; off unless you tick it) and you can ask it to resolve chats for you, for example the ones where the customer only said thanks, or to reopen one. It works exactly like Resolve and Reopen in the inbox, as you; the customer is not messaged. It can add a note for your team saying why. Up to 30 changes a minute and 300 a day per app.
+
+### Changed
+
+- A new version now reaches the in-app update and the download links only after McAfee has checked all its installers (Windows and both Macs), usually a day or two after the release, so antivirus software does not block the update.
+
+### Fixed
+
+- **A very long customer message no longer stalls EzyChat while Live translate is on.** Checking the numbers, links and emails a translation must keep took about 2 seconds for a message of WhatsApp's longest length, and the whole app waited meanwhile. It now takes a few milliseconds.
+- Edit member → **Only chosen chats**: the search now looks through every chat (older and resolved ones too), also finds a chat by its phone number (with or without +, spaces or a leading 0), shows each chat once, and tells groups with the same name apart (by the inbox name when they are on different WhatsApp numbers).
+- **Google Sheets, Google Drive and Google Calendar no longer send you to a dead page from another device.** Opened through your remote address or the local network, **Choose a sheet** (and the folder and file choices in Google Drive) opened a new tab that said "127.0.0.1 refused to connect", and Google sign-in ended the same way. Google's picker and sign-in only work in a browser on the computer that runs EzyChat, so on any other device EzyChat now says so in plain words (and what to do) instead of opening a tab. Everything else still works from there: status, tabs, switches, Refresh and creating a new sheet.
+
+## [0.1.85] - 2026-11-20
+
 ### Added
 
 - **Dream mode** for AI agents (off until an admin turns it on, on the agent page). Each night, at the time you pick, the agent reads the day's chats that your team took over, learns from what your team replied, and suggests better facts, answers and hand-off rules. Each suggestion is checked first: no customer names, phone numbers or emails, nothing from your Internal knowledge, numbers only from your team's replies, and a replay that shows the agent now handles the question without getting other answers wrong. You see every night in a history and can apply, dismiss or undo each change. Turn on **Apply by itself** to add new facts to Business context at once; changes to instructions and hand-off rules always wait for you. Forwarded messages are never learned from.
@@ -21,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
+  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
+  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
+  keeps the chat open.
 - Country flags in messages (🇲🇾, 🇸🇬 …) now show as flags on Windows. Before, Windows showed two letters such as "MY".
 - Reports now counts the very first customer who writes after you link WhatsApp as a new customer. Before, that first customer was left out of **New customers**.
 - Reports now shows a new customer or message at once. It could show the numbers from your last visit for up to a minute.
@@ -414,10 +460,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **A "thank you" after the AI's answer closes the chat.** When a customer only says thanks after the AI agent's
-  answer, the agent reacts 👍 and resolves the chat, also with **Ask if the question is answered** off. Before, the
-  chat stayed open with the AI and nobody closed it. A thanks with more in it ("thanks, I will check with my boss")
-  keeps the chat open.
 - **The AI agent follows your hand-over rules.** A request to book a consultation, meeting, demo or call is now
   treated as a sales conversation: the agent asks what the customer needs instead of handing the chat over, and
   your "never hand over" rules win over the agent's built-in reasons (except safety ones). The agent only says a

@@ -17,6 +17,13 @@ export interface AgentToolsInput {
   agentId?: number;
   /** The chat being answered; null for Try it (POST /api/ai/try), which has no chat. */
   chatJid: string | null;
+  /**
+   * Whether this turn may only look things up. `true`: a WhatsApp group answer, a scheduled task,
+   * Try it or a preview (no chat). `false`: a live direct-chat reply, where the core also offers
+   * tools that change data. Offer a tool that changes data only when this is exactly `false`; treat
+   * `undefined` (an older core) as look-ups only.
+   */
+  lookupsOnly?: boolean;
   /** Aborted when the turn is cancelled, times out or ends early (a failed look-up). */
   signal: AbortSignal;
 }

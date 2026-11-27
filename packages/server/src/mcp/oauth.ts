@@ -74,6 +74,10 @@ interface PendingCode {
   redirectUri: string;
   challenge: string;
   userId: number;
+  /** The approver's role when they approved: the exchange refuses a different role. */
+  role: User['role'];
+  /** Ticked on the approval page: the app's token may send (scope `inbox:send`). */
+  canSend: boolean;
   expiresAt: number;
 }
 
@@ -165,6 +169,7 @@ export interface McpOAuth {
     user: User,
     approve: boolean,
     ip: string,
+    opts?: { canSend?: boolean },
   ): string;
   /** Token endpoint: a one-time code for an access token; throws OAuthError. */
   exchange(
@@ -173,6 +178,8 @@ export interface McpOAuth {
     issuer: string,
     ip: string,
   ): Record<string, unknown>;
+  /** Members switch off: their approved codes not yet used are dropped too. */
+  dropMemberCodes(): number;
 }
 
 export function getMcpOAuth(ctx: AppContext): McpOAuth {
@@ -325,7 +332,7 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
 
     check,
 
-    decide(params, issuer, user, approve, ip) {
+    decide(params, issuer, user, approve, ip, opts) {
       const { client, redirectUri } = check(params, issuer);
       const target = new URL(redirectUri);
       const host = redirectHost(redirectUri);
@@ -333,7 +340,11 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
         userId: user.id,
         action: approve ? 'mcp.app_approve' : 'mcp.app_deny',
         ip,
-        meta: { clientId: client.id, redirectHost: host },
+        meta: {
+          clientId: client.id,
+          redirectHost: host,
+          ...(approve ? { canSend: opts?.canSend === true } : {}),
+        },
       });
       if (approve) {
         const t = now();
@@ -345,6 +356,8 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
           redirectUri,
           challenge: params.code_challenge!,
           userId: user.id,
+          role: user.role,
+          canSend: opts?.canSend === true,
           expiresAt: t + CODE_TTL_MS,
         });
         target.searchParams.set('code', code);
@@ -404,14 +417,25 @@ export function createMcpOAuth(ctx: AppContext, deps?: { now?: () => number }): 
           pending.userId,
           { clientId: client.id, name: client.name || redirectHost(pending.redirectUri) },
           ip,
+          { canSend: pending.canSend, role: pending.role },
         );
       } catch {
-        // The approving admin was disabled or demoted after approving.
-        throw new OAuthError(400, 'invalid_grant', 'The approving admin can no longer sign in');
+        // The approving person was disabled, changed role or (a member) lost the members switch.
+        throw new OAuthError(400, 'invalid_grant', 'The approving person can no longer connect');
       }
       q.touch.run(t, client.id);
       log.info({ clientId: client.id, tokenId: issued.token.id }, 'mcp app token issued');
       return { access_token: issued.secret, token_type: 'Bearer' };
+    },
+
+    dropMemberCodes() {
+      let dropped = 0;
+      for (const [k, v] of codes)
+        if (v.role !== 'admin') {
+          codes.delete(k);
+          dropped++;
+        }
+      return dropped;
     },
   };
 }

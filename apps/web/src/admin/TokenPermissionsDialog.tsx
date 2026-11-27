@@ -10,22 +10,34 @@ import { Pending } from './adminUi';
 import { SendPermissionFields, type SendPermissions } from './SendPermissionFields';
 
 /**
- * The owner of a token changes whether its AI assistant may send, and message new numbers, without a
- * new token. The same options and warnings as Create token.
+ * The owner of a token changes whether its AI assistant may send, message new numbers and resolve
+ * chats, without a new token. The same options and warnings as Create token.
  */
 export function TokenPermissionsDialog({
   token,
   onClose,
+  member,
 }: Readonly<{
   token: ApiToken | null;
   onClose: () => void;
+  /** A team member's own connected app (My AI assistants): their wording and new-chat rule. */
+  member?: { canStartNewChats: boolean };
 }>) {
   const { t } = useTranslation(['admin', 'common']);
-  const [perms, setPerms] = useState<SendPermissions>({ canSend: false, canNew: false });
+  const [perms, setPerms] = useState<SendPermissions>({
+    canSend: false,
+    canNew: false,
+    canResolve: false,
+  });
   useEffect(() => {
-    setPerms({ canSend: token?.canSend ?? false, canNew: token?.canMessageNewNumbers ?? false });
+    setPerms({
+      canSend: token?.canSend ?? false,
+      canNew: token?.canMessageNewNumbers ?? false,
+      canResolve: token?.canResolveChats ?? false,
+    });
   }, [token]);
-  const { canSend, canNew } = perms;
+  const { canSend, canNew, canResolve } = perms;
+  const newChatsBlocked = member !== undefined && !member.canStartNewChats;
   const save = useUpdateApiToken();
   const close = () => {
     save.reset();
@@ -34,7 +46,8 @@ export function TokenPermissionsDialog({
   const unchanged =
     token !== null &&
     canSend === token.canSend &&
-    (canSend && canNew) === token.canMessageNewNumbers;
+    (canSend && canNew) === token.canMessageNewNumbers &&
+    (member !== undefined || canResolve === token.canResolveChats);
 
   return (
     <ResponsiveDialog
@@ -43,7 +56,9 @@ export function TokenPermissionsDialog({
         if (!next && !save.isPending) close();
       }}
       title={t('integrations.permissions.title', { name: token?.name ?? '' })}
-      description={t('integrations.permissions.description')}
+      description={
+        member ? t('memberAssistants.permsDescription') : t('integrations.permissions.description')
+      }
       footer={
         <>
           <Button
@@ -64,7 +79,15 @@ export function TokenPermissionsDialog({
             onClick={() => {
               if (!token) return;
               save.mutate(
-                { id: token.id, body: { canSend, canMessageNewNumbers: canSend && canNew } },
+                {
+                  id: token.id,
+                  body: {
+                    canSend,
+                    canMessageNewNumbers: canSend && canNew && !newChatsBlocked,
+                    // A member's token never resolves chats; leave the stored value as it is.
+                    ...(member ? {} : { canResolveChats: canResolve }),
+                  },
+                },
                 {
                   onSuccess: () => {
                     toast.success(t('integrations.permissions.saved'));
@@ -81,8 +104,16 @@ export function TokenPermissionsDialog({
       }
     >
       <div className="flex flex-col gap-2 pb-1">
-        <SendPermissionFields value={perms} onChange={setPerms} disabled={save.isPending} />
-        <p className="text-sm text-muted-foreground">{t('integrations.permissions.takesEffect')}</p>
+        <SendPermissionFields
+          value={perms}
+          onChange={setPerms}
+          disabled={save.isPending}
+          newChatsBlocked={newChatsBlocked}
+          showResolve={!member}
+        />
+        <p className="text-sm text-muted-foreground">
+          {member ? t('memberAssistants.takesEffect') : t('integrations.permissions.takesEffect')}
+        </p>
         {save.error != null && <Banner tone="danger">{errorMessage(save.error)}</Banner>}
       </div>
     </ResponsiveDialog>

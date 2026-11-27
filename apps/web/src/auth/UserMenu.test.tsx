@@ -132,3 +132,15 @@ it('keeps Email support in the menu for an edition without a public issue tracke
     'mailto:help@example.com',
   );
 });
+
+it('takes a team member to My AI assistants on their account page', async () => {
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter>
+      <UserMenu />
+    </MemoryRouter>,
+  );
+  await user.click(screen.getByRole('button', { name: 'Account menu' }));
+  const item = screen.getByRole('menuitem', { name: 'My AI assistants' });
+  expect(item.getAttribute('href')).toBe('/account');
+});

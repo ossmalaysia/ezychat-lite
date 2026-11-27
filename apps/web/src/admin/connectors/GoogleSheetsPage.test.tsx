@@ -302,6 +302,34 @@ describe('Google Sheets: Settings', () => {
     expect(screen.queryByTestId('sheets-chosen')).toBeNull();
   });
 
+  it('on a remote device explains where to choose the sheet and opens no window', async () => {
+    const fetchMock = stubServer(
+      world({ sheets: sheetsStatus('connected', { onThisComputer: false }) }),
+    );
+    const open = vi.spyOn(window, 'open');
+    page(`${GS}?tab=settings`);
+    const notice = await screen.findByTestId('sheets-remote-notice');
+    expect(notice.textContent).toContain('works only on the computer that runs EzyChat Lite');
+    expect(screen.queryByTestId('sheets-choose')).toBeNull();
+    // Everything else still works from here: a new sheet can be created.
+    expect(screen.getByTestId('sheets-create-open')).toBeTruthy();
+    expect(open).not.toHaveBeenCalled();
+    expect(writes(fetchMock)).toEqual([]);
+  });
+
+  it('on a remote device does not offer Google sign-in', async () => {
+    const fetchMock = stubServer(
+      world({ sheets: sheetsStatus('disconnected', { onThisComputer: false }) }),
+    );
+    const open = vi.spyOn(window, 'open');
+    page(GS);
+    const notice = await screen.findByTestId('google-remote-notice');
+    expect(notice.textContent).toContain('Google sign-in works only on the computer');
+    expect(screen.queryByRole('button', { name: 'Connect Google Sheets' })).toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    expect(writes(fetchMock)).toEqual([]);
+  });
+
   it('offers the picker link when the window was blocked, and can cancel', async () => {
     stubServer(connected({ pickerProgress: [{ status: 'pending', sheet: null }] }));
     vi.spyOn(window, 'open').mockReturnValue(null);
@@ -336,7 +364,7 @@ describe('Google Sheets: Settings', () => {
       agents: [agent(1, 'Aina'), agent(2, 'Ben')],
     });
     const fetchMock = stubServer(w);
-    page(`${GS}?tab=settings&agent=2`);
+    page(`${GS}?tab=settings&agent=2&from=agent`);
     expect(await screen.findByText('Paused: sign in to Google again')).toBeTruthy();
     expect(screen.getByText('Ben does not use the sheet until it works again.')).toBeTruthy();
     expect(within(screen.getByTestId('sheets-chosen')).getByText('Kopi Apong prices')).toBeTruthy();
@@ -606,7 +634,7 @@ describe('Google Sheets: Activity and the agent page', () => {
       'Reads Menu · Adds rows to Leads, Claims',
     ],
     [[{ title: 'Leads', access: 'add' }], 'Adds rows to Leads'],
-    [[], 'Off for this agent'],
+    [[], 'Not used by this agent'],
   ])('sums up the agent’s Google Sheets on the agent page', async (patch, summary) => {
     stubServer(
       connected({
@@ -623,7 +651,7 @@ describe('Google Sheets: Activity and the agent page', () => {
       route: '/admin/members/ai/:agentId',
     });
     const row = await screen.findByTestId('agent-connector-google-sheets');
-    expect(row.getAttribute('href')).toBe(`${GS}?tab=settings&agent=3`);
+    expect(row.getAttribute('href')).toBe(`${GS}?tab=settings&agent=3&from=agent`);
     expect(await within(row).findByText(summary)).toBeTruthy();
   });
 });

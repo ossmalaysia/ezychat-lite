@@ -326,6 +326,7 @@
     "jumpToLatest": "Lompat ke terkini"
   },
   "message": {
+    "openAgent": "Buka tetapan {{name}}",
     "status": {
       "pending": "Belum dihantar",
       "sent": "Dihantar",
@@ -1275,5 +1276,98 @@
     "confirm": "Sekat",
     "done": "Nombor disekat.",
     "isBlocked": "Nombor ini disekat di WhatsApp."
+  },
+  "liveTranslate": {
+    "button": "Terjemah langsung",
+    "buttonShort": "Terjemah",
+    "buttonOn": "Terjemah langsung aktif dalam sembang ini (untuk anda sahaja). Ketik untuk matikan.",
+    "buttonOff": "Terjemah langsung: baca dan balas dalam bahasa anda",
+    "composer": {
+      "placeholder": "Anda taip {{my}}, pelanggan terima {{customer}}",
+      "placeholderShort": "Taip dalam {{my}} → {{customer}}"
+    },
+    "hint": {
+      "text": "Pelanggan menulis dalam {{customer}}",
+      "dismiss": "Bukan sekarang"
+    },
+    "bar": {
+      "label": "Terjemah langsung",
+      "pair": "{{customer}} → {{my}}",
+      "groupPair": "Ahli → {{my}} · balasan dalam {{out}}",
+      "unknown": "Bahasa pelanggan",
+      "detected": "dikesan",
+      "showOriginals": "Tunjuk asal",
+      "languages": "Bahasa",
+      "languagesTitle": "Terjemah langsung dalam sembang ini",
+      "customerWrites": "Pelanggan menulis dalam",
+      "auto": "Kesan",
+      "autoDetected": "{{lang}} (dikesan)",
+      "autoCommon": "{{lang}} (paling banyak di sini)",
+      "customerHelp": "Dikongsi dengan pasukan anda. Balasan anda dihantar dalam bahasa ini.",
+      "groupGets": "Balasan ke kumpulan dalam",
+      "groupHelp": "Satu bahasa untuk seluruh kumpulan, dikongsi dengan pasukan anda.",
+      "youWrite": "Anda menulis dalam",
+      "youHelp": "Bahasa anda untuk semua sembang. Juga dalam Akaun.",
+      "usage": "Hari ini: {{used}} daripada {{limit}} terjemahan",
+      "usageNoLimit": "Hari ini: {{used}} terjemahan",
+      "turnOff": "Matikan Terjemah langsung",
+      "noConnection": "Terjemah langsung memerlukan AI. Minta admin sambungkan AI dalam Tetapan → AI.",
+      "limit": "Had harian telah digunakan. Mesej dipaparkan seperti dihantar sehingga esok.",
+      "same": "Pelanggan ini menulis dalam bahasa anda. Tiada apa untuk diterjemah.",
+      "notDetected": "Kami akan tahu bahasa pelanggan daripada mesej seterusnya, atau pilih di bawah Bahasa.",
+      "groupNote": "Mesej setiap ahli diterjemah daripada bahasa mereka sendiri.",
+      "offline": "Tidak dapat menterjemah. Tiada sambungan. Mesej dipaparkan seperti dihantar."
+    },
+    "bubble": {
+      "translatedFrom": "Diterjemah daripada {{lang}}",
+      "showOriginal": "Tunjuk asal",
+      "hide": "Sembunyi",
+      "originalLabel": "Asal",
+      "translating": "Menterjemah…",
+      "retry": "Cuba lagi",
+      "failed": {
+        "error": "Tidak dapat menterjemah",
+        "unsafe": "Tidak dapat menterjemah dengan selamat",
+        "limit": "Tidak diterjemah: had harian telah digunakan",
+        "ai": "Tidak diterjemah: Terjemah langsung memerlukan AI",
+        "offline": "Tidak diterjemah: tiada sambungan"
+      },
+      "sentIn": "Dihantar dalam {{lang}}",
+      "showSent": "Tunjuk teks dihantar",
+      "sentLabel": "Teks dihantar",
+      "writtenIn": "Ditulis dalam {{lang}}",
+      "showTyped": "Tunjuk apa yang ditaip",
+      "typedLabel": "Apa yang ditaip",
+      "typedEdited": "Apa yang ditaip (terjemahan diubah sebelum dihantar)",
+      "sentOriginal": "Dihantar tanpa terjemahan"
+    },
+    "preview": {
+      "title": "Pelanggan akan terima · {{lang}}",
+      "close": "Terus menyunting",
+      "youWrote": "Anda tulis ({{lang}})",
+      "editMine": "Ubah",
+      "translateAgain": "Terjemah semula",
+      "translating": "Menterjemah ke {{lang}}…",
+      "sending": "Menterjemah ke {{lang}} dan menghantar…",
+      "edit": "Sunting terjemahan",
+      "done": "Siap",
+      "editLabel": "Sunting terjemahan",
+      "edited": "disunting",
+      "kept": "Kekal tidak berubah:",
+      "refusedTitle": "Tidak dihantar",
+      "refused": "{{item}} menjadi {{became}}. Tiada apa dihantar.",
+      "errors": {
+        "offline": "Tidak dapat menterjemah. Tiada sambungan. Tiada apa dihantar.",
+        "noAi": "Terjemah langsung memerlukan AI. Minta admin sambungkan AI dalam Tetapan → AI. Tiada apa dihantar.",
+        "limit": "Had harian telah digunakan ({{count}} terjemahan). Tiada apa dihantar.",
+        "off": "Admin telah mematikan Terjemah langsung. Tiada apa dihantar.",
+        "error": "Tidak dapat menterjemah. Tiada apa dihantar.",
+        "changed": "Terjemahan mengubah nombor, pautan atau maklumat hubungan. Tiada apa-apa dihantar.",
+        "expired": "Terjemahan sudah lapuk. Terjemah semula. Tiada apa-apa dihantar."
+      },
+      "retry": "Cuba lagi",
+      "sendOriginal": "Hantar teks asal",
+      "send": "Hantar"
+    }
   }
 }

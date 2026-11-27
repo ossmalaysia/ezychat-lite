@@ -1,3 +1,4 @@
+import { dropTranslateRows, renameTranslateRows } from '../live-translate/repo.js';
 import type {
   MediaStatus,
   Message,
@@ -72,8 +73,12 @@ export function mediaUrlFor(id: string): string {
   return `/api/media/${encodeURIComponent(id)}`;
 }
 
+/**
+ * `v=2`: the app's own 800 px preview. Browsers kept WhatsApp's blurry thumbnail for 30 days under the
+ * old URL (`immutable`), so a new preview needs a new URL.
+ */
 export function mediaThumbUrlFor(id: string): string {
-  return `${mediaUrlFor(id)}/thumb`;
+  return `${mediaUrlFor(id)}/thumb?v=2`;
 }
 
 /**
@@ -257,17 +262,30 @@ export class MessageRepo {
     if (fields.deleted_at != null) this.dropMediaThumb(id);
   }
 
-  /** WhatsApp's small JPEG preview of an image, written once at ingest. */
-  mediaThumb(id: string): Buffer | null {
-    const r = this.db.prepare('SELECT jpeg FROM media_thumbs WHERE message_id = ?').get(id) as
-      { jpeg: Buffer } | undefined;
-    return r?.jpeg ?? null;
+  /**
+   * The image's chat preview: WhatsApp's small JPEG written at ingest (`own` false), or the app's own
+   * preview made from the stored file (`own` true, 047).
+   */
+  mediaThumb(id: string): { jpeg: Buffer; own: boolean } | null {
+    const r = this.db.prepare('SELECT jpeg, own FROM media_thumbs WHERE message_id = ?').get(id) as
+      { jpeg: Buffer; own: number } | undefined;
+    return r ? { jpeg: r.jpeg, own: r.own === 1 } : null;
   }
 
   setMediaThumb(id: string, jpeg: Buffer): void {
     this.db
-      .prepare('INSERT OR REPLACE INTO media_thumbs (message_id, jpeg) VALUES (?, ?)')
+      .prepare('INSERT OR REPLACE INTO media_thumbs (message_id, jpeg, own) VALUES (?, ?, 0)')
       .run(id, jpeg);
+  }
+
+  /** Stores the app's own preview (replacing WhatsApp's) and marks the message as having one. */
+  setOwnPreview(id: string, jpeg: Buffer): void {
+    this.db.transaction(() => {
+      this.db
+        .prepare('INSERT OR REPLACE INTO media_thumbs (message_id, jpeg, own) VALUES (?, ?, 1)')
+        .run(id, jpeg);
+      this.db.prepare('UPDATE messages SET media_has_thumb = 1 WHERE id = ?').run(id);
+    })();
   }
 
   private dropMediaThumb(id: string): void {
@@ -293,10 +311,13 @@ export class MessageRepo {
 
   rename(oldId: string, newId: string): void {
     this.db.prepare('UPDATE messages SET id = ? WHERE id = ?').run(newId, oldId);
+    // Live translate's typed record and cache follow the message (no foreign key).
+    renameTranslateRows(this.db, oldId, newId);
   }
 
   delete(id: string): void {
     this.db.prepare('DELETE FROM messages WHERE id = ?').run(id);
+    dropTranslateRows(this.db, id);
     this.dropMediaRef(id);
     this.dropMediaThumb(id);
   }

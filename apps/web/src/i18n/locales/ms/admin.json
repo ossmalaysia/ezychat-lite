@@ -211,7 +211,8 @@
       "safetyAutoBlock": "Nombor disekat secara automatik",
       "chatNewNumber": "Sembang dimulakan dengan nombor baharu",
       "settingsNewChatStaff": "Tetapan sembang baharu ditukar",
-      "settingsNewChatDailyLimit": "Had harian sembang baharu ditukar"
+      "settingsNewChatDailyLimit": "Had harian sembang baharu ditukar",
+      "settingsMcpMembers": "Tetapan pembantu AI ahli ditukar"
     },
     "fields": {
       "chat": "Sembang",
@@ -270,7 +271,9 @@
       "expired": "Token tamat tempoh",
       "userInactive": "Pemilik dinyahaktifkan",
       "notAdmin": "Pemilik bukan pentadbir",
-      "mustChangePassword": "Pemilik perlu menukar kata laluan"
+      "mustChangePassword": "Pemilik perlu menukar kata laluan",
+      "membersOff": "Ahli tidak dibenarkan menyambung pembantu AI",
+      "notAllowed": "Pemilik tidak dibenarkan menyambung pembantu AI"
     },
     "yes": "Ya",
     "no": "Tidak",
@@ -342,8 +345,10 @@
       "revoked": "Dialih keluar",
       "canSendBadge": "Boleh menghantar",
       "canNewBadge": "Nombor baharu",
+      "canResolveBadge": "Selesaikan chat",
       "signedInBadge": "Log masuk",
-      "tokenBadge": "Token"
+      "tokenBadge": "Token",
+      "memberBadge": "Ahli"
     },
     "create": {
       "title": "Cipta token akses",
@@ -364,7 +369,9 @@
       "canNew": "Juga boleh menghantar mesej kepada nombor baharu",
       "canNewHint": "Pembantu boleh memulakan sembang dengan nombor yang tiada dalam peti masuk. WhatsApp menyemak nombor itu dahulu. Sehingga 20 nombor baharu sehari.",
       "canNewWarningTitle": "Risiko disekat oleh WhatsApp",
-      "canNewWarning": "WhatsApp boleh menyekat nombor anda jika ia menghantar mesej kepada orang yang tidak memintanya. Hidupkan ini hanya jika pasukan anda menghubungi orang yang bersetuju untuk dihubungi. Pembantu juga menerima amaran ini."
+      "canNewWarning": "WhatsApp boleh menyekat nombor anda jika ia menghantar mesej kepada orang yang tidak memintanya. Hidupkan ini hanya jika pasukan anda menghubungi orang yang bersetuju untuk dihubungi. Pembantu juga menerima amaran ini.",
+      "canResolve": "Boleh selesaikan chat",
+      "canResolveHint": "Pembantu AI anda boleh menandakan chat sebagai selesai dan membukanya semula, atas nama anda. Pelanggan tidak menerima mesej."
     },
     "created": {
       "title": "Salin token anda sekarang",
@@ -396,6 +403,18 @@
       "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya oleh pembantu. Membaca peti masuk dan alat persediaan AI kekal hidup.",
       "save": "Simpan",
       "saved": "Kebenaran disimpan"
+    },
+    "members": {
+      "label": "Ahli boleh menyambung pembantu AI",
+      "hint": "Ahli pasukan boleh menyambung Claude atau ChatGPT ke akaun mereka sendiri melalui log masuknya. Pembantu hanya melihat sembang yang boleh dibuka ahli itu, dan hanya menghantar jika mereka membenarkannya.",
+      "needsAccess": "Hidupkan akses pembantu AI di atas dahulu.",
+      "turnedOn": "Ahli kini boleh menyambung pembantu AI",
+      "turnedOff_one": "Ahli tidak lagi boleh menyambung pembantu AI. {{count}} token dibatalkan.",
+      "turnedOff_other": "Ahli tidak lagi boleh menyambung pembantu AI. {{count}} token dibatalkan.",
+      "offTitle": "Hentikan ahli menyambung pembantu AI?",
+      "offBody_one": "Pembantu setiap ahli diputuskan serta-merta: {{count}} token dibatalkan. Ahli perlu menyambung semula jika anda menghidupkannya kembali.",
+      "offBody_other": "Pembantu setiap ahli diputuskan serta-merta: {{count}} token dibatalkan. Ahli perlu menyambung semula jika anda menghidupkannya kembali.",
+      "offConfirm": "Matikan dan putuskan"
     }
   },
   "settings": {
@@ -453,11 +472,72 @@
       "cost": "Setiap cadangan dan setiap pelengkapan ialah satu permintaan kepada penyedia AI anda, yang mungkin mengenakan caj.",
       "noConnection": "Sambungkan penyedia AI di atas untuk menggunakan cadangan balasan.",
       "upgraded": "Baharu: cadangan balasan. Ia dimatikan selepas kemas kini supaya tiada kos baharu tanpa pilihan anda.",
-      "model": "Model untuk cadangan",
-      "modelFast": "Pantas (disyorkan): {{model}}",
-      "modelAgent": "Sama seperti sambungan AI: {{model}}",
-      "modelFastHint": "Cadang balasan dalam kira-kira 1–2 saat dan teks kelabu semasa anda menaip. {{model}} ialah model pantas sambungan ini.",
-      "modelSlowHint": "Model yang lebih besar menulis lebih perlahan: teks kelabu selalunya sampai terlalu lewat untuk membantu, dan setiap permintaan mungkin lebih mahal."
+      "modelNote": "Model yang menulis cadangan kini ditetapkan dalam Model AI → Bantuan menulis."
+    },
+    "aiModels": {
+      "title": "Model AI",
+      "description": "Pilih model AI untuk setiap tugas. Model pantas menjawab lebih cepat dan lebih murah. Model yang lebih bijak memberi jawapan lebih baik, tetapi lebih perlahan dan menggunakan lebih banyak pelan anda.",
+      "connection": "Sambungan AI anda: {{connection}} · model utama {{main}} · model pantas {{fast}}.",
+      "perConnection": "Setiap sambungan menyimpan pilihannya sendiri.",
+      "mode": {
+        "chatgpt": "Log masuk ChatGPT",
+        "api": "Kunci API OpenAI",
+        "claude": "Kunci API Claude"
+      },
+      "model": "Model",
+      "fast": "Pantas",
+      "main": "Model utama",
+      "recommended": "(disyorkan)",
+      "fastShort": "Pantas ({{model}})",
+      "mainShort": "model utama ({{model}})",
+      "notOffered": "{{model}} · tidak lagi ditawarkan",
+      "useDefault": "Guna lalai",
+      "tier": {
+        "fast": "Menjawab lebih cepat dan lebih murah.",
+        "balanced": "Imbangan yang baik antara kelajuan dan kualiti.",
+        "smart": "Jawapan paling bijak. Lebih perlahan dan lebih mahal."
+      },
+      "tierShort": {
+        "fast": "lebih pantas",
+        "balanced": "seimbang",
+        "smart": "lebih bijak, lebih mahal"
+      },
+      "thinking": "Kelajuan dan kualiti",
+      "thinkingLevel": {
+        "low": "Lebih pantas",
+        "medium": "Seimbang",
+        "high": "Lebih bijak"
+      },
+      "thinkingHint": {
+        "low": "Lebih pantas: menjawab paling cepat.",
+        "medium": "Seimbang: campuran baik antara kelajuan dan kualiti.",
+        "high": "Lebih bijak: jawapan terbaik, paling perlahan, guna lebih banyak pelan anda."
+      },
+      "unavailable": "{{model}} tidak lagi ditawarkan oleh sambungan AI anda. EzyChat menggunakan {{fallback}} sehingga anda memilih model lain.",
+      "alwaysMain": "Sentiasa model utama ({{main}}): menyediakan ejen dengan Ask Ezy, perubahan yang dicadangkan oleh Mod mimpi dan mengisi butiran pelanggan, kerana ia mengubah tetapan atau rekod anda. Nota suara mengikut tetapannya sendiri di bawah.",
+      "tasks": {
+        "agentReplies": {
+          "title": "Balasan ejen AI",
+          "what": "Menjawab pelanggan dalam chat dan kumpulan, Cuba dan mesej berjadual."
+        },
+        "askEzy": {
+          "title": "Ask Ezy",
+          "what": "Pembantu dalam aplikasi yang menjawab soalan anda tentang chat dan laporan."
+        },
+        "translate": {
+          "title": "Terjemah",
+          "what": "Terjemahan langsung: mesej pelanggan, dan balasan anda sebelum dihantar."
+        },
+        "writing": {
+          "title": "Bantuan menulis",
+          "what": "Cadang balasan, teks kelabu semasa menaip, Betulkan English dan Edit dengan AI."
+        },
+        "background": {
+          "title": "Semakan latar",
+          "what": "Semakan keselamatan mesej masuk, senarai frasa, dan apa yang dipelajari Mod mimpi setiap malam."
+        }
+      },
+      "writingSlow": "Teks kelabu semasa menaip mungkin tidak muncul tepat pada masanya dengan model yang lebih perlahan."
     },
     "askEzy": {
       "title": "Ask Ezy",
@@ -519,7 +599,7 @@
       "title": "Betulkan Bahasa Inggeris",
       "description": "Semasa ahli pasukan menaip balasan dalam bahasa Inggeris, kesilapan ejaan ditanda serta-merta dan kesilapan tatabahasa selepas jeda singkat. Satu ketikan membetulkannya; tiada apa diubah atau dihantar tanpa ahli pasukan.",
       "enable": "Semak bahasa Inggeris untuk pasukan",
-      "cost": "Ejaan disemak pada setiap peranti dengan kamus bahasa Inggeris British terbina dalam (kira-kira 0.2 MB, dimuat turun sekali): percuma, tanpa AI. Tatabahasa ialah satu permintaan ringkas kepada pembekal AI anda selepas setiap jeda menaip (model untuk cadangan), yang mungkin dikenakan caj. Mesej Bahasa Melayu dan Cina tidak disemak.",
+      "cost": "Ejaan disemak pada setiap peranti dengan kamus bahasa Inggeris British terbina dalam (kira-kira 0.2 MB, dimuat turun sekali): percuma, tanpa AI. Tatabahasa ialah satu permintaan ringkas kepada pembekal AI anda selepas setiap jeda menaip (model Bantuan menulis dalam Model AI), yang mungkin dikenakan caj. Mesej Bahasa Melayu dan Cina tidak disemak.",
       "rules": "Hanya ejaan dan tatabahasa dibetulkan. Nombor, harga, nama, pautan dan nombor pesanan tidak pernah diubah, dan nada ahli pasukan kekal (lah, ya).",
       "noConnection": "Tiada sambungan AI: hanya ejaan disemak. Sambungkan pembekal AI di atas untuk menyemak tatabahasa juga.",
       "upgraded": "Baharu: Betulkan Bahasa Inggeris. Ia dimatikan selepas kemas kini supaya tiada perkara baharu yang dikenakan caj tanpa pilihan anda.",
@@ -1720,6 +1800,7 @@
     "requestMessage": "Hai pasukan EzyChat, kami mahukan penyambung untuk: ",
     "breadcrumb": "Laluan navigasi",
     "notFound": "Penyambung ini tidak wujud.",
+    "backToAgent": "Kembali ke ejen AI",
     "backToGallery": "Semua penyambung",
     "byCore": "Terbina dalam {{product}}",
     "byEnterprise": "EzyChat Enterprise",
@@ -1755,7 +1836,8 @@
       "description": "Sistem yang {{name}} boleh gunakan semasa bersembang. Tetapan ada di halaman setiap penyambung.",
       "checkAndBook": "Menyemak masa lapang dan menempah",
       "checkOnly": "Menyemak masa lapang; pasukan anda menempah",
-      "off": "Dimatikan untuk ejen ini",
+      "off": "Tidak digunakan oleh ejen ini",
+      "setUp": "Sediakan",
       "none": "Belum ada penyambung.",
       "browse": "Lihat penyambung",
       "sheetsReads": "Membaca {{tabs}}",
@@ -1851,6 +1933,7 @@
       "blocked": "Pelayar anda menyekat tetingkap log masuk. Buka halaman log masuk untuk meneruskan.",
       "openSignIn": "Buka halaman log masuk",
       "sameComputer": "Google kembali ke komputer yang menjalankan {{product}}: log masuk hanya selesai dalam pelayar di komputer itu.",
+      "remoteSignIn": "Log masuk Google hanya berfungsi pada komputer yang menjalankan {{product}}. Buka {{product}} di sana dan log masuk; ia akan dipaparkan di sini juga.",
       "cancelSignIn": "Batal",
       "failed": {
         "denied": "Log masuk Google dibatalkan. Tiada apa-apa disambungkan.",
@@ -2156,6 +2239,7 @@
         "expired": "Pemilih fail mengambil masa terlalu lama. Cuba lagi."
       },
       "pickSameComputer": "Pemilih fail hanya berfungsi dalam pelayar pada komputer yang menjalankan {{product}}.",
+      "remotePick": "Memilih helaian hanya berfungsi pada komputer yang menjalankan {{product}}. Buka {{product}} di sana, pilih helaian itu, dan ia akan dipaparkan di sini juga. Anda masih boleh mencipta helaian baharu dari sini.",
       "tabsTitle": "Tab yang boleh digunakan ejen ini",
       "tabsHint": "Arahan ejen menyatakan bila menggunakannya. Nama lajur diambil daripada baris pertama setiap tab. Tukar tab dalam Google Sheets? Tekan Muat semula.",
       "refresh": "Muat semula",
@@ -2294,6 +2378,7 @@
       "pickBlocked": "Pelayar anda menyekat tetingkap itu. Buka pemilih fail untuk meneruskan.",
       "openPicker": "Buka pemilih fail",
       "pickSameComputer": "Pemilih fail hanya berfungsi dalam pelayar di komputer yang menjalankan {{product}}.",
+      "remotePick": "Memilih folder atau fail hanya berfungsi pada komputer yang menjalankan {{product}}. Buka {{product}} di sana, pilih folder atau fail itu, dan ia akan dipaparkan di sini juga.",
       "pickError": {
         "cancelled": "Tiada apa yang dipilih.",
         "failed": "{{product}} tidak dapat membuka pilihan anda. Pilih semula.",
@@ -3230,5 +3315,38 @@
     "limitNone": "Tiada had: pasukan anda dan pembantu AI boleh menghantar mesej kepada seberapa banyak nombor baharu sehari.",
     "limitBanTitle": "Had yang tinggi boleh menyebabkan nombor anda disekat",
     "limitBanBody": "WhatsApp boleh menyekat nombor yang menghantar mesej kepada ramai orang yang tidak memintanya. Kekalkan had yang rendah melainkan orang ini menjangkakan mesej anda."
+  },
+  "memberAssistants": {
+    "title": "Pembantu AI saya",
+    "description": "Sambungkan Claude atau ChatGPT ke akaun {{product}} anda sendiri.",
+    "off": "Minta admin membenarkan ahli menyambung pembantu AI.",
+    "reach": "Ia melihat sembang yang sama yang anda lihat dalam {{product}}.",
+    "reachLimited": "Ia hanya melihat sembang yang dipilih untuk anda.",
+    "howTo": "Dalam Claude atau ChatGPT, tambah {{product}} sebagai penyambung dengan alamat ini. Ia membuka halaman log masuk di sini untuk anda luluskan.",
+    "apps": "Pembantu yang disambung",
+    "empty": "Belum ada pembantu disambung.",
+    "sendNote": "Pembantu tidak boleh menghantar mesej sehingga anda membenarkannya. Guna Kebenaran untuk membenarkannya.",
+    "connectedOn": "Disambung {{date}}",
+    "disconnect": "Putuskan",
+    "disconnectLabel": "Putuskan {{name}}",
+    "disconnectTitle": "Putuskan “{{name}}”?",
+    "disconnectBody": "Pembantu ini berhenti berfungsi serta-merta. Anda boleh menyambungnya semula bila-bila masa.",
+    "disconnected": "Pembantu diputuskan",
+    "newBlocked": "Anda tidak boleh memulakan sembang baharu dalam {{product}}, jadi pembantu anda pun tidak boleh.",
+    "permsDescription": "Pilih apa yang boleh dilakukan pembantu ini untuk anda. Ia kekal bersambung: tidak perlu log masuk semula.",
+    "takesEffect": "Perubahan berkuat kuasa pada permintaan seterusnya pembantu. Pembantu anda masih hanya melihat apa yang boleh anda buka."
+  },
+  "liveTranslate": {
+    "title": "Terjemah langsung",
+    "description": "Pasukan anda membaca dan membalas dalam bahasa mereka sendiri. Mesej pelanggan dipaparkan diterjemah, dan balasan dihantar dalam bahasa pelanggan.",
+    "enable": "Terjemah langsung untuk semua",
+    "enableHelp": "Semua staf boleh menggunakannya. Setiap orang menghidupkannya bagi setiap sembang dengan butang Terjemah di kepala sembang; ia kekal mati sehingga mereka berbuat demikian. Matikan ini untuk menghentikannya bagi semua orang.",
+    "limit": "Had harian setiap orang",
+    "limitHelp": "Lalai 200; 0 = tiada had. Setiap mesej diterjemah dan setiap terjemahan dihantar dikira sekali; mesej yang sudah diterjemah adalah percuma.",
+    "privacy": "Teks mesej dihantar ke sambungan AI anda (model Terjemah dalam Model AI) untuk diterjemah. Log EzyChat hanya menyimpan bilangan dan bahasa, bukan teks. Pelanggan tidak pernah nampak tanda \"diterjemah\".",
+    "usage_one": "Hari ini: {{count}} terjemahan oleh {{people}} orang",
+    "usage_other": "Hari ini: {{count}} terjemahan oleh {{people}} orang",
+    "noConnection": "Sambungkan AI di atas dahulu. Sehingga itu, sembang memaparkan mesej seperti dihantar.",
+    "languages": "Setiap orang memilih bahasa sendiri dalam Akaun → Bahasa saya."
   }
 }
