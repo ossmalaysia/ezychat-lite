@@ -1,7 +1,7 @@
 # Pictures in Ask Ezy: interactive app proposal
 
 A clone of the owner-confirmed **ai-models-per-task** reference (the whole app, as merged to `main` in `02f8a831`,
-copied from `main` `f6a9cb11`) with the **ask-ezy-image** proposal on top: a person adds up to 3 pictures (a
+copied from `main` `f6a9cb11`) with the **ask-ezy-image** proposal on top: a person adds up to 2 pictures (a
 screenshot of a chat, a photo) to an Ask Ezy question and asks about them, e.g. "What made this trigger?". Scope,
 rules and open questions: [../design.md](../design.md).
 
@@ -12,7 +12,7 @@ node docs/features/ask-ezy-image/mock/ask-ezy-image-shots.mjs   # PW_CHROMIUM=<c
 
 Open `http://localhost:7489/`, sign in as `aisyah` (`demo-pass-123`, admin) and open **Ask Ezy** (rail or phone tab).
 Add a picture with the picture button beside the box, **Ctrl+V** a screenshot into the box, or drop one on the box.
-Thumbnails show above the box with ✕ to remove; a 4th picture, a GIF/HEIC/PDF or a file over 20 MB (5 MB after
+Thumbnails show above the box with ✕ to remove; a 3rd picture, a GIF/HEIC/PDF or a file over 20 MB (5 MB after
 scaling) is refused under the thumbnails. Send: the pictures show in the question bubble (tap for a large view), the
 answer explains the hand-over in the screenshot. The dashed **Mock only** strip in the empty panel turns off "Ask Ezy
 model reads pictures" (close and reopen the panel: the picture button then shows the note) and makes the answer slow

@@ -1,6 +1,6 @@
 # Pictures in Ask Ezy (paste or attach a screenshot)
 
-Status: **proposal, waiting for the owner's confirmation** (mock and screenshots below). No production code yet.
+Status: **confirmed by the owner 2026-11-27** (§12); built in Lite on branch `docs/ask-ezy-image` (§7).
 Requested 2026-11-27 by the master session for a tester: "paste a screenshot of a chat and ask Ezy _what made this
 trigger?_". Owner approved it for all three editions: **Lite** (core), **Enterprise** (gets it from the Lite core through
 `@ezychat/*`, no Enterprise code), **Cloud** (own port and mock, Cloud design system, same rules and words).
@@ -19,7 +19,7 @@ words, which is slow on a phone and loses detail. A picture says "this one" in o
 
 | In                                                                                     | Out (later or never)                                       |
 | -------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Up to 3 pictures per question: picture button, Ctrl+V / ⌘V paste, drag and drop        | PDFs, videos, voice in Ask Ezy (another feature)           |
+| Up to 2 pictures per question: picture button, Ctrl+V / ⌘V paste, drag and drop        | PDFs, videos, voice in Ask Ezy (another feature)           |
 | JPEG, PNG, WebP (read from the bytes); the browser scales big pictures down first      | Ezy saving a picture anywhere (Drive, Business context)    |
 | Thumbnails above the box with ✕; pictures in the question bubble; tap for a large view | Ezy finding the chat in the screenshot by itself as a rule |
 | Admins and team members (everyone who has Ask Ezy)                                     | Agents limited to chosen chats (they have no Ask Ezy)      |
@@ -33,8 +33,8 @@ Ezy still answers only from tools for inbox facts: the picture tells it _what to
 | #   | State                  | What the person sees                                                                                                                         | Screenshot                           |
 | --- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | 1   | Empty                  | Panel as today + one line "You can also add a screenshot: paste it, drop it here or tap the picture button." Picture button left of the box. | `01-empty-*`                         |
-| 2   | Pasted                 | Ctrl+V in the box: a 56 px thumbnail with ✕ and "1 of 3"; the box hint becomes "Ask about this picture, e.g. Why did the AI hand over?"      | `02-pasted-*`                        |
-| 3   | Two pictures           | Two thumbnails "2 of 3", question typed; Send is on. A picture alone (no words) may be sent too.                                             | `03-two-pictures-*`                  |
+| 2   | Pasted                 | Ctrl+V in the box: a 56 px thumbnail with ✕ and "1 of 2"; the box hint becomes "Ask about this picture, e.g. Why did the AI hand over?"      | `02-pasted-*`                        |
+| 3   | Two pictures           | Two thumbnails "2 of 2", question typed; Send is on. A picture alone (no words) asks "What does this show?".                                 | `03-two-pictures-*`                  |
 | 4   | Wrong type / too large | Red line under the box: "This file is not a picture Ezy can read. Use a JPEG, PNG or WebP picture." / "This picture is too large…"           | `04-wrong-type-*`, `04b-too-large-*` |
 | 5   | Connection can't read  | Info note in the composer: "Ezy can't read pictures with your AI connection" + admin **Open AI models**, member: "describe it in words".     | `05-unavailable-*`                   |
 | 6   | Sending                | Question bubble with the pictures; "Working… ✓ Read your picture" then the usual tool lines; Stop works.                                     | `06-sending-*`                       |
@@ -42,24 +42,24 @@ Ezy still answers only from tools for inbox facts: the picture tells it _what to
 | 8   | Phone 360 px           | Same panel full screen; the picture button (44 px) opens the phone's camera / gallery picker.                                                | every `*-m360-*` shot                |
 
 Also covered in the mock (no own shot): drag-over highlight "Drop the picture to add it", the 4th picture refusal
-("You can add up to 3 pictures to one question."), ✕ removes a thumbnail, large view dialog, Ask again / Try again keep
+("You can add up to 2 pictures to one question."), ✕ removes a thumbnail, large view dialog, Ask again / Try again keep
 the pictures, Start over clears them, a server refusal `pictures_unavailable` after sending offers **Ask without the
 picture**.
 
 ## 4. Rules and limits
 
-| Rule                  | Value                                                                                                                                                                                            | Why                                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pictures per question | ≤ 3 (`AI_MAX_IMAGES`, same as customer photos to the agent)                                                                                                                                      | Enough for "before / after"; bounds cost and time                                                                                                        |
-| Types                 | JPEG, PNG, WebP from the first bytes (`ai/images.ts#sniffImageMime`), never the name or declared type; GIF/HEIC/PDF refused                                                                      | Same rule as agent images; HEIC is not read by every provider (iOS converts on pick)                                                                     |
-| Size                  | Browser refuses a picked file > 20 MB before reading it; scales the long side to ≤ 2000 px (PNG stays PNG, photos → JPEG 85 %); server refuses > 5 MB per picture (`AI_MAX_IMAGE_BYTES`)         | Phone memory; a chat screenshot stays readable at 2000 px; matches the server's limit                                                                    |
-| Request               | `POST /api/ask-ezy` as **multipart** when pictures are attached: part `request` (the existing `AskEzyRequest` JSON), 1–3 `picture` parts; route body cap 16 MB; plain JSON stays as today        | No base64 overhead; the global 1 MB `bodyLimit` stays for every other route                                                                              |
-| Question text         | Optional with a picture; empty → the server asks "What does this picture show?" in the user's language                                                                                           | A tap-and-send on a phone                                                                                                                                |
-| Detail                | OpenAI / ChatGPT `imageDetail: 'high'` (agent replies keep `'low'`); Claude: as is                                                                                                               | Small text in a screenshot is unreadable at low detail                                                                                                   |
-| Rate limit            | Same 20 questions a minute per user; a picture question counts once                                                                                                                              | Simple; the 3-picture cap bounds cost (open question 3)                                                                                                  |
-| History               | A picture goes to the model **only with its own question**. Later turns carry a text line `[2 picture(s) attached to this question; not sent again]` plus Ezy's answer                           | `AskEzyTurn` stays text only (§6 of ask-ezy.md); re-sending ~1–2k tokens per picture per turn would multiply cost; the answer already says what was seen |
-| Panel memory          | Thumbnails stay visible in the open panel (object URLs) until Start over or the panel's conversation ends; Ask again / Try again resend them                                                     | The conversation already lives only in the open panel                                                                                                    |
-| Model can't read      | Status `GET /api/ask-ezy/status` adds `pictures: boolean` (zod default `true`); false → the picture button shows the note instead of the picker; a provider refusal → `409 pictures_unavailable` | No dead button; no paid call that fails                                                                                                                  |
+| Rule                  | Value                                                                                                                                                                                            | Why                                                                                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pictures per question | ≤ 2 (`ASK_EZY_MAX_PICTURES`, owner 2026-11-27)                                                                                                                                                   | Enough for "before / after"; bounds cost and time                                                                                                                                                  |
+| Types                 | JPEG, PNG, WebP from the first bytes (`ai/images.ts#sniffImageMime`), never the name or declared type; GIF/HEIC/PDF refused                                                                      | Same rule as agent images; HEIC is not read by every provider (iOS converts on pick)                                                                                                               |
+| Size                  | Browser refuses a picked file > 20 MB before reading it; scales the long side to ≤ 2000 px (PNG stays PNG, photos → JPEG 85 %); server refuses > 5 MB per picture (`AI_MAX_IMAGE_BYTES`)         | Phone memory; a chat screenshot stays readable at 2000 px; matches the server's limit                                                                                                              |
+| Request               | `POST /api/ask-ezy` JSON with `pictures: [{base64}]` (0–2, zod-checked, ≤ 7.2 M base64 characters each); route body cap 15 MB (`ASK_EZY_BODY_LIMIT`)                                             | One zod contract and the same NDJSON reader (built 2026-11-27 instead of the multipart first planned: the model call needs base64 anyway); the global 1 MB `bodyLimit` stays for every other route |
+| Question text         | Optional with a picture; empty → the panel sends "What does this show?" in the user's language (owner 2026-11-27)                                                                                | A tap-and-send on a phone                                                                                                                                                                          |
+| Detail                | OpenAI / ChatGPT `imageDetail: 'high'` (agent replies keep `'low'`); Claude: as is                                                                                                               | Small text in a screenshot is unreadable at low detail                                                                                                                                             |
+| Rate limit            | Same 20 questions a minute per user; a picture question counts once                                                                                                                              | Simple; the 2-picture cap bounds cost. No daily picture cap in Lite (owner 2026-11-27); Cloud counts about 1,500 tokens per picture against its daily AI limit                                     |
+| History               | A picture goes to the model **only with its own question**. Later turns carry a text line `[2 picture(s) attached to this question; not sent again]` plus Ezy's answer                           | `AskEzyTurn` stays text only (§6 of ask-ezy.md); re-sending ~1–2k tokens per picture per turn would multiply cost; the answer already says what was seen                                           |
+| Panel memory          | Thumbnails stay visible in the open panel (object URLs) until Start over or the panel's conversation ends; Ask again / Try again resend them                                                     | The conversation already lives only in the open panel                                                                                                                                              |
+| Model can't read      | Status `GET /api/ask-ezy/status` adds `pictures: boolean` (zod default `true`); false → the picture button shows the note instead of the picker; a provider refusal → `409 pictures_unavailable` | No dead button; no paid call that fails                                                                                                                                                            |
 
 ## 5. How it works per AI connection (research in code)
 
@@ -79,7 +79,7 @@ exist, and it is the same state Cloud shows if its provider cannot read pictures
 
 ## 6. Privacy and safety
 
-- **Nothing is stored.** Pictures are read into memory for the request only (`@fastify/multipart` `toBuffer`, no temp
+- **Nothing is stored.** Pictures are read into memory for the request only (the JSON body, no temp
   files), sent to the AI connection once, and dropped when the answer ends. No table, no media folder, no audit row.
 - **Never logged:** the `ask_ezy_turn_start` / answer lines add `pictures` (count) and `pictureBytes` (total) only; never
   names, bytes, or what the model saw.
@@ -95,16 +95,17 @@ exist, and it is the same state Cloud shows if its provider cannot read pictures
 ## 7. Server and contract (for the build, not in the mock)
 
 - `packages/shared/src/ask-ezy.ts`: `AskEzyStatus` + `pictures: z.boolean().default(true)`; constants
-  `ASK_EZY_MAX_PICTURES = 3`, `ASK_EZY_PICTURE_BYTES = 5 MB`; error codes `pictures_unavailable`, `picture_too_large`
-  (413), `picture_type` (415), `too_many_pictures` (400).
-- `routes/ask-ezy.ts`: accept multipart only on this route (`bodyLimit` 16 MB there), parse `request` with the existing
-  `AskEzyRequest`, check count → size → `sniffImageMime` before any model call (counts toward the rate limit only once
-  the request is valid).
-- `ask-ezy/service.ts`: the last user message gets image parts; `AiAssistCall.pictures`; the setup turn (main model) gets
-  the same parts when `start_setup` reruns the question.
-- `ai/task-models.ts` / provider: `readsPictures(mode, model)` for the status.
-- Web `apps/web/src/askezy/`: `AskEzyPictures.tsx` (as in the mock), `api.ts` multipart `FormData` with the same NDJSON
-  reader. Contract test (`web-client-contract.test.ts`) covers the call.
+  `ASK_EZY_MAX_PICTURES = 2`, `ASK_EZY_PICTURE_BYTES = 5 MB`; error codes `pictures_unavailable`, `picture_too_large`
+  (413), `picture_type` (415); a 3rd picture is a 400 validation error.
+- `routes/ask-ezy.ts`: `bodyLimit` 15 MB on this route only; after `AskEzyRequest` and the chosen-chats check,
+  `ask-ezy/pictures.ts#readAskEzyPictures` checks size → type from the bytes (`sniffImageMime`), then `pictures_unavailable`
+  when the status says the model cannot read them, all before the question counts toward the minute's limit.
+- `ask-ezy/service.ts`: the last user message gets image parts (`imageDetail: 'high'`, `ASK_EZY_IMAGE_DETAIL`), the
+  setup turn reuses the same messages; a `pictures` step comes first ("Read your picture"); logs add `pictures` and
+  `pictureBytes`; a provider 400 on a picture question → `pictures_unavailable`.
+- `ai/pictures.ts#modelReadsPictures(mode, model)` + `AiService.assistReadsPictures()` (the Ask Ezy row's model) for the
+  status.
+- Web `apps/web/src/askezy/`: `AskEzyPictures.tsx` (as in the mock), `api.ts` sends `pictures` only when there are some. Contract test (`web-client-contract.test.ts`) covers the call.
 - Tests: route refusals (type from bytes, 4th picture, 5 MB + 1), history stays text, logs carry counts only, a
   provider refusal → `pictures_unavailable`, Claude strips `imageDetail`. **Tests never call a real model.**
 - AI behaviour change → owner rule: a real-model eval before/after on the owner's Dev Build (a fixed set of 6
@@ -119,19 +120,19 @@ limit is, so scaling stays in the browser.
 
 ## 9. Proposed decision-log line for `docs/ask-ezy.md` (added only after confirmation)
 
-| Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-11-27 | Pictures in a question (proposal): up to 3 JPEG/PNG/WebP (type from the bytes, ≤ 5 MB after the browser scales to 2000 px) by button, paste or drop, for everyone with Ask Ezy; sent with their own question only (history keeps a text note), never stored or logged (counts and bytes only), data never instructions; `pictures: false` in the status when the Ask Ezy row's model cannot read them |
+| Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-27 | Pictures in a question (owner, "Yes"): up to 2 JPEG/PNG/WebP (screenshots or camera photos) (type from the bytes, ≤ 5 MB after the browser scales to 2000 px) by button, paste or drop, for everyone with Ask Ezy; sent with their own question only (history keeps a text note), never stored or logged (counts and bytes only), data never instructions; `pictures: false` in the status when the Ask Ezy row's model cannot read them |
 
-## 10. Open questions for the owner
+## 10. Owner decisions (2026-11-27, "Yes", for Lite, Enterprise and Cloud alike)
 
-1. **History:** a picture is sent once, with its own question (recommended: cost; the answer carries what was seen).
-   Alternative: keep re-sending the last turn's pictures for one follow-up.
-2. **Picture without words:** allow sending a picture alone (recommended, phone use) with a default question.
-3. **Limit:** keep 3 pictures and the shared 20 questions a minute (recommended), or add a daily picture cap per user.
-4. **Switch:** no admin switch for pictures (recommended: the AI connection already decides); add one only if owners
-   ask to keep screenshots off the AI provider.
-5. **Wording:** "picture" everywhere (recommended, plain), not "image" or "attachment"; BM "gambar", 中文 "图片".
+1. At most **2 pictures** per question (the proposal had 3).
+2. A picture is sent **only with its own question**; later turns carry only a text note that a picture was shown.
+3. A picture with no words is allowed; the default question is **"What does this show?"**.
+4. **No daily picture cap in Lite.** Cloud counts about **1,500 tokens per picture** against its daily AI limit.
+5. **Camera photos** are allowed as well as screenshots (the phone's picker offers both).
+
+Kept from the proposal without objection: no admin switch, the word "picture" (BM "gambar", 中文 "图片").
 
 ## 11. Reference
 
@@ -143,12 +144,12 @@ limit is, so scaling stays in the browser.
   over), `Banner`, `Dialog`, `Button size="icon-touch"`, the dashed **Mock only** strip pattern (`EditionSwitch`).
 - Changed / added files: `mock/reference.json` → `askEzyImage`. The rest of the clone is unchanged (`diff -rq` against
   the source folder lists only those files).
-- Mock run and shots: `mock/README.md`; screenshots `screenshots/` (1280 and 360, light and dark, 32 shots, 0
+- Mock run and shots: `mock/README.md`; screenshots `screenshots/` (1280 and 360, light and dark, 32 shots after the 2-picture change, 0
   problems in `screenshots/results.json`).
 - Design system: new pattern **Pictures attached to a question** in `docs/design-system.md` (proposed with this mock).
 
 ## 12. Confirmation record
 
-| Date | Who | Decision                                                                              |
-| ---- | --- | ------------------------------------------------------------------------------------- |
-| —    | —   | Pending: waiting for the owner's look at the mock and screenshots, and answers to §10 |
+| Date       | Who                                         | Decision                                                                                                                                                                    |
+| ---------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-27 | Owner (Jazz), relayed by the master session | "Yes" to the mock and the five points of §10 (2 pictures, own question only, default question, no Lite cap / Cloud 1,500 tokens, camera photos too), for all three editions |

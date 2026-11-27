@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
  * Proposed (ask-ezy-image): pictures attached to an Ask Ezy question. They live only in the open panel's memory
  * (object URLs for the thumbnails, base64 for the request) and go to the server once, with their question.
  */
-export const MAX_PICTURES = 3;
+export const MAX_PICTURES = 2;
 /** What is sent, after scaling: the server's limit (`AI_MAX_IMAGE_BYTES`). */
 export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
 /** A picked file larger than this is refused before it is read (keeps the phone's memory safe). */

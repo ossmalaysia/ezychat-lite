@@ -1133,7 +1133,8 @@
         "badge": "仅演示",
         "reads": "Ask Ezy 模型能读取图片",
         "slow": "慢速回答（查看发送中状态）"
-      }
+      },
+      "defaultQuestion": "这显示了什么？"
     }
   },
   "mockTranslate": {

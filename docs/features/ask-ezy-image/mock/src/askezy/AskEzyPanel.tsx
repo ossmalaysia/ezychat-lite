@@ -226,9 +226,11 @@ export function AskEzyPanel() {
   const boxRef = useRef<HTMLTextAreaElement>(null);
 
   const send = async (request: AskEzyRequest) => {
-    const question = request.question.trim();
     const sentPictures = request.pictures ?? [];
-    if ((!question && !sentPictures.length) || busy) return;
+    // A picture without words asks the default question (owner 2026-11-27).
+    const question =
+      request.question.trim() || (sentPictures.length ? t('askEzy.pictures.defaultQuestion') : '');
+    if (!question || busy) return;
     const chatJid = request.chatJid ?? scope?.jid ?? null;
     const userTurn = nextId.current++;
     setTurns((v) => [...v, { role: 'user', id: userTurn, text: question, pictures: sentPictures }]);

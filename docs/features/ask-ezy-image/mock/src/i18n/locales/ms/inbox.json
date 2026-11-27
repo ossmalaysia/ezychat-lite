@@ -1133,7 +1133,8 @@
         "badge": "Mock sahaja",
         "reads": "Model Ask Ezy membaca gambar",
         "slow": "Jawapan perlahan (lihat keadaan menghantar)"
-      }
+      },
+      "defaultQuestion": "Apa yang ditunjukkan ini?"
     }
   },
   "mockTranslate": {

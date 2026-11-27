@@ -9,11 +9,11 @@ import { parse } from '../../../../packages/server/src/http/errors.js';
  * Proposed (app-navigation), mock only: Ask Ezy answers from a fixed script so the panel can be shown from the new
  * rail and bottom tabs without a model call. The app's real route is `POST /api/ask-ezy` (same NDJSON events).
  *
- * Proposed (ask-ezy-image), mock only: a question may carry up to 3 pictures (JPEG, PNG or WebP read from the bytes,
+ * Proposed (ask-ezy-image), mock only: a question may carry up to 2 pictures (JPEG, PNG or WebP read from the bytes,
  * at most 5 MB each). The mock takes them as base64 in JSON; the design sends them as multipart parts. Nothing is
  * stored: the pictures live in this request only and are never logged (counts and sizes only).
  */
-export const ASK_EZY_MAX_PICTURES = 3;
+export const ASK_EZY_MAX_PICTURES = 2;
 export const ASK_EZY_PICTURE_BYTES = 5 * 1024 * 1024;
 
 const MockPicture = z.strictObject({
@@ -68,7 +68,7 @@ export function registerAskEzy(app: FastifyInstance, ctx: AppContext): void {
   });
   app.post(
     '/api/mock/ask-ezy',
-    // Proposed: 3 pictures of 5 MB as base64 (the design uses multipart and a 16 MB cap on this route only).
+    // 2 pictures of 5 MB as base64 (the design uses multipart and a 16 MB cap on this route only).
     { preHandler: requireUser(ctx), bodyLimit: 24 * 1024 * 1024 },
     async (req, reply) => {
       const raw = parse(MockAskEzyRequest, req.body);
@@ -84,15 +84,14 @@ export function registerAskEzy(app: FastifyInstance, ctx: AppContext): void {
           'The AI model for Ask Ezy cannot read pictures',
         );
       if (pictures.length > ASK_EZY_MAX_PICTURES)
-        return fail(reply, 400, 'too_many_pictures', 'At most 3 pictures');
+        return fail(reply, 400, 'too_many_pictures', 'At most 2 pictures');
       for (const p of pictures) {
         if (p.bytes.length > ASK_EZY_PICTURE_BYTES)
           return fail(reply, 413, 'picture_too_large', 'A picture is larger than 5 MB');
         if (!sniff(p.bytes)) return fail(reply, 415, 'picture_type', 'Only JPEG, PNG or WebP');
       }
       // A picture alone is a question too: the server asks the model what it shows.
-      const question =
-        raw.question.trim() || (pictures.length ? 'What does this picture show?' : '');
+      const question = raw.question.trim() || (pictures.length ? 'What does this show?' : '');
       const body = parse(AskEzyRequest, { question, history: raw.history, chatJid: raw.chatJid });
       // Logs carry counts and sizes only, never the picture or the question.
       req.log.info(

@@ -31,7 +31,7 @@ export async function askEzy(
     question: string;
     history: AskEzyTurn[];
     chatJid: string | null;
-    /** Proposed (ask-ezy-image): 0–3 pictures for this question only (the app sends them as multipart parts). */
+    /** Proposed (ask-ezy-image): 0–2 pictures for this question only (base64, as the app sends them). */
     pictures?: Array<{ name: string; base64: string }>;
   },
   onStep: (step: AskEzyStep) => void,

@@ -1136,7 +1136,8 @@
         "badge": "Mock only",
         "reads": "Ask Ezy model reads pictures",
         "slow": "Slow answer (see the sending state)"
-      }
+      },
+      "defaultQuestion": "What does this show?"
     }
   },
   "mockTranslate": {
