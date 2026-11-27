@@ -16,6 +16,18 @@
   },
   "proposals": [
     {
+      "feature": "ask-ezy-image",
+      "creationOrder": 53,
+      "createdAt": "2026-11-27",
+      "design": "docs/features/ask-ezy-image/design.md",
+      "mock": "docs/features/ask-ezy-image/mock/index.html",
+      "status": "proposal",
+      "baselineFeature": "ai-models-per-task",
+      "baselineGitRevision": "02f8a831fa73f2860d65a06d8d52be3acfd1e311",
+      "coverage": "Full clone of the confirmed ai-models-per-task mock (as merged to main in 02f8a831; the recorded latestConfirmed revision c4584db6 is not reachable after the squash merge, the folder is unchanged since). Adds pictures to the Ask Ezy panel: picture button, Ctrl+V paste, drag and drop, thumbnails with remove (up to 3), wrong type / too large / fourth picture refusals, pictures in the question bubble with a large view, the sending state, the answer, and the \"AI connection cannot read pictures\" note with Ask without the picture; a dashed Mock only strip switches picture reading and a slow answer. 1280/360, light/dark (mock/ask-ezy-image-shots.mjs, docs/features/ask-ezy-image/screenshots).",
+      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed. Retention: six counted folders, so dream-mode (oldest, order 46) is removed (design in docs/superpowers/specs/2026-11-14-dream-mode-design.md; quick mock git show 203301d1:docs/features/dream-mode/). Counted now: live-translate, mcp-resolve-chat, ai-models-per-task, mcp-for-members, ask-ezy-image. template-store stays (live tooling)."
+    },
+    {
       "feature": "mcp-for-members",
       "creationOrder": 52,
       "createdAt": "2026-11-20",
@@ -99,7 +111,12 @@
       "confirmedAt": "2026-11-14",
       "confirmation": "Owner (Jazz) confirmed the quick mock on 2026-11-14 (\"look good\") on the review page with the screenshots, with Apply by itself limited to Business context facts as shown, and added: forwarded messages are never a learning source.",
       "coverage": "Quick mock only (not an app clone): the agent page with the Dream mode card off, on with changes waiting, on with Apply by itself, paused (AI not connected), and the See change dialog; 1280/360, light and dark for the main states (mock/shots.mjs, mock/screens/).",
-      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (app-navigation). Retention: removes cloud-auth-storage (design-only folder of 2026-11-08, already listed as archived; nothing links to it); template-store stays (live tooling)."
+      "note": "Not a mock baseline: the next clone still starts from latestConfirmed (app-navigation). Retention: removes cloud-auth-storage (design-only folder of 2026-11-08, already listed as archived; nothing links to it); template-store stays (live tooling).",
+      "archived": {
+        "folderRemovedAt": "2026-11-27",
+        "lastRevision": "203301d195af56f9310c5bf44ca506dff1a61603",
+        "reason": "retention: ask-ezy-image is the sixth counted feature folder; design stays in docs/superpowers/specs/2026-11-14-dream-mode-design.md; recover the quick mock with git show 203301d1:docs/features/dream-mode/"
+      }
     },
     {
       "feature": "ai-completion-rate",

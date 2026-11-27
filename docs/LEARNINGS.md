@@ -170,6 +170,10 @@ into AGENTS.md.
   a baseline for the next feature. Fetch and re-read `latestConfirmed` and the folder list on
   `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
   retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
+- A `latestConfirmed.gitRevision` from a squash-merged PR is often not in `main`'s history (`git show` says "bad
+  object"): clone the folder from `main`, record the folder's last commit there (`git log -1 -- <folder>`) as the
+  baseline revision, and say in `design.md` why it differs. In a cloud container the repo's `@playwright/test` may want a
+  browser that is not installed: run mock shot scripts with `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux*/chrome`.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.

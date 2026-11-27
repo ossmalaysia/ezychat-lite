@@ -268,7 +268,7 @@ then `messages.sendText(…, { scheduledTaskId })`: never claims the chat, `mess
 audit `scheduled_task.*` never hold the instruction or text. Lite import copies tasks switched off, no runs. Web:
 `admin/AgentScheduledTasksCard.tsx`, `ScheduledTaskDialog.tsx`, `ScheduledRunsDialog.tsx`, `api/scheduled-tasks.ts`.
 
-**Dream mode** (design `docs/superpowers/specs/2026-11-14-dream-mode-design.md`, quick mock `docs/features/dream-mode/`,
+**Dream mode** (design `docs/superpowers/specs/2026-11-14-dream-mode-design.md`, quick mock `git show 203301d1:docs/features/dream-mode/`,
 migration 045, `ai/dream/` (`repo.ts` is its only SQL), routes `/api/ai/agents/:agentId/dream*`, admins). Per agent, off by
 default: `ai_dream_settings` (enabled, `run_time` HH:MM in `ai_timezone`, `auto_apply`). `ai/dream/service.ts` ticks every
 60 s; a night (`UNIQUE(agent_id, slot)` in `ai_dream_runs`) runs once within 60 minutes of its time, later `missed`, never

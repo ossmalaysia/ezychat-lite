@@ -208,6 +208,15 @@ Proposed with the mobile redesign (added when the phone layout is built): `Filte
   composer. A size refusal (WhatsApp's limit, the tunnel's 100 MB) is said before uploading as an error toast that
   names the limit and where it works, and in the failed bubble with the same words. — screenshots in
   [`docs/features/mcp-file-upload/screens/`](https://github.com/ossmalaysia/ezychat-lite/tree/ee978fa4f6ce76f5d46795bfe719521c5ad9c147/docs/features/mcp-file-upload/screens) (archived)
+- **Pictures attached to a question** (proposed, ask-ezy-image; Ask Ezy): one ghost `icon-touch` picture button
+  (`ImagePlus`) left of the box opens the phone's camera/gallery picker; paste and drop add pictures too (drop shows a
+  dashed primary outline "Drop the picture to add it"). Waiting pictures are 56 px thumbnails (`rounded-md border`)
+  above the box, each with a small ✕ (24 px, 44 px touch area) and a muted "2 of 3"; a refusal is one `text-xs
+text-danger` line with the alert icon under them, in plain words with what to do. Sent pictures sit above the
+  question bubble (80 px, right-aligned) and open large in a `Dialog`. When the connection cannot read pictures the
+  button stays and shows an info `Banner` in the composer (admin: Open AI models). Don't disable or hide the button
+  as a status, show file types before something goes wrong, or put pictures inside the text bubble. —
+  `docs/features/ask-ezy-image/screenshots/02-pasted-*`, `03-two-pictures-*`, `04-wrong-type-*`, `05-unavailable-*`
 - **Small screens:** Dialog → Drawer (bottom sheet) below `sm` (`ResponsiveDialog`); tables → stacked cards below
   `lg`; admin side nav → top Tabs/Sheet below `md`; the inbox switches to its phone layout below `md` (768px, see
   [Mobile patterns](#mobile-patterns)). Filters that are segmented tabs on desktop are chips on phones.
