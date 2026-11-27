@@ -71,9 +71,6 @@ no-store` and a token valid for the one request, a security review (AGENTS.md "S
 - **A permanent home for the living design-system page** (2026-11-14): `/design-system` lived only in the
   mobile-redesign mock, which the five-folder rule archived. Move it out of `docs/features/` (e.g. `docs/design-system/` or
   the app behind a dev flag) so pruning a feature folder never removes it.
-- **jsdom 31** (2026-11-14, held back from Dependabot #369 in the combined merge): with jsdom 31 the web tests of
-  dialogs that close (AiMemberPage templates, InboxesPage, MembersPage, PartnerConnectorPage, ReplyWindow; 18 tests)
-  still find the dialog. Find what jsdom 31 changed (dialog/close or focus handling) before taking it; jsdom stays 30.
 - **MCP `send_audio` / voice note** (2026-11-08, from `feat/mcp-file-upload`): uploads take JPEG/PNG/WebP/PDF/.docx/MP4
   only. An audio tool would need the Ogg/Opus checks of `messages/voice-note.ts` for a voice note, or a plain audio
   file type list; and more document types for `send_file` (xlsx, pptx) if the owner wants them.

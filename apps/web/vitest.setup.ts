@@ -4,6 +4,14 @@ import { initI18n } from './src/i18n';
 
 await initI18n();
 
+// jsdom runs no CSS animations, so `animationend` never fires. Since jsdom 31 its computed style
+// applies stylesheet rules such as vaul's closing `animation-name` (slideToBottom), and Radix
+// Presence then waits forever for that event: closed drawers and dialogs never unmount. Turn
+// animations off, as a browser with no animation engine would report them.
+const noAnimations = document.createElement('style');
+noAnimations.textContent = '*, *::before, *::after { animation-name: none !important; }';
+document.head.appendChild(noAnimations);
+
 // React reports invalid HTML nesting (a form inside a form, a button inside a button) only as a
 // console error; the browser then breaks the markup. Every test fails on one.
 const nestingErrors: string[] = [];
