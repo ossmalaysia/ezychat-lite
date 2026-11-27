@@ -174,6 +174,9 @@ into AGENTS.md.
   object"): clone the folder from `main`, record the folder's last commit there (`git log -1 -- <folder>`) as the
   baseline revision, and say in `design.md` why it differs. In a cloud container the repo's `@playwright/test` may want a
   browser that is not installed: run mock shot scripts with `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux*/chrome`.
+- A git worktree must not symlink the whole `node_modules` of the main checkout: `node_modules/@ezychat/*` are relative
+  links, so they resolve to the **main checkout's** packages and tests silently run against old shared/server code.
+  Make a real `node_modules` folder, link each third-party entry, and link `@ezychat/*` to the worktree's own packages.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.

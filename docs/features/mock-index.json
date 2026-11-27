@@ -6,13 +6,13 @@
     "olderReferences": "git-history"
   },
   "latestConfirmed": {
-    "feature": "ai-models-per-task",
-    "gitRevision": "c4584db69e366a7770b40ffdf717b75d1cae66dd",
-    "mock": "docs/features/ai-models-per-task/mock/index.html",
-    "design": "docs/features/ai-models-per-task/design.md",
-    "confirmedAt": "2026-11-22",
-    "confirmation": "Owner (Jazz) confirmed 2026-11-22 (\"Yes, all suggested\"), relayed by the master session: Speed and quality: Faster · Balanced · Smarter (replacing Thinking Low/Medium/High; same words in Cloud), Translate defaults to Fast + Faster, Edit with AI joins Writing help, Ask Ezy setup and the Dream mode merge stay on the main model with no setting, the Reply suggestions card loses its model picker and gets a note, Claude thinking in phase 2.",
-    "note": "Clone of live-translate (4b112b68) with Settings → AI → AI models added (five rows, per connection, fallback warning) and the Reply suggestions model picker replaced by a note. Inherits live-translate coverage gaps; does not cover Ask Ezy or Live translate actually going faster, Enterprise edition differences or the Settings search."
+    "feature": "ask-ezy-image",
+    "gitRevision": "61269cb4650263573d992e5e8766ebb7792367e1",
+    "mock": "docs/features/ask-ezy-image/mock/index.html",
+    "design": "docs/features/ask-ezy-image/design.md",
+    "confirmedAt": "2026-11-27",
+    "confirmation": "Owner (Jazz) confirmed 2026-11-27 with one word, \"Yes\", relayed by the master session, to five points for Lite, Enterprise and Cloud alike: at most 2 pictures per question; a picture is sent only with its own question (later turns carry a text note); a picture with no words asks \"What does this show?\"; no daily picture cap in Lite (Cloud counts about 1,500 tokens per picture against its daily AI limit); camera photos as well as screenshots.",
+    "note": "Clone of ai-models-per-task (02f8a831) with pictures in the Ask Ezy panel; changed to 2 pictures after the confirmation. Inherits ai-models-per-task coverage gaps."
   },
   "proposals": [
     {
@@ -21,11 +21,12 @@
       "createdAt": "2026-11-27",
       "design": "docs/features/ask-ezy-image/design.md",
       "mock": "docs/features/ask-ezy-image/mock/index.html",
-      "status": "proposal",
+      "status": "confirmed",
       "baselineFeature": "ai-models-per-task",
       "baselineGitRevision": "02f8a831fa73f2860d65a06d8d52be3acfd1e311",
-      "coverage": "Full clone of the confirmed ai-models-per-task mock (as merged to main in 02f8a831; the recorded latestConfirmed revision c4584db6 is not reachable after the squash merge, the folder is unchanged since). Adds pictures to the Ask Ezy panel: picture button, Ctrl+V paste, drag and drop, thumbnails with remove (up to 3), wrong type / too large / fourth picture refusals, pictures in the question bubble with a large view, the sending state, the answer, and the \"AI connection cannot read pictures\" note with Ask without the picture; a dashed Mock only strip switches picture reading and a slow answer. 1280/360, light/dark (mock/ask-ezy-image-shots.mjs, docs/features/ask-ezy-image/screenshots).",
-      "note": "Not a baseline until the owner confirms; the next clone still starts from latestConfirmed. Retention: six counted folders, so dream-mode (oldest, order 46) is removed (design in docs/superpowers/specs/2026-11-14-dream-mode-design.md; quick mock git show 203301d1:docs/features/dream-mode/). Counted now: live-translate, mcp-resolve-chat, ai-models-per-task, mcp-for-members, ask-ezy-image. template-store stays (live tooling)."
+      "coverage": "Full clone of the confirmed ai-models-per-task mock (as merged to main in 02f8a831; the recorded latestConfirmed revision c4584db6 is not reachable after the squash merge, the folder is unchanged since). Adds pictures to the Ask Ezy panel: picture button, Ctrl+V paste, drag and drop, thumbnails with remove (up to 2), wrong type / too large / third picture refusals, pictures in the question bubble with a large view, the sending state, the answer, and the \"AI connection cannot read pictures\" note with Ask without the picture; a dashed Mock only strip switches picture reading and a slow answer. 1280/360, light/dark (mock/ask-ezy-image-shots.mjs, docs/features/ask-ezy-image/screenshots).",
+      "note": "Confirmed 2026-11-27 (\"Yes\"); latestConfirmed, so the next clone starts from 61269cb4. Retention: six counted folders, so dream-mode (oldest, order 46) is removed (design in docs/superpowers/specs/2026-11-14-dream-mode-design.md; quick mock git show 203301d1:docs/features/dream-mode/). Counted now: live-translate, mcp-resolve-chat, ai-models-per-task, mcp-for-members, ask-ezy-image. template-store stays (live tooling).",
+      "confirmedAt": "2026-11-27"
     },
     {
       "feature": "mcp-for-members",

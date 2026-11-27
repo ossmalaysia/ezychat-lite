@@ -7,6 +7,7 @@ import {
   Check,
   CheckCheck,
   Copy,
+  ImagePlus,
   Pencil,
   CornerDownRight,
   Loader2,
@@ -43,10 +44,20 @@ import type {
 } from '@ezychat/shared';
 import { askEzy, askEzyChange, getAskEzyStatus } from './api';
 import { AskEzyBlock, type ChangeState } from './AskEzyBlocks';
+import {
+  MAX_PICTURES,
+  PICTURE_ACCEPT,
+  PictureTray,
+  QuestionPictures,
+  readPictures,
+  releasePictures,
+  type Picture,
+  type PictureProblem,
+} from './AskEzyPictures';
 import { useAskEzy, type AskEzyRequest } from './AskEzyContext';
 
 type Turn =
-  | { role: 'user'; id: number; text: string }
+  | { role: 'user'; id: number; text: string; pictures?: Picture[] }
   | { role: 'ezy'; id: number; answer: AskAnswer; request: AskEzyRequest }
   | { role: 'error'; id: number; code: string; retry: AskEzyRequest; steps: AskEzyStep[] };
 
@@ -82,7 +93,15 @@ function answerForHistory(answer: AskAnswer, changes: Record<string, ChangeState
 function historyOf(turns: Turn[], changes: Record<string, ChangeState>): AskEzyTurn[] {
   const out: AskEzyTurn[] = [];
   for (const turn of turns) {
-    if (turn.role === 'user') out.push({ role: 'user', text: turn.text.slice(0, 4000) });
+    // A picture goes to the model only with its own question: later turns carry a note (owner 2026-11-27).
+    if (turn.role === 'user')
+      out.push({
+        role: 'user',
+        text: (turn.pictures?.length
+          ? `${turn.text}\n[${turn.pictures.length} picture(s) were attached to this question; not sent again]`
+          : turn.text
+        ).slice(0, 4000),
+      });
     else if (turn.role === 'ezy')
       out.push({ role: 'assistant', text: answerForHistory(turn.answer, changes) });
   }
@@ -107,6 +126,7 @@ const STEP_KEYS = [
   'propose_agent',
   'propose_scheduled_task',
   'propose_scheduled_task_edit',
+  'pictures',
 ] as const;
 type StepKey = (typeof STEP_KEYS)[number] | 'other';
 
@@ -206,6 +226,25 @@ export function AskEzyPanel() {
   const [status, setStatus] = useState('');
   const [connected, setConnected] = useState(true);
   const [changes, setChanges] = useState<Record<string, ChangeState>>({});
+  // Pictures waiting in the box, a refusal, and whether the Ask Ezy model reads pictures.
+  const [pictures, setPictures] = useState<Picture[]>([]);
+  const [pictureProblem, setPictureProblem] = useState<PictureProblem | null>(null);
+  const [picturesOk, setPicturesOk] = useState(true);
+  const [picturesNote, setPicturesNote] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const addPictures = async (files: File[]) => {
+    if (!files.length) return;
+    if (!picturesOk) {
+      setPicturesNote(true);
+      return;
+    }
+    const read = await readPictures(files, pictures.length);
+    setPictures((v) => [...v, ...read.pictures].slice(0, MAX_PICTURES));
+    setPictureProblem(read.problem);
+    if (read.pictures.length)
+      setStatus(t('askEzy.pictures.added', { count: pictures.length + read.pictures.length }));
+  };
   const abort = useRef<AbortController | null>(null);
   const doneSteps = useRef<AskEzyStep[]>([]);
   const nextId = useRef(1);
@@ -214,12 +253,17 @@ export function AskEzyPanel() {
   const boxRef = useRef<HTMLTextAreaElement>(null);
 
   const send = async (request: AskEzyRequest) => {
-    const question = request.question.trim();
+    const sentPictures = request.pictures ?? [];
+    // A picture without words asks the default question (owner 2026-11-27).
+    const question =
+      request.question.trim() || (sentPictures.length ? t('askEzy.pictures.defaultQuestion') : '');
     if (!question || busy) return;
     const chatJid = request.chatJid ?? scope?.jid ?? null;
     const userTurn = nextId.current++;
-    setTurns((v) => [...v, { role: 'user', id: userTurn, text: question }]);
+    setTurns((v) => [...v, { role: 'user', id: userTurn, text: question, pictures: sentPictures }]);
     setDraft('');
+    setPictures([]);
+    setPictureProblem(null);
     setSteps([]);
     doneSteps.current = [];
     setBusy(true);
@@ -228,7 +272,14 @@ export function AskEzyPanel() {
     abort.current = controller;
     try {
       const answer = await askEzy(
-        { question, history: historyOf(turns, changes), chatJid },
+        {
+          question,
+          history: historyOf(turns, changes),
+          chatJid,
+          ...(sentPictures.length
+            ? { pictures: sentPictures.map((p) => ({ base64: p.base64 })) }
+            : {}),
+        },
         (step) => {
           doneSteps.current = [...doneSteps.current, step];
           setSteps(doneSteps.current);
@@ -236,7 +287,10 @@ export function AskEzyPanel() {
         controller.signal,
       );
       const id = nextId.current++;
-      setTurns((v) => [...v, { role: 'ezy', id, answer, request: { question, chatJid } }]);
+      setTurns((v) => [
+        ...v,
+        { role: 'ezy', id, answer, request: { question, chatJid, pictures: sentPictures } },
+      ]);
       setStatus(t('askEzy.readyWith', { first: answer.text.split(/(?<=[.!?])\s/)[0] }));
       // A new answer opens at its first line, not at its end (long answers start with the summary).
       requestAnimationFrame(() =>
@@ -250,13 +304,14 @@ export function AskEzyPanel() {
           ? e.code
           : 'ai_unavailable';
       if (code === 'ai_not_connected') setConnected(false);
+      if (code === 'pictures_unavailable') setPicturesOk(false);
       setTurns((v) => [
         ...v,
         {
           role: 'error',
           id: nextId.current++,
           code,
-          retry: { question, chatJid },
+          retry: { question, chatJid, pictures: sentPictures },
           steps: doneSteps.current,
         },
       ]);
@@ -324,7 +379,10 @@ export function AskEzyPanel() {
   useEffect(() => {
     if (!open) return;
     getAskEzyStatus()
-      .then((s) => setConnected(s.connected))
+      .then((s) => {
+        setConnected(s.connected);
+        setPicturesOk(s.pictures);
+      })
       .catch(() => setConnected(true));
     const pending = takePending();
     if (pending?.chatJid && pending.chatName)
@@ -348,11 +406,19 @@ export function AskEzyPanel() {
   const [confirmNew, setConfirmNew] = useState(false);
   const newChat = () => {
     abort.current?.abort();
-    setTurns([]);
+    setTurns((v) => {
+      for (const turn of v)
+        if (turn.role === 'user' && turn.pictures) releasePictures(turn.pictures);
+      return [];
+    });
     setScope(null);
     setDraft('');
     setSteps([]);
     setChanges({});
+    releasePictures(pictures);
+    setPictures([]);
+    setPictureProblem(null);
+    setPicturesNote(false);
     boxRef.current?.focus();
   };
 
@@ -376,6 +442,10 @@ export function AskEzyPanel() {
           title: t('askEzy.errors.expired'),
           body: isAdmin ? t('askEzy.errors.expiredAdmin') : t('askEzy.errors.expiredMember'),
         };
+      case 'picture_too_large':
+        return { title: t('askEzy.pictures.errorSize'), body: t('askEzy.pictures.errorSizeBody') };
+      case 'picture_type':
+        return { title: t('askEzy.pictures.errorType'), body: t('askEzy.pictures.errorTypeBody') };
       case 'rate_limited':
         return { title: t('askEzy.errors.busy'), body: t('askEzy.errors.busyBody') };
       default:
@@ -392,6 +462,19 @@ export function AskEzyPanel() {
       onClick={closePanel}
     >
       <Link to="/admin/settings/ai">{t('askEzy.errors.openSettings')}</Link>
+    </Button>
+  );
+
+  /** Where an admin picks a model that reads pictures (Settings → AI → AI models). */
+  const modelsButton = (
+    <Button
+      asChild
+      size="sm"
+      variant="outline"
+      className="pointer-coarse:min-h-11"
+      onClick={closePanel}
+    >
+      <Link to="/admin/settings/ai">{t('askEzy.pictures.openModels')}</Link>
     </Button>
   );
 
@@ -489,6 +572,7 @@ export function AskEzyPanel() {
                   </p>
                   <p className="text-sm font-medium text-muted-foreground">{t('askEzy.tryOne')}</p>
                   <Suggestions items={starters} onPick={(q) => void send({ question: q })} />
+                  <p className="text-xs text-muted-foreground">{t('askEzy.pictures.emptyHint')}</p>
                 </div>
               ) : (
                 setupFirst
@@ -506,9 +590,14 @@ export function AskEzyPanel() {
                 className="flex min-w-0 scroll-mt-2 flex-col gap-2"
               >
                 {turn.role === 'user' && (
-                  <p className="max-w-[85%] self-end rounded-lg rounded-br-sm bg-muted px-3 py-2 text-sm whitespace-pre-wrap">
-                    {turn.text}
-                  </p>
+                  <>
+                    {turn.pictures && turn.pictures.length > 0 && (
+                      <QuestionPictures pictures={turn.pictures} />
+                    )}
+                    <p className="max-w-[85%] self-end rounded-lg rounded-br-sm bg-muted px-3 py-2 text-sm whitespace-pre-wrap">
+                      {turn.text}
+                    </p>
+                  </>
                 )}
                 {turn.role === 'ezy' && (
                   <AnswerView
@@ -528,7 +617,32 @@ export function AskEzyPanel() {
                   />
                 )}
                 {turn.role === 'error' &&
-                  (turn.code === 'ai_not_connected' ? (
+                  (turn.code === 'pictures_unavailable' ? (
+                    <Notice
+                      tone="info"
+                      testId="ask-ezy-error"
+                      title={t('askEzy.pictures.unavailable')}
+                      body={
+                        isAdmin
+                          ? t('askEzy.pictures.unavailableAdmin')
+                          : t('askEzy.pictures.unavailableMember')
+                      }
+                      action={
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="pointer-coarse:min-h-11"
+                            onClick={() => void send({ ...turn.retry, pictures: [] })}
+                            disabled={busy}
+                          >
+                            {t('askEzy.pictures.askWithout')}
+                          </Button>
+                          {isAdmin && modelsButton}
+                        </>
+                      }
+                    />
+                  ) : turn.code === 'ai_not_connected' ? (
                     <Notice
                       tone="info"
                       testId="ask-ezy-error"
@@ -641,12 +755,70 @@ export function AskEzyPanel() {
         </div>
 
         <form
-          className="safe-bottom flex flex-col gap-1.5 border-t px-4 pt-3 pb-3"
+          className={cn(
+            'safe-bottom relative flex flex-col gap-1.5 border-t px-4 pt-3 pb-3',
+            dragging && 'bg-primary/5',
+          )}
           onSubmit={(e) => {
             e.preventDefault();
-            void send({ question: draft });
+            void send({ question: draft, pictures });
+          }}
+          onDragOver={(e) => {
+            if (!connected || !e.dataTransfer.types.includes('Files')) return;
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            if (!e.dataTransfer.files.length) return;
+            e.preventDefault();
+            setDragging(false);
+            void addPictures([...e.dataTransfer.files]);
           }}
         >
+          {dragging && (
+            <p className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-background/90 text-sm font-medium text-primary">
+              {t('askEzy.pictures.drop')}
+            </p>
+          )}
+          {picturesNote && (
+            <Notice
+              tone="info"
+              testId="ask-ezy-pictures-unavailable"
+              title={t('askEzy.pictures.unavailable')}
+              body={
+                isAdmin
+                  ? t('askEzy.pictures.unavailableAdmin')
+                  : t('askEzy.pictures.unavailableMember')
+              }
+              action={
+                <>
+                  {isAdmin && modelsButton}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="pointer-coarse:min-h-11"
+                    onClick={() => setPicturesNote(false)}
+                  >
+                    {t('askEzy.pictures.gotIt')}
+                  </Button>
+                </>
+              }
+            />
+          )}
+          <PictureTray
+            pictures={pictures}
+            problem={pictureProblem}
+            onRemove={(id) => {
+              setPictures((v) => {
+                releasePictures(v.filter((p) => p.id === id));
+                return v.filter((p) => p.id !== id);
+              });
+              setPictureProblem(null);
+              setStatus(t('askEzy.pictures.removed'));
+            }}
+          />
           {scope && (
             <p className="flex h-7 items-center gap-1 self-start rounded-md bg-muted pr-1 pl-2 text-xs">
               {t('askEzy.scope', { name: scope.name })}
@@ -663,20 +835,57 @@ export function AskEzyPanel() {
             </p>
           )}
           <div className="flex items-end gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept={PICTURE_ACCEPT}
+              multiple
+              hidden
+              data-testid="ask-ezy-picture-input"
+              onChange={(e) => {
+                void addPictures([...(e.target.files ?? [])]);
+                e.target.value = '';
+              }}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-touch"
+              className="shrink-0 text-muted-foreground"
+              disabled={!connected || busy}
+              onClick={() => (picturesOk ? fileRef.current?.click() : setPicturesNote(true))}
+              aria-label={t('askEzy.pictures.add')}
+              title={t('askEzy.pictures.addHint')}
+              data-testid="ask-ezy-attach"
+            >
+              <ImagePlus aria-hidden />
+            </Button>
             <Textarea
               ref={boxRef}
               value={draft}
               maxLength={MAX_CHARS}
               rows={1}
               disabled={!connected}
-              placeholder={isAdmin ? t('askEzy.placeholder') : t('askEzy.placeholderMember')}
+              placeholder={
+                pictures.length
+                  ? t('askEzy.pictures.placeholder')
+                  : isAdmin
+                    ? t('askEzy.placeholder')
+                    : t('askEzy.placeholderMember')
+              }
               aria-label={isAdmin ? t('askEzy.placeholder') : t('askEzy.placeholderMember')}
               className="max-h-40 min-h-11 resize-none"
               onChange={(e) => setDraft(e.target.value)}
+              onPaste={(e) => {
+                const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'));
+                if (!files.length) return;
+                e.preventDefault();
+                void addPictures(files);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
-                  void send({ question: draft });
+                  void send({ question: draft, pictures });
                 }
               }}
             />
@@ -696,7 +905,7 @@ export function AskEzyPanel() {
                 type="submit"
                 size="icon-touch"
                 className="shrink-0"
-                disabled={!draft.trim() || !connected}
+                disabled={(!draft.trim() && !pictures.length) || !connected}
                 aria-label={t('askEzy.send')}
               >
                 <ArrowUp aria-hidden />

@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { AskEzyAnswer, AskEzyEvent } from '@ezychat/shared';
@@ -34,6 +34,7 @@ beforeAll(() => {
 type Reply = { status?: number; events?: AskEzyEvent[]; json?: unknown; hang?: boolean };
 let replies: Reply[];
 let connected: boolean;
+let readsPictures: boolean;
 const sent: Array<{ url: string; body: unknown }> = [];
 
 const stream = (events: AskEzyEvent[]) =>
@@ -44,6 +45,7 @@ const stream = (events: AskEzyEvent[]) =>
 beforeEach(() => {
   replies = [];
   connected = true;
+  readsPictures = true;
   sent.length = 0;
   auth.isAdmin = true;
   auth.user.role = 'admin';
@@ -55,7 +57,7 @@ beforeEach(() => {
       const body = init?.body ? JSON.parse(String(init.body)) : null;
       sent.push({ url, body });
       if (url === '/api/ask-ezy/status')
-        return new Response(JSON.stringify({ connected }), {
+        return new Response(JSON.stringify({ connected, pictures: readsPictures }), {
           headers: { 'content-type': 'application/json' },
         });
       const next = replies.shift() ?? { events: [] };
@@ -496,5 +498,138 @@ describe('AskEzyPanel', () => {
         .filter((s) => s.url === '/api/ask-ezy')
         .map((s) => (s.body as { question: string }).question),
     ).toEqual(['First', 'Second']);
+  });
+});
+
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const pngFile = (name = 'shot.png') =>
+  new File([new Uint8Array([...PNG, 1, 2, 3, 4])], name, { type: 'image/png' });
+const pngBase64 = btoa(String.fromCharCode(...PNG, 1, 2, 3, 4));
+const pick = (files: File[]) =>
+  fireEvent.change(screen.getByTestId('ask-ezy-picture-input'), { target: { files } });
+type Sent = {
+  question: string;
+  pictures?: Array<{ base64: string }>;
+  history: Array<{ text: string }>;
+};
+const askBodies = () => sent.filter((x) => x.url === '/api/ask-ezy').map((x) => x.body as Sent);
+
+describe('AskEzyPanel pictures (design ask-ezy-image)', () => {
+  it('adds up to 2 pictures, removes one, sends them with the question only, and notes them in history', async () => {
+    replies.push({ events: [answer({ text: 'It handed over a discount.' })] });
+    replies.push({ events: [answer({ text: 'Twice this week.' })] });
+    const user = renderPanel();
+    await user.click(screen.getByRole('button', { name: /ask ezy/i }));
+    expect(await screen.findByText(/You can also add a screenshot/)).toBeTruthy();
+    pick([pngFile('a.png')]);
+    expect(await screen.findByText('1 of 2')).toBeTruthy();
+    pick([pngFile('b.png'), pngFile('c.png')]);
+    expect(await screen.findByText('You can add up to 2 pictures to one question.')).toBeTruthy();
+    expect(screen.getByText('2 of 2')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Remove picture 2' }));
+    expect(screen.getByText('1 of 2')).toBeTruthy();
+    expect(screen.queryByTestId('ask-ezy-picture-error')).toBeNull();
+    pick([pngFile('d.png')]);
+    await screen.findByText('2 of 2');
+    const box = screen.getByRole('textbox');
+    await user.type(box, 'What made this trigger?{Enter}');
+    expect(await screen.findByText('It handed over a discount.')).toBeTruthy();
+    expect(askBodies()[0]).toMatchObject({
+      question: 'What made this trigger?',
+      pictures: [{ base64: pngBase64 }, { base64: pngBase64 }],
+    });
+    expect(
+      within(screen.getByTestId('ask-ezy-question-pictures')).getAllByRole('button'),
+    ).toHaveLength(2);
+    expect(screen.queryByTestId('ask-ezy-pictures')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Open picture 1' }));
+    expect(await screen.findByRole('dialog', { name: 'Picture' })).toBeTruthy();
+    await user.keyboard('{Escape}');
+    await user.type(screen.getByRole('textbox'), 'How often?{Enter}');
+    await screen.findByText('Twice this week.');
+    expect(askBodies()[1]!.pictures).toBeUndefined();
+    expect(askBodies()[1]!.history[0]!.text).toBe(
+      'What made this trigger?\n[2 picture(s) were attached to this question; not sent again]',
+    );
+  });
+
+  it('sends a picture without words with the default question, from a paste', async () => {
+    replies.push({ events: [answer({ text: 'A chat screen.' })] });
+    const user = renderPanel();
+    await user.click(screen.getByRole('button', { name: /ask ezy/i }));
+    const box = await screen.findByRole('textbox');
+    expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.paste(box, { clipboardData: { files: [pngFile()] } });
+    await screen.findByText('1 of 2');
+    expect(box.getAttribute('placeholder')).toMatch(/Ask about this picture/);
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText('A chat screen.');
+    expect(askBodies()[0]!.question).toBe('What does this show?');
+    expect(screen.getByText('What does this show?')).toBeTruthy();
+  });
+
+  it('adds a dropped picture and refuses a wrong type and a file that is too large', async () => {
+    const user = renderPanel();
+    await user.click(screen.getByRole('button', { name: /ask ezy/i }));
+    await screen.findByRole('textbox');
+    const form = screen.getByTestId('ask-ezy-picture-input').closest('form')!;
+    fireEvent.dragOver(form, { dataTransfer: { types: ['Files'], files: [] } });
+    expect(screen.getByText('Drop the picture to add it')).toBeTruthy();
+    fireEvent.drop(form, { dataTransfer: { types: ['Files'], files: [pngFile()] } });
+    await screen.findByText('1 of 2');
+    expect(screen.queryByText('Drop the picture to add it')).toBeNull();
+    pick([new File([new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0])], 'x.gif')]);
+    expect(await screen.findByText(/not a picture Ezy can read/)).toBeTruthy();
+    const big = pngFile('big.png');
+    Object.defineProperty(big, 'size', { value: 21 * 1024 * 1024 });
+    pick([big]);
+    expect(await screen.findByText(/This picture is too large/)).toBeTruthy();
+    expect(screen.getByText('1 of 2')).toBeTruthy();
+  });
+
+  it('says first when the AI connection cannot read pictures, with AI models for an admin', async () => {
+    readsPictures = false;
+    const user = renderPanel();
+    await user.click(screen.getByRole('button', { name: /ask ezy/i }));
+    const box = await screen.findByRole('textbox');
+    await waitFor(() => expect(sent.some((x) => x.url === '/api/ask-ezy/status')).toBe(true));
+    await user.click(screen.getByRole('button', { name: 'Add a picture' }));
+    const note = await screen.findByTestId('ask-ezy-pictures-unavailable');
+    expect(within(note).getByRole('link', { name: 'Open AI models' })).toBeTruthy();
+    await user.click(within(note).getByRole('button', { name: 'OK' }));
+    expect(screen.queryByTestId('ask-ezy-pictures-unavailable')).toBeNull();
+    fireEvent.paste(box, { clipboardData: { files: [pngFile()] } });
+    expect(await screen.findByTestId('ask-ezy-pictures-unavailable')).toBeTruthy();
+    expect(screen.queryByTestId('ask-ezy-pictures')).toBeNull();
+  });
+
+  it('offers to ask without the picture when the server refuses it', async () => {
+    auth.isAdmin = false;
+    auth.user.role = 'agent';
+    replies.push({ status: 409, json: { error: { code: 'pictures_unavailable', message: 'x' } } });
+    replies.push({ events: [answer({ text: 'Answered in words.' })] });
+    const user = renderPanel();
+    await user.click(screen.getByRole('button', { name: /ask ezy/i }));
+    await screen.findByRole('textbox');
+    pick([pngFile()]);
+    await screen.findByText('1 of 2');
+    await user.type(screen.getByRole('textbox'), 'Why?{Enter}');
+    const error = await screen.findByTestId('ask-ezy-error');
+    expect(within(error).getByText(/Describe what you see in words/)).toBeTruthy();
+    expect(within(error).queryByRole('link', { name: 'Open AI models' })).toBeNull();
+    await user.click(within(error).getByRole('button', { name: 'Ask without the picture' }));
+    await screen.findByText('Answered in words.');
+    expect(askBodies()[1]).toMatchObject({ question: 'Why?' });
+    expect(askBodies()[1]!.pictures).toBeUndefined();
+  });
+
+  it('explains a picture the server finds too large or unreadable', async () => {
+    replies.push({ status: 413, json: { error: { code: 'picture_too_large', message: 'x' } } });
+    replies.push({ status: 415, json: { error: { code: 'picture_type', message: 'x' } } });
+    const user = renderPanel();
+    await openAndAsk(user, 'One');
+    expect(await screen.findByText('The picture is too large')).toBeTruthy();
+    await user.type(screen.getByRole('textbox'), 'Two{Enter}');
+    expect(await screen.findByText('Ezy can’t read this file')).toBeTruthy();
   });
 });

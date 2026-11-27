@@ -3,6 +3,7 @@ import {
   AskEzyEvent,
   AskEzyStatus,
   type AskEzyAnswer,
+  type AskEzyPicture,
   type AskEzyStep,
   type AskEzyTurn,
 } from '@ezychat/shared';
@@ -21,10 +22,16 @@ export const askEzyChange = (id: string, action: AskEzyChangeAction) =>
 /**
  * Asks one question. The answer streams as NDJSON: `onStep` gets each tool Ezy used while it works; resolves
  * with the answer, or throws an ApiError (`ai_not_connected`, `ai_unavailable`, `ai_timeout`, `ai_expired`,
- * `rate_limited`, …) or an AbortError.
+ * `rate_limited`, `pictures_unavailable`, `picture_too_large`, `picture_type`, …) or an AbortError.
  */
 export async function askEzy(
-  input: { question: string; history: AskEzyTurn[]; chatJid: string | null },
+  input: {
+    question: string;
+    history: AskEzyTurn[];
+    chatJid: string | null;
+    /** 0–2 pictures for this question only (base64; the server reads the type from the bytes). */
+    pictures?: AskEzyPicture[];
+  },
   onStep: (step: AskEzyStep) => void,
   signal: AbortSignal,
 ): Promise<AskEzyAnswer> {

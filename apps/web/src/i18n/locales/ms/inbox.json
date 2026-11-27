@@ -882,7 +882,9 @@
       "list_scheduled_tasks_other": "{{count}} tugasan berjadual",
       "propose_agent": "pelan ejen baharu",
       "propose_scheduled_task": "pratonton mesej",
-      "propose_scheduled_task_edit": "perubahan pada tugasan berjadual"
+      "propose_scheduled_task_edit": "perubahan pada tugasan berjadual",
+      "pictures_one": "gambar anda",
+      "pictures_other": "{{count}} gambar anda"
     },
     "summariseButton": "Ringkaskan dengan Ezy",
     "readyWith": "Jawapan sedia: {{first}}",
@@ -920,6 +922,38 @@
       "agentStays": "Dicipta. Ejen ini kekal, dimatikan: ubah di halamannya.",
       "agentNeedsTask": "Apakah yang perlu dihantar oleh ejen baharu, kepada sembang mana, dan bila? Ejen baharu disediakan bersama tugasan berjadualnya.",
       "previewNotReady": "Pratonton mengambil masa terlalu lama, jadi ia tidak ditunjukkan. Tugasan tetap berfungsi."
+    },
+    "pictures": {
+      "add": "Tambah gambar",
+      "addHint": "Tambah gambar atau tangkapan skrin (atau tampal dengan Ctrl+V)",
+      "emptyHint": "Anda juga boleh tambah tangkapan skrin: tampal, lepaskan di sini atau tekan butang gambar.",
+      "placeholder": "Tanya tentang gambar ini, cth. Kenapa AI serahkan kepada pasukan?",
+      "tray": "Gambar untuk soalan ini",
+      "alt": "Gambar {{n}}",
+      "remove": "Buang gambar {{n}}",
+      "count": "{{count}} daripada {{max}}",
+      "open": "Buka gambar {{n}}",
+      "viewer": "Gambar",
+      "added_one": "Gambar ditambah",
+      "added_other": "{{count}} gambar ditambah",
+      "removed": "Gambar dibuang",
+      "drop": "Lepaskan gambar untuk menambahnya",
+      "problem": {
+        "type": "Fail ini bukan gambar yang Ezy boleh baca. Guna gambar JPEG, PNG atau WebP.",
+        "size": "Gambar ini terlalu besar. Guna gambar bawah 5 MB, atau ambil tangkapan skrin yang lebih kecil.",
+        "count": "Anda boleh tambah sehingga {{max}} gambar untuk satu soalan."
+      },
+      "errorSize": "Gambar terlalu besar",
+      "errorSizeBody": "Guna gambar bawah 5 MB dan tanya semula.",
+      "errorType": "Ezy tidak dapat membaca fail ini",
+      "errorTypeBody": "Guna gambar JPEG, PNG atau WebP dan tanya semula.",
+      "unavailable": "Ezy tidak dapat membaca gambar dengan sambungan AI anda",
+      "unavailableAdmin": "Model AI yang dipilih untuk Ask Ezy tidak membaca gambar. Pilih model lain di Tetapan → AI → Model AI, atau terangkan apa yang anda lihat.",
+      "unavailableMember": "Terangkan apa yang anda lihat dengan perkataan, atau minta admin memilih model AI yang membaca gambar.",
+      "askWithout": "Tanya tanpa gambar",
+      "openModels": "Buka Model AI",
+      "gotIt": "OK",
+      "defaultQuestion": "Apa yang ditunjukkan ini?"
     }
   },
   "safety": {
