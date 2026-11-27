@@ -42,7 +42,7 @@ export const ASK_EZY_ADMIN_TOOLS: readonly string[] = [
 ];
 /**
  * The setup turn (after `start_setup`, on the main model) adds these; a normal admin turn has only
- * `start_setup` instead.
+ * `list_scheduled_tasks` (read only) and `start_setup` instead.
  */
 export const ASK_EZY_SETUP_TOOLS: readonly string[] = [
   'list_scheduled_tasks',
@@ -374,10 +374,12 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
           return { result: { started: true }, count: 0 };
         }),
     });
-  if (isAdmin && deps.mode === 'setup') {
+  // Read only, so an admin's normal turn has it too: it explains a message a scheduled task sent (get_messages
+  // scheduledTask). Proposing or changing a task stays in the setup turn.
+  if (isAdmin)
     tools.list_scheduled_tasks = tool({
       description:
-        "Lists the AI agents' scheduled tasks (taskId, agent, name, time, days, chat, instruction, on/off) in the business time zone. Read it before changing a task.",
+        "Lists the AI agents' scheduled tasks (taskId, agent, name, time, days, chat, instruction, on/off) in the business time zone. Read it to explain a message get_messages shows with scheduledTask (its time, days and instruction say why it was sent), and before changing a task.",
       inputSchema: ListTasksInput,
       execute: (args) =>
         run('list_scheduled_tasks', () => {
@@ -386,6 +388,7 @@ export function askEzyTools(deps: AskEzyToolDeps): ToolSet {
           return { result: { tasks }, count: tasks.length };
         }),
     });
+  if (isAdmin && deps.mode === 'setup') {
     tools.propose_agent = tool({
       description:
         "Proposes a new AI agent that sends scheduled messages (it never answers chats; the server writes its instructions from purpose). Always propose its scheduled task in the same answer: call propose_scheduled_task with agentProposalId, then add both blocks; a new agent without its task is left out. Nothing is created: the admin applies both with one button, and the agent starts switched off. Refused at the edition's agent limit (then offer an existing agent) and for a generic name. Returns proposalId: add a block {type: 'agent_proposal', json: '{\"id\":\"<proposalId>\"}'}.",

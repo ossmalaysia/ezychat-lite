@@ -148,6 +148,10 @@ export function messageDto(m: Message, names: Map<number, string>) {
         : { mime: m.mediaMime, name: m.mediaName, status: m.mediaStatus },
     quotedId: m.quotedId,
     status: m.status,
+    // Sent by an AI agent's scheduled task: lets an assistant explain why it was sent (list_scheduled_tasks).
+    ...(m.scheduledTask
+      ? { scheduledTask: { taskId: m.scheduledTask.id, name: m.scheduledTask.name } }
+      : {}),
   };
 }
 
@@ -211,7 +215,7 @@ const getMessages: ToolDef<typeof McpGetMessagesInput> = {
   name: 'get_messages',
   title: 'Read chat messages',
   description:
-    'Messages of one chat in time order (oldest first within the page). Pass nextBefore to page back to older messages. Media is described by type and file name only.' +
+    "Messages of one chat in time order (oldest first within the page). Pass nextBefore to page back to older messages. Media is described by type and file name only. A message an AI agent's scheduled task sent has scheduledTask (taskId, name): its time, days and instruction (list_scheduled_tasks, admins) say why it was sent." +
     UNTRUSTED,
   scope: 'inbox:read',
   input: McpGetMessagesInput,

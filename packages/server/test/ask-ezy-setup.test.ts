@@ -225,6 +225,52 @@ describe('Ask Ezy sets up scheduled tasks (Lite)', () => {
     expect(JSON.stringify(line)).not.toContain('08:30');
   });
 
+  it("explains a scheduled task's message in a normal turn: get_messages names the task, list_scheduled_tasks reads it", async () => {
+    // A tester asked Ask Ezy why a reminder went to his group, and Ezy could not tell it came from a task.
+    const s = await setup({ fastOnly: true });
+    const task = s.t.ctx.services.scheduled!.create(
+      s.agentId,
+      ScheduledTaskBody.parse({
+        name: 'Morning greeting',
+        time: '09:00',
+        dayRule: 'daily',
+        chatJid: JEE,
+        instruction: INSTRUCTION,
+      }),
+      s.actor,
+    );
+    const insert = s.t.ctx.db.prepare(
+      `INSERT INTO messages (id, chat_jid, from_me, type, body, status, timestamp, created_at, scheduled_task_id)
+       VALUES (?, ?, ?, 'text', ?, 'sent', ?, ?, ?)`,
+    );
+    insert.run('S1', JEE, 1, PREVIEW, 2000, 2000, task.id);
+    insert.run('C1', JEE, 0, 'Thanks!', 3000, 3000, null);
+    let names: string[] = [];
+    let page: Record<string, unknown> = {};
+    let listed: Record<string, unknown> = {};
+    s.setScript(async (tools) => {
+      names = Object.keys(tools);
+      page = await exec(tools, 'get_messages', { jid: JEE });
+      listed = await exec(tools, 'list_scheduled_tasks', {});
+      return { text: 'Morning greeting sends it at 09:00 every day.', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie, 'Why did Jee Fong get the greeting?');
+    // The normal turn reads the tasks, proposes none, and keeps start_setup for changes.
+    expect(names).toEqual(expect.arrayContaining(['list_scheduled_tasks', 'start_setup']));
+    expect(names).not.toContain('propose_scheduled_task');
+    const messages = (page.messages ?? []) as Record<string, unknown>[];
+    expect(messages.find((m) => m.id === 'S1')?.scheduledTask).toEqual({
+      taskId: task.id,
+      name: 'Morning greeting',
+    });
+    expect(messages.find((m) => m.id === 'C1')).not.toHaveProperty('scheduledTask');
+    expect(listed).toMatchObject({
+      tasks: [
+        { taskId: task.id, name: 'Morning greeting', time: '09:00', instruction: INSTRUCTION },
+      ],
+    });
+  });
+
   it('gives team members none of the setup tools and no setup cards', async () => {
     const s = await setup();
     let names: string[] = [];
