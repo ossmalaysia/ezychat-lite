@@ -76,6 +76,18 @@ describe('runAgentTurn', () => {
     expect(result.decision.reply).toBe('The *Kaya jam* is RM14.50.');
   });
 
+  it('formats a reply of the longest length with a heading line quickly (L-30)', async () => {
+    // The old heading pattern took about 30 s for this reply, on the server's main thread.
+    const line = `a${' '.repeat(4_000)}b`;
+    const model = new MockLanguageModelV4({
+      doGenerate: [answer({ reply: `# ${line} #`, action: 'answer', handoffReason: null })],
+    });
+    const started = performance.now();
+    const result = await runAgentTurn({ ...turn(model), tools: undefined });
+    expect(result.decision.reply).toBe(line);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('answers in one call when no tools are offered', async () => {
     const model = new MockLanguageModelV4({
       doGenerate: [answer({ reply: 'Hi', action: 'answer', handoffReason: null })],

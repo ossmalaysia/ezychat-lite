@@ -47,6 +47,15 @@ into AGENTS.md.
 - Before timing a flagged regex, trace what really reaches it: a cap on the way in (Safety cuts text to 4,000
   characters) makes a 2 s bench harmless, while a loader with no cap (`customerTexts`: up to 200 whole messages) makes a
   harmless-looking trim the real stall (L-29).
+- A lazy group followed by an optional tail anchored at the line end (`(.+?)[ \t]*#*[ \t]*$`) is cubic, not quadratic:
+  2,000 characters take seconds. Model output is customer-steerable input too (AI replies pass through
+  `toWhatsAppText`). Replace such a pattern with a scan and pin it with a seeded fuzz against the old pattern on short
+  strings plus a timing test (L-30). The mock-model Dev Build (`agents-devbuild.ts`) replaces the provider's whole
+  `generate`, so `ai/agent/turn.ts` post-processing (`AiDecision.parse`, `toWhatsAppText`) never runs there: pin it in
+  `turn.test.ts` with `MockLanguageModelV4` instead.
+- A core-tier fix with no Dev Build row tops out at 65 (`risk:human`), and `merge-gate.mjs` accepts only `MERGE OK` or
+  the owner's word, so a clean independent review does not let a tech-debt run merge it. Before picking such an item,
+  check that a Dev Build check can reach the changed path; otherwise expect it to wait for the owner (L-30).
 - A redaction pattern must not be made linear with a lookbehind start anchor (`(?<![\w.+-])…@`) or a length cap: both leave
   an address unredacted (one glued to the previous match, or the start of an over-long run). Use `address-scan.ts`
   (scan from each `@`, same matches as the plain pattern; L-28).
