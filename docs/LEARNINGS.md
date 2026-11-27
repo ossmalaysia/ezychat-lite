@@ -2012,6 +2012,8 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 
 ## Desktop and web UI
 
+- A length rule on a form that another service also checks (Send feedback → licence portal `/v1/feedback`) is relaxed in the receiver first, deployed, then in the apps; otherwise the app accepts what the receiver still answers 400 to.
+
 - A link or label built from a URL id (`&agent=3`, `from=agent:3`) is checked against the same list the page uses
   for its fallback (one shared helper, e.g. `wayBackAgent`), so a stale id never links one place while the page shows
   another.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Send feedback takes short details.** Send no longer waits for 10 characters of details: any text is enough when a screenshot says the rest.
+
 ## [0.1.88] - 2026-11-27
 
 ### Fixed

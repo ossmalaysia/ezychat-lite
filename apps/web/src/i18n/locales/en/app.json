@@ -195,7 +195,7 @@
     },
     "errors": {
       "title": "Write a short title (at least 3 characters).",
-      "details": "Tell us a bit more (at least 10 characters).",
+      "details": "Tell us a bit more.",
       "name": "Enter your name.",
       "emailRequired": "Enter your email so we can reply.",
       "emailInvalid": "Enter a valid email, like name@company.com.",
