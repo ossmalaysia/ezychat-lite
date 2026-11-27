@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.88] - 2026-11-27
+
+### Fixed
+
+- **EzyChat no longer pauses on an odd AI reply.** A reply with one very long line after a heading mark (#) could keep the app busy for up to 30 seconds, and during that time no chat got an answer. EzyChat now cleans up such a reply at once.
+
 ## [0.1.87] - 2026-11-27
 
 ### Added
