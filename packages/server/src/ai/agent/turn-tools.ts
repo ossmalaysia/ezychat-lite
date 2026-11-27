@@ -48,9 +48,11 @@ export function agentLookupsAvailable(
  * every extension's. Failures of either end the turn (the caller hands over with `lookup_failed`).
  * `lookupsOnly` (a WhatsApp group answer): no calendar booking and no connector write tool; a sheet
  * row (`add_sheet_row`) and saving a member's file (`save_file_to_drive`) are the writes a group turn
- * keeps (both only for the batch's senders). Extension tools are look-ups by
- * contract (`hasAgentLookups`). `record` says whose values a sheet row may hold (none given: the
- * direct chat's customer and its newest message, no files).
+ * keeps (both only for the batch's senders). Extensions read `input.lookupsOnly`: it reaches them
+ * as `false` only when the caller said `false`, the core turn is not `lookupsOnly` and there is a
+ * chat (a live direct-chat reply); every other turn tells them `true` (fail closed). `record` says
+ * whose values a sheet row may hold (none given: the direct chat's customer and its newest message,
+ * no files).
  */
 export async function agentTurnTools(
   ctx: AppContext,
@@ -71,7 +73,14 @@ export async function agentTurnTools(
   // Look-ups only, so group turns keep them too.
   const github = githubAgentTools(ctx, log, input, options);
   const listed = await mcpConnectorAgentTools(ctx, log, input, options);
-  const extension = await extensionAgentTools(ctx, log, input, options);
+  const writesAllowed =
+    input.lookupsOnly === false && !options.lookupsOnly && input.chatJid !== null;
+  const extension = await extensionAgentTools(
+    ctx,
+    log,
+    { ...input, lookupsOnly: !writesAllowed },
+    options,
+  );
   return {
     tools: {
       ...extension.tools,

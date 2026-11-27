@@ -1875,6 +1875,10 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
   prompt says "only the supplied business facts": all four must count extension look-ups as a fact source,
   or connector-only agents hand over without calling a tool.
 
+- A turn rule the core applies to its own tools (look-ups only in groups, scheduled tasks, Try it) must also
+  reach extensions as data (`AgentToolsInput.lookupsOnly`), computed fail closed in one place
+  (`agentTurnTools`): only an explicit `false` with a chat and a non-look-up core turn grants writes.
+
 - Rank new AI features from the real inbox, not guesses: MCP `get_stats` hand-off reasons (missing facts =
   look-up connectors, needs action = action connectors), then a read-only subagent classifies recent chats and
   reports only counts and paraphrased situations, never names, numbers, emails or verbatim personal data.
