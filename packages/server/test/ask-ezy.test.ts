@@ -10,7 +10,6 @@ import { getChats } from '../src/wa-bridge/index.js';
 import { lineDiff } from '../src/ask-ezy/changes.js';
 import { ASK_EZY_PER_MINUTE } from '../src/routes/ask-ezy.js';
 import { modelReadsPictures } from '../src/ai/pictures.js';
-import { refusesPictures } from '../src/ask-ezy/service.js';
 import { textChars } from '../src/ai/agent/assist.js';
 import { TASK_MODELS_KEY } from '../src/ai/task-models.js';
 import { makeTestApp, type TestApp } from './helpers.js';
@@ -675,23 +674,17 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
     expect((await ask(s.t, s.agentCookie, { question: 'q' })).res.statusCode).toBe(200);
   });
 
-  it('turns a provider refusal of a picture question into pictures_unavailable, else unavailable', async () => {
+  it('shows a model failure on a picture question as the normal error, never as "cannot read pictures"', async () => {
     const s = await setup();
-    let message = 'Invalid content type. image_url is only supported by certain models.';
+    // The adapters pass only our fixed text, so a refusal after the call is a plain failure.
     s.setScript(async () => {
-      throw new AgentTurnFailure(message, 'provider', 'AI_APICallError', 400);
+      throw new AgentTurnFailure('OpenAI could not answer', 'provider', 'AI_APICallError', 400);
     });
     const withPicture = await ask(s.t, s.agentCookie, {
       question: 'q',
       pictures: [{ base64: png }],
     });
-    expect(withPicture.events.at(-1)).toEqual({ type: 'error', code: 'pictures_unavailable' });
-    const without = await ask(s.t, s.agentCookie, { question: 'q' });
-    expect(without.events.at(-1)).toEqual({ type: 'error', code: 'ai_unavailable' });
-    // Any other 400 on a picture question is a plain failure, never "cannot read pictures".
-    message = 'Bad request: max_output_tokens too large';
-    const other = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: png }] });
-    expect(other.events.at(-1)).toEqual({ type: 'error', code: 'ai_unavailable' });
+    expect(withPicture.events.at(-1)).toEqual({ type: 'error', code: 'ai_unavailable' });
   });
 
   it('gives a setup turn on a main model without pictures a note in their place', async () => {
@@ -735,25 +728,6 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
       'text',
       'image',
     ]);
-  });
-});
-
-describe('refusesPictures', () => {
-  it('recognises only a "this model takes no images" refusal', () => {
-    for (const m of [
-      'Invalid content type. image_url is only supported by certain models.',
-      'This model does not support image input.',
-      "The model doesn't support images",
-      'Image input is not supported for this model',
-    ])
-      expect(refusesPictures(m), m).toBe(true);
-    for (const m of [
-      'Bad request',
-      'Invalid image data',
-      'max_output_tokens too large',
-      'image too large',
-    ])
-      expect(refusesPictures(m), m).toBe(false);
   });
 });
 

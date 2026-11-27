@@ -32,19 +32,6 @@ import type { AiPromptImage } from '../ai/provider-types.js';
 /** Ask Ezy reads screenshots: OpenAI's high detail keeps their small text readable (agent replies use 'low'). */
 export const ASK_EZY_IMAGE_DETAIL = 'high';
 
-/**
- * A provider's 400 that says the model takes no images (OpenAI "image_url is only supported by certain models",
- * "does not support image input"; Anthropic "does not support images"). Any other 400 stays `ai_unavailable`.
- */
-export function refusesPictures(message: string): boolean {
-  return (
-    /(image|images|image_url|image input|vision)[^.]{0,60}\b(not supported|only supported|unsupported)/i.test(
-      message,
-    ) ||
-    /(does not|doesn't|do not) support[^.]{0,30}\b(image|images|image input|vision)/i.test(message)
-  );
-}
-
 const MAX_BLOCKS = 8;
 const MAX_FOLLOW_UPS = 3;
 const DEFAULT_TITLE = {
@@ -558,15 +545,8 @@ export function createAskEzyService(
           return;
         }
         const failure = error instanceof AgentTurnFailure ? error : null;
-        // A model that refuses the request only because of its pictures: say so instead of "unavailable".
-        const refusedPictures =
-          pictures.length > 0 &&
-          failure?.kind === 'provider' &&
-          failure.status === 400 &&
-          refusesPictures(failure.message);
-        const code = refusedPictures
-          ? 'pictures_unavailable'
-          : failure?.kind === 'timeout'
+        const code =
+          failure?.kind === 'timeout'
             ? 'ai_timeout'
             : connection() === 'expired'
               ? 'ai_expired'
