@@ -138,6 +138,25 @@ export async function runAssist(call: AssistCall): Promise<AssistResult> {
   return answer;
 }
 
+/**
+ * Characters of a conversation for the trace, without stringifying pictures (a 3.75 MB base64 image per call): text
+ * counts as its length, images and files as 0, any other part (tool calls and results) as its JSON.
+ */
+export function textChars(messages: readonly ModelMessage[]): number {
+  let n = 0;
+  for (const message of messages) {
+    if (typeof message.content === 'string') {
+      n += message.content.length;
+      continue;
+    }
+    for (const part of message.content) {
+      if (part.type === 'text') n += part.text.length;
+      else if (part.type !== 'image' && part.type !== 'file') n += JSON.stringify(part).length;
+    }
+  }
+  return n;
+}
+
 function generate(call: AssistCall, onStepNames: (names: string[]) => void) {
   let callNo = 0;
   let sent = { chars: 0, messages: 0 };
@@ -176,8 +195,7 @@ function generate(call: AssistCall, onStepNames: (names: string[]) => void) {
     // The last step may not call a tool: a tool call there leaves no answer (`NoOutputGeneratedError`).
     prepareStep: ({ stepNumber, messages }) => {
       callNo = stepNumber + 1;
-      if (call.onTrace)
-        sent = { chars: JSON.stringify(messages).length, messages: messages.length };
+      if (call.onTrace) sent = { chars: textChars(messages), messages: messages.length };
       return stepNumber === ASSIST_MAX_STEPS - 1 ? { toolChoice: 'none' } : undefined;
     },
     onLanguageModelCallEnd: trace,

@@ -174,6 +174,9 @@ into AGENTS.md.
   object"): clone the folder from `main`, record the folder's last commit there (`git log -1 -- <folder>`) as the
   baseline revision, and say in `design.md` why it differs. In a cloud container the repo's `@playwright/test` may want a
   browser that is not installed: run mock shot scripts with `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux*/chrome`.
+- A route that raises `bodyLimit` above the app's 1 MB checks the session in `onRequest`, never `preHandler`: Fastify
+  reads and parses the body before `preHandler`, so anyone without a session could send large bodies. Prove it with a
+  non-JSON large body that answers 401, not 400.
 - A git worktree must not symlink the whole `node_modules` of the main checkout: `node_modules/@ezychat/*` are relative
   links, so they resolve to the **main checkout's** packages and tests silently run against old shared/server code.
   Make a real `node_modules` folder, link each third-party entry, and link `@ezychat/*` to the worktree's own packages.

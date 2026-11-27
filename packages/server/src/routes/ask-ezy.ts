@@ -20,8 +20,8 @@ import { readAskEzyPictures } from '../ask-ezy/pictures.js';
 export const ASK_EZY_PER_MINUTE = 20;
 /** An empty line this often while a question runs (proxies close a silent response). */
 export const ASK_EZY_KEEP_ALIVE_MS = 20_000;
-/** This route only: a question with 2 pictures as base64 (each ≤ 5 MB); every other route keeps the 1 MB limit. */
-export const ASK_EZY_BODY_LIMIT = 15 * 1024 * 1024;
+/** This route only: a question with 2 pictures as base64 (each ≤ 5.2 M characters); every other route keeps 1 MB. */
+export const ASK_EZY_BODY_LIMIT = 11 * 1024 * 1024;
 
 /**
  * Ask Ezy (design: docs/features/ask-ezy/design.md). Every signed-in user asks; the answer streams as NDJSON
@@ -38,23 +38,25 @@ export default async function askEzyRoutes(app: FastifyInstance, ctx: AppContext
 
   app.post(
     '/ask-ezy',
-    { preHandler: requireUser(ctx), bodyLimit: ASK_EZY_BODY_LIMIT },
+    // The session is checked in onRequest, before the (up to 11 MB) body is read: without a valid session the
+    // body is never parsed (same rule as /mcp with MCP_BODY_LIMIT).
+    { onRequest: requireUser(ctx), bodyLimit: ASK_EZY_BODY_LIMIT },
     async (req, reply) => {
       const body = parse(AskEzyRequest, req.body);
       const user = req.user!;
       // Ask Ezy reads across chats: never for an agent limited to chosen chats
       if (chosenChats(ctx, user))
         throw new HttpError(403, 'chat_scope_limited', 'Ask Ezy is not available for this account');
-      // Pictures are checked before the question counts (type from the bytes, size) and kept in memory only.
-      const pictures = readAskEzyPictures(body.pictures);
-      if (pictures.length && !service.status().pictures)
+      // Count the question first, then the model check, and only then decode the pictures (kept in memory only).
+      const hit = limiter.hit(String(user.id));
+      if (!hit.allowed) throw errors.rateLimited(hit.retryAfterSec);
+      if (body.pictures.length && !service.status().pictures)
         throw new HttpError(
           409,
           'pictures_unavailable',
           'The AI model Ask Ezy uses cannot read pictures',
         );
-      const hit = limiter.hit(String(user.id));
-      if (!hit.allowed) throw errors.rateLimited(hit.retryAfterSec);
+      const pictures = readAskEzyPictures(body.pictures);
       const cancel = new AbortController();
       reply.raw.on('close', () => {
         if (!reply.raw.writableFinished) cancel.abort();

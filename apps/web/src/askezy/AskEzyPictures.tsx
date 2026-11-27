@@ -55,23 +55,32 @@ async function bytesOf(blob: Blob): Promise<Uint8Array> {
   });
 }
 
-/** Scales a picture whose longest side is above MAX_SIDE; keeps PNG for screenshots, JPEG for photos. */
+const encode = (bitmap: ImageBitmap, ratio: number, type: string): Promise<Blob | null> => {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * ratio);
+  canvas.height = Math.round(bitmap.height * ratio);
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve) => canvas.toBlob(resolve, type, 0.85));
+};
+
+/**
+ * Scales a picture whose longest side is above MAX_SIDE (PNG stays PNG for sharp screenshots, others become JPEG), then
+ * re-encodes one still above MAX_PICTURE_BYTES as JPEG, so it stays within every provider's per-image limit.
+ */
 async function scaled(blob: Blob, mime: string): Promise<Blob> {
   if (typeof createImageBitmap !== 'function') return blob;
   const bitmap = await createImageBitmap(blob).catch(() => null);
   if (!bitmap) return blob;
   const side = Math.max(bitmap.width, bitmap.height);
-  if (side <= MAX_SIDE) return blob;
-  const ratio = MAX_SIDE / side;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * ratio);
-  canvas.height = Math.round(bitmap.height * ratio);
-  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const type = mime === 'image/png' ? 'image/png' : 'image/jpeg';
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), type, 0.85));
+  const ratio = side > MAX_SIDE ? MAX_SIDE / side : 1;
+  let out = blob;
+  if (ratio < 1)
+    out = (await encode(bitmap, ratio, mime === 'image/png' ? 'image/png' : 'image/jpeg')) ?? blob;
+  if (out.size > MAX_PICTURE_BYTES) out = (await encode(bitmap, ratio, 'image/jpeg')) ?? out;
+  return out;
 }
 
-/** Reads picked, pasted or dropped files: refuses wrong types, files that are too large, and a 4th picture. */
+/** Reads picked, pasted or dropped files: refuses wrong types, files that are too large, and a 3rd picture. */
 export async function readPictures(
   files: File[],
   already: number,

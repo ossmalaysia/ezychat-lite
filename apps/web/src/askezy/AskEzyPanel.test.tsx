@@ -603,6 +603,31 @@ describe('AskEzyPanel pictures (design ask-ezy-image)', () => {
     expect(screen.queryByTestId('ask-ezy-pictures')).toBeNull();
   });
 
+  it('keeps 2 pictures from two quick pastes and frees the extra', async () => {
+    const url = URL as unknown as Record<string, unknown>;
+    const saved = { create: url.createObjectURL, revoke: url.revokeObjectURL };
+    let n = 0;
+    const revoked: string[] = [];
+    url.createObjectURL = () => `blob:${++n}`;
+    url.revokeObjectURL = (u: string) => revoked.push(u);
+    try {
+      const user = renderPanel();
+      await user.click(screen.getByRole('button', { name: /ask ezy/i }));
+      const box = await screen.findByRole('textbox');
+      fireEvent.paste(box, { clipboardData: { files: [pngFile('a.png'), pngFile('b.png')] } });
+      fireEvent.paste(box, { clipboardData: { files: [pngFile('c.png')] } });
+      expect(await screen.findByText('You can add up to 2 pictures to one question.')).toBeTruthy();
+      expect(screen.getByText('2 of 2')).toBeTruthy();
+      expect(
+        screen.getAllByRole('img').filter((i) => i.getAttribute('src')?.startsWith('blob:')),
+      ).toHaveLength(2);
+      expect(revoked).toEqual(['blob:3']);
+    } finally {
+      url.createObjectURL = saved.create;
+      url.revokeObjectURL = saved.revoke;
+    }
+  });
+
   it('offers to ask without the picture when the server refuses it', async () => {
     auth.isAdmin = false;
     auth.user.role = 'agent';
@@ -621,6 +646,11 @@ describe('AskEzyPanel pictures (design ask-ezy-image)', () => {
     await screen.findByText('Answered in words.');
     expect(askBodies()[1]).toMatchObject({ question: 'Why?' });
     expect(askBodies()[1]!.pictures).toBeUndefined();
+    // Not sticky: pictures stay on for the next question.
+    await user.click(screen.getByRole('button', { name: 'Add a picture' }));
+    expect(screen.queryByTestId('ask-ezy-pictures-unavailable')).toBeNull();
+    pick([pngFile()]);
+    expect(await screen.findByText('1 of 2')).toBeTruthy();
   });
 
   it('explains a picture the server finds too large or unreadable', async () => {

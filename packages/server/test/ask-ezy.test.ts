@@ -10,6 +10,8 @@ import { getChats } from '../src/wa-bridge/index.js';
 import { lineDiff } from '../src/ask-ezy/changes.js';
 import { ASK_EZY_PER_MINUTE } from '../src/routes/ask-ezy.js';
 import { modelReadsPictures } from '../src/ai/pictures.js';
+import { refusesPictures } from '../src/ask-ezy/service.js';
+import { textChars } from '../src/ai/agent/assist.js';
 import { TASK_MODELS_KEY } from '../src/ai/task-models.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
@@ -594,7 +596,7 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
     expect(s.logLines.join('\n')).not.toContain('"pictures"');
   });
 
-  it('refuses a wrong type, a picture above 5 MB and a third picture before any model call', async () => {
+  it('refuses a wrong type, a picture above 3.75 MB and a third picture before any model call', async () => {
     const s = await setup();
     const gif = Buffer.from('GIF89a' + 'x'.repeat(40)).toString('base64');
     const wrong = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: gif }] });
@@ -602,7 +604,7 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
     expect(wrong.res.json().error.code).toBe('picture_type');
     const large = await ask(s.t, s.agentCookie, {
       question: 'q',
-      pictures: [{ base64: jpeg(5 * 1024 * 1024 + 1) }],
+      pictures: [{ base64: jpeg(3_750_001) }],
     });
     expect(large.res.statusCode).toBe(413);
     expect(large.res.json().error.code).toBe('picture_too_large');
@@ -612,11 +614,41 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
     });
     expect(three.res.statusCode).toBe(400);
     expect(s.provider.assist).not.toHaveBeenCalled();
-    // None of the refused questions counted against the minute's limit.
+  });
+
+  it('counts a picture question against the minute before it decodes the pictures', async () => {
+    const s = await setup();
+    const gif = Buffer.from('GIF89a' + 'x'.repeat(40)).toString('base64');
     for (let i = 0; i < ASK_EZY_PER_MINUTE; i++) {
-      const ok = await ask(s.t, s.agentCookie, { question: `q${i}` });
-      expect(ok.res.statusCode).toBe(200);
+      const wrong = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: gif }] });
+      expect(wrong.res.statusCode).toBe(415);
     }
+    const next = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: gif }] });
+    expect(next.res.statusCode).toBe(429);
+    expect(s.provider.assist).not.toHaveBeenCalled();
+  });
+
+  it('never reads the large body of a request without a session; other routes keep 1 MB', async () => {
+    const s = await setup();
+    // Not even valid JSON: parsing it would answer 400, so a 401 shows the body was never read.
+    const noSession = await s.t.app.inject({
+      method: 'POST',
+      url: '/api/ask-ezy',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost',
+        host: 'localhost',
+      },
+      payload: '{' + 'x'.repeat(5_000_000),
+    });
+    expect(noSession.statusCode).toBe(401);
+    const other = await s.t.app.inject({
+      method: 'PUT',
+      url: '/api/ask-ezy/settings',
+      headers: authHeaders(s.adminCookie),
+      payload: { timeoutMinutes: 15, pad: 'x'.repeat(1_100_000) },
+    });
+    expect(other.statusCode).toBe(413);
   });
 
   it('says first when the Ask Ezy model cannot read pictures, and refuses them then', async () => {
@@ -645,8 +677,9 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
 
   it('turns a provider refusal of a picture question into pictures_unavailable, else unavailable', async () => {
     const s = await setup();
+    let message = 'Invalid content type. image_url is only supported by certain models.';
     s.setScript(async () => {
-      throw new AgentTurnFailure('Bad request', 'provider', 'AI_APICallError', 400);
+      throw new AgentTurnFailure(message, 'provider', 'AI_APICallError', 400);
     });
     const withPicture = await ask(s.t, s.agentCookie, {
       question: 'q',
@@ -655,6 +688,89 @@ describe('Ask Ezy pictures (design ask-ezy-image)', () => {
     expect(withPicture.events.at(-1)).toEqual({ type: 'error', code: 'pictures_unavailable' });
     const without = await ask(s.t, s.agentCookie, { question: 'q' });
     expect(without.events.at(-1)).toEqual({ type: 'error', code: 'ai_unavailable' });
+    // Any other 400 on a picture question is a plain failure, never "cannot read pictures".
+    message = 'Bad request: max_output_tokens too large';
+    const other = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: png }] });
+    expect(other.events.at(-1)).toEqual({ type: 'error', code: 'ai_unavailable' });
+  });
+
+  it('gives a setup turn on a main model without pictures a note in their place', async () => {
+    const s = await setup();
+    s.t.ctx.services.ai!.saveConnection(
+      { mode: 'api', model: 'o3-mini', apiKey: 'test-api-key-123' },
+      { userId: 1, ip: null },
+    );
+    s.setScript(async (tools) => {
+      if (tools.start_setup) {
+        await exec(tools, 'start_setup', {});
+        return { text: 'Setting up', blocks: [], followUps: [] };
+      }
+      return { text: 'Which chat?', blocks: [], followUps: [] };
+    });
+    const { events } = await ask(s.t, s.adminCookie, {
+      question: 'Send this every morning',
+      pictures: [{ base64: png }],
+    });
+    expect(answerOf(events).text).toBe('Which chat?');
+    const [fast, setupCall] = s.seen.calls;
+    expect((fast!.messages.at(-1)!.content as Part[]).map((p) => p.type)).toEqual([
+      'text',
+      'image',
+    ]);
+    expect(setupCall!.main).toBe(true);
+    expect(setupCall!.messages.at(-1)!.content).toBe(
+      'Send this every morning\n[1 picture(s) were attached; this model cannot read them]',
+    );
+  });
+
+  it('keeps the pictures in a setup turn whose main model reads them', async () => {
+    const s = await setup();
+    s.setScript(async (tools) => {
+      if (tools.start_setup) await exec(tools, 'start_setup', {});
+      return { text: 'Which chat?', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie, { question: 'Set this up', pictures: [{ base64: png }] });
+    const setupCall = s.seen.calls.find((c) => c.main)!;
+    expect((setupCall.messages.at(-1)!.content as Part[]).map((p) => p.type)).toEqual([
+      'text',
+      'image',
+    ]);
+  });
+});
+
+describe('refusesPictures', () => {
+  it('recognises only a "this model takes no images" refusal', () => {
+    for (const m of [
+      'Invalid content type. image_url is only supported by certain models.',
+      'This model does not support image input.',
+      "The model doesn't support images",
+      'Image input is not supported for this model',
+    ])
+      expect(refusesPictures(m), m).toBe(true);
+    for (const m of [
+      'Bad request',
+      'Invalid image data',
+      'max_output_tokens too large',
+      'image too large',
+    ])
+      expect(refusesPictures(m), m).toBe(false);
+  });
+});
+
+describe('textChars', () => {
+  it('counts text and tool parts but never the base64 of a picture', () => {
+    expect(
+      textChars([
+        { role: 'user', content: 'hello' },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'abc' },
+            { type: 'image', image: 'A'.repeat(1000), mediaType: 'image/png' },
+          ],
+        },
+      ]),
+    ).toBe(8);
   });
 });
 

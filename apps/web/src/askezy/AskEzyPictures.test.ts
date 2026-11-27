@@ -53,6 +53,28 @@ describe('readPictures', () => {
     expect((await readPictures([file(JPEG)], 0)).problem).toBe('size');
   });
 
+  it('re-encodes a picture still above 3.75 MB as JPEG at the same size', async () => {
+    vi.stubGlobal('createImageBitmap', async () => ({ width: 1200, height: 900 }));
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+    } as never);
+    const types: Array<string | undefined> = [];
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
+      this: HTMLCanvasElement,
+      done: BlobCallback,
+      type?: string,
+    ) {
+      types.push(type);
+      expect([this.width, this.height]).toEqual([1200, 900]);
+      done(new Blob([new Uint8Array([...JPEG, 0, 0])], { type }));
+    });
+    const big = new File([new Uint8Array([...PNG, ...new Array(3_800_000).fill(0)])], 'big.png');
+    const r = await readPictures([big], 0);
+    expect(r.problem).toBeNull();
+    expect(types).toEqual(['image/jpeg']);
+    expect(atob(r.pictures[0]!.base64).charCodeAt(0)).toBe(0xff);
+  });
+
   it('keeps a small picture as it is, also when the browser cannot decode it', async () => {
     vi.stubGlobal('createImageBitmap', async () => ({ width: 800, height: 600 }));
     expect((await readPictures([file(PNG)], 0)).pictures).toHaveLength(1);

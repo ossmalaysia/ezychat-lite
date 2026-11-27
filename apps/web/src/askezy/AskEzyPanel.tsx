@@ -233,17 +233,24 @@ export function AskEzyPanel() {
   const [picturesNote, setPicturesNote] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  /** The pictures now in the box, read synchronously by addPictures (state may be stale between two pastes). */
+  const picturesRef = useRef<Picture[]>([]);
+  picturesRef.current = pictures;
   const addPictures = async (files: File[]) => {
     if (!files.length) return;
     if (!picturesOk) {
       setPicturesNote(true);
       return;
     }
-    const read = await readPictures(files, pictures.length);
-    setPictures((v) => [...v, ...read.pictures].slice(0, MAX_PICTURES));
-    setPictureProblem(read.problem);
-    if (read.pictures.length)
-      setStatus(t('askEzy.pictures.added', { count: pictures.length + read.pictures.length }));
+    const read = await readPictures(files, picturesRef.current.length);
+    // Two quick pastes may both read before either is added: keep the first MAX_PICTURES, free the rest.
+    const all = [...picturesRef.current, ...read.pictures];
+    const kept = all.slice(0, MAX_PICTURES);
+    releasePictures(all.slice(MAX_PICTURES));
+    picturesRef.current = kept;
+    setPictures(kept);
+    setPictureProblem(all.length > MAX_PICTURES ? 'count' : read.problem);
+    if (read.pictures.length) setStatus(t('askEzy.pictures.added', { count: kept.length }));
   };
   const abort = useRef<AbortController | null>(null);
   const doneSteps = useRef<AskEzyStep[]>([]);
@@ -304,7 +311,6 @@ export function AskEzyPanel() {
           ? e.code
           : 'ai_unavailable';
       if (code === 'ai_not_connected') setConnected(false);
-      if (code === 'pictures_unavailable') setPicturesOk(false);
       setTurns((v) => [
         ...v,
         {

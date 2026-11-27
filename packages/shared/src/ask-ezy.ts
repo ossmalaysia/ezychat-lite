@@ -24,13 +24,17 @@ export type AskEzyTurn = z.infer<typeof AskEzyTurn>;
 
 /**
  * Pictures in a question (design docs/features/ask-ezy-image/design.md, owner 2026-11-27): at most 2, each a JPEG,
- * PNG or WebP of at most 5 MB (the server reads the type from the bytes). Sent with their own question only; never
+ * PNG or WebP of at most 3.75 MB (the server reads the type from the bytes). Sent with their own question only; never
  * stored or logged.
  */
 export const ASK_EZY_MAX_PICTURES = 2;
-export const ASK_EZY_PICTURE_BYTES = 5 * 1024 * 1024;
-/** Base64 of one picture: a little above 5 MB encoded, so a slightly larger one gets the size error, not a 400. */
-export const ASK_EZY_PICTURE_BASE64_CHARS = 7_200_000;
+/**
+ * Bytes of one picture: its base64 stays within 5,000,000 characters, Anthropic's per-image limit (the strictest of
+ * the three connections). The panel scales to 2000 px and re-encodes a larger PNG as JPEG to stay under it.
+ */
+export const ASK_EZY_PICTURE_BYTES = 3_750_000;
+/** Base64 of one picture: a little above the limit, so a slightly larger one gets the size error, not a 400. */
+export const ASK_EZY_PICTURE_BASE64_CHARS = 5_200_000;
 /** The question a picture without words asks (the panel sends it in the user's language). */
 export const ASK_EZY_PICTURE_QUESTION = 'What does this show?';
 export const AskEzyPicture = z.strictObject({
