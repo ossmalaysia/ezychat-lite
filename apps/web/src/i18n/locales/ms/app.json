@@ -195,7 +195,7 @@
     },
     "errors": {
       "title": "Tulis tajuk ringkas (sekurang-kurangnya 3 aksara).",
-      "details": "Beritahu kami sedikit lagi (sekurang-kurangnya 10 aksara).",
+      "details": "Beritahu kami sedikit lagi.",
       "name": "Masukkan nama anda.",
       "emailRequired": "Masukkan e-mel anda supaya kami boleh membalas.",
       "emailInvalid": "Masukkan e-mel yang sah, seperti nama@syarikat.com.",

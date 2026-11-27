@@ -159,6 +159,23 @@ describe('Send feedback dialog', { timeout: 20_000 }, () => {
     expect(sent).toHaveLength(0);
   });
 
+  it('sends short details (a screenshot often says the rest) but not blank ones', async () => {
+    const { user, sent } = setup();
+    const dialog = await openDialog();
+    await user.type(within(dialog).getByLabelText('Short title'), 'Ask Ezy needs photos');
+    const email = within(dialog).getByLabelText('Email');
+    await user.clear(email);
+    await user.type(email, 'aisyah@example.com');
+    await user.type(within(dialog).getByLabelText('Details'), '   ');
+    await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+    expect(within(dialog).getByText('Tell us a bit more.')).toBeTruthy();
+    expect(sent).toHaveLength(0);
+    await user.type(within(dialog).getByLabelText('Details'), 'dsdsad');
+    await user.click(within(dialog).getByRole('button', { name: 'Send' }));
+    expect(await screen.findByTestId('feedback-sent')).toBeTruthy();
+    expect(sent[0]!.report).toMatchObject({ details: 'dsdsad' });
+  });
+
   it('sends a problem with files, app details and the area of the screen, and remembers the email', async () => {
     const { user, sent } = setup();
     const dialog = await openDialog();

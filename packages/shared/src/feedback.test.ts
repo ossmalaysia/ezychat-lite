@@ -31,7 +31,8 @@ describe('Feedback contract', () => {
     expect(FeedbackReportBody.parse({ ...report, title: '  Hi!  ' }).title).toBe('Hi!');
     expect(FeedbackReportBody.safeParse({ ...report, title: 'Hi' }).success).toBe(false);
     expect(FeedbackReportBody.safeParse({ ...report, title: 'x'.repeat(121) }).success).toBe(false);
-    expect(FeedbackReportBody.safeParse({ ...report, details: 'too short' }).success).toBe(false);
+    expect(FeedbackReportBody.safeParse({ ...report, details: '   ' }).success).toBe(false);
+    expect(FeedbackReportBody.parse({ ...report, details: 'dsdsad' }).details).toBe('dsdsad');
     expect(FeedbackReportBody.safeParse({ ...report, details: 'x'.repeat(5001) }).success).toBe(
       false,
     );

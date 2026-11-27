@@ -240,7 +240,7 @@ export function FeedbackDialog({
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const problems = {
     title: title.trim().length < 3 ? t('feedback.errors.title') : null,
-    details: details.trim().length < 10 ? t('feedback.errors.details') : null,
+    details: details.trim() ? null : t('feedback.errors.details'),
     name: !name.trim() ? t('feedback.errors.name') : null,
     email: !email.trim()
       ? t('feedback.errors.emailRequired')

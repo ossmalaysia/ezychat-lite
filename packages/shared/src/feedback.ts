@@ -58,7 +58,7 @@ export const FeedbackReportBody = z
     clientReportId: z.string().uuid(),
     type: FeedbackType,
     title: z.string().trim().min(3).max(120),
-    details: z.string().trim().min(10).max(5000),
+    details: z.string().trim().min(1).max(5000),
     area: FeedbackArea,
     /** Problem only. */
     frequency: FeedbackFrequency.optional(),
