@@ -1603,6 +1603,7 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 
 ## AI sales agent
 
+- A prompt fact like "Today is <date>" is not the clock: any AI that plans times (scheduled tasks, bookings) needs the current time and the next allowed step, or it guesses (Ask Ezy offered 6:00 PM for "1 min later").
 - A read tool the assistant needs to explain the app's own actions (which scheduled task sent a message) belongs in the normal Ask Ezy turn, not only the setup turn, and the message reader must name the sender kind (`scheduledTask`); otherwise Ezy answers "why was this sent" with a guess.
 
 - Routing an AI call to a chosen model: keep the provider's own meaning of a flag the tests and other callers read

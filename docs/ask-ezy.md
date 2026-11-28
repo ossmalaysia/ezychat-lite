@@ -116,13 +116,14 @@ their wording.
 
 ## 10. Decision log
 
-| Date       | Decision                                                                                                                     |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-30 | Ask Ezy for admins and team members; MCP tools; blocks; nothing without Apply                                                |
-| 2026-11-12 | Scheduled tasks and new agents as a conversation; one question at a time; new agent only with its task                       |
-| 2026-11-13 | "Improve" stays on the normal turn; last step without tools; complete answer kept from extra text                            |
-| 2026-11-13 | A found improvement is proposed in the same answer (Apply card), never as a follow-up question                               |
-| 2026-11-13 | Time limit per question set by admins (5–30 min, default 15), replacing the 60 s connection bound; keep-alive line           |
-| 2026-11-13 | Speed: per-call trace; find → replace drafts, before/after tests in one call, propose by draftId, small texts with the setup |
-| 2026-11-22 | A normal question runs on the AI models → Ask Ezy row (default Fast + Faster, docs/ai-models.md); setup stays on the main model with no row (owner) |
+| Date       | Decision                                                                                                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-30 | Ask Ezy for admins and team members; MCP tools; blocks; nothing without Apply                                                                                                                                                                                   |
+| 2026-11-12 | Scheduled tasks and new agents as a conversation; one question at a time; new agent only with its task                                                                                                                                                          |
+| 2026-11-13 | "Improve" stays on the normal turn; last step without tools; complete answer kept from extra text                                                                                                                                                               |
+| 2026-11-13 | A found improvement is proposed in the same answer (Apply card), never as a follow-up question                                                                                                                                                                  |
+| 2026-11-13 | Time limit per question set by admins (5–30 min, default 15), replacing the 60 s connection bound; keep-alive line                                                                                                                                              |
+| 2026-11-13 | Speed: per-call trace; find → replace drafts, before/after tests in one call, propose by draftId, small texts with the setup                                                                                                                                    |
+| 2026-11-22 | A normal question runs on the AI models → Ask Ezy row (default Fast + Faster, docs/ai-models.md); setup stays on the main model with no row (owner)                                                                                                             |
 | 2026-11-27 | An admin's normal question may read `list_scheduled_tasks` (read only), and `get_messages` marks a message a scheduled task sent (`scheduledTask`), so Ezy can say why it was sent; proposing or changing a task stays in the setup turn (tester report, owner) |
+| 2026-11-28 | The prompt gives the current time, not only the date; a setup turn also gets the next 5-minute time and works "now", "in N minutes" and "later today" out from it, never offering a time that has passed (owner report: "1 min later" became 6:00 PM).          |

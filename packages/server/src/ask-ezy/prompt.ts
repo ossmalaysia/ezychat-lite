@@ -72,6 +72,15 @@ export function askEzyInstructions(input: AskEzyPromptInput): string {
     month: 'long',
     year: 'numeric',
   }).format(input.now);
+  // Owner report 2026-11-28: with only the date, "1 min later" became 6:00 PM. Give the clock and the next step.
+  const clock = (at: Date) =>
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: input.timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(at);
+  const nextStep = new Date(Math.floor(input.now.getTime() / 300_000) * 300_000 + 300_000);
   const role = input.isAdmin
     ? 'an admin: they see every inbox and may ask for AI agent changes'
     : 'a team member: they see only the chats of their own inboxes and cannot change the AI agent (say so, offer what you can read, and when they want an improvement end with a short message they can send to their admin)';
@@ -82,7 +91,12 @@ export function askEzyInstructions(input: AskEzyPromptInput): string {
     ...(setupTurn ? [SETUP_RULES] : []),
     BLOCKS + (setupTurn ? SETUP_BLOCKS : '') + END,
     '',
-    `Today is ${today} (${input.timeZone}). That is the business time zone.`,
+    `Now is ${today}, ${clock(input.now)} (${input.timeZone}). That is the business time zone.`,
+    ...(setupTurn
+      ? [
+          `The next 5-minute time is ${clock(nextStep)}. For "now", "in N minutes" or "later today", work the time out from now: offer the first 5-minute time at or after it, never a time that has passed, and say its date.`,
+        ]
+      : []),
     `You are talking to ${JSON.stringify(input.userName)}, ${role}.`,
   ];
   if (setupTurn && input.maxAgents !== undefined)

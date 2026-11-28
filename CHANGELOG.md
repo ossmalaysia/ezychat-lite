@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Ask Ezy knows the time now.** Ask for a scheduled message "in 5 minutes" or "later today" and Ezy offers the next real time instead of guessing.
 - **Ask Ezy can say why a scheduled message was sent.** Ask why a reminder went to a chat or group, and Ezy now finds the scheduled task that sent it and tells you its time, days and instruction.
 - **Send feedback takes short details.** Send no longer waits for 10 characters of details: any text is enough when a screenshot says the rest.
 

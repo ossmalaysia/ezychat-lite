@@ -11,11 +11,24 @@ const base = {
 describe('askEzyInstructions', () => {
   it('keeps the fixed rules first and puts per-call values after them', () => {
     const text = askEzyInstructions({ ...base, isAdmin: true });
-    expect(text.indexOf('Today is Friday, 30 October 2026 (Asia/Kuala_Lumpur).')).toBeGreaterThan(
-      text.indexOf('propose_ai_setup_change'),
-    );
+    expect(
+      text.indexOf('Now is Friday, 30 October 2026, 10:00 (Asia/Kuala_Lumpur).'),
+    ).toBeGreaterThan(text.indexOf('propose_ai_setup_change'));
     expect(text).toContain('You are talking to "Daniel", an admin');
     expect(text).not.toContain('The question is about one chat');
+  });
+
+  it('gives the clock, and in a setup turn the next 5-minute time (owner report 2026-11-28)', () => {
+    const at = { ...base, now: new Date('2026-11-28T00:34:10Z') };
+    const normal = askEzyInstructions({ ...at, isAdmin: true });
+    expect(normal).toContain('Now is Saturday, 28 November 2026, 08:34 (Asia/Kuala_Lumpur).');
+    expect(normal).not.toContain('The next 5-minute time');
+    const setup = askEzyInstructions({ ...at, isAdmin: true, maxAgents: 1, setup: true });
+    expect(setup).toContain('The next 5-minute time is 08:35.');
+    expect(setup).toContain('never a time that has passed');
+    // On a step it moves to the next one, across midnight in the business zone.
+    const midnight = { ...base, now: new Date('2026-11-28T15:55:00Z'), isAdmin: true, setup: true };
+    expect(askEzyInstructions(midnight)).toContain('The next 5-minute time is 00:00.');
   });
 
   it('tells a team member they cannot change the agent and gives them a message for their admin', () => {
