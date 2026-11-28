@@ -125,3 +125,4 @@ their wording.
 | 2026-11-13 | Time limit per question set by admins (5–30 min, default 15), replacing the 60 s connection bound; keep-alive line           |
 | 2026-11-13 | Speed: per-call trace; find → replace drafts, before/after tests in one call, propose by draftId, small texts with the setup |
 | 2026-11-22 | A normal question runs on the AI models → Ask Ezy row (default Fast + Faster, docs/ai-models.md); setup stays on the main model with no row (owner) |
+| 2026-11-27 | An admin's normal question may read `list_scheduled_tasks` (read only), and `get_messages` marks a message a scheduled task sent (`scheduledTask`), so Ezy can say why it was sent; proposing or changing a task stays in the setup turn (tester report, owner) |
