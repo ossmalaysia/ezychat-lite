@@ -118,6 +118,7 @@ import {
   type AiSituation,
 } from './prompt.js';
 import { OPENAI_DEFAULT_MODEL } from './provider.js';
+import { modelReadsPictures } from './pictures.js';
 import { claudeModelId } from './claude.js';
 import type {
   AiAssistCall,
@@ -396,6 +397,11 @@ export interface AiService {
   draftConnection(): 'ready' | 'unavailable' | 'none';
   /** Ask Ezy: like `draftConnection`, for the assistant turn (`assist`); `expired` = sign in again. */
   assistConnection(): 'ready' | 'unavailable' | 'expired' | 'none';
+  /**
+   * Whether the model a normal Ask Ezy question runs on (the AI models → Ask Ezy row) can read pictures; `main`: the
+   * main model a setup turn runs on. Optional so older fakes keep compiling (missing = reads pictures).
+   */
+  assistReadsPictures?(main?: boolean): boolean;
   /**
    * Ask Ezy (docs/features/ask-ezy/design.md): one assistant turn on the business AI connection with the
    * tools the caller built for the signed-in user. Throws like the providers (`AgentTurnFailure`, abort).
@@ -3200,6 +3206,16 @@ export function createAiService(
       if (state === 'signed_out' || state === 'signing_in') return 'none';
       if (state === 'expired') return 'expired';
       return state === 'connected' && !closed && gateOpen() ? 'ready' : 'unavailable';
+    },
+    assistReadsPictures(main = false) {
+      const current = settingsFor(null);
+      if (current.mode !== 'api') return true;
+      if (main) return modelReadsPictures('api', current.model || OPENAI_DEFAULT_MODEL);
+      const choice = taskCall('askEzy', current);
+      return modelReadsPictures(
+        'api',
+        choice.fast ? DRAFT_FAST_MODELS.api : choice.settings.model || OPENAI_DEFAULT_MODEL,
+      );
     },
     assist(call, signal) {
       if (!provider.assist)

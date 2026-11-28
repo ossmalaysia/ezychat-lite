@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import type { Picture } from './AskEzyPictures';
 
 /** What a button asks Ezy when it opens the panel (e.g. "Summarise this chat" from a conversation). */
 export interface AskEzyRequest {
@@ -6,6 +7,8 @@ export interface AskEzyRequest {
   chatJid?: string | null;
   /** Shown above the box while the question is about one chat. */
   chatName?: string | null;
+  /** Pictures for this question only; kept in the panel's memory for Ask again / Try again. */
+  pictures?: Picture[];
 }
 
 interface AskEzyState {

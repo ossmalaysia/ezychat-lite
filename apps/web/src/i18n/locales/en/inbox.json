@@ -886,7 +886,9 @@
       "list_scheduled_tasks_other": "{{count}} scheduled tasks",
       "propose_agent": "a new agent plan",
       "propose_scheduled_task": "a preview of the message",
-      "propose_scheduled_task_edit": "a change to a scheduled task"
+      "propose_scheduled_task_edit": "a change to a scheduled task",
+      "pictures_one": "your picture",
+      "pictures_other": "your {{count}} pictures"
     },
     "summariseButton": "Summarise with Ezy",
     "readyWith": "Answer ready: {{first}}",
@@ -924,6 +926,38 @@
       "agentStays": "Created. It stays, switched off: change it on its page.",
       "agentNeedsTask": "What should the new agent send, to which chat, and when? A new agent is set up together with its scheduled task.",
       "previewNotReady": "The preview took too long, so it is not shown. The task works the same."
+    },
+    "pictures": {
+      "add": "Add a picture",
+      "addHint": "Add a picture or screenshot (or paste one with Ctrl+V)",
+      "emptyHint": "You can also add a screenshot: paste it, drop it here or tap the picture button.",
+      "placeholder": "Ask about this picture, e.g. Why did the AI hand over?",
+      "tray": "Pictures for this question",
+      "alt": "Picture {{n}}",
+      "remove": "Remove picture {{n}}",
+      "count": "{{count}} of {{max}}",
+      "open": "Open picture {{n}}",
+      "viewer": "Picture",
+      "added_one": "Picture added",
+      "added_other": "{{count}} pictures added",
+      "removed": "Picture removed",
+      "drop": "Drop the picture to add it",
+      "problem": {
+        "type": "This file is not a picture Ezy can read. Use a JPEG, PNG or WebP picture.",
+        "size": "This picture is too large. Use one under 5 MB, or take a smaller screenshot.",
+        "count": "You can add up to {{max}} pictures to one question."
+      },
+      "errorSize": "The picture is too large",
+      "errorSizeBody": "Use a picture under 5 MB and ask again.",
+      "errorType": "Ezy can’t read this file",
+      "errorTypeBody": "Use a JPEG, PNG or WebP picture and ask again.",
+      "unavailable": "Ezy can’t read pictures with your AI connection",
+      "unavailableAdmin": "The AI model chosen for Ask Ezy doesn’t read pictures. Choose another one in Settings → AI → AI models, or describe what you see.",
+      "unavailableMember": "Describe what you see in words, or ask your admin to choose an AI model that reads pictures.",
+      "askWithout": "Ask without the picture",
+      "openModels": "Open AI models",
+      "gotIt": "OK",
+      "defaultQuestion": "What does this show?"
     }
   },
   "safety": {

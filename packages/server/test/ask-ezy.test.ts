@@ -9,6 +9,9 @@ import { createAiService } from '../src/ai/service.js';
 import { getChats } from '../src/wa-bridge/index.js';
 import { lineDiff } from '../src/ask-ezy/changes.js';
 import { ASK_EZY_PER_MINUTE } from '../src/routes/ask-ezy.js';
+import { modelReadsPictures } from '../src/ai/pictures.js';
+import { textChars } from '../src/ai/agent/assist.js';
+import { TASK_MODELS_KEY } from '../src/ai/task-models.js';
 import { makeTestApp, type TestApp } from './helpers.js';
 import { authHeaders } from './auth-helpers.js';
 
@@ -144,7 +147,7 @@ describe('Ask Ezy', () => {
       url: '/api/ask-ezy/status',
       headers: authHeaders(off.agentCookie),
     });
-    expect(status.json()).toEqual({ connected: false });
+    expect(status.json()).toEqual({ connected: false, pictures: true });
     const { res } = await ask(off.t, off.agentCookie, { question: 'How is my week?' });
     expect(res.statusCode).toBe(409);
     expect(res.json().error.code).toBe('ai_not_connected');
@@ -531,6 +534,236 @@ describe('Ask Ezy', () => {
     for (let i = 1; i < ASK_EZY_PER_MINUTE; i++) await ask(s.t, s.agentCookie, { question: 'q' });
     const limited = await ask(s.t, s.agentCookie, { question: 'one too many' });
     expect(limited.res.statusCode).toBe(429);
+  });
+});
+
+const jpeg = (bytes: number) =>
+  Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(bytes - 4, 7)]).toString(
+    'base64',
+  );
+const png = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.alloc(56, 1),
+]).toString('base64');
+type Part = {
+  type: string;
+  text?: string;
+  image?: string;
+  mediaType?: string;
+  providerOptions?: unknown;
+};
+
+describe('Ask Ezy pictures (design ask-ezy-image)', () => {
+  it('sends the pictures as high-detail image parts of the question only, and logs counts and sizes', async () => {
+    const s = await setup();
+    const big = jpeg(1_500_000); // above the app's 1 MB body limit: this route takes more
+    const { res, events } = await ask(s.t, s.agentCookie, {
+      question: 'What made this trigger?',
+      history: [
+        { role: 'user', text: 'Earlier\n[1 picture(s) attached to this question; not sent again]' },
+        { role: 'assistant', text: 'It was a discount.' },
+      ],
+      pictures: [{ base64: big }, { base64: png }],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(answerOf(events).text).toBe('Hello');
+    expect(events[0]).toEqual({ type: 'step', key: 'pictures', count: 2 });
+    expect(answerOf(events).steps[0]).toEqual({ key: 'pictures', count: 2 });
+    const messages = s.seen.calls[0]!.messages;
+    expect(messages.slice(0, 2).map((m) => typeof m.content)).toEqual(['string', 'string']);
+    const last = messages.at(-1)!.content as Part[];
+    expect(last.map((p) => p.type)).toEqual(['text', 'image', 'image']);
+    expect(last[0]!.text).toBe('What made this trigger?');
+    expect(last[1]).toMatchObject({
+      image: big,
+      mediaType: 'image/jpeg',
+      providerOptions: { openai: { imageDetail: 'high' } },
+    });
+    expect(last[2]).toMatchObject({ image: png, mediaType: 'image/png' });
+    const lines = s.logLines.join('\n');
+    expect(lines).toContain('"pictures":2');
+    expect(lines).toContain(`"pictureBytes":${1_500_000 + 64}`);
+    expect(lines).not.toContain(png.slice(0, 40));
+    expect(lines).not.toContain('What made this trigger');
+  });
+
+  it('sends a question without pictures as plain text', async () => {
+    const s = await setup();
+    const { events } = await ask(s.t, s.agentCookie, { question: 'How is my week?' });
+    expect(s.seen.calls[0]!.messages.at(-1)!.content).toBe('How is my week?');
+    expect(answerOf(events).steps).toEqual([]);
+    expect(s.logLines.join('\n')).not.toContain('"pictures"');
+  });
+
+  it('refuses a wrong type, a picture above 3.75 MB and a third picture before any model call', async () => {
+    const s = await setup();
+    const gif = Buffer.from('GIF89a' + 'x'.repeat(40)).toString('base64');
+    const wrong = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: gif }] });
+    expect(wrong.res.statusCode).toBe(415);
+    expect(wrong.res.json().error.code).toBe('picture_type');
+    const large = await ask(s.t, s.agentCookie, {
+      question: 'q',
+      pictures: [{ base64: jpeg(3_750_001) }],
+    });
+    expect(large.res.statusCode).toBe(413);
+    expect(large.res.json().error.code).toBe('picture_too_large');
+    const three = await ask(s.t, s.agentCookie, {
+      question: 'q',
+      pictures: [{ base64: png }, { base64: png }, { base64: png }],
+    });
+    expect(three.res.statusCode).toBe(400);
+    expect(s.provider.assist).not.toHaveBeenCalled();
+  });
+
+  it('counts a picture question against the minute before it decodes the pictures', async () => {
+    const s = await setup();
+    const gif = Buffer.from('GIF89a' + 'x'.repeat(40)).toString('base64');
+    for (let i = 0; i < ASK_EZY_PER_MINUTE; i++) {
+      const wrong = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: gif }] });
+      expect(wrong.res.statusCode).toBe(415);
+    }
+    const next = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: gif }] });
+    expect(next.res.statusCode).toBe(429);
+    expect(s.provider.assist).not.toHaveBeenCalled();
+  });
+
+  it('never reads the large body of a request without a session; other routes keep 1 MB', async () => {
+    const s = await setup();
+    // Not even valid JSON: parsing it would answer 400, so a 401 shows the body was never read.
+    const noSession = await s.t.app.inject({
+      method: 'POST',
+      url: '/api/ask-ezy',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'http://localhost',
+        host: 'localhost',
+      },
+      payload: '{' + 'x'.repeat(5_000_000),
+    });
+    expect(noSession.statusCode).toBe(401);
+    const other = await s.t.app.inject({
+      method: 'PUT',
+      url: '/api/ask-ezy/settings',
+      headers: authHeaders(s.adminCookie),
+      payload: { timeoutMinutes: 15, pad: 'x'.repeat(1_100_000) },
+    });
+    expect(other.statusCode).toBe(413);
+  });
+
+  it('says first when the Ask Ezy model cannot read pictures, and refuses them then', async () => {
+    const s = await setup();
+    const status = () =>
+      s.t.app
+        .inject({ method: 'GET', url: '/api/ask-ezy/status', headers: authHeaders(s.agentCookie) })
+        .then((r) => r.json());
+    expect(await status()).toEqual({ connected: true, pictures: true });
+    const ai = s.t.ctx.services.ai!;
+    ai.saveConnection(
+      { mode: 'api', model: 'o3-mini', apiKey: 'test-api-key-123' },
+      { userId: 1, ip: null },
+    );
+    // The row's default (Fast) runs gpt-4.1-mini, which reads pictures.
+    expect((await status()).pictures).toBe(true);
+    s.t.ctx.settings.set(TASK_MODELS_KEY, { api: { askEzy: { choice: 'main' } } });
+    expect(await status()).toEqual({ connected: true, pictures: false });
+    const refused = await ask(s.t, s.agentCookie, { question: 'q', pictures: [{ base64: png }] });
+    expect(refused.res.statusCode).toBe(409);
+    expect(refused.res.json().error.code).toBe('pictures_unavailable');
+    expect(s.provider.assist).not.toHaveBeenCalled();
+    // Without a picture the same model still answers.
+    expect((await ask(s.t, s.agentCookie, { question: 'q' })).res.statusCode).toBe(200);
+  });
+
+  it('shows a model failure on a picture question as the normal error, never as "cannot read pictures"', async () => {
+    const s = await setup();
+    // The adapters pass only our fixed text, so a refusal after the call is a plain failure.
+    s.setScript(async () => {
+      throw new AgentTurnFailure('OpenAI could not answer', 'provider', 'AI_APICallError', 400);
+    });
+    const withPicture = await ask(s.t, s.agentCookie, {
+      question: 'q',
+      pictures: [{ base64: png }],
+    });
+    expect(withPicture.events.at(-1)).toEqual({ type: 'error', code: 'ai_unavailable' });
+  });
+
+  it('gives a setup turn on a main model without pictures a note in their place', async () => {
+    const s = await setup();
+    s.t.ctx.services.ai!.saveConnection(
+      { mode: 'api', model: 'o3-mini', apiKey: 'test-api-key-123' },
+      { userId: 1, ip: null },
+    );
+    s.setScript(async (tools) => {
+      if (tools.start_setup) {
+        await exec(tools, 'start_setup', {});
+        return { text: 'Setting up', blocks: [], followUps: [] };
+      }
+      return { text: 'Which chat?', blocks: [], followUps: [] };
+    });
+    const { events } = await ask(s.t, s.adminCookie, {
+      question: 'Send this every morning',
+      pictures: [{ base64: png }],
+    });
+    expect(answerOf(events).text).toBe('Which chat?');
+    const [fast, setupCall] = s.seen.calls;
+    expect((fast!.messages.at(-1)!.content as Part[]).map((p) => p.type)).toEqual([
+      'text',
+      'image',
+    ]);
+    expect(setupCall!.main).toBe(true);
+    expect(setupCall!.messages.at(-1)!.content).toBe(
+      'Send this every morning\n[1 picture(s) were attached; this model cannot read them]',
+    );
+  });
+
+  it('keeps the pictures in a setup turn whose main model reads them', async () => {
+    const s = await setup();
+    s.setScript(async (tools) => {
+      if (tools.start_setup) await exec(tools, 'start_setup', {});
+      return { text: 'Which chat?', blocks: [], followUps: [] };
+    });
+    await ask(s.t, s.adminCookie, { question: 'Set this up', pictures: [{ base64: png }] });
+    const setupCall = s.seen.calls.find((c) => c.main)!;
+    expect((setupCall.messages.at(-1)!.content as Part[]).map((p) => p.type)).toEqual([
+      'text',
+      'image',
+    ]);
+  });
+});
+
+describe('textChars', () => {
+  it('counts text and tool parts but never the base64 of a picture', () => {
+    expect(
+      textChars([
+        { role: 'user', content: 'hello' },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'abc' },
+            { type: 'image', image: 'A'.repeat(1000), mediaType: 'image/png' },
+          ],
+        },
+      ]),
+    ).toBe(8);
+  });
+});
+
+describe('modelReadsPictures', () => {
+  it('knows the text-only OpenAI models and trusts every Claude and ChatGPT model', () => {
+    for (const id of [
+      'gpt-3.5-turbo',
+      'o3-mini',
+      'o1-mini',
+      'gpt-oss-120b',
+      'gpt-4',
+      'gpt-4-0613',
+      'davinci-002',
+    ])
+      expect(modelReadsPictures('api', id), id).toBe(false);
+    for (const id of ['gpt-4.1-mini', 'gpt-4o', 'gpt-5.1', 'o3', 'o4-mini', 'gpt-4-turbo'])
+      expect(modelReadsPictures('api', id), id).toBe(true);
+    expect(modelReadsPictures('claude', 'claude-haiku-5-5')).toBe(true);
+    expect(modelReadsPictures('chatgpt', 'o3-mini')).toBe(true);
   });
 });
 

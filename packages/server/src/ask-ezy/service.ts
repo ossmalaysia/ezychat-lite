@@ -27,6 +27,10 @@ import { createChangeStore, lineDiff, type ChangeStore } from './changes.js';
 import { askEzyInstructions } from './prompt.js';
 import { createSetupStore, type SetupStore } from './setup.js';
 import { askEzyTools } from './tools.js';
+import type { AiPromptImage } from '../ai/provider-types.js';
+
+/** Ask Ezy reads screenshots: OpenAI's high detail keeps their small text readable (agent replies use 'low'). */
+export const ASK_EZY_IMAGE_DETAIL = 'high';
 
 const MAX_BLOCKS = 8;
 const MAX_FOLLOW_UPS = 3;
@@ -61,7 +65,7 @@ export interface AskEzyService {
     ip: string | null,
   ): AskEzyChangeResult;
   /** `connected`: a question can be answered now (the panel checks it on open). */
-  status(): { connected: boolean };
+  status(): { connected: boolean; pictures: boolean };
   /** The admin's time limit for one question. */
   settings(): AskEzySettings;
   /** Saves the time limit; audited `settings.ask_ezy_timeout` with before/after when it changes. */
@@ -78,6 +82,8 @@ export interface AskEzyService {
     request: AskEzyRequest,
     emit: (event: AskEzyEvent) => void,
     signal: AbortSignal,
+    /** Checked pictures of this question only (design ask-ezy-image): never stored, never in the history. */
+    pictures?: readonly AiPromptImage[],
   ): Promise<void>;
 }
 
@@ -272,7 +278,10 @@ export function createAskEzyService(
     },
 
     status() {
-      return { connected: connection() === 'ready' };
+      return {
+        connected: connection() === 'ready',
+        pictures: ctx.services.ai?.assistReadsPictures?.() ?? true,
+      };
     },
 
     settings() {
@@ -293,7 +302,7 @@ export function createAskEzyService(
       return { timeoutMinutes: timeoutMinutes() };
     },
 
-    async ask(user, request, emit, signal) {
+    async ask(user, request, emit, signal, pictures = []) {
       const ai = ctx.services.ai;
       const state = connection();
       if (!ai || state === 'none')
@@ -333,14 +342,40 @@ export function createAskEzyService(
             if (call.ok) emit({ type: 'step', key: call.tool, count: call.count });
           },
         });
+      const history: ModelMessage[] = request.history.map((turn): ModelMessage =>
+        turn.role === 'user'
+          ? { role: 'user', content: turn.text }
+          : { role: 'assistant', content: turn.text },
+      );
+      // Pictures go only with their own question, as image parts (high detail: a screenshot's small text).
       const messages: ModelMessage[] = [
-        ...request.history.map((turn): ModelMessage =>
-          turn.role === 'user'
-            ? { role: 'user', content: turn.text }
-            : { role: 'assistant', content: turn.text },
-        ),
-        { role: 'user', content: request.question },
+        ...history,
+        pictures.length
+          ? {
+              role: 'user',
+              content: [
+                { type: 'text', text: request.question },
+                ...pictures.map((picture) => ({
+                  type: 'image' as const,
+                  image: picture.base64,
+                  mediaType: picture.mime,
+                  providerOptions: { openai: { imageDetail: ASK_EZY_IMAGE_DETAIL } },
+                })),
+              ],
+            }
+          : { role: 'user', content: request.question },
       ];
+      // Counts and sizes only, never the pictures.
+      const pictureLog = pictures.length
+        ? {
+            pictures: pictures.length,
+            pictureBytes: pictures.reduce((n, p) => n + Buffer.byteLength(p.base64, 'base64'), 0),
+          }
+        : {};
+      // The panel's first line while Ezy works ("Read your picture"), and the first item of "Ezy read".
+      const pictureStep = pictures.length ? [{ key: 'pictures', count: pictures.length }] : [];
+      for (const step of pictureStep) emit({ type: 'step', ...step });
+      const historyChars = JSON.stringify(history).length + JSON.stringify(request.question).length;
       const instructionsFor = (setupTurn: boolean) =>
         askEzyInstructions({
           isAdmin: user.role === 'admin',
@@ -378,6 +413,17 @@ export function createAskEzyService(
         );
         const instructions = instructionsFor(mode === 'setup');
         const tools = toolsFor(mode, turnSignal);
+        // A setup turn runs on the main model: one that cannot read pictures gets a note in their place.
+        const turnMessages =
+          mode === 'setup' && pictures.length && ai.assistReadsPictures?.(true) === false
+            ? [
+                ...history,
+                {
+                  role: 'user' as const,
+                  content: `${request.question}\n[${pictures.length} picture(s) were attached; this model cannot read them]`,
+                },
+              ]
+            : messages;
         // The fixed part every call of this turn starts with (what a prompt cache can hold), once per turn.
         log.info(
           {
@@ -390,14 +436,15 @@ export function createAskEzyService(
               0,
             ),
             historyMessages: messages.length,
-            historyChars: JSON.stringify(messages).length,
+            historyChars,
+            ...pictureLog,
           },
           'Ask Ezy turn start',
         );
         const work = ai.assist(
           {
             instructions,
-            messages,
+            messages: turnMessages,
             tools,
             ...(mode === 'setup' ? { main: true } : {}),
             onTrace: (trace) =>
@@ -447,7 +494,7 @@ export function createAskEzyService(
         const answer = AskEzyAnswer.parse({
           text: clip(result.output.text, 4000) || '…',
           blocks,
-          steps: mergeSteps(calls),
+          steps: [...pictureStep, ...mergeSteps(calls)].slice(0, 12),
           followUps: result.output.followUps
             .map((f) => clip(f, 200))
             .filter(Boolean)
@@ -467,6 +514,7 @@ export function createAskEzyService(
             model: result.model,
             ...(setupTurn ? { setup: true } : {}),
             ...(result.repaired ? { repaired: true } : {}),
+            ...pictureLog,
           },
           'Ask Ezy answered',
         );
@@ -516,6 +564,7 @@ export function createAskEzyService(
             setup: setupTurn,
             tools: calls.map((c) => c.tool),
             ms: Date.now() - started,
+            ...pictureLog,
           },
           'Ask Ezy could not answer',
         );
