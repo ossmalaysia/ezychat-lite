@@ -1613,6 +1613,8 @@ mock from its recorded revision (`git checkout <rev> -- docs/features/<f>/mock`)
 
 ## AI sales agent
 
+- A read tool the assistant needs to explain the app's own actions (which scheduled task sent a message) belongs in the normal Ask Ezy turn, not only the setup turn, and the message reader must name the sender kind (`scheduledTask`); otherwise Ezy answers "why was this sent" with a guess.
+
 - Routing an AI call to a chosen model: keep the provider's own meaning of a flag the tests and other callers read
   (`fast` on drafts, `main` on Ask Ezy as "setup turn"). AI models per task first sent every resolved model with
   `fast: false` / `main: true`, which kept behaviour but broke 25 Ask Ezy tests that detect a setup turn by `main`;

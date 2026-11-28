@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Ask Ezy can say why a scheduled message was sent.** Ask why a reminder went to a chat or group, and Ezy now finds the scheduled task that sent it and tells you its time, days and instruction.
 - **Send feedback takes short details.** Send no longer waits for 10 characters of details: any text is enough when a screenshot says the rest.
 
 ## [0.1.88] - 2026-11-27
