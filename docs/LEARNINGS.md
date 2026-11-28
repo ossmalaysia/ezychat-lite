@@ -170,6 +170,16 @@ into AGENTS.md.
   a baseline for the next feature. Fetch and re-read `latestConfirmed` and the folder list on
   `origin/main` before committing a mock: a PR that merged meanwhile can move the baseline and the
   retention target. Rebase by patching your file deltas onto a fresh copy of the new baseline.
+- A `latestConfirmed.gitRevision` from a squash-merged PR is often not in `main`'s history (`git show` says "bad
+  object"): clone the folder from `main`, record the folder's last commit there (`git log -1 -- <folder>`) as the
+  baseline revision, and say in `design.md` why it differs. In a cloud container the repo's `@playwright/test` may want a
+  browser that is not installed: run mock shot scripts with `PW_CHROMIUM=/opt/pw-browsers/chromium-*/chrome-linux*/chrome`.
+- A route that raises `bodyLimit` above the app's 1 MB checks the session in `onRequest`, never `preHandler`: Fastify
+  reads and parses the body before `preHandler`, so anyone without a session could send large bodies. Prove it with a
+  non-JSON large body that answers 401, not 400.
+- A git worktree must not symlink the whole `node_modules` of the main checkout: `node_modules/@ezychat/*` are relative
+  links, so they resolve to the **main checkout's** packages and tests silently run against old shared/server code.
+  Make a real `node_modules` folder, link each third-party entry, and link `@ezychat/*` to the worktree's own packages.
   Rebase onto `origin/main` before you write a confirmation's `gitRevision`: a rebase rewrites the
   hash of the mock commit, and the recorded revision must exist on the pushed branch. A branch stacked on
   an open PR rewrites it again when the base merges: update the revision after that last rebase.

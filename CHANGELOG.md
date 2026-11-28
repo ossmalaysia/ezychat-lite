@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Show Ezy a picture.** In Ask Ezy, add up to 2 screenshots or photos with the picture button, by pasting (Ctrl+V) or by dropping them on the box, and ask about them, for example "What made this trigger?". A picture alone asks "What does this show?". Pictures go to your AI connection with that one question only and are never saved. If the AI model chosen for Ask Ezy cannot read pictures, Ezy says so and an admin can pick another one in Settings → AI → AI models.
+
 ### Fixed
 
 - **Ask Ezy can say why a scheduled message was sent.** Ask why a reminder went to a chat or group, and Ezy now finds the scheduled task that sent it and tells you its time, days and instruction.

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { AskEzyAnswer, AskEzyBlock, AskEzyEvent, AskEzyRequest } from './ask-ezy';
+import {
+  ASK_EZY_PICTURE_BASE64_CHARS,
+  AskEzyAnswer,
+  AskEzyBlock,
+  AskEzyEvent,
+  AskEzyRequest,
+  AskEzyStatus,
+} from './ask-ezy';
 
 const hours = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
 
@@ -9,12 +16,41 @@ describe('Ask Ezy contract', () => {
       question: 'How is my week?',
       history: [],
       chatJid: null,
+      pictures: [],
     });
     expect(AskEzyRequest.safeParse({ question: '   ' }).success).toBe(false);
     expect(AskEzyRequest.safeParse({ question: 'x'.repeat(2001) }).success).toBe(false);
     expect(AskEzyRequest.safeParse({ question: 'hi', extra: 1 }).success).toBe(false);
     const history = Array.from({ length: 13 }, () => ({ role: 'user', text: 'q' }));
     expect(AskEzyRequest.safeParse({ question: 'hi', history }).success).toBe(false);
+  });
+
+  it('takes at most 2 pictures of base64 within the size cap', () => {
+    const picture = { base64: '/9j/4AAQ' };
+    expect(
+      AskEzyRequest.parse({ question: 'q', pictures: [picture, picture] }).pictures,
+    ).toHaveLength(2);
+    expect(
+      AskEzyRequest.safeParse({ question: 'q', pictures: [picture, picture, picture] }).success,
+    ).toBe(false);
+    expect(
+      AskEzyRequest.safeParse({ question: 'q', pictures: [{ base64: 'not base64!' }] }).success,
+    ).toBe(false);
+    expect(
+      AskEzyRequest.safeParse({
+        question: 'q',
+        pictures: [{ base64: 'A'.repeat(ASK_EZY_PICTURE_BASE64_CHARS + 4) }],
+      }).success,
+    ).toBe(false);
+    expect(
+      AskEzyRequest.safeParse({ question: 'q', pictures: [{ base64: 'AAAA', mime: 'image/png' }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it('reads an older status without the pictures flag as pictures readable', () => {
+    expect(AskEzyStatus.parse({ connected: true })).toEqual({ connected: true, pictures: true });
+    expect(AskEzyStatus.parse({ connected: true, pictures: false }).pictures).toBe(false);
   });
 
   it('accepts each of the seven block types', () => {

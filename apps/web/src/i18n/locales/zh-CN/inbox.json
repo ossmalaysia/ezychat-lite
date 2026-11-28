@@ -882,7 +882,9 @@
       "list_scheduled_tasks_other": "{{count}} 个定时任务",
       "propose_agent": "新代理方案",
       "propose_scheduled_task": "消息预览",
-      "propose_scheduled_task_edit": "定时任务的修改"
+      "propose_scheduled_task_edit": "定时任务的修改",
+      "pictures_one": "你的图片",
+      "pictures_other": "你的 {{count}} 张图片"
     },
     "summariseButton": "用 Ezy 总结聊天",
     "readyWith": "回答已就绪：{{first}}",
@@ -920,6 +922,38 @@
       "agentStays": "已创建。它会保留并处于关闭状态：请在它的页面中修改。",
       "agentNeedsTask": "新代理要发送什么、发给哪个聊天、什么时候发？新代理会和它的定时任务一起设置。",
       "previewNotReady": "预览耗时太长，所以没有显示。任务照常运行。"
+    },
+    "pictures": {
+      "add": "添加图片",
+      "addHint": "添加图片或截图（也可以用 Ctrl+V 粘贴）",
+      "emptyHint": "你也可以添加截图：粘贴、拖到这里，或点图片按钮。",
+      "placeholder": "问问这张图片，例如：AI 为什么转给团队？",
+      "tray": "这个问题的图片",
+      "alt": "图片 {{n}}",
+      "remove": "移除图片 {{n}}",
+      "count": "{{count}} / {{max}}",
+      "open": "打开图片 {{n}}",
+      "viewer": "图片",
+      "added_one": "已添加图片",
+      "added_other": "已添加 {{count}} 张图片",
+      "removed": "已移除图片",
+      "drop": "松开即可添加图片",
+      "problem": {
+        "type": "Ezy 读不了这个文件。请用 JPEG、PNG 或 WebP 图片。",
+        "size": "图片太大。请用小于 5 MB 的图片，或截一张小一点的图。",
+        "count": "一个问题最多可以添加 {{max}} 张图片。"
+      },
+      "errorSize": "图片太大",
+      "errorSizeBody": "请用小于 5 MB 的图片再问一次。",
+      "errorType": "Ezy 读不了这个文件",
+      "errorTypeBody": "请用 JPEG、PNG 或 WebP 图片再问一次。",
+      "unavailable": "你的 AI 连接无法读取图片",
+      "unavailableAdmin": "Ask Ezy 选用的 AI 模型不能读取图片。请在 设置 → AI → AI 模型 中换一个，或用文字描述你看到的内容。",
+      "unavailableMember": "请用文字描述你看到的内容，或请管理员选择能读取图片的 AI 模型。",
+      "askWithout": "不带图片提问",
+      "openModels": "打开 AI 模型",
+      "gotIt": "好",
+      "defaultQuestion": "这显示了什么？"
     }
   },
   "safety": {

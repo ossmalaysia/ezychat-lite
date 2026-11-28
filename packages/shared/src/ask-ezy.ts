@@ -22,11 +22,36 @@ export const AskEzyTurn = z.object({
 });
 export type AskEzyTurn = z.infer<typeof AskEzyTurn>;
 
+/**
+ * Pictures in a question (design docs/features/ask-ezy-image/design.md, owner 2026-11-27): at most 2, each a JPEG,
+ * PNG or WebP of at most 3.75 MB (the server reads the type from the bytes). Sent with their own question only; never
+ * stored or logged.
+ */
+export const ASK_EZY_MAX_PICTURES = 2;
+/**
+ * Bytes of one picture: its base64 stays within 5,000,000 characters, Anthropic's per-image limit (the strictest of
+ * the three connections). The panel scales to 2000 px and re-encodes a larger PNG as JPEG to stay under it.
+ */
+export const ASK_EZY_PICTURE_BYTES = 3_750_000;
+/** Base64 of one picture: a little above the limit, so a slightly larger one gets the size error, not a 400. */
+export const ASK_EZY_PICTURE_BASE64_CHARS = 5_200_000;
+/** The question a picture without words asks (the panel sends it in the user's language). */
+export const ASK_EZY_PICTURE_QUESTION = 'What does this show?';
+export const AskEzyPicture = z.strictObject({
+  base64: z
+    .string()
+    .min(4)
+    .max(ASK_EZY_PICTURE_BASE64_CHARS)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+});
+export type AskEzyPicture = z.infer<typeof AskEzyPicture>;
+
 /** `POST /api/ask-ezy` body. `chatJid` scopes the question to one chat (the conversation header button). */
 export const AskEzyRequest = z.strictObject({
   question: text(ASK_EZY_QUESTION_CHARACTERS),
   history: z.array(AskEzyTurn).max(ASK_EZY_HISTORY_TURNS).default([]),
   chatJid: z.string().min(1).max(200).nullable().default(null),
+  pictures: z.array(AskEzyPicture).max(ASK_EZY_MAX_PICTURES).default([]),
 });
 export type AskEzyRequest = z.infer<typeof AskEzyRequest>;
 
@@ -279,5 +304,9 @@ export type AskEzySettings = z.infer<typeof AskEzySettings>;
 export const AskEzySettingsUpdate = z.strictObject({ timeoutMinutes: AskEzyTimeoutMinutes });
 export type AskEzySettingsUpdate = z.infer<typeof AskEzySettingsUpdate>;
 
-export const AskEzyStatus = z.object({ connected: z.boolean() });
+export const AskEzyStatus = z.object({
+  connected: z.boolean(),
+  /** false: the AI model Ask Ezy uses cannot read pictures (the panel says so instead of opening the picker). */
+  pictures: z.boolean().default(true),
+});
 export type AskEzyStatus = z.infer<typeof AskEzyStatus>;
